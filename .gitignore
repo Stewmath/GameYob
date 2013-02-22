@@ -1,0 +1,6 @@
+*.[oad]
+*~
+*.swp
+*.elf
+*.nds
+build/
