@@ -378,7 +378,7 @@ int runOpcode(int cycles) {
 			case 0xF9:		// LD SP, hl	8
 				locSP = hl.w;
 				break;
-			case 0xF8:		// LDhl SP, n   12
+			case 0xF8:		// LDHL SP, n   12
                 {
 				int sval = (s8)quickRead(locPC++);
 				int val = (locSP + sval)&0xFFFF;
@@ -1569,7 +1569,7 @@ int runOpcode(int cycles) {
                         }
 					case 0x16:		// RL (hl)			16
                         {
-						int val2 = readMemory(hl.w);
+						u8 val2 = readMemory(hl.w);
 						int val = (val2 & 0x80);
 						val2 <<= 1;
 						val2 |= carrySet();
@@ -1616,7 +1616,7 @@ int runOpcode(int cycles) {
                         }
 					case 0x0E:		// RRC (hl)				16
                         {
-						int val2 = readMemory(hl.w);
+						u8 val2 = readMemory(hl.w);
 						int val = val2;
 						val2 >>= 1;
 						if ((val & 1) != 0)
@@ -1664,7 +1664,7 @@ int runOpcode(int cycles) {
                         }
 					case 0x1E:		// RR (hl)			16
                         {
-						int val2 = readMemory(hl.w);
+						u8 val2 = readMemory(hl.w);
 						int val = val2 & 1;
 						val2 >>= 1;
 						val2 |= carrySet() << 7;
@@ -1710,7 +1710,7 @@ int runOpcode(int cycles) {
                         }
 					case 0x26:		// SLA (hl)			16
                         {
-						int val2 = readMemory(hl.w);
+						u8 val2 = readMemory(hl.w);
 						int val = (val2 & 0x80);
 						val2 <<= 1;
 						if (val)
@@ -1756,7 +1756,7 @@ int runOpcode(int cycles) {
 					case 0x2E:		// SRA (hl)			16
                         {
 						int val = readMemory(hl.w);
-						if ((val & 1) == 1)
+						if (val & 1)
 							setCFlag();
 						else
 							clearCFlag();
