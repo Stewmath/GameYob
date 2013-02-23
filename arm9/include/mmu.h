@@ -34,9 +34,11 @@ void latchClock();
 extern int numRomBanks;
 extern int numRamBanks;
 
-// biosEnabled is whether the bios should be used
+// whether the bios exists and has been loaded
+extern bool biosExists;
+// whether the bios should be used
 extern bool biosEnabled;
-// biosOn is whether the bios is mapped to memory
+// whether the bios is mapped to memory
 extern bool biosOn;
 
 extern u8 bios[0x900];

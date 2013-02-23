@@ -47,7 +47,10 @@ void consoleOutputFunc(int value) {
 }
 
 void biosEnableFunc(int value) {
-    biosEnabled = value;
+    if (biosExists)
+        biosEnabled = value;
+    else
+        biosEnabled = 0;
 }
 
 void frameskipFunc(int value) {

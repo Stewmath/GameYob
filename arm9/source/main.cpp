@@ -45,7 +45,8 @@ int main(int argc, char* argv[])
 
 	FILE* file;
 	file = fopen("gbc_bios.bin", "rb");
-    if (file != NULL) {
+    biosExists = file != NULL;
+    if (biosExists) {
         fread(bios, 1, 0x900, file);
         biosEnabled = true;
     }

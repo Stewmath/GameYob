@@ -35,8 +35,9 @@ int numRomBanks=0;
 int numRamBanks=0;
 
 u8 bios[0x900];
-bool biosOn = false;
+bool biosExists = false;
 bool biosEnabled = false;
+bool biosOn = false;
 
 u8* memory[0x10];
 u8* rom[MAX_ROM_BANKS];
