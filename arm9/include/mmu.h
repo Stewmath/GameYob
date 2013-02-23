@@ -34,7 +34,11 @@ void latchClock();
 extern int numRomBanks;
 extern int numRamBanks;
 
-extern int biosOn;
+// biosEnabled is whether the bios should be used
+extern bool biosEnabled;
+// biosOn is whether the bios is mapped to memory
+extern bool biosOn;
+
 extern u8 bios[0x900];
 
 // memory[x][yyy] = ram value at xyyy

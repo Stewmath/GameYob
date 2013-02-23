@@ -23,7 +23,7 @@ void initializeGameboy() {
     initMMU();
 	initCPU();
 	initLCD();
-	//initGFX();
+	initGFX();
 	initSND();
 }
 
@@ -39,13 +39,23 @@ int main(int argc, char* argv[])
 
     initConsole();
 	initInput();
-    initGFX();
+
+    if (argc < 2)
+        chdir("/lameboy");
+
+	FILE* file;
+	file = fopen("gbc_bios.bin", "rb");
+    if (file != NULL) {
+        fread(bios, 1, 0x900, file);
+        biosEnabled = true;
+    }
+    else
+        biosEnabled = false;
 
     if (argc >= 2) {
         loadProgram(argv[1]);
     }
     else {
-        chdir("/lameboy");
         loadProgram(startFileChooser());
     }
 

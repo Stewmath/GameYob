@@ -233,6 +233,39 @@ void initGFX()
     colors[1] = 192;
     colors[2] =  94;
     colors[3] = 0;
+
+
+    sprPaletteData[0] = 0xff;
+    sprPaletteData[1] = 0xff;
+    sprPaletteData[2] = 0x15|((0x15&7)<<5);
+    sprPaletteData[3] = (0x15>>3)|(0x15<<2);
+    sprPaletteData[4] = 0xa|((0xa&7)<<5);
+    sprPaletteData[5] = (0xa>>3)|(0xa<<2);
+    sprPaletteData[6] = 0;
+    sprPaletteData[7] = 0;
+    sprPaletteData[8] = 0xff;
+    sprPaletteData[9] = 0xff;
+    sprPaletteData[10] = 0x15|((0x15&7)<<5);
+    sprPaletteData[11] = (0x15>>3)|(0x15<<2);
+    sprPaletteData[12] = 0xa|((0xa&7)<<5);
+    sprPaletteData[13] = (0xa>>3)|(0xa<<2);
+    sprPaletteData[14] = 0;
+    sprPaletteData[15] = 0;
+    bgPaletteData[0] = 0xff;
+    bgPaletteData[1] = 0xff;
+    bgPaletteData[2] = 0x15|((0x15&7)<<5);
+    bgPaletteData[3] = (0x15>>3)|(0x15<<2);
+    bgPaletteData[4] = 0xa|((0xa&7)<<5);
+    bgPaletteData[5] = (0xa>>3)|(0xa<<2);
+    bgPaletteData[6] = 0;
+    bgPaletteData[7] = 0;
+    /*
+                int red = (bgPaletteData[(paletteid*8)+(id*2)]&0x1F);
+                int green = (((bgPaletteData[(paletteid*8)+(id*2)]&0xE0) >> 5) |
+                        ((bgPaletteData[(paletteid*8)+(id*2)+1]) & 0x3) << 3);
+                int blue = ((bgPaletteData[(paletteid*8)+(id*2)+1] >> 2) & 0x1F);
+    */
+
     WIN_IN = (0x7) | (1<<4) | (0xc<<8) | (1<<12); // enable backgrounds and sprites
     WIN_OUT = 0;
     WIN1_X0 = screenOffsX;
@@ -469,44 +502,34 @@ void drawScreen()
         const int multiplier = 3;
         if (spritePaletteModified[paletteid]) {
             spritePaletteModified[paletteid] = false;
-            if (gbMode == GB) {
-                int val = ioRam[0x48+paletteid];
-                u8 palette[] = {val&3, (val>>2)&3, (val>>4)&3, (val>>6)};
-                SPRITE_PALETTE[(paletteid*16)+1] = RGB8(colors[palette[1]], colors[palette[1]], colors[palette[1]]);
-                SPRITE_PALETTE[(paletteid*16)+2] = RGB8(colors[palette[2]], colors[palette[2]], colors[palette[2]]);
-                SPRITE_PALETTE[(paletteid*16)+3] = RGB8(colors[palette[3]], colors[palette[3]], colors[palette[3]]);
-            }
-            else {
-                for (int i=0; i<4; i++)
-                {
-                    int red = (sprPaletteData[(paletteid*8)+(i*2)]&0x1F);
-                    int green = (((sprPaletteData[(paletteid*8)+(i*2)]&0xE0) >> 5) |
-                            ((sprPaletteData[(paletteid*8)+(i*2)+1]) & 0x3) << 3);
-                    int blue = ((sprPaletteData[(paletteid*8)+(i*2)+1] >> 2) & 0x1F);
+            for (int i=0; i<4; i++) {
+                int id;
+                if (gbMode == GB)
+                    id = (ioRam[0x48+paletteid]>>(i*2))&3;
+                else
+                    id = i;
+                int red = (sprPaletteData[(paletteid*8)+(id*2)]&0x1F);
+                int green = (((sprPaletteData[(paletteid*8)+(id*2)]&0xE0) >> 5) |
+                        ((sprPaletteData[(paletteid*8)+(id*2)+1]) & 0x3) << 3);
+                int blue = ((sprPaletteData[(paletteid*8)+(id*2)+1] >> 2) & 0x1F);
 
-                    SPRITE_PALETTE[((paletteid)*16)+i] = RGB8(red<<multiplier, green<<multiplier, blue<<multiplier);
-                }
+                SPRITE_PALETTE[((paletteid)*16)+i] = RGB8(red<<multiplier, green<<multiplier, blue<<multiplier);
             }
         }
         if (bgPaletteModified[paletteid]) {
             bgPaletteModified[paletteid] = false;
-            if (gbMode == GB) {
-                int val = ioRam[0x47];
-                u8 palette[] = {val&3, (val>>2)&3, (val>>4)&3, (val>>6)};
-                BG_PALETTE[1] = RGB8(colors[palette[0]], colors[palette[0]], colors[palette[0]]);
-                BG_PALETTE[2] = RGB8(colors[palette[1]], colors[palette[1]], colors[palette[1]]);
-                BG_PALETTE[3] = RGB8(colors[palette[2]], colors[palette[2]], colors[palette[2]]);
-                BG_PALETTE[4] = RGB8(colors[palette[3]], colors[palette[3]], colors[palette[3]]);
-            }
-            else {
-                for (int i=0; i<4; i++) {
-                    int red = (bgPaletteData[(paletteid*8)+(i*2)]&0x1F);
-                    int green = (((bgPaletteData[(paletteid*8)+(i*2)]&0xE0) >> 5) |
-                            ((bgPaletteData[(paletteid*8)+(i*2)+1]) & 0x3) << 3);
-                    int blue = ((bgPaletteData[(paletteid*8)+(i*2)+1] >> 2) & 0x1F);
+            for (int i=0; i<4; i++) {
+                int id;
+                if (gbMode == GB)
+                    id = (ioRam[0x47]>>(i*2))&3;
+                else
+                    id = i;
+                int red = (bgPaletteData[(paletteid*8)+(id*2)]&0x1F);
+                int green = (((bgPaletteData[(paletteid*8)+(id*2)]&0xE0) >> 5) |
+                        ((bgPaletteData[(paletteid*8)+(id*2)+1]) & 0x3) << 3);
+                int blue = ((bgPaletteData[(paletteid*8)+(id*2)+1] >> 2) & 0x1F);
 
-                    BG_PALETTE[((paletteid)*16)+i+1] = RGB8(red<<multiplier, green<<multiplier, blue<<multiplier);
-                }
+                BG_PALETTE[((paletteid)*16)+i+1] = RGB8(red<<multiplier, green<<multiplier, blue<<multiplier);
             }
         }
     }

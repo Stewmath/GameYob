@@ -138,8 +138,7 @@ void initCPU()
 	ioRam[0x4d] = 0x00;
 	ioRam[0xff] = 0x00;
 
-    // Old bios code from old PC version
-	biosOn = 0;
+    biosOn = biosEnabled;
 	if (biosOn)
 	{
 		gbPC = 0;

@@ -4,6 +4,7 @@
 #include "gbsnd.h"
 #include "main.h"
 #include "gameboy.h"
+#include "mmu.h"
 
 const int screenTileWidth = 32;
 bool consoleDebugOutput = false;
@@ -44,6 +45,11 @@ void consoleOutputFunc(int value) {
         consoleDebugOutput = true;
     }
 }
+
+void biosEnableFunc(int value) {
+    biosEnabled = value;
+}
+
 void frameskipFunc(int value) {
     frameskip = value;
 }
@@ -122,12 +128,12 @@ struct ConsoleSubMenu {
 ConsoleSubMenu menuList[] = { 
     {
         "Options",
-        5,
-        {0,2,3,0,0},
-        {"Load ROM", "Game Screen", "Console Output", "Reset", "Return to game"},
-        {{},{"Top","Bottom"},{"Off","FPS","Debug"},{},{}},
-        {selectRomFunc, setScreenFunc, consoleOutputFunc, resetFunc, returnFunc},
-        {0,0,1,0,0}
+        6,
+        {0,2,3,2,0,0},
+        {"Load ROM", "Game Screen", "Console Output", "GBC Bios", "Reset", "Return to game"},
+        {{},{"Top","Bottom"},{"Off","FPS","Debug"},{"Off","On"},{},{}},
+        {selectRomFunc, setScreenFunc, consoleOutputFunc, biosEnableFunc, resetFunc, returnFunc},
+        {0,0,1,1,0,0}
     },
     {
         "Debug",

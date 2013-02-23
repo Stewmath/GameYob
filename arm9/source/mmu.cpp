@@ -34,10 +34,9 @@ clockStruct gbClock;
 int numRomBanks=0;
 int numRamBanks=0;
 
-#ifndef DS
 u8 bios[0x900];
-#endif
-int biosOn = 0;
+bool biosOn = false;
+bool biosEnabled = false;
 
 u8* memory[0x10];
 u8* rom[MAX_ROM_BANKS];
@@ -72,7 +71,10 @@ void initMMU()
     currentRamBank = 0;
     memoryModel = 1;
 
-    memory[0x0] = rom[0];
+    if (biosEnabled)
+        memory[0x0] = bios;
+    else
+        memory[0x0] = rom[0];
     memory[0x1] = rom[0]+0x1000;
     memory[0x2] = rom[0]+0x2000;
     memory[0x3] = rom[0]+0x3000;
@@ -201,21 +203,11 @@ void writeVram16(u16 dest, u16 src) {
 
 u8 readMemory(u16 addr)
 {
-#ifdef GBDEBUG
-    if (((addr >= 0x4000 && addr < 0x8000) && ((addr - 0x4000) == readWatchAddr) && (currentRomBank == bankWatchAddr)) ||
-            (!(addr >= 0x4000 && addr < 0x8000) && addr == readWatchAddr))
-    {
-        debugMode = 1;
-        printf("debugging\n");
-    }
-#endif
     switch (addr & 0xF000)
     {
         case 0x0000:
-#ifndef DS
-            if (biosOn && (addr < 0x100 || addr >= 0x200))
+            if (biosOn)
                 return bios[addr];
-#endif
         case 0x1000:
         case 0x2000:
         case 0x3000:
@@ -626,8 +618,9 @@ void writeMemory(u16 addr, u8 val)
                     // Special register, used by the gameboy bios
                 case 0xFF50:
                     biosOn = 0;
+                    memory[0x0] = rom[0];
                     if (rom[0][0x143] == 0x80 || rom[0][0x143] == 0xC0)
-                        gbMode == CGB;
+                        gbMode = CGB;
                     else
                         gbMode = GB;
                     return;
