@@ -7,7 +7,7 @@ endif
 
 include $(DEVKITARM)/ds_rules
 
-export GAME_TITLE	:=	GameYob Version 0.1.1
+export GAME_TITLE	:=	GameYob Version 0.1.2
 export GAME_SUBTITLE1	:=	A Gameboy emulator for DS
 export GAME_SUBTITLE2	:=	Author: Drenn
 export GAME_ICON	:=	$(CURDIR)/icon.bmp
