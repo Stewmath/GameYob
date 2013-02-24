@@ -206,7 +206,7 @@ int displayConsole() {
         printf("\n\n");
 
         for (int i=0; i<menuList[menu].numOptions; i++) {
-            if (menuList[menu].optionValues[i][0] == 0) {
+            if (menuList[menu].numSelections[i] == 0) {
                 for (int j=0; j<(32-strlen(menuList[menu].options[i]))/2-2; j++)
                     printf(" ");
                 if (i == option)
