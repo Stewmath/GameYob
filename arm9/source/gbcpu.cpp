@@ -1,4 +1,3 @@
-//#define GBDEBUG
 #ifndef DS
 #include <string.h>
 #endif
@@ -38,7 +37,6 @@ int halt;
 int debugMode=0;
 
 u8 buttonsPressed = 0xff;
-int interruptTriggered;
 int fps;
 int gbMode;
 
@@ -152,77 +150,83 @@ void initCPU()
 		else
 			gbMode = GB;
 	}
-
-    interruptTriggered = 0;
 }
 
 void enableInterrupts()
 {
 	ime = 1;
-    interruptTriggered = ioRam[0xff] & ioRam[0x0f];
+    if (ioRam[0x0f] & ioRam[0xff])
+        cyclesToExecute = 0;
 }
 
 void disableInterrupts()
 {
 	ime = 0;
-    interruptTriggered = 0;
 }
 
 void handleInterrupts()
 {
-	if (interruptTriggered & VBLANK)
+    int interruptTriggered = ioRam[0x0F] & ioRam[0xFF];
+    if (interruptTriggered & VBLANK)
 	{
-		writeMemory(--gbSP, (gbPC) >> 8);
-		writeMemory(--gbSP, gbPC & 0xFF);
-		gbPC = 0x40;
-		ioRam[0x0F] &= ~VBLANK;
 		halt = 0;
-        ime = 0;
-        interruptTriggered = 0;
+        if (ime) {
+            writeMemory(--gbSP, (gbPC) >> 8);
+            writeMemory(--gbSP, gbPC & 0xFF);
+            gbPC = 0x40;
+            ioRam[0x0F] &= ~VBLANK;
+            ime = 0;
+        }
 	}
     else if (interruptTriggered & LCD)
 	{
-		writeMemory(--gbSP, (gbPC) >> 8);
-		writeMemory(--gbSP, gbPC & 0xFF);
-		gbPC = 0x48;
-		ioRam[0x0F] &= ~LCD;
 		halt = 0;
-        ime = 0;
-        interruptTriggered = 0;
+        if (ime) {
+            writeMemory(--gbSP, (gbPC) >> 8);
+            writeMemory(--gbSP, gbPC & 0xFF);
+            gbPC = 0x48;
+            ioRam[0x0F] &= ~LCD;
+            ime = 0;
+        }
 	}
     else if (interruptTriggered & TIMER)
 	{
-		writeMemory(--gbSP, (gbPC) >> 8);
-		writeMemory(--gbSP, gbPC & 0xFF);
-		gbPC = 0x50;
-		ioRam[0x0F] &= ~TIMER;
 		halt = 0;
-        ime = 0;
-        interruptTriggered = 0;
+        if (ime) {
+            writeMemory(--gbSP, (gbPC) >> 8);
+            writeMemory(--gbSP, gbPC & 0xFF);
+            gbPC = 0x50;
+            ioRam[0x0F] &= ~TIMER;
+            ime = 0;
+        }
 	}
 	// Serial IO would go here
 	else if (interruptTriggered & JOYPAD)
 	{
-		writeMemory(--gbSP, (gbPC) >> 8);
-		writeMemory(--gbSP, gbPC & 0xFF);
-		gbPC = 0x60;
-		ioRam[0x0F] &= ~JOYPAD;
         halt = 0;
-        ime = 0;
-        interruptTriggered = 0;
+        if (ime) {
+            writeMemory(--gbSP, (gbPC) >> 8);
+            writeMemory(--gbSP, gbPC & 0xFF);
+            gbPC = 0x60;
+            ioRam[0x0F] &= ~JOYPAD;
+            ime = 0;
+            interruptTriggered = 0;
+        }
     }
 }
 
 u8* const reg8[] = {&bc.b.h,&bc.b.l,&de.b.h,&de.b.l,&hl.b.h,&hl.b.l,0,&af.b.h};
 
+int cyclesToExecute;
 int runOpcode(int cycles) {
+    cyclesToExecute = cycles;
     // Having these commonly-used registers in local variables should improve speed
     int locPC=gbPC;
     int locSP=gbSP;
 
 	int totalCycles=0;
 
-	while (totalCycles < cycles)
+	while (totalCycles < cyclesToExecute)
 	{
 		u8 opcode = quickRead(locPC++);
 		totalCycles += opCycles[opcode];

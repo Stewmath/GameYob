@@ -103,10 +103,10 @@ ScanlineStruct *renderingState = scanlineBuffers[1];
 
 typedef struct
 {
-	u16 attr0;
-	u16 attr1;
-	u16 attr2;
-	u16 affine_data;
+    u16 attr0;
+    u16 attr1;
+    u16 attr2;
+    u16 affine_data;
 } spriteEntry;
 
 #define sprites ((spriteEntry*)OAM)
@@ -194,7 +194,7 @@ void vblankHandler()
 
 void initGFX()
 {
-	tileSize = 8;
+    tileSize = 8;
 
     vramSetBankA(VRAM_A_MAIN_BG);
     vramSetBankB(VRAM_B_MAIN_BG);
@@ -202,7 +202,7 @@ void initGFX()
 
 
     // Backdrop
-	BG_PALETTE[0] = RGB8(0,0,0);
+    BG_PALETTE[0] = RGB8(0,0,0);
 
     map[0] = BG_MAP_RAM(map_base[0]);
     map[1] = BG_MAP_RAM(map_base[1]);
@@ -226,8 +226,8 @@ void initGFX()
     BG_PALETTE[8*16+1] = RGB8(255,255,255);
 
     int i=0;
-	for (i=40; i<128; i++)
-		sprites[i].attr0 = ATTR0_DISABLED;
+    for (i=40; i<128; i++)
+        sprites[i].attr0 = ATTR0_DISABLED;
 
     colors[0] = 255;
     colors[1] = 192;
@@ -259,12 +259,6 @@ void initGFX()
     bgPaletteData[5] = (0xa>>3)|(0xa<<2);
     bgPaletteData[6] = 0;
     bgPaletteData[7] = 0;
-    /*
-                int red = (bgPaletteData[(paletteid*8)+(id*2)]&0x1F);
-                int green = (((bgPaletteData[(paletteid*8)+(id*2)]&0xE0) >> 5) |
-                        ((bgPaletteData[(paletteid*8)+(id*2)+1]) & 0x3) << 3);
-                int blue = ((bgPaletteData[(paletteid*8)+(id*2)+1] >> 2) & 0x1F);
-    */
 
     WIN_IN = (0x7) | (1<<4) | (0xc<<8) | (1<<12); // enable backgrounds and sprites
     WIN_OUT = 0;
@@ -277,22 +271,22 @@ void initGFX()
     WIN0_X1 = screenOffsX+160;
     WIN0_Y1 = screenOffsY+144;
 
-	videoSetMode(MODE_0_2D | DISPLAY_BG0_ACTIVE | DISPLAY_BG1_ACTIVE | DISPLAY_BG2_ACTIVE | DISPLAY_BG3_ACTIVE | DISPLAY_WIN0_ON | DISPLAY_WIN1_ON | DISPLAY_SPR_ACTIVE | DISPLAY_SPR_1D);
+    videoSetMode(MODE_0_2D | DISPLAY_BG0_ACTIVE | DISPLAY_BG1_ACTIVE | DISPLAY_BG2_ACTIVE | DISPLAY_BG3_ACTIVE | DISPLAY_WIN0_ON | DISPLAY_WIN1_ON | DISPLAY_SPR_ACTIVE | DISPLAY_SPR_1D);
 
     REG_DISPSTAT &= 0xFF;
     REG_DISPSTAT |= (144+screenOffsY)<<8;
 
-	irqEnable(IRQ_VCOUNT);
-	irqEnable(IRQ_HBLANK);
-	irqEnable(IRQ_VBLANK);
+    irqEnable(IRQ_VCOUNT);
+    irqEnable(IRQ_HBLANK);
+    irqEnable(IRQ_VBLANK);
     irqSet(IRQ_VBLANK, &vblankHandler);
-	irqSet(IRQ_HBLANK, &hblankHandler);
+    irqSet(IRQ_HBLANK, &hblankHandler);
 
-	for (i=0; i<0x180; i++)
-	{
+    for (i=0; i<0x180; i++)
+    {
         drawTile(i, 0);
-		drawTile(i, 1);
-	}
+        drawTile(i, 1);
+    }
 }
 
 void disableScreen() {
@@ -338,7 +332,6 @@ void updateTileMap(int m, int i, u8 val) {
         overlayMapBuf[m][i] = 0x300;
     }
     mapBuf[m][i] = (tileNum+(bank*0x100)) | (paletteid<<12) | (flipX<<10) | (flipY<<11);
-    // TODO: make this a temporary buffer also?
     blankMapBuf[m][i] = paletteid<<12;
 }
 
@@ -354,44 +347,22 @@ void drawTile(int tileNum, int bank) {
     bool unsign = tileNum < 0x100;
     bool sign = tileNum >= 0x80;
     for (y=0; y<8; y++) {
-        /*
-        if (tileNum < 0x100) {
-            SPRITE_GFX[index] = 0;
-            SPRITE_GFX[index+1] = 0;
-            BG_GFX[0x8000+index] = 0;
-            BG_GFX[0x8000+index+1] = 0;
-//            BG_GFX[0x10000+index] = 0;
-//            BG_GFX[0x10000+index+1] = 0;
-        }
-        if (tileNum >= 0x80) {
-//            SPRITE_GFX[0x2000+index] = 0;
-//            SPRITE_GFX[0x2000+index+1] = 0;
-            BG_GFX[0x10000+signedIndex] = 0;
-            BG_GFX[0x10000+signedIndex+1] = 0;
-//            BG_GFX[0x14000+signedIndex] = 0;
-//            BG_GFX[0x14000+signedIndex+1] = 0;
-        }
-        */
         u8 b1=vram[bank][(tileNum<<4)+(y<<1)];
         u8 b2=vram[bank][(tileNum<<4)+(y<<1)+1];
         int bb[] = {0,0};
         int sb[] = {0,0};
-		for (x=0; x<8; x++) {
-			int colorid;
-			colorid = !!(b1&0x80);
-			colorid |= !!(b2&0x80)<<1;
+        for (x=0; x<8; x++) {
+            int colorid;
+            colorid = !!(b1&0x80);
+            colorid |= !!(b2&0x80)<<1;
             b1 <<= 1;
             b2 <<= 1;
-            /*
-			colorid = !!(vram[bank][(tileNum<<4)+(y<<1)] & (0x80>>x));
-			colorid |= !!(vram[bank][(tileNum<<4)+(y<<1)+1] & (0x80>>x))<<1;
-            */
 
             if (colorid != 0)
                 bb[x/4] |= ((colorid+1)<<((x%4)*4));
             if (unsign)
                 sb[x/4] |= (colorid<<((x%4)*4));
-		}
+        }
         if (unsign) {
             BG_GFX[0x8000+index] = bb[0];
             BG_GFX[0x8000+index+1] = bb[1];
@@ -414,9 +385,9 @@ void copyTile(u8 *src,u16 *dest) {
         dest[y*2+1] = 0;
         int index = y*2;
         for (int x=0; x<8; x++) {
-			int colorid;
-			colorid = !!(src[index] & (0x80>>x));
-			colorid |= !!(src[index+1] & (0x80>>x))<<1;
+            int colorid;
+            colorid = !!(src[index] & (0x80>>x));
+            colorid |= !!(src[index+1] & (0x80>>x))<<1;
             int orValue = (colorid<<((x%4)*4));
             dest[y*2+x/4] |= orValue;
         }
@@ -433,13 +404,6 @@ void drawScreen()
     DC_FlushRange(overlayMapBuf[1], 0x400*2);
 
     swiIntrWait(interruptWaitMode, IRQ_VCOUNT);
-    /*
-    if (ioRam[0x40] & 0x80) {
-        enableScreen();
-    }
-    else
-        disableScreen();
-    */
 
     dmaCopy(mapBuf[0], map[0], 0x400*2);
     dmaCopy(mapBuf[1], map[1], 0x400*2);
@@ -455,48 +419,15 @@ void drawScreen()
     drawingState = tmp;
 
     /*
-    if (drawingState[0].spritesOn)
-        REG_DISPCNT |= DISPLAY_SPR_ACTIVE;
-    */
+       if (drawingState[0].spritesOn)
+       REG_DISPCNT |= DISPLAY_SPR_ACTIVE;
+       */
 
     // Check we're actually done drawing the screen.
-    // Without this check some bad flickering occurs for lagging games...
     if (REG_VCOUNT >= screenOffsY+144) {
         REG_DISPCNT |= DISPLAY_SPR_ACTIVE;
     }
 
-
-//	frameSkipCnt--;
-//	if (frameSkipCnt >= 0)
-//		return;
-//	frameSkipCnt = frameSkip;
-
-    // Maps
-    /*
-    for (int m=0; m<2; m++) {
-        int mapAddr = (m==0 ? 0x1800 : 0x1c00);
-        for (i=0; i<0x400; i++)
-        {
-            int tileNum = vram[0][mapAddr];
-
-            int bank=0;
-            int flipX = 0, flipY = 0;
-            int paletteid = 0;
-            int priority = 0;
-
-            if (gbMode == CGB)
-            {
-                flipX = !!(vram[1][mapAddr] & 0x20);
-                flipY = !!(vram[1][mapAddr] & 0x40);
-                bank = !!(vram[1][mapAddr] & 0x8);
-                paletteid = vram[1][mapAddr] & 0x7;
-                priority = !!(vram[1][mapAddr] & 0x80);
-            }
-            map[m][i] = (tileNum+(bank*0x100)) | (paletteid<<12) | (flipX<<10) | (flipY<<11);
-            mapAddr++;
-        }
-    }
-    */
     // Palettes
     for (int paletteid=0; paletteid<8; paletteid++) {
         const int multiplier = 3;
@@ -595,23 +526,23 @@ void drawScanline(int scanline)
     } 
     renderingState[scanline].modified = true;
     lineModified = false;
-	renderingState[scanline].hofs = ioRam[0x43];
-	renderingState[scanline].vofs = ioRam[0x42];
+    renderingState[scanline].hofs = ioRam[0x43];
+    renderingState[scanline].vofs = ioRam[0x42];
     renderingState[scanline].winX = ioRam[0x4b];
     renderingState[scanline].winY = ioRam[0x4a];
 
-	if (ioRam[0x40] & 0x10)
-		tileSigned = 0;
-	else
-		tileSigned = 1;
-	if (ioRam[0x40] & 0x20)
-		winOn = 1;
-	else
-		winOn = 0;
-	if (ioRam[0x40] & 0x40)
-		winMapAddr = 1;
-	else
-		winMapAddr = 0;
+    if (ioRam[0x40] & 0x10)
+        tileSigned = 0;
+    else
+        tileSigned = 1;
+    if (ioRam[0x40] & 0x20)
+        winOn = 1;
+    else
+        winOn = 0;
+    if (ioRam[0x40] & 0x40)
+        winMapAddr = 1;
+    else
+        winMapAddr = 0;
     if (ioRam[0x40] & 0x8)
         BGMapAddr = 1;
     else
@@ -645,7 +576,7 @@ void drawScanline(int scanline)
         renderingState[scanline].bgOverlayCnt = (BG_MAP_BASE(overlay_map_base[BGMapAddr]) | BG_TILE_BASE(4) | bg_overlay_priority);
     }
 
-	return;
+    return;
 }
 
 void updateTiles() {

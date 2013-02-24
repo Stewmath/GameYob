@@ -96,44 +96,44 @@ void initMMU()
 void latchClock()
 {
     // +2h, the same as lameboy
-	time_t now = time(NULL)-120*60;
-	time_t difference = now - gbClock.clockLastTime;
+    time_t now = time(NULL)-120*60;
+    time_t difference = now - gbClock.clockLastTime;
 
-	int seconds = difference%60;
-	gbClock.clockSeconds += seconds;
-	if (gbClock.clockSeconds >= 60)
-	{
-		gbClock.clockMinutes++;
-		gbClock.clockSeconds -= 60;
-	}
+    int seconds = difference%60;
+    gbClock.clockSeconds += seconds;
+    if (gbClock.clockSeconds >= 60)
+    {
+        gbClock.clockMinutes++;
+        gbClock.clockSeconds -= 60;
+    }
 
-	difference /= 60;
-	int minutes = difference%60;
-	gbClock.clockMinutes += minutes;
-	if (gbClock.clockMinutes >= 60)
-	{
-		gbClock.clockHours++;
-		gbClock.clockMinutes -= 60;
-	}
+    difference /= 60;
+    int minutes = difference%60;
+    gbClock.clockMinutes += minutes;
+    if (gbClock.clockMinutes >= 60)
+    {
+        gbClock.clockHours++;
+        gbClock.clockMinutes -= 60;
+    }
 
-	difference /= 60;
-	gbClock.clockHours += difference%24;
-	if (gbClock.clockHours >= 24)
-	{
-		gbClock.clockDays++;
-		gbClock.clockHours -= 24;
-	}
+    difference /= 60;
+    gbClock.clockHours += difference%24;
+    if (gbClock.clockHours >= 24)
+    {
+        gbClock.clockDays++;
+        gbClock.clockHours -= 24;
+    }
 
-	difference /= 24;
-	gbClock.clockDays += difference;
-	if (gbClock.clockDays > 0x1FF)
-	{
-		gbClock.clockControl |= 0x80;
-		gbClock.clockDays -= 0x200;
-	}
-	gbClock.clockControl &= ~1;
-	gbClock.clockControl |= gbClock.clockDays>>8;
-	gbClock.clockLastTime = now;
+    difference /= 24;
+    gbClock.clockDays += difference;
+    if (gbClock.clockDays > 0x1FF)
+    {
+        gbClock.clockControl |= 0x80;
+        gbClock.clockDays -= 0x200;
+    }
+    gbClock.clockControl &= ~1;
+    gbClock.clockControl |= gbClock.clockDays>>8;
+    gbClock.clockLastTime = now;
 
     gbClock.clockSecondsL = gbClock.clockSeconds;
     gbClock.clockMinutesL = gbClock.clockMinutes;
@@ -471,9 +471,11 @@ void writeMemory(u16 addr, u8 val)
                 case 0xFF04:
                     ioRam[0x04] = 0;
                     return;
+                case 0xFF05:
+                    ioRam[0x05] = val;
+                    break;
                 case 0xFF07:
                     timerPeriod = periods[val&0x3];
-                    //timerCounter = clockSpeed/timerFrequency + 1000;
                     ioRam[0x07] = val;
                     break;
                 case 0xFF10:
@@ -686,13 +688,13 @@ void writeMemory(u16 addr, u8 val)
                     return;
                 case 0xFF0F:
                     ioRam[0x0f] = val;
-                    if (ime)
-                        interruptTriggered = ioRam[0xff] & val;
+                    if (val & ioRam[0xff])
+                        cyclesToExecute = 0;
                     break;
                 case 0xFFFF:
                     ioRam[0xff] = val;
-                    if (ime)
-                        interruptTriggered = val & ioRam[0x0f];
+                    if (val & ioRam[0x0f])
+                        cyclesToExecute = 0;
                     break;
                 default:
                     if (addr >= 0xfe00 && addr < 0xfea0) {

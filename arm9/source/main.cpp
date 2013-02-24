@@ -21,30 +21,36 @@ extern PrintConsole defaultConsole;
 
 void initializeGameboy() {
     initMMU();
-	initCPU();
-	initLCD();
-	initGFX();
-	initSND();
+    initCPU();
+    initLCD();
+    initGFX();
+    initSND();
 }
 
 int main(int argc, char* argv[])
 {
-	videoSetModeSub(MODE_0_2D);
+    videoSetModeSub(MODE_0_2D);
     vramSetBankH(VRAM_H_SUB_BG);
     PrintConsole console;
     consoleInit(NULL, defaultConsole.bgLayer, BgType_Text4bpp, BgSize_T_256x256, defaultConsole.mapBase, defaultConsole.gfxBase, false, true);
-	consoleDebugInit(DebugDevice_CONSOLE);
+    consoleDebugInit(DebugDevice_CONSOLE);
 
     defaultExceptionHandler();
 
     initConsole();
-	initInput();
+    initInput();
 
-    if (argc < 2)
+    char *filename;
+    if (argc >= 2) {
+        filename = argv[1];
+    }
+    else {
         chdir("/lameboy");
+        filename = startFileChooser();
+    }
 
-	FILE* file;
-	file = fopen("gbc_bios.bin", "rb");
+    FILE* file;
+    file = fopen("gbc_bios.bin", "rb");
     biosExists = file != NULL;
     if (biosExists) {
         fread(bios, 1, 0x900, file);
@@ -53,15 +59,10 @@ int main(int argc, char* argv[])
     else
         biosEnabled = false;
 
-    if (argc >= 2) {
-        loadProgram(argv[1]);
-    }
-    else {
-        loadProgram(startFileChooser());
-    }
+    loadProgram(filename);
 
     initializeGameboy();
-	startTimer(0);
+    startTimer(0);
 
     runEmul();
 

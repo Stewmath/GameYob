@@ -40,7 +40,7 @@ inline void setEventCycles(int cycles) {
         cyclesToEvent = cycles;
         /*
         if (cyclesToEvent <= 0) {
-            cyclesToEvent = 1;
+           cyclesToEvent = 1;
         }
         */
     }
@@ -63,24 +63,24 @@ int updateInput() {
 int totalCycles;
 void runEmul()
 {
-	for (;;)
-	{
+    for (;;)
+    {
         totalCycles=0;
         int cycles;
-		if (halt)
-			cycles = cyclesToEvent;
-		else
-			cycles = runOpcode(cyclesToEvent);
+        if (halt)
+            cycles = cyclesToEvent;
+        else
+            cycles = runOpcode(cyclesToEvent);
         cycles += totalCycles;
 
         cyclesToEvent = maxWaitCycles;
-		updateTimers(cycles);
-		updateSound(cycles);
-		updateLCD(cycles);
+        updateTimers(cycles);
+        updateSound(cycles);
+        updateLCD(cycles);
 
-        if (interruptTriggered)
-            handleInterrupts();
-	}
+        //if (halt || ime)
+        handleInterrupts();
+    }
 }
 
 void initLCD()
@@ -91,39 +91,39 @@ void initLCD()
     // now.
     /*
     if (strcmp(getRomTitle(), "POKEMON YELLOW") == 0)
-        maxWaitCycles = 100;
+       maxWaitCycles = 100;
     else
     */
     maxWaitCycles = 400;
 
-	mode2Cycles = 456 - 80;
-	mode3Cycles = 456 - 172 - 80;
+    mode2Cycles = 456 - 80;
+    mode3Cycles = 456 - 172 - 80;
 
-	scanlineCounter = 456;
+    scanlineCounter = 456;
     phaseCounter = 456*153*(doubleSpeed?2:1);
     timerCounter = 0;
     dividerCounter = 256;
-	madeInterrupt = 0;
+    madeInterrupt = 0;
     turboFrameSkip = 4;
     turbo=0;
     quit=0;
 
     // Timer stuff
-	periods[0] = clockSpeed/4096;
-	periods[1] = clockSpeed/262144;
-	periods[2] = clockSpeed/65536;
-	periods[3] = clockSpeed/16384;
+    periods[0] = clockSpeed/4096;
+    periods[1] = clockSpeed/262144;
+    periods[2] = clockSpeed/65536;
+    periods[3] = clockSpeed/16384;
     timerPeriod = periods[0];
 }
 
 bool screenOn = true;
 void updateLCD(int cycles)
 {
-	if (!(ioRam[0x40] & 0x80))		// If LCD is off
-	{
-		scanlineCounter = 456;
-		ioRam[0x44] = 0;
-		ioRam[0x41] &= 0xF8;				// Could mess up coincidence
+    if (!(ioRam[0x40] & 0x80))		// If LCD is off
+    {
+        scanlineCounter = 456;
+        ioRam[0x44] = 0;
+        ioRam[0x41] &= 0xF8;
         // Normally timing is synchronized with gameboy's vblank. If the screen 
         // is off, this code kicks in. The "phaseCounter" is a counter until the 
         // ds should check for input and whatnot.
@@ -140,12 +140,12 @@ void updateLCD(int cycles)
             }
             return;
         }
-		return;
-	}
-	u8 stat = ioRam[0x41];
+        return;
+    }
+    u8 stat = ioRam[0x41];
     int lcdState = stat&3;
 
-	scanlineCounter -= cycles;
+    scanlineCounter -= cycles;
 
     switch(lcdState)
     {
@@ -247,39 +247,39 @@ void updateLCD(int cycles)
     }
 
 
-	ioRam[0x41] = stat;
-	return;
+    ioRam[0x41] = stat;
+    return;
 }
 
 inline void updateTimers(int cycles)
 {
-	if (ioRam[0x07] & 0x4)
-	{
-		timerCounter -= cycles;
-		if (timerCounter <= 0)
-		{
-			timerCounter = timerPeriod + timerCounter;
-			if ((++ioRam[0x05]) == 0)
-			{
-				requestInterrupt(TIMER);
-				ioRam[0x05] = ioRam[0x06];
-			}
-		}
+    if (ioRam[0x07] & 0x4)
+    {
+        timerCounter -= cycles;
+        if (timerCounter <= 0)
+        {
+            timerCounter = timerPeriod + timerCounter;
+            if ((++ioRam[0x05]) == 0)
+            {
+                requestInterrupt(TIMER);
+                ioRam[0x05] = ioRam[0x06];
+            }
+        }
         setEventCycles(timerCounter);
-	}
-	dividerCounter -= cycles;
-	if (dividerCounter <= 0)
-	{
-		dividerCounter = 256+dividerCounter;
-		ioRam[0x04]++;
-	}
+    }
+    dividerCounter -= cycles;
+    if (dividerCounter <= 0)
+    {
+        dividerCounter = 256+dividerCounter;
+        ioRam[0x04]++;
+    }
     //setEventCycles(dividerCounter);
 }
 
 
 void requestInterrupt(int id)
 {
-	ioRam[0x0F] |= id;
-    if (ime)
-        interruptTriggered = ioRam[0xFF] & ioRam[0x0F];
+    ioRam[0x0F] |= id;
+    if (ioRam[0x0F] & ioRam[0xFF])
+        cyclesToExecute = 0;
 }

@@ -17,6 +17,7 @@ extern bool windowDisabled;
 extern bool hblankDisabled;
 extern bool soundDisabled;
 extern int frameskip;
+extern int halt;
 
 void selectRomFunc(int value) {
     saveGame();
@@ -93,7 +94,6 @@ void resetFunc(int value) {
 void returnFunc(int value) {
     quitConsole = true;
 }
-
 
 
 void setChanEnabled(int chan, int value) {
