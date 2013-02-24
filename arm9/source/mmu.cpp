@@ -401,9 +401,13 @@ void writeMemory(u16 addr, u8 val)
             }
             if (currentRamBank >= numRamBanks && MBC != 3)
             {
-                currentRamBank = numRamBanks-1;
-                printLog("Game tried to access more ram than it has\n");
-                refreshRamBank();
+                if (numRamBanks == 0)
+                    currentRamBank = 0;
+                else {
+                    currentRamBank = numRamBanks-1;
+                    printLog("Game tried to access more ram than it has\n");
+                    refreshRamBank();
+                }
             }
             return;
         case 0x6000:
