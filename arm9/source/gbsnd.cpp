@@ -375,7 +375,6 @@ void handleSoundRegister(u16 addr, u8 val)
             // CHANNEL 3
             // On/Off
         case 0xFF1A:
-            printLog("Write %x\n", addr);
             if ((val & 0x80) == 0)
             {
                 chanOn[2] = 0;
@@ -391,7 +390,6 @@ void handleSoundRegister(u16 addr, u8 val)
             break;
             // Length
         case 0xFF1B:
-            printLog("Write %x\n", addr);
             chanLen[2] = val;
             chanLenCounter[2] = (256-chanLen[2])*clockSpeed/256;
             ioRam[0x1b] = val;
@@ -400,7 +398,6 @@ void handleSoundRegister(u16 addr, u8 val)
             break;
             // Volume
         case 0xFF1C:
-            printLog("Write %x\n", addr);
             {
                 chanVol[2] = (val>>5)&3;
                 switch(chanVol[2])
@@ -423,7 +420,6 @@ void handleSoundRegister(u16 addr, u8 val)
             }
             // Frequency (low)
         case 0xFF1D:
-            printLog("Write %x\n", addr);
             chanFreq[2] &= 0xFF00;
             chanFreq[2] |= val;
             refreshSoundFreq(2);
@@ -432,7 +428,6 @@ void handleSoundRegister(u16 addr, u8 val)
             break;
             // Frequency (high)
         case 0xFF1E:
-            printLog("Write %x\n", addr);
             chanFreq[2] &= 0xFF;
             chanFreq[2] |= (val&7)<<8;
             if ((val & 0x80) && (ioRam[0x1A] & 0x80))
