@@ -14,7 +14,9 @@
 extern u8 buttonsPressed;
 extern char filename[100];
 extern int quit;
-extern FILE* logFile;
+
+extern int GB_KEY_A;
+extern int GB_KEY_B;
 
 void initInput();
 void readKeys();

@@ -24,6 +24,8 @@ int keysForceReleased=0;
 int repeatStartTimer=0;
 int repeatTimer=0;
 
+int GB_KEY_A, GB_KEY_B;
+
 bool advanceFrame;
 
 u8 romBankSlots[0x80][0x4000];
@@ -446,7 +448,7 @@ int handleEvents()
 	{
 		buttonsPressed |= RIGHT;
 	}
-	if (keys & KEY_A)
+	if (keys & GB_KEY_A)
 	{
 		buttonsPressed &= (0xFF ^ BUTTONA);
 		requestInterrupt(JOYPAD);
@@ -455,7 +457,7 @@ int handleEvents()
 	{
 		buttonsPressed |= BUTTONA;
 	}
-	if (keys & KEY_B)
+	if (keys & GB_KEY_B)
 	{
 		buttonsPressed &= (0xFF ^ BUTTONB);
 		requestInterrupt(JOYPAD);

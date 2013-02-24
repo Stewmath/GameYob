@@ -94,7 +94,7 @@ void playSample(int channel, const void* data, SoundFormat format, u32 dataSize,
 }
 void playNoise(int channel, u32 freq, u8 volume, u8 pan){
     if (freq > 0xffff) {
-        printLog("Bad noise frequency %x\n", freq);
+        //printLog("Bad noise frequency %x\n", freq);
         freq = 0xffff;
     }
     FifoMessage msg;

@@ -32,6 +32,16 @@ void setScreenFunc(int value) {
     else
         lcdMainOnTop();
 }
+void buttonModeFunc(int value) {
+    if (value == 0) {
+        GB_KEY_A = KEY_A;
+        GB_KEY_B = KEY_B;
+    }
+    else {
+        GB_KEY_A = KEY_B;
+        GB_KEY_B = KEY_Y;
+    }
+}
 void consoleOutputFunc(int value) {
     if (value == 0) {
         fpsOutput = false;
@@ -131,12 +141,12 @@ struct ConsoleSubMenu {
 ConsoleSubMenu menuList[] = { 
     {
         "Options",
-        6,
-        {0,2,3,2,0,0},
-        {"Load ROM", "Game Screen", "Console Output", "GBC Bios", "Reset", "Return to game"},
-        {{},{"Top","Bottom"},{"Off","FPS","Debug"},{"Off","On"},{},{}},
-        {selectRomFunc, setScreenFunc, consoleOutputFunc, biosEnableFunc, resetFunc, returnFunc},
-        {0,0,1,1,0,0}
+        7,
+        {0,2,2,3,2,0,0},
+        {"Load ROM", "Game Screen", "A & B Buttons", "Console Output", "GBC Bios", "Reset", "Return to game"},
+        {{},{"Top","Bottom"},{"A/B", "B/Y"},{"Off","FPS","Debug"},{"Off","On"},{},{}},
+        {selectRomFunc, setScreenFunc, buttonModeFunc, consoleOutputFunc, biosEnableFunc, resetFunc, returnFunc},
+        {0,0,0,1,1,0,0}
     },
     {
         "Debug",
@@ -161,8 +171,11 @@ int numMenus = sizeof(menuList)/sizeof(ConsoleSubMenu);
 
 void initConsole() {
     for (int i=0; i<numMenus; i++) {
-        for (int j=0; j<10; j++) {
+        for (int j=0; j<menuList[i].numOptions; j++) {
             menuList[i].optionSelections[j] = menuList[i].defaultOptionSelections[j];
+            if (menuList[i].numSelections[j] != 0) {
+                menuList[i].optionFunctions[j](menuList[i].defaultOptionSelections[j]);
+            }
         }
     }
 }
