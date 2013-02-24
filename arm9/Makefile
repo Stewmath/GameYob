@@ -25,10 +25,11 @@ DATA		:=
 #---------------------------------------------------------------------------------
 ARCH	:=	#-mthumb -mthumb-interwork	#This may cause some problem when there are some cross-calls between C&Assembly.
 
-CFLAGS	:=	-Wall -O2 -DNO_VIZ\
+CFLAGS	:=	-Wall -DNO_VIZ\
  			-march=armv5te -mtune=arm946e-s -fomit-frame-pointer\
-			-ffast-math \
+			-ffast-math -O2 \
 			$(ARCH)
+			#-O3 -fpeel-loops -fno-pic -finline -fearly-inlining \
 
 CFLAGS	+=	$(INCLUDE) -DARM9 -DDS
 CXXFLAGS	:=	$(CFLAGS) -fno-rtti -fno-exceptions

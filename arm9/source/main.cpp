@@ -62,7 +62,7 @@ int main(int argc, char* argv[])
     loadProgram(filename);
 
     initializeGameboy();
-    startTimer(0);
+    startTimer();
 
     runEmul();
 

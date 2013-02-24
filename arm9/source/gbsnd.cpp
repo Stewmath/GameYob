@@ -4,6 +4,7 @@
 #include "mmu.h"
 #include "main.h"
 #include "gameboy.h"
+#include "gbsnd.h"
 
 inline void setChan1() {ioRam[0x26] |= 1;}
 inline void clearChan1() {ioRam[0x26] &= ~1;}
@@ -50,10 +51,14 @@ int SO1Vol=0;
 int SO2Vol=0;
 
 void setSoundVolume(int i);
+void refreshSoundFreq(int i);
+void updateSoundSample();
 
 void playPSG(int channel, DutyCycle cycle, u32 freq, u8 volume, u8 pan){
-    if (freq > 0xffff)
+    if (freq > 0xffff) {
+        printLog("Bad PSG frequency %x\n", freq);
         freq = 0xffff;
+    }
     FifoMessage msg;
 
     msg.type = SOUND_PSG_MESSAGE;
@@ -69,7 +74,7 @@ void playPSG(int channel, DutyCycle cycle, u32 freq, u8 volume, u8 pan){
 }
 void playSample(int channel, const void* data, SoundFormat format, u32 dataSize, u32 freq, u8 volume, u8 pan, bool loop, u16 loopPoint){ 
     if (freq > 0xffff) {
-        printLog("Bad frequency %x\n", freq);
+        printLog("Bad sample frequency %x\n", freq);
         freq = 0xffff;
     }
     FifoMessage msg;
@@ -88,8 +93,10 @@ void playSample(int channel, const void* data, SoundFormat format, u32 dataSize,
     fifoSendDatamsg(FIFO_USER_01, sizeof(msg), (u8*)&msg);
 }
 void playNoise(int channel, u32 freq, u8 volume, u8 pan){
-    if (freq > 0xffff)
+    if (freq > 0xffff) {
+        printLog("Bad noise frequency %x\n", freq);
         freq = 0xffff;
+    }
     FifoMessage msg;
 
     msg.type = SOUND_NOISE_MESSAGE;
@@ -187,8 +194,8 @@ void updateSound(int cycles)
         {
             chan1SweepCounter = (clockSpeed/(128/chan1SweepTime))+chan1SweepCounter;
             chanFreq[0] += (chanFreq[0]>>chan1SweepAmount)*chan1SweepDir;
-            chanRealFreq[0] = 131072/(2048-chanFreq[0]);
-            soundSetFreq(sound[0], chanRealFreq[0]*8);
+            chanRealFreq[0] = 131072/(2048-chanFreq[0])*8;
+            soundSetFreq(sound[0], chanRealFreq[0]);
 
             if (chanFreq[0] > 0x7FF)
             {
@@ -274,6 +281,8 @@ void handleSoundRegister(u16 addr, u8 val)
             chanLen[0] = val&0x3F;
             chanLenCounter[0] = (64-chanLen[0])*clockSpeed/256;
             chanDuty[0] = val>>6;
+            playPSG(sound[0], dutyIndex[chanDuty[0]], chanRealFreq[0], 0, 64);
+            setSoundVolume(0);
             ioRam[0x11] = val;
             break;
             // Envelope
@@ -290,8 +299,8 @@ void handleSoundRegister(u16 addr, u8 val)
         case 0xFF13:
             chanFreq[0] &= 0x700;
             chanFreq[0] |= val;
-            chanRealFreq[0] = 131072/(2048-chanFreq[0]);
-            soundSetFreq(sound[0], chanRealFreq[0]*8);
+            chanRealFreq[0] = 131072/(2048-chanFreq[0])*8;
+            soundSetFreq(sound[0], chanRealFreq[0]);
             ioRam[0x13] = val;
             break;
             // Frequency (high)
@@ -302,21 +311,19 @@ void handleSoundRegister(u16 addr, u8 val)
             {
                 chanLenCounter[0] = (64-chanLen[0])*clockSpeed/256;
                 chanOn[0] = 1;
-                chanVol[0] = ioRam[0x12]>>4;
-                chanRealFreq[0] = 131072/(2048-chanFreq[0]);
+                chanRealFreq[0] = 131072/(2048-chanFreq[0])*8;
                 if (chan1SweepTime != 0)
                     chan1SweepCounter = clockSpeed/(128/chan1SweepTime);
                 setChan1();
-
-                soundKill(sound[0]);
-                playPSG(sound[0], dutyIndex[chanDuty[0]], chanRealFreq[0]*8, 0, 64);
-
-                setSoundVolume(0);
             }
             if (val & 0x40)
                 chanUseLen[0] = 1;
             else
                 chanUseLen[0] = 0;
+
+            playPSG(sound[0], dutyIndex[chanDuty[0]], chanRealFreq[0], 0, 64);
+            setSoundVolume(0);
+
             ioRam[0x14] = val;
             break;
             // CHANNEL 2
@@ -325,6 +332,8 @@ void handleSoundRegister(u16 addr, u8 val)
             chanLen[1] = val&0x3F;
             chanLenCounter[1] = (64-chanLen[1])*clockSpeed/256;
             chanDuty[1] = val>>6;
+            playPSG(sound[1], dutyIndex[chanDuty[1]], chanRealFreq[1], 0, 64);
+            setSoundVolume(1);
             ioRam[0x16] = val;
             break;
             // Envelope
@@ -341,8 +350,8 @@ void handleSoundRegister(u16 addr, u8 val)
         case 0xFF18:
             chanFreq[1] &= 0x700;
             chanFreq[1] |= val;
-            chanRealFreq[1] = 131072/(2048-chanFreq[1]);
-            soundSetFreq(sound[1], chanRealFreq[1]*8);
+            chanRealFreq[1] = 131072/(2048-chanFreq[1])*8;
+            soundSetFreq(sound[1], chanRealFreq[1]);
             ioRam[0x18] = val;
             break;
             // Frequency (high)
@@ -354,22 +363,16 @@ void handleSoundRegister(u16 addr, u8 val)
                 chanLenCounter[1] = (64-chanLen[1])*clockSpeed/256;
                 chanOn[1] = 1;
                 chanVol[1] = ioRam[0x17]>>4;
-                chanRealFreq[1] = 131072/(2048-chanFreq[1]);
+                chanRealFreq[1] = 131072/(2048-chanFreq[1])*8;
                 setChan2();
-
-                /*
-                   if (sound[1] != -1)
-                   soundKill(sound[1]);
-                   sound[1] = soundPlayPSG(dutyIndex[chanDuty[1]], chanRealFreq[1]*8, 0, 64);
-                   */
-                playPSG(sound[1], dutyIndex[chanDuty[1]], chanRealFreq[1]*8, 0, 64);
-
-                setSoundVolume(1);
             }
             if (val & 0x40)
                 chanUseLen[1] = 1;
             else
                 chanUseLen[1] = 0;
+
+            playPSG(sound[1], dutyIndex[chanDuty[1]], chanRealFreq[1], 0, 64);
+            setSoundVolume(1);
             ioRam[0x19] = val;
             break;
             // CHANNEL 3
@@ -387,14 +390,13 @@ void handleSoundRegister(u16 addr, u8 val)
             }
             setSoundVolume(2);
             ioRam[0x1a] = val;
+            //playChan3();
             break;
             // Length
         case 0xFF1B:
             chanLen[2] = val;
             chanLenCounter[2] = (256-chanLen[2])*clockSpeed/256;
             ioRam[0x1b] = val;
-            refreshSoundFreq(2);
-            soundSetFreq(sound[2], chanRealFreq[2]);
             break;
             // Volume
         case 0xFF1C:
@@ -435,9 +437,6 @@ void handleSoundRegister(u16 addr, u8 val)
                 chanOn[2] = 1;
                 chanLenCounter[2] = (256-chanLen[2])*clockSpeed/256;
                 setChan3();
-                refreshSoundFreq(2);
-                playSample(sound[2], sampleData, SoundFormat_8Bit, 0x20, chanRealFreq[2], 0, 64, true, 0);
-                setSoundVolume(2);
             }
             if (val & 0x40)
             {
@@ -448,6 +447,9 @@ void handleSoundRegister(u16 addr, u8 val)
                 chanUseLen[2] = 0;
             }
             ioRam[0x1e] = val;
+            refreshSoundFreq(2);
+            playSample(sound[2], sampleData, SoundFormat_8Bit, 0x20, chanRealFreq[2], 0, 64, true, 0);
+            setSoundVolume(2);
             break;
             // CHANNEL 4
             // Length
@@ -484,10 +486,11 @@ void handleSoundRegister(u16 addr, u8 val)
             {
                 chanLenCounter[3] = (64-chanLen[3])*clockSpeed/256;
                 chanOn[3] = 1;
+                setChan4();
                 refreshSoundFreq(3);
-                playNoise(sound[3], chanRealFreq[3], 0, 64);
-                setSoundVolume(3);
             }
+            playNoise(sound[3], chanRealFreq[3], 0, 64);
+            setSoundVolume(3);
             chanUseLen[3] = !!(val&0x40);
             ioRam[0x23] = val;
             break;
@@ -497,7 +500,7 @@ void handleSoundRegister(u16 addr, u8 val)
             SO2Vol = (val>>4)&0x7;
             {
                 int i;
-                for (i=0; i<3; i++)
+                for (i=0; i<4; i++)
                 {
                     setSoundVolume(i);
                 }
@@ -515,7 +518,7 @@ void handleSoundRegister(u16 addr, u8 val)
             chanToOut2[3] = !!(val&0x80);
             {
                 int i;
-                for (i=0; i<3; i++)
+                for (i=0; i<4; i++)
                 {
                     setSoundVolume(i);
                 }
@@ -539,6 +542,7 @@ void handleSoundRegister(u16 addr, u8 val)
                     setSoundVolume(i);
             }
             break;
+            /*
         case 0xFF30:
         case 0xFF31:
         case 0xFF32:
@@ -554,6 +558,7 @@ void handleSoundRegister(u16 addr, u8 val)
         case 0xFF3C:
         case 0xFF3D:
         case 0xFF3E:
+        */
         case 0xFF3F:
             ioRam[addr&0xff] = val;
             updateSoundSample();

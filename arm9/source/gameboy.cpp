@@ -49,14 +49,14 @@ inline void setEventCycles(int cycles) {
 int updateInput() {
     readKeys();
     int retval = handleEvents();		// Input mostly
-    if (getTimerTicks(0) >= 1000)
+    if (getTimerTicks() >= 1000)
     {
         if (fpsOutput) {
             consoleClear();
             printf("FPS: %d\n", fps);
         }
         fps = 0;
-        startTimer(0);
+        startTimer();
     }
     return retval;
 }

@@ -3,7 +3,7 @@
 
 #define DSCLOCKSPEED 33513.982
 
-void startTimer(Timer* timer)
+void startTimer()
 {
 	cpuStartTiming(0);
 	timerElapsed(0);
@@ -11,11 +11,7 @@ void startTimer(Timer* timer)
 	//ticks = 0;
 }
 
-int getTimerTicks(Timer* timer)
+int getTimerTicks()
 {
 	return (cpuGetTiming() / (DSCLOCKSPEED));
-}
-
-void delay(Timer* timer)
-{
 }
