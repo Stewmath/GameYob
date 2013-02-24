@@ -253,9 +253,12 @@ int displayConsole() {
                         menu = numMenus-1;
                     break;
                 }
-                else if (menuList[menu].optionValues[option][0] != 0 && menuList[menu].optionSelections[option] > 0) {
-                    menuList[menu].optionSelections[option]--;
-                    menuList[menu].optionFunctions[option](menuList[menu].optionSelections[option]);
+                else if (menuList[menu].optionValues[option][0] != 0) {
+                    int selection = menuList[menu].optionSelections[option]-1;
+                    if (selection < 0)
+                        selection = menuList[menu].numSelections[option]-1;
+                    menuList[menu].optionSelections[option] = selection;
+                    menuList[menu].optionFunctions[option](selection);
                     break;
                 }
             }
@@ -266,9 +269,12 @@ int displayConsole() {
                         menu = 0;
                     break;
                 }
-                else if (menuList[menu].optionValues[option][0] != 0 && menuList[menu].optionSelections[option] < menuList[menu].numSelections[option]-1) {
-                    menuList[menu].optionSelections[option]++;
-                    menuList[menu].optionFunctions[option](menuList[menu].optionSelections[option]);
+                else if (menuList[menu].optionValues[option][0] != 0) {
+                    int selection = menuList[menu].optionSelections[option]+1;
+                    if (selection >= menuList[menu].numSelections[option])
+                        selection = 0;
+                    menuList[menu].optionSelections[option] = selection;
+                    menuList[menu].optionFunctions[option](selection);
                     break;
                 }
             }
