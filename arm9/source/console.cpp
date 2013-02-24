@@ -273,7 +273,7 @@ int displayConsole() {
                 }
             }
             else if (keyPressedAutoRepeat(KEY_A)) {
-                if (option >= 0 && menuList[menu].optionValues[option][0] == 0) {
+                if (option >= 0 && menuList[menu].numSelections[option] == 0) {
                     menuList[menu].optionFunctions[option](menuList[menu].optionSelections[option]);
                     forceReleaseKey(KEY_A);
                     break;
