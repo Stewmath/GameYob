@@ -42,6 +42,8 @@ void gameboySoundDataHandler(int bytes, void *user_data) {
             SCHANNEL_TIMER(channel) = SOUND_FREQ(msg.SoundPsg.freq);
         }
     }
+
+	//fifoSendValue32(FIFO_USER_01, (u32)channel);
 }
 
 void installGameboySoundFIFO() {

@@ -180,10 +180,10 @@ inline void drawLine(int gbLine) {
 void hblankHandler()
 {
     int line = REG_VCOUNT+1;
-    if (line < screenOffsY || line >= screenOffsY+144)
+    int gbLine = line-screenOffsY;
+    if (!(gbLine >= 0 && gbLine < 144))
         return;
 
-    int gbLine = line-screenOffsY;
     if (!drawingState[gbLine].modified)
         return;
 

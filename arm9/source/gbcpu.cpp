@@ -130,8 +130,9 @@ void initCPU()
 	writeMemory(0xFF49, 0xff);
 	writeMemory(0xFF4a, 0x00);
 	writeMemory(0xFF4b, 0x00);
-	writeMemory(0xFF4d, 0x00);
 	writeMemory(0xFFff, 0x00);
+    // writeMemory shouldn't interfere in this case
+    ioRam[0x4d] = 0;
 
     biosOn = biosEnabled;
 	if (biosOn)

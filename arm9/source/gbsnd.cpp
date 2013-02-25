@@ -69,7 +69,10 @@ void playPSG(int channel, DutyCycle cycle, u32 freq, u8 volume, u8 pan){
 
     fifoSendDatamsg(FIFO_USER_01, sizeof(msg), (u8*)&msg);
 
-    return;
+    /*
+	while(!fifoCheckValue32(FIFO_USER_01));
+    int useless = fifoGetValue32(FIFO_USER_01);
+    */
 }
 void playSample(int channel, const void* data, SoundFormat format, u32 dataSize, u32 freq, u8 volume, u8 pan, bool loop, u16 loopPoint){ 
     if (freq > 0xffff) {
@@ -90,6 +93,11 @@ void playSample(int channel, const void* data, SoundFormat format, u32 dataSize,
     msg.SoundPlay.channel = channel;
 
     fifoSendDatamsg(FIFO_USER_01, sizeof(msg), (u8*)&msg);
+
+    /*
+	while(!fifoCheckValue32(FIFO_USER_01));
+    int useless = fifoGetValue32(FIFO_USER_01);
+    */
 }
 void playNoise(int channel, u32 freq, u8 volume, u8 pan){
     if (freq > 0xffff) {
@@ -105,6 +113,11 @@ void playNoise(int channel, u32 freq, u8 volume, u8 pan){
     msg.SoundPsg.channel = channel;
 
     fifoSendDatamsg(FIFO_USER_01, sizeof(msg), (u8*)&msg);
+
+    /*
+	while(!fifoCheckValue32(FIFO_USER_01));
+    int useless = fifoGetValue32(FIFO_USER_01);
+    */
 }
 
 void initSND()

@@ -100,7 +100,7 @@ void initLCD()
     mode3Cycles = 456 - 172 - 80;
 
     scanlineCounter = 456;
-    phaseCounter = 456*153*(doubleSpeed?2:1);
+    phaseCounter = 456*153;
     timerCounter = 0;
     dividerCounter = 256;
     madeInterrupt = 0;

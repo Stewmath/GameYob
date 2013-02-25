@@ -608,11 +608,8 @@ void writeMemory(u16 addr, u8 val)
                         return;
                     }
                 case 0xFF4D:
-                    if (gbMode == CGB)
-                    {
-                        ioRam[0x4D] &= ~1;
-                        ioRam[0x4D] |= (val&1);
-                    }
+                    ioRam[0x4D] &= ~1;
+                    ioRam[0x4D] |= (val&1);
                     return;
                 case 0xFF4F:
                     if (gbMode == CGB)
