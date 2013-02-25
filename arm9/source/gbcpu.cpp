@@ -34,7 +34,6 @@ inline void quickWrite(u16 addr, u8 val) {
 
 u16 gbSP,gbPC;
 int halt;
-int debugMode=0;
 
 u8 buttonsPressed = 0xff;
 int fps;
@@ -52,8 +51,6 @@ extern int halt;
 int ime;
 u8 opCycles[0x100];
 u8 CBopCycles[0x100];
-
-extern FILE* logFile;
 
 void initCPU()
 {
@@ -221,8 +218,8 @@ int cyclesToExecute;
 int runOpcode(int cycles) {
     cyclesToExecute = cycles;
     // Having these commonly-used registers in local variables should improve speed
-    int locPC=gbPC;
-    int locSP=gbSP;
+    u16 locPC=gbPC;
+    u16 locSP=gbSP;
 
 	int totalCycles=0;
 

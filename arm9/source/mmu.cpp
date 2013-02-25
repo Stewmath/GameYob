@@ -553,7 +553,7 @@ void writeMemory(u16 addr, u8 val)
                     {
                         int dest = addr&0xff;
                         if (val != ioRam[dest]) {
-                            ioRam[addr&0xff] = val;
+                            ioRam[dest] = val;
                             lineModified = true;
                         }
                     }

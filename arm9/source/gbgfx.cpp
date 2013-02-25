@@ -66,6 +66,9 @@ bool spritePaletteModified[8];
 u8 bgPaletteData[0x40];
 u8 sprPaletteData[0x40];
 
+int winPosY=0;
+int winLastMarkedPosY=-1;
+
 bool lineModified = false;
 
 // Whether to wait for vblank if emulation is running behind schedule
@@ -114,7 +117,7 @@ typedef struct
 
 // The graphics are drawn with the DS's native hardware.
 // Games tend to modify the graphics in the middle of being drawn.
-// These changes are recorded and applies during DS hblank.
+// These changes are recorded and applied during DS hblank.
 inline void drawLine(int gbLine) {
     ScanlineStruct state = drawingState[gbLine];
 
@@ -134,7 +137,7 @@ inline void drawLine(int gbLine) {
 
     int winX = state.winX;
     int winY = state.winY;
-    if (windowDisabled || !state.winOn || winX >= 167 || winY-2 > gbLine) {
+    if (!state.winOn || windowDisabled) {// || winY-2 > gbLine) {
         REG_DISPCNT &= ~DISPLAY_WIN0_ON;
         WIN_IN |= 1<<8;
         WIN_IN &= ~4;
@@ -143,7 +146,7 @@ inline void drawLine(int gbLine) {
         REG_BG0HOFS = hofs;
         REG_BG0VOFS = vofs;
     }
-    else if (winY <= gbLine) {
+    else {// if (winY <= gbLine) {
         REG_DISPCNT |= DISPLAY_WIN0_ON;
         WIN_IN &= ~(1<<8);
 
@@ -151,10 +154,10 @@ inline void drawLine(int gbLine) {
             WIN0_X0 = screenOffsX;
         else
             WIN0_X0 = winX-7+screenOffsX;
-        WIN0_Y0 = winY+screenOffsY;
+        WIN0_Y0 = gbLine+screenOffsY;
 
         int whofs = -(winX-7)-screenOffsX;
-        int wvofs = -winY-screenOffsY;
+        int wvofs = -(gbLine-winY)-screenOffsY;
 
         REG_BG0HOFS = whofs;
         REG_BG0VOFS = wvofs;
@@ -418,6 +421,8 @@ void drawScreen()
     renderingState = drawingState;
     drawingState = tmp;
 
+    winPosY = -1;
+
     /*
        if (drawingState[0].spritesOn)
        REG_DISPCNT |= DISPLAY_SPR_ACTIVE;
@@ -516,9 +521,18 @@ void drawSprites() {
 
 void drawScanline(int scanline)
 {
+    lineModified = true;
     if (hblankDisabled || scanline >= 144)
         return;
-    if (scanline == 0 || (scanline == 1 || (renderingState[scanline-1].modified && !renderingState[scanline-2].modified))  || scanline == ioRam[0x4a])
+    int winX = ioRam[0x4b];
+    bool winOn = (ioRam[0x40] & 0x20) && winX < 167 && ioRam[0x4a] < 144 && ioRam[0x4a] <= scanline;
+    if (winOn) {
+        if (winPosY == -1)
+            winPosY = 0;//ioRam[0x4a];
+        else
+            winPosY++;
+    }
+    if (scanline == 0 || (scanline == 1 || (renderingState[scanline-1].modified && !renderingState[scanline-2].modified)) || scanline == ioRam[0x4a])
         lineModified = true;
     if (!lineModified) {
         renderingState[scanline].modified = false;
@@ -528,17 +542,13 @@ void drawScanline(int scanline)
     lineModified = false;
     renderingState[scanline].hofs = ioRam[0x43];
     renderingState[scanline].vofs = ioRam[0x42];
-    renderingState[scanline].winX = ioRam[0x4b];
-    renderingState[scanline].winY = ioRam[0x4a];
+    renderingState[scanline].winX = winX;
+    renderingState[scanline].winY = winPosY;
 
     if (ioRam[0x40] & 0x10)
         tileSigned = 0;
     else
         tileSigned = 1;
-    if (ioRam[0x40] & 0x20)
-        winOn = 1;
-    else
-        winOn = 0;
     if (ioRam[0x40] & 0x40)
         winMapAddr = 1;
     else
