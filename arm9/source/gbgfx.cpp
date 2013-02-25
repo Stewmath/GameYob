@@ -521,7 +521,6 @@ void drawSprites() {
 
 void drawScanline(int scanline)
 {
-    lineModified = true;
     if (hblankDisabled || scanline >= 144)
         return;
     int winX = ioRam[0x4b];
