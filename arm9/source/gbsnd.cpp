@@ -22,7 +22,6 @@ int soundMultiplier = 4;
 
 double chan4FreqRatio;
 int chan4Width;
-int chan3WavPos = 0;
 int chan1SweepTime;
 int chan1SweepCounter;
 int chan1SweepDir;
@@ -110,7 +109,6 @@ void playNoise(int channel, u32 freq, u8 volume, u8 pan){
 
 void initSND()
 {
-    soundEnable();
     static double analog[] = { -1, -0.8667, -0.7334, -0.6, -0.4668, -0.3335, -0.2, -0.067, 0.0664, 0.2, 0.333, 0.4668, 0.6, 0.7334, 0.8667, 1  } ;
     int i;
     for (i=0; i<16; i++)
@@ -118,11 +116,14 @@ void initSND()
         pcmVals[i] = analog[i]*0x70;
     }
     for (i=0; i<4; i++) {
+        soundKill(sound[i]);
+        chanOn[i] = 0;
         chanVol[i] = 0;
         chanFreq[i] = 0;
         setSoundVolume(i);
     }
     srand(time(NULL));
+    soundEnable();
 }
 
 void enableChannel(int i) {
