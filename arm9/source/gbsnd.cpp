@@ -326,6 +326,7 @@ void handleSoundRegister(u16 addr, u8 val)
             {
                 chanLenCounter[0] = (64-chanLen[0])*clockSpeed/256;
                 chanOn[0] = 1;
+                chanVol[0] = ioRam[0x12]>>4;
                 chanRealFreq[0] = 131072/(2048-chanFreq[0])*8;
                 if (chan1SweepTime != 0)
                     chan1SweepCounter = clockSpeed/(128/chan1SweepTime);
