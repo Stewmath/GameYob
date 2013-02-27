@@ -9,13 +9,13 @@
 const int screenTileWidth = 32;
 bool consoleDebugOutput = false;
 bool quitConsole = false;
+bool consoleOn = false;
 int displayConsoleRetval=0;
 
 extern int interruptWaitMode;
 extern bool advanceFrame;
 extern bool windowDisabled;
 extern bool hblankDisabled;
-extern bool soundDisabled;
 extern int frameskip;
 extern int halt;
 
@@ -180,11 +180,24 @@ void initConsole() {
     }
 }
 
+void enterConsole() {
+    if (!consoleOn)
+        advanceFrame = true;
+}
+void exitConsole() {
+    quitConsole = true;
+}
+bool isConsoleEnabled() {
+    return consoleOn;
+}
+
 int displayConsole() {
     static int menu=0;
     static int option = -1;
 
+    advanceFrame = 0;
     displayConsoleRetval=0;
+    consoleOn = true;
 
     quitConsole = false;
     soundDisable();
@@ -230,7 +243,7 @@ int displayConsole() {
         }
 
         // get input
-        while (true) {
+        while (!quitConsole) {
             swiWaitForVBlank();
             readKeys();
 
@@ -311,6 +324,7 @@ end:
     if (!soundDisabled)
         soundEnable();
     consoleClear();
+    consoleOn = false;
     return displayConsoleRetval;
 }
 

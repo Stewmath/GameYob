@@ -4,6 +4,8 @@
 #define BUFFERSIZE 1024
 
 extern float updateBufferLimit;
+extern bool soundDisabled;
+extern bool soundDisabledLid;
 
 void initSND();
 void enableChannel(int i);

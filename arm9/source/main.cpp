@@ -27,6 +27,21 @@ void initializeGameboy() {
     initSND();
 }
 
+extern bool advanceFrame;
+void fifoValue32Handler(u32 value, void* user_data) {
+    static bool wasInConsole;
+    if (value == 1) {
+        wasInConsole = isConsoleEnabled();
+        enterConsole();
+        soundDisabledLid = true;
+    }
+    else {
+        soundDisabledLid = false;
+        if (!wasInConsole)
+            exitConsole();
+    }
+}
+
 int main(int argc, char* argv[])
 {
     videoSetModeSub(MODE_0_2D);
@@ -39,6 +54,8 @@ int main(int argc, char* argv[])
 
     initConsole();
     initInput();
+
+    fifoSetValue32Handler(FIFO_USER_02, fifoValue32Handler, NULL);
 
     char *filename;
     if (argc >= 2) {
