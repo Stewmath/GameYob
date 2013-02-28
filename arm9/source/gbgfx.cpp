@@ -67,7 +67,6 @@ u8 bgPaletteData[0x40];
 u8 sprPaletteData[0x40];
 
 int winPosY=0;
-int winLastMarkedPosY=-1;
 
 bool lineModified = false;
 
@@ -524,19 +523,15 @@ void drawScanline(int scanline)
     if (hblankDisabled || scanline >= 144)
         return;
     int winX = ioRam[0x4b];
-    bool winOn = (ioRam[0x40] & 0x20) && winX < 167 && ioRam[0x4a] < 144 && ioRam[0x4a] <= scanline;
-    if (winOn) {
-        if (winPosY == -1)
-            winPosY = 0;//ioRam[0x4a];
-        else
-            winPosY++;
-    }
+    if ((ioRam[0x40] & 0x20) && winX < 167 && ioRam[0x4a] <= scanline)
+        winPosY++;
     if (scanline == 0 || (scanline == 1 || (renderingState[scanline-1].modified && !renderingState[scanline-2].modified)) || scanline == ioRam[0x4a])
         lineModified = true;
     if (!lineModified) {
         renderingState[scanline].modified = false;
         return;
     } 
+    bool winOn = (ioRam[0x40] & 0x20) && winX < 167 && ioRam[0x4a] < 144 && ioRam[0x4a] <= scanline;
     renderingState[scanline].modified = true;
     lineModified = false;
     renderingState[scanline].hofs = ioRam[0x43];

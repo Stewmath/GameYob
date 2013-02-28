@@ -548,7 +548,6 @@ void writeMemory(u16 addr, u8 val)
                     }
                 case 0xFF42:
                 case 0xFF43:
-                case 0xFF4A:
                 case 0xFF4B:
                     {
                         int dest = addr&0xff;
@@ -557,6 +556,11 @@ void writeMemory(u16 addr, u8 val)
                             lineModified = true;
                         }
                     }
+                    break;
+                    // winY
+                case 0xFF4A:
+                    winPosY = -1;
+                    ioRam[0x4a] = val;
                     break;
                 case 0xFF44:
                     //ioRam[0x44] = 0;

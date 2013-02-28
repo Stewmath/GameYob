@@ -19,6 +19,7 @@ extern bool bgPaletteChanged[];
 extern bool sprPaletteChanged[];
 
 extern bool lineModified;
+extern int winPosY;
 
 extern int interruptWaitMode;
 
