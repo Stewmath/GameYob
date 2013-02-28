@@ -16,7 +16,6 @@ inline void setChan4() {ioRam[0x26] |= 8;}
 inline void clearChan4() {ioRam[0x26] &= ~8;}
 
 bool soundDisabled=false;
-bool soundDisabledLid=false;
 int chanEnabled[] = {1,1,1,1};
 // Global volume
 int soundMultiplier = 4;
@@ -137,7 +136,8 @@ void initSND()
         setSoundVolume(i);
     }
     srand(time(NULL));
-    soundEnable();
+    if (!soundDisabled)
+        soundEnable();
 }
 
 void enableChannel(int i) {
@@ -197,7 +197,7 @@ void updateSoundSample() {
 
 void updateSound(int cycles)
 {
-    if (soundDisabled || soundDisabledLid)
+    if (soundDisabled)
         return;
     int i;
     if (doubleSpeed)
@@ -277,7 +277,7 @@ void updateSound(int cycles)
 
 void handleSoundRegister(u16 addr, u8 val)
 {
-    if (soundDisabled || soundDisabledLid)
+    if (soundDisabled)
         return;
     switch (addr)
     {

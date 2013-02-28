@@ -30,15 +30,18 @@ void initializeGameboy() {
 extern bool advanceFrame;
 void fifoValue32Handler(u32 value, void* user_data) {
     static bool wasInConsole;
+    static bool oldSoundDisabled;
     if (value == 1) {
         wasInConsole = isConsoleEnabled();
+        oldSoundDisabled = soundDisabled;
         enterConsole();
-        soundDisabledLid = true;
+        soundDisabled = true;
     }
     else {
-        soundDisabledLid = false;
+        soundDisabled = false;
         if (!wasInConsole)
             exitConsole();
+        soundDisabled = oldSoundDisabled;
     }
 }
 
