@@ -92,8 +92,10 @@ void runEmul()
         int cycles;
         if (halt)
             cycles = cyclesToEvent;
-        else
-            cycles = runOpcode(cyclesToEvent);
+        else {
+            //cycles = runOpcode(cyclesToEvent);
+            cycles = runFrameASM(cyclesToEvent);
+        }
         cycles += totalCycles;
 
         cyclesToEvent = maxWaitCycles;

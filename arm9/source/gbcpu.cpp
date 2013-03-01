@@ -32,22 +32,21 @@ inline void quickWrite(u16 addr, u8 val) {
     memory[addr>>12][addr&0xFFF] = val;
 }
 
-u16 gbSP,gbPC;
-int halt;
+extern u16 gbSP,gbPC;
+extern int halt;
 
 u8 buttonsPressed = 0xff;
 int fps;
 int gbMode;
 
-Register af;
-Register bc;
-Register de;
-Register hl;
+extern Register af;
+extern Register bc;
+extern Register de;
+extern Register hl;
 
 // IMPORTANT: This variable is unchanging, it DOES NOT change in double speed mode!
 const int clockSpeed = 4194304;
 
-extern int halt;
 int ime;
 u8 opCycles[0x100];
 u8 CBopCycles[0x100];
@@ -215,8 +214,14 @@ void handleInterrupts()
 
 u8* const reg8[] = {&bc.b.h,&bc.b.l,&de.b.h,&de.b.l,&hl.b.h,&hl.b.l,0,&af.b.h};
 
+void cheat(int opcode);
+void storevars(int opcode,int a,int b,int c);
+int getaf();
 int cyclesToExecute;
 int runOpcode(int cycles) {
+    cheat(cycles);
+    storevars(0,0,0,0);
+    int a = getaf();
     cyclesToExecute = cycles;
     // Having these commonly-used registers in local variables should improve speed
     u16 locPC=gbPC;

@@ -18,6 +18,8 @@
 // defaultConsole is defined within libnds
 extern PrintConsole defaultConsole;
 
+extern u8 opCycles[0x100];
+extern u8 CBopCycles[0x100];
 
 void initializeGameboy() {
     initMMU();
@@ -79,6 +81,7 @@ int main(int argc, char* argv[])
     else
         biosEnabled = false;
 
+    initASM((int)opCycles,(int)CBopCycles);
     loadProgram(filename);
 
     initializeGameboy();

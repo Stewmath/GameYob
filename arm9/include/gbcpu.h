@@ -29,3 +29,11 @@ void enableInterrupts();
 void disableInterrupts();
 void handleInterrupts();
 int runOpcode(int cycles);
+
+// ASM functions which use C syntax.
+// C++ syntax, when compiled, is weird and hard to predict?
+extern "C" {
+    void initASM(int a,int b);
+    int runFrameASM(int cycles);
+}
+
