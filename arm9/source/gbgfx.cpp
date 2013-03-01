@@ -127,15 +127,19 @@ inline void drawLine(int gbLine) {
 
     int hofs = state.hofs-screenOffsX;
     int vofs = state.vofs-screenOffsY;
-    REG_BG2CNT = state.bgBlankCnt;
-    REG_BG2HOFS = hofs;
-    REG_BG2VOFS = vofs;
+    int winX = state.winX;
+    int winY = state.winY;
+
     REG_BG3HOFS = hofs;
     REG_BG3VOFS = vofs;
     REG_BG3CNT = state.bgCnt;
 
-    int winX = state.winX;
-    int winY = state.winY;
+    if (!state.winOn || windowDisabled || winX > 7) {
+        REG_BG2CNT = state.bgBlankCnt;
+        REG_BG2HOFS = hofs;
+        REG_BG2VOFS = vofs;
+    }
+
     if (!state.winOn || windowDisabled) {// || winY-2 > gbLine) {
         REG_DISPCNT &= ~DISPLAY_WIN0_ON;
         WIN_IN |= 1<<8;
@@ -149,7 +153,7 @@ inline void drawLine(int gbLine) {
         REG_DISPCNT |= DISPLAY_WIN0_ON;
         WIN_IN &= ~(1<<8);
 
-        if (winX < 7)
+        if (winX <= 7)
             WIN0_X0 = screenOffsX;
         else
             WIN0_X0 = winX-7+screenOffsX;
@@ -166,6 +170,8 @@ inline void drawLine(int gbLine) {
         REG_BG1VOFS = wvofs;
         REG_BG1CNT = state.winCnt;
 
+        // If window fills whole scanline, give it one of the background layers 
+        // for "tile priority" (overlay).
         if (winX <= 7) {
             WIN_IN |= 4;
 

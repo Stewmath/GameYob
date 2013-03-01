@@ -560,6 +560,7 @@ void writeMemory(u16 addr, u8 val)
                     // winY
                 case 0xFF4A:
                     winPosY = -1;
+                    lineModified = true;
                     ioRam[0x4a] = val;
                     break;
                 case 0xFF44:
