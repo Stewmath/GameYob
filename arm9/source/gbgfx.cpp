@@ -85,6 +85,7 @@ typedef struct {
     u8 vofs;
     u8 winX;
     u8 winY;
+    u8 winPosY;
     u8 winOn;
     u16 bgBlankCnt;
     u16 bgCnt;
@@ -120,27 +121,23 @@ typedef struct
 inline void drawLine(int gbLine) {
     ScanlineStruct state = drawingState[gbLine];
 
-    if (!state.spritesOn)
-        REG_DISPCNT &= ~DISPLAY_SPR_ACTIVE;
-    else
+    if (state.spritesOn)
         REG_DISPCNT |= DISPLAY_SPR_ACTIVE;
+    else
+        REG_DISPCNT &= ~DISPLAY_SPR_ACTIVE;
 
     int hofs = state.hofs-screenOffsX;
     int vofs = state.vofs-screenOffsY;
-    int winX = state.winX;
-    int winY = state.winY;
 
     REG_BG3HOFS = hofs;
     REG_BG3VOFS = vofs;
     REG_BG3CNT = state.bgCnt;
 
-    if (!state.winOn || windowDisabled || winX > 7) {
-        REG_BG2CNT = state.bgBlankCnt;
-        REG_BG2HOFS = hofs;
-        REG_BG2VOFS = vofs;
-    }
+    REG_BG2CNT = state.bgBlankCnt;
+    REG_BG2HOFS = hofs;
+    REG_BG2VOFS = vofs;
 
-    if (!state.winOn || windowDisabled) {// || winY-2 > gbLine) {
+    if (!state.winOn || windowDisabled) {
         REG_DISPCNT &= ~DISPLAY_WIN0_ON;
         WIN_IN |= 1<<8;
         WIN_IN &= ~4;
@@ -149,18 +146,20 @@ inline void drawLine(int gbLine) {
         REG_BG0HOFS = hofs;
         REG_BG0VOFS = vofs;
     }
-    else {// if (winY <= gbLine) {
+    else {
         REG_DISPCNT |= DISPLAY_WIN0_ON;
         WIN_IN &= ~(1<<8);
+
+        int winX = state.winX;
 
         if (winX <= 7)
             WIN0_X0 = screenOffsX;
         else
             WIN0_X0 = winX-7+screenOffsX;
-        WIN0_Y0 = gbLine+screenOffsY;
+        WIN0_Y0 = state.winY+screenOffsY;
 
         int whofs = -(winX-7)-screenOffsX;
-        int wvofs = -(gbLine-winY)-screenOffsY;
+        int wvofs = -(gbLine-state.winPosY)-screenOffsY;
 
         REG_BG0HOFS = whofs;
         REG_BG0VOFS = wvofs;
@@ -529,7 +528,9 @@ void drawScanline(int scanline)
     if (hblankDisabled || scanline >= 144)
         return;
     int winX = ioRam[0x4b];
-    if ((ioRam[0x40] & 0x20) && winX < 167 && ioRam[0x4a] <= scanline)
+    if (winPosY == -2)
+        winPosY = ioRam[0x44]-ioRam[0x4a];
+    else if (winX < 167 && ioRam[0x4a] <= scanline)
         winPosY++;
     if (scanline == 0 || (scanline == 1 || (renderingState[scanline-1].modified && !renderingState[scanline-2].modified)) || scanline == ioRam[0x4a])
         lineModified = true;
@@ -543,7 +544,8 @@ void drawScanline(int scanline)
     renderingState[scanline].hofs = ioRam[0x43];
     renderingState[scanline].vofs = ioRam[0x42];
     renderingState[scanline].winX = winX;
-    renderingState[scanline].winY = winPosY;
+    renderingState[scanline].winPosY = winPosY;
+    renderingState[scanline].winY = ioRam[0x4a];
 
     if (ioRam[0x40] & 0x10)
         tileSigned = 0;

@@ -19,6 +19,7 @@ extern bool screenOn;
 
 extern int turbo;
 extern bool fpsOutput;
+extern bool timeOutput;
 
 void runEmul();
 int haltWait(int cycles);

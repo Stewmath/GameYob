@@ -45,14 +45,17 @@ void buttonModeFunc(int value) {
 void consoleOutputFunc(int value) {
     if (value == 0) {
         fpsOutput = false;
+        timeOutput = false;
         consoleDebugOutput = false;
     }
     else if (value == 1) {
         fpsOutput = true;
+        timeOutput = true;
         consoleDebugOutput = false;
     }
     else if (value == 2) {
         fpsOutput = false;
+        timeOutput = false;
         consoleDebugOutput = true;
     }
 }
@@ -144,7 +147,7 @@ ConsoleSubMenu menuList[] = {
         7,
         {0,2,2,3,2,0,0},
         {"Load ROM", "Game Screen", "A & B Buttons", "Console Output", "GBC Bios", "Reset", "Return to game"},
-        {{},{"Top","Bottom"},{"A/B", "B/Y"},{"Off","FPS","Debug"},{"Off","On"},{},{}},
+        {{},{"Top","Bottom"},{"A/B", "B/Y"},{"Off","FPS+Time","Debug"},{"Off","On"},{},{}},
         {selectRomFunc, setScreenFunc, buttonModeFunc, consoleOutputFunc, biosEnableFunc, resetFunc, returnFunc},
         {0,0,0,1,1,0,0}
     },

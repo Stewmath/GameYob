@@ -22,6 +22,7 @@ int turboFrameSkip;
 int frameskip;
 int frameskipCounter;
 bool fpsOutput=true;
+bool timeOutput=true;
 
 // ...what is phase? I think I made that up. Used for timing when the gameboy 
 // screen is off.
@@ -51,9 +52,18 @@ int updateInput() {
     int retval = handleEvents();		// Input mostly
     if (getTimerTicks() >= 1000)
     {
+        int line=0;
         if (fpsOutput) {
             consoleClear();
             printf("FPS: %d\n", fps);
+            line++;
+        }
+        if (timeOutput) {
+            for (; line<24-1; line++)
+                printf("\n");
+            time_t rawTime = time(NULL);
+            printf("%s\n", ctime);
+            //tm *timeInfo = localTime(&rawTime);
         }
         fps = 0;
         startTimer();
@@ -78,8 +88,8 @@ void runEmul()
         updateSound(cycles);
         updateLCD(cycles);
 
-        //if (halt || ime)
-        handleInterrupts();
+        if (ime || halt)
+            handleInterrupts();
     }
 }
 

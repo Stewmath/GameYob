@@ -559,7 +559,12 @@ void writeMemory(u16 addr, u8 val)
                     break;
                     // winY
                 case 0xFF4A:
-                    winPosY = -1;
+                    if (ioRam[0x44] >= 144 || val > ioRam[0x44])
+                        winPosY = -1;
+                    else {
+                    // Signal that winPosY must be reset according to winY
+                        winPosY = -2;
+                    }
                     lineModified = true;
                     ioRam[0x4a] = val;
                     break;
