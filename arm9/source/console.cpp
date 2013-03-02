@@ -50,10 +50,15 @@ void consoleOutputFunc(int value) {
     }
     else if (value == 1) {
         fpsOutput = true;
-        timeOutput = true;
+        timeOutput = false;
         consoleDebugOutput = false;
     }
     else if (value == 2) {
+        fpsOutput = true;
+        timeOutput = true;
+        consoleDebugOutput = false;
+    }
+    else if (value == 3) {
         fpsOutput = false;
         timeOutput = false;
         consoleDebugOutput = true;
@@ -145,11 +150,11 @@ ConsoleSubMenu menuList[] = {
     {
         "Options",
         7,
-        {0,2,2,3,2,0,0},
+        {0,2,2,4,2,0,0},
         {"Load ROM", "Game Screen", "A & B Buttons", "Console Output", "GBC Bios", "Reset", "Return to game"},
-        {{},{"Top","Bottom"},{"A/B", "B/Y"},{"Off","FPS+Time","Debug"},{"Off","On"},{},{}},
+        {{},{"Top","Bottom"},{"A/B", "B/Y"},{"Off","FPS","FPS+Time","Debug"},{"Off","On"},{},{}},
         {selectRomFunc, setScreenFunc, buttonModeFunc, consoleOutputFunc, biosEnableFunc, resetFunc, returnFunc},
-        {0,0,0,1,1,0,0}
+        {0,0,0,2,1,0,0}
     },
     {
         "Debug",
@@ -231,9 +236,9 @@ int displayConsole() {
                     printf("  %s  \n\n", menuList[menu].options[i]);
             }
             else {
-                for (int j=0; j<19-strlen(menuList[menu].options[i]); j++)
+                for (int j=0; j<18-strlen(menuList[menu].options[i]); j++)
                     printf(" ");
-                printf("%s  ", menuList[menu].options[i]);
+                printf("%s ", menuList[menu].options[i]);
                 if (i == option)
                     printf("* ");
                 else

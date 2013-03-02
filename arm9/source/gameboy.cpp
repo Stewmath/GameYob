@@ -58,15 +58,28 @@ int updateInput() {
             printf("FPS: %d\n", fps);
             line++;
         }
-        if (timeOutput) {
-            for (; line<24-1; line++)
-                printf("\n");
-            time_t rawTime = time(NULL);
-            printf("%s\n", ctime);
-            //tm *timeInfo = localTime(&rawTime);
-        }
         fps = 0;
         startTimer();
+        if (timeOutput) {
+            for (; line<23-1; line++)
+                printf("\n");
+            time_t rawTime = time(NULL);
+            char *timeString = ctime(&rawTime);
+            for (int i=0;; i++) {
+                if (timeString[i] == ':') {
+                    timeString += i-2;
+                    break;
+                }
+            }
+            char s[50];
+            strncpy(s, timeString, 50);
+            s[5] = '\0';
+            int spaces = 31-strlen(s);
+            for (int i=0; i<spaces; i++)
+                printf(" ");
+            printf("%s\n", s);
+            //tm *timeInfo = localTime(&rawTime);
+        }
     }
     return retval;
 }
