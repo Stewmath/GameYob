@@ -1,0 +1,20 @@
+Version 0.2:
+
+- Fixed some sound emulation bugs
+- Fixed sleep-mode crashes
+- Fixed window behaviour when modified mid-frame (fixes text in Resident Evil Gaiden)
+- Fixed interrupt behaviour (fixes boss intros in Megaman V & passes blargg's cpu test #2)
+- Fixed crashes in some games without sram (Avenging Spirit)
+- Set default # of ram banks to 4 (workaround for Japanese Crystal)
+- Added GBC Bios support
+- Added "B/Y" control option
+- Added a little clock
+- Capitalized rom extensions are detected properly
+
+Version 0.1.2:
+
+- Fixed Z flag for sla (hl) and rl (hl) opcodes
+
+Version 0.1.1:
+
+- Removed limit on number of files per directory
