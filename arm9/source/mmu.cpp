@@ -8,6 +8,9 @@
 #include "gbsnd.h"
 #include "inputhelper.h"
 #include "main.h"
+#ifdef DS
+#include <nds.h>
+#endif
 
 #define refreshRomBank() { \
     loadRomBank(); \
@@ -202,6 +205,10 @@ void writeVram16(u16 dest, u16 src) {
     }
 }
 
+#ifdef DS
+u8 readMemory(u16 addr) ITCM_CODE;
+#endif
+
 u8 readMemory(u16 addr)
 {
     switch ((addr & 0xF000) >> 12)
@@ -315,6 +322,10 @@ u16 readhword(u16 addr)
 {
     return (readMemory(addr))|(readMemory(addr+1)<<8);
 }
+
+#ifdef DS
+void writeMemory(u16 addr, u8 val) ITCM_CODE;
+#endif
 
 void writeMemory(u16 addr, u8 val)
 {

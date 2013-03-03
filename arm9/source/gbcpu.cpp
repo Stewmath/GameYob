@@ -8,6 +8,9 @@
 #include "gbsnd.h"
 #include "gameboy.h"
 #include "main.h"
+#ifdef DS
+#include <nds.h>
+#endif
 
 #define setZFlag()		af.b.l |= 0x80
 #define clearZFlag()	af.b.l &= 0x7F
@@ -49,7 +52,12 @@ const int clockSpeed = 4194304;
 
 extern int halt;
 int ime;
-u8 opCycles[0x100] = {
+
+u8 opCycles[0x100]
+#ifdef DS
+DTCM_DATA
+#endif
+    = {
     /* Low nybble -> */
     /* High nybble v */
            /*  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, A, B, C, D, E, F  */
@@ -71,7 +79,12 @@ u8 opCycles[0x100] = {
     /* FX */  12,12, 8, 4,99,16, 8,16,12, 8,16, 4,99,99, 8,16
     /* opcodes that have 99 cycles are undefined, but don't hang on them */
 };
-u8 CBopCycles[0x100] = {
+
+u8 CBopCycles[0x100]
+#ifdef DS
+DTCM_DATA
+#endif
+    = {
     /* Low nybble -> */
     /* High nybble v */
            /*  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, A, B, C, D, E, F  */
@@ -255,6 +268,11 @@ void handleInterrupts()
 u8* const reg8[] = {&bc.b.h,&bc.b.l,&de.b.h,&de.b.l,&hl.b.h,&hl.b.l,0,&af.b.h};
 
 int cyclesToExecute;
+
+#ifdef DS
+int runOpcode(int cycles) ITCM_CODE;
+#endif
+
 int runOpcode(int cycles) {
     cyclesToExecute = cycles;
     // Having these commonly-used registers in local variables should improve speed
