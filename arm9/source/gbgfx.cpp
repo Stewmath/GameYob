@@ -118,6 +118,7 @@ typedef struct
 // The graphics are drawn with the DS's native hardware.
 // Games tend to modify the graphics in the middle of being drawn.
 // These changes are recorded and applied during DS hblank.
+
 inline void drawLine(int gbLine) {
     ScanlineStruct state = drawingState[gbLine];
 
@@ -180,6 +181,8 @@ inline void drawLine(int gbLine) {
         }
     }
 }
+
+void hblankHandler() ITCM_CODE;
 
 void hblankHandler()
 {
