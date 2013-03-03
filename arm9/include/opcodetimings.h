@@ -1,5 +1,6 @@
 // TODO: Use brace initialization instead?
 
+
 opCycles[0x06]=8;
 opCycles[0x0e]=8;
 opCycles[0x16]=8;

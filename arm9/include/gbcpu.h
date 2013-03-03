@@ -22,18 +22,20 @@ extern int halt;
 extern int ime;
 extern int gbMode;
 extern int totalCycles;
-extern int cyclesToExecute;
 
 void initCPU();
 void enableInterrupts();
 void disableInterrupts();
 void handleInterrupts();
-int runOpcode(int cycles);
 
-// ASM functions which use C syntax.
-// C++ syntax, when compiled, is weird and hard to predict?
 extern "C" {
+    // ASM functions which use C syntax.
+    // C++ syntax, when compiled, is weird and hard to predict?
     void initASM(int a,int b);
-    int runFrameASM(int cycles);
-}
+    int runCpuASM(int cycles);
 
+    // C++ functions
+    void cheat(int opcode);
+    void cheatcb(int opcode);
+}
+extern int cyclesToExecute;

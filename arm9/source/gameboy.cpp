@@ -94,7 +94,7 @@ void runEmul()
             cycles = cyclesToEvent;
         else {
             //cycles = runOpcode(cyclesToEvent);
-            cycles = runFrameASM(cyclesToEvent);
+            cycles = runCpuASM(cyclesToEvent);
         }
         cycles += totalCycles;
 
