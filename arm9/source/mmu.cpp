@@ -204,30 +204,30 @@ void writeVram16(u16 dest, u16 src) {
 
 u8 readMemory(u16 addr)
 {
-    switch (addr & 0xF000)
+    switch ((addr & 0xF000) >> 12)
     {
-        case 0x0000:
+        case 0x0:
             if (biosOn)
                 return bios[addr];
-        case 0x1000:
-        case 0x2000:
-        case 0x3000:
+        case 0x1:
+        case 0x2:
+        case 0x3:
             return rom[0][addr];
             break;
-        case 0x4000:
-        case 0x5000:
-        case 0x6000:
-        case 0x7000:
+        case 0x4:
+        case 0x5:
+        case 0x6:
+        case 0x7:
             return rom[currentRomBank][addr&0x3fff];
             break;
-        case 0x8000:
-        case 0x9000:
+        case 0x8:
+        case 0x9:
             return vram[vramBank][addr&0x1fff];
             break;
-        case 0xA000:
+        case 0xA:
             //	if (addr == 0xa080)
             //		return 1;
-        case 0xB000:
+        case 0xB:
             if (MBC == 3)
             {
                 switch (currentRamBank)
@@ -253,16 +253,16 @@ u8 readMemory(u16 addr)
             }
             return externRam[currentRamBank][addr&0x1fff];
             break;
-        case 0xC000:
+        case 0xC:
             return wram[0][addr&0xFFF];
             break;
-        case 0xD000:
+        case 0xD:
             return wram[wramBank][addr&0xFFF];
             break;
-        case 0xE000:
+        case 0xE:
             return wram[0][addr&0xFFF];
             break;
-        case 0xF000:
+        case 0xF:
             if (addr < 0xFE00)
                 return wram[wramBank][addr&0xFFF];
             else
@@ -322,9 +322,9 @@ void writeMemory(u16 addr, u8 val)
     if (addr == watchAddr)
         debugMode = 1;
 #endif
-    switch (addr & 0xF000)
+    switch ((addr & 0xF000) >> 12)
     {
-        case 0x2000:
+        case 0x2:
             if (MBC == 5)
             {
                 currentRomBank &= 0x100;
@@ -337,7 +337,7 @@ void writeMemory(u16 addr, u8 val)
                 refreshRomBank();
                 return;
             }
-        case 0x3000:
+        case 0x3:
             switch (MBC)
             {
                 case 1:
@@ -365,8 +365,8 @@ void writeMemory(u16 addr, u8 val)
             }
             refreshRomBank();
             return;
-        case 0x4000:
-        case 0x5000:
+        case 0x4:
+        case 0x5:
             switch (MBC)
             {
                 case 1:
@@ -410,8 +410,8 @@ void writeMemory(u16 addr, u8 val)
                 }
             }
             return;
-        case 0x6000:
-        case 0x7000:
+        case 0x6:
+        case 0x7:
             if (MBC == 1)
             {
                 memoryModel = val & 1;
@@ -422,12 +422,12 @@ void writeMemory(u16 addr, u8 val)
                     latchClock();
             }
             return;
-        case 0x8000:
-        case 0x9000:
+        case 0x8:
+        case 0x9:
             writeVram(addr&0x1fff, val);
             return;
-        case 0xA000:
-        case 0xB000:
+        case 0xA:
+        case 0xB:
             if (MBC == 3)
             {
                 switch (currentRamBank)
@@ -461,15 +461,15 @@ void writeMemory(u16 addr, u8 val)
             }
             externRam[currentRamBank][addr&0x1fff] = val;
             return;
-        case 0xC000:
+        case 0xC:
             wram[0][addr&0xFFF] = val;
             return;
-        case 0xD000:
+        case 0xD:
             wram[wramBank][addr&0xFFF] = val;
             return;
-        case 0xE000:
+        case 0xE:
             return;
-        case 0xF000:
+        case 0xF:
             switch (addr)
             {
                 case 0xFF04:
