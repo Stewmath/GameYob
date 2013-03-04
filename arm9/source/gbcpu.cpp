@@ -1,6 +1,7 @@
 #ifndef DS
 #include <string.h>
 #endif
+#include <stddef.h>
 #include <stdio.h>
 #include "gbcpu.h"
 #include "mmu.h"
@@ -12,18 +13,19 @@
 #include <nds.h>
 #endif
 
-#define setZFlag()		af.b.l |= 0x80
-#define clearZFlag()	af.b.l &= 0x7F
-#define setNFlag()		af.b.l |= 0x40
-#define clearNFlag()	af.b.l &= 0xBF
-#define setHFlag()		af.b.l |= 0x20
-#define clearHFlag()	af.b.l &= 0xDF
-#define setCFlag()		af.b.l |= 0x10
-#define clearCFlag()	af.b.l &= 0xEF
-#define carrySet() 	(af.b.l & 0x10 ? 1 : 0)
-#define zeroSet()	(af.b.l & 0x80 ? 1 : 0)
-#define negativeSet()	(af.b.l & 0x40 ? 1 : 0)
-#define halfSet()		(af.b.l & 0x20 ? 1 : 0)
+#define setZFlag()		gbRegs.af.b.l |= 0x80
+#define clearZFlag()	gbRegs.af.b.l &= 0x7F
+#define setNFlag()		gbRegs.af.b.l |= 0x40
+#define clearNFlag()	gbRegs.af.b.l &= 0xBF
+#define setHFlag()		gbRegs.af.b.l |= 0x20
+#define clearHFlag()	gbRegs.af.b.l &= 0xDF
+#define setCFlag()		gbRegs.af.b.l |= 0x10
+#define clearCFlag()	gbRegs.af.b.l &= 0xEF
+#define carrySet() 	(gbRegs.af.b.l & 0x10 ? 1 : 0)
+#define zeroSet()	(gbRegs.af.b.l & 0x80 ? 1 : 0)
+#define negativeSet()	(gbRegs.af.b.l & 0x40 ? 1 : 0)
+#define halfSet()		(gbRegs.af.b.l & 0x20 ? 1 : 0)
+#define numberedGbReg(n)	((u8 *) &gbRegs + reg8Offsets[n])
 
 inline u8 quickRead(u16 addr) {
     return memory[addr>>12][addr&0xFFF];
@@ -35,17 +37,16 @@ inline void quickWrite(u16 addr, u8 val) {
     memory[addr>>12][addr&0xFFF] = val;
 }
 
-u16 gbSP,gbPC;
+struct Registers gbRegs
+#ifdef DS
+DTCM_BSS
+#endif
+;
 int halt;
 
 u8 buttonsPressed = 0xff;
 int fps;
 int gbMode;
-
-Register af;
-Register bc;
-Register de;
-Register hl;
 
 // IMPORTANT: This variable is unchanging, it DOES NOT change in double speed mode!
 const int clockSpeed = 4194304;
@@ -109,7 +110,7 @@ DTCM_DATA
 void initCPU()
 {
 	int i;
-	gbSP = 0xFFFE;
+	gbRegs.sp = 0xFFFE;
 	ime = 1;			// Correct default value?
 
 	MBC = readMemory(0x147);
@@ -147,10 +148,10 @@ void initCPU()
     halt = 0;
     doubleSpeed = 0;
 
-    af.w = 0x11B0;
-    bc.w = 0x0013;
-    de.w = 0x00D8;
-    hl.w = 0x014D;
+    gbRegs.af.w = 0x11B0;
+    gbRegs.bc.w = 0x0013;
+    gbRegs.de.w = 0x00D8;
+    gbRegs.hl.w = 0x014D;
 
 	writeMemory(0xFF05, 0x00);
 	writeMemory(0xFF06, 0x00);
@@ -189,12 +190,12 @@ void initCPU()
     biosOn = biosEnabled;
 	if (biosOn)
 	{
-		gbPC = 0;
+		gbRegs.pc = 0;
 		gbMode = CGB;
 	}
 	else
 	{
-		gbPC = 0x100;
+		gbRegs.pc = 0x100;
 		if (rom[0][0x143] == 0x80 || rom[0][0x143] == 0xC0)
 			gbMode = CGB;
 		else
@@ -221,9 +222,9 @@ void handleInterrupts()
 	{
 		halt = 0;
         if (ime) {
-            writeMemory(--gbSP, (gbPC) >> 8);
-            writeMemory(--gbSP, gbPC & 0xFF);
-            gbPC = 0x40;
+            writeMemory(--gbRegs.sp, (gbRegs.pc) >> 8);
+            writeMemory(--gbRegs.sp, gbRegs.pc & 0xFF);
+            gbRegs.pc = 0x40;
             ioRam[0x0F] &= ~VBLANK;
             ime = 0;
         }
@@ -232,9 +233,9 @@ void handleInterrupts()
 	{
 		halt = 0;
         if (ime) {
-            writeMemory(--gbSP, (gbPC) >> 8);
-            writeMemory(--gbSP, gbPC & 0xFF);
-            gbPC = 0x48;
+            writeMemory(--gbRegs.sp, (gbRegs.pc) >> 8);
+            writeMemory(--gbRegs.sp, gbRegs.pc & 0xFF);
+            gbRegs.pc = 0x48;
             ioRam[0x0F] &= ~LCD;
             ime = 0;
         }
@@ -243,9 +244,9 @@ void handleInterrupts()
 	{
 		halt = 0;
         if (ime) {
-            writeMemory(--gbSP, (gbPC) >> 8);
-            writeMemory(--gbSP, gbPC & 0xFF);
-            gbPC = 0x50;
+            writeMemory(--gbRegs.sp, (gbRegs.pc) >> 8);
+            writeMemory(--gbRegs.sp, gbRegs.pc & 0xFF);
+            gbRegs.pc = 0x50;
             ioRam[0x0F] &= ~TIMER;
             ime = 0;
         }
@@ -255,9 +256,9 @@ void handleInterrupts()
 	{
         halt = 0;
         if (ime) {
-            writeMemory(--gbSP, (gbPC) >> 8);
-            writeMemory(--gbSP, gbPC & 0xFF);
-            gbPC = 0x60;
+            writeMemory(--gbRegs.sp, (gbRegs.pc) >> 8);
+            writeMemory(--gbRegs.sp, gbRegs.pc & 0xFF);
+            gbRegs.pc = 0x60;
             ioRam[0x0F] &= ~JOYPAD;
             ime = 0;
             interruptTriggered = 0;
@@ -265,7 +266,16 @@ void handleInterrupts()
     }
 }
 
-u8* const reg8[] = {&bc.b.h,&bc.b.l,&de.b.h,&de.b.l,&hl.b.h,&hl.b.l,0,&af.b.h};
+const u8 reg8Offsets[] = {
+    offsetof(struct Registers, bc.b.h),
+    offsetof(struct Registers, bc.b.l),
+    offsetof(struct Registers, de.b.h),
+    offsetof(struct Registers, de.b.l),
+    offsetof(struct Registers, hl.b.h),
+    offsetof(struct Registers, hl.b.l),
+    0,
+    offsetof(struct Registers, af.b.h)
+};
 
 int cyclesToExecute;
 
@@ -276,8 +286,8 @@ int runOpcode(int cycles) ITCM_CODE;
 int runOpcode(int cycles) {
     cyclesToExecute = cycles;
     // Having these commonly-used registers in local variables should improve speed
-    u16 locPC=gbPC;
-    u16 locSP=gbSP;
+    u16 locPC=gbRegs.pc;
+    u16 locSP=gbRegs.sp;
 
 	int totalCycles=0;
 
@@ -296,7 +306,7 @@ int runOpcode(int cycles) {
 			case 0x26:		// LD H, n		8
 			case 0x2E:		// LD L, n		8
 			case 0x3E:		// LD A, n		8
-				(*reg8[opcode>>3]) = quickRead(locPC++);
+				(*numberedGbReg(opcode>>3)) = quickRead(locPC++);
 				break;
 			case 0x7F:		// LD A, A		4
 			case 0x78:		// LD A, B		4
@@ -347,7 +357,7 @@ int runOpcode(int cycles) {
 			case 0x5F:		// LD E, A		4
 			case 0x67:		// LD H, A		4
 			case 0x6F:		// LD L, A		4
-                (*reg8[(opcode>>3)&7]) = *reg8[opcode&7];
+                (*numberedGbReg((opcode>>3)&7)) = *numberedGbReg(opcode&7);
                 break;
 			case 0x7E:		// LD A, (hl)	8
 			case 0x46:		// LD B, (hl)	8
@@ -356,7 +366,7 @@ int runOpcode(int cycles) {
 			case 0x5E:		// LD E, (hl)	8
 			case 0x66:		// LD H, (hl)	8
 			case 0x6E:		// LD L, (hl)	8
-                (*reg8[(opcode>>3)&7]) = readMemory(hl.w);
+                (*numberedGbReg((opcode>>3)&7)) = readMemory(gbRegs.hl.w);
                 break;
 			case 0x77:		// LD (hl), A	8
 			case 0x70:		// LD (hl), B	8
@@ -365,76 +375,76 @@ int runOpcode(int cycles) {
 			case 0x73:		// LD (hl), E	8
 			case 0x74:		// LD (hl), H	8
 			case 0x75:		// LD (hl), L	8
-                writeMemory(hl.w, *reg8[opcode&7]);
+                writeMemory(gbRegs.hl.w, *numberedGbReg(opcode&7));
                 break;
 			case 0x36:		// LD (hl), n	12
-				writeMemory(hl.w, quickRead(locPC++));
+				writeMemory(gbRegs.hl.w, quickRead(locPC++));
 				break;
 			case 0x0A:		// LD A, (BC)	8
-				af.b.h = readMemory(bc.w);
+				gbRegs.af.b.h = readMemory(gbRegs.bc.w);
 				break;
 			case 0x1A:		// LD A, (de)	8
-				af.b.h = readMemory(de.w);
+				gbRegs.af.b.h = readMemory(gbRegs.de.w);
 				break;
 			case 0xFA:		// LD A, (nn)	16
-				af.b.h = readMemory(quickRead(locPC) | (quickRead(locPC+1) << 8));
+				gbRegs.af.b.h = readMemory(quickRead(locPC) | (quickRead(locPC+1) << 8));
 				locPC += 2;
 				break;
 			case 0x02:		// LD (BC), A	8
-				writeMemory(bc.w, af.b.h);
+				writeMemory(gbRegs.bc.w, gbRegs.af.b.h);
 				break;
 			case 0x12:		// LD (de), A	8
-				writeMemory(de.w, af.b.h);
+				writeMemory(gbRegs.de.w, gbRegs.af.b.h);
 				break;
 			case 0xEA:		// LD (nn), A	16
-				writeMemory(quickRead(locPC) | (quickRead(locPC+1) << 8), af.b.h);
+				writeMemory(quickRead(locPC) | (quickRead(locPC+1) << 8), gbRegs.af.b.h);
 				locPC += 2;
 				break;
 			case 0xF2:		// LD A, (C)	8
-				af.b.h = readMemory(0xFF00 + bc.b.l);
+				gbRegs.af.b.h = readIO(gbRegs.bc.b.l);
 				break;
 			case 0xE2:		// LD (C), A	8
-				writeMemory(0xFF00 + bc.b.l, af.b.h);
+				writeIO(gbRegs.bc.b.l, gbRegs.af.b.h);
 				break;
 			case 0x3A:		// LDD A, (hl)	8
-				af.b.h = readMemory(hl.w--);
+				gbRegs.af.b.h = readMemory(gbRegs.hl.w--);
 				break;
 			case 0x32:		// LDD (hl), A	8
-				writeMemory(hl.w--, af.b.h);
+				writeMemory(gbRegs.hl.w--, gbRegs.af.b.h);
 				break;
 			case 0x2A:		// LDI A, (hl)	8
-				af.b.h = readMemory(hl.w++);
+				gbRegs.af.b.h = readMemory(gbRegs.hl.w++);
 				break;
 			case 0x22:		// LDI (hl), A	8
-				writeMemory(hl.w++, af.b.h);
+				writeMemory(gbRegs.hl.w++, gbRegs.af.b.h);
 				break;
 			case 0xE0:		// LDH (n), A   12
-				writeMemory(0xFF00 + quickRead(locPC++), af.b.h);
+				writeIO(quickRead(locPC++), gbRegs.af.b.h);
 				break;
 			case 0xF0:		// LDH A, (n)   12
-				af.b.h = readMemory(0xFF00 + quickRead(locPC++));
+				gbRegs.af.b.h = readIO(quickRead(locPC++));
 				break;
 
 				// 16-bit loads
 
 			case 0x01:		// LD BC, nn	12
-				bc.b.l = quickRead(locPC++);
-				bc.b.h = quickRead(locPC++);
+				gbRegs.bc.b.l = quickRead(locPC++);
+				gbRegs.bc.b.h = quickRead(locPC++);
 				break;
 			case 0x11:		// LD de, nn	12
-				de.b.l = quickRead(locPC++);
-				de.b.h = quickRead(locPC++);
+				gbRegs.de.b.l = quickRead(locPC++);
+				gbRegs.de.b.h = quickRead(locPC++);
 				break;
 			case 0x21:		// LD hl, nn	12
-				hl.b.l = quickRead(locPC++);
-				hl.b.h = quickRead(locPC++);
+				gbRegs.hl.b.l = quickRead(locPC++);
+				gbRegs.hl.b.h = quickRead(locPC++);
 				break;
 			case 0x31:		// LD SP, nn	12
 				locSP = quickRead(locPC) | (quickRead(locPC+1) << 8);
 				locPC += 2;
 				break;
 			case 0xF9:		// LD SP, hl	8
-				locSP = hl.w;
+				locSP = gbRegs.hl.w;
 				break;
 			case 0xF8:		// LDHL SP, n   12
                 {
@@ -450,7 +460,7 @@ int runOpcode(int cycles) {
 					clearHFlag();
 				clearZFlag();
 				clearNFlag();
-				hl.w = val;
+				gbRegs.hl.w = val;
 				break;
                 }
 			case 0x08:		// LD (nn), SP	20
@@ -462,37 +472,37 @@ int runOpcode(int cycles) {
 				break;
                 }
 			case 0xF5:		// PUSH AF
-				quickWrite(--locSP, af.b.h);
-				quickWrite(--locSP, af.b.l);
+				quickWrite(--locSP, gbRegs.af.b.h);
+				quickWrite(--locSP, gbRegs.af.b.l);
 				break;
 			case 0xC5:		// PUSH BC			16
-				quickWrite(--locSP, bc.b.h);
-				quickWrite(--locSP, bc.b.l);
+				quickWrite(--locSP, gbRegs.bc.b.h);
+				quickWrite(--locSP, gbRegs.bc.b.l);
 				break;
 			case 0xD5:		// PUSH de			16
-				quickWrite(--locSP, de.b.h);
-				quickWrite(--locSP, de.b.l);
+				quickWrite(--locSP, gbRegs.de.b.h);
+				quickWrite(--locSP, gbRegs.de.b.l);
 				break;
 			case 0xE5:		// PUSH hl			16
-				quickWrite(--locSP, hl.b.h);
-				quickWrite(--locSP, hl.b.l);
+				quickWrite(--locSP, gbRegs.hl.b.h);
+				quickWrite(--locSP, gbRegs.hl.b.l);
 				break;
 			case 0xF1:		// POP AF				12
-				af.b.l = quickRead(locSP++);
-				af.b.h = quickRead(locSP++);
-				af.b.l &= 0xF0;
+				gbRegs.af.b.l = quickRead(locSP++);
+				gbRegs.af.b.h = quickRead(locSP++);
+				gbRegs.af.b.l &= 0xF0;
 				break;
 			case 0xC1:		// POP BC				12
-				bc.b.l = quickRead(locSP++);
-				bc.b.h = quickRead(locSP++);
+				gbRegs.bc.b.l = quickRead(locSP++);
+				gbRegs.bc.b.h = quickRead(locSP++);
 				break;
 			case 0xD1:		// POP de				12
-				de.b.l = quickRead(locSP++);
-				de.b.h = quickRead(locSP++);
+				gbRegs.de.b.l = quickRead(locSP++);
+				gbRegs.de.b.h = quickRead(locSP++);
 				break;
 			case 0xE1:		// POP hl				12
-				hl.b.l = quickRead(locSP++);
-				hl.b.h = quickRead(locSP++);
+				gbRegs.hl.b.l = quickRead(locSP++);
+				gbRegs.hl.b.h = quickRead(locSP++);
 				break;
 
 				// 8-bit arithmetic
@@ -504,17 +514,17 @@ int runOpcode(int cycles) {
 			case 0x84:		// ADD A, H			4
 			case 0x85:		// ADD A, L			4
                 {
-                    u8 r = *reg8[opcode&7];
-                    if (af.b.h + r > 0xFF)
+                    u8 r = *numberedGbReg(opcode&7);
+                    if (gbRegs.af.b.h + r > 0xFF)
                         setCFlag();
                     else
                         clearCFlag();
-                    if ((af.b.h & 0xF) + (r & 0xF) > 0xF)
+                    if ((gbRegs.af.b.h & 0xF) + (r & 0xF) > 0xF)
                         setHFlag();
                     else
                         clearHFlag();
-                    af.b.h += r;
-                    if (af.b.h == 0)
+                    gbRegs.af.b.h += r;
+                    if (gbRegs.af.b.h == 0)
                         setZFlag();
                     else
                         clearZFlag();
@@ -523,17 +533,17 @@ int runOpcode(int cycles) {
                 }
 			case 0x86:		// ADD A, (hl)	8
                 {
-				int val = readMemory(hl.w);
-				if (af.b.h + val > 0xFF)
+				int val = readMemory(gbRegs.hl.w);
+				if (gbRegs.af.b.h + val > 0xFF)
 					setCFlag();
 				else
 					clearCFlag();
-				if ((af.b.h & 0xF) + (val & 0xF) > 0xF)
+				if ((gbRegs.af.b.h & 0xF) + (val & 0xF) > 0xF)
 					setHFlag();
 				else
 					clearHFlag();
-				af.b.h += val;
-				if (af.b.h == 0)
+				gbRegs.af.b.h += val;
+				if (gbRegs.af.b.h == 0)
 					setZFlag();
 				else
 					clearZFlag();
@@ -543,16 +553,16 @@ int runOpcode(int cycles) {
 			case 0xC6:		// ADD A, n			8
                 {
 				int val = quickRead(locPC++);
-				if (af.b.h + val > 0xFF)
+				if (gbRegs.af.b.h + val > 0xFF)
 					setCFlag();
 				else
 					clearCFlag();
-				if ((af.b.h & 0xF) + (val & 0xF) > 0xF)
+				if ((gbRegs.af.b.h & 0xF) + (val & 0xF) > 0xF)
 					setHFlag();
 				else
 					clearHFlag();
-				af.b.h += val;
-				if (af.b.h == 0)
+				gbRegs.af.b.h += val;
+				if (gbRegs.af.b.h == 0)
 					setZFlag();
 				else
 					clearZFlag();
@@ -570,17 +580,17 @@ int runOpcode(int cycles) {
 			case 0x8D:		// ADC A, L			4
                 {
 				int val = carrySet();
-                u8 r = *reg8[opcode&7];
-				if (af.b.h + r + val > 0xFF)
+                u8 r = *numberedGbReg(opcode&7);
+				if (gbRegs.af.b.h + r + val > 0xFF)
 					setCFlag();
 				else
 					clearCFlag();
-				if ((af.b.h & 0xF) + (r & 0xF) + val > 0xF)
+				if ((gbRegs.af.b.h & 0xF) + (r & 0xF) + val > 0xF)
 					setHFlag();
 				else
 					clearHFlag();
-				af.b.h += r + val;
-				if (af.b.h == 0)
+				gbRegs.af.b.h += r + val;
+				if (gbRegs.af.b.h == 0)
 					setZFlag();
 				else
 					clearZFlag();
@@ -589,18 +599,18 @@ int runOpcode(int cycles) {
                 }
 			case 0x8E:		// ADC A, (hl)	8
                 {
-				int val = readMemory(hl.w);
+				int val = readMemory(gbRegs.hl.w);
 				int val2 = carrySet();
-				if (af.b.h + val + val2 > 0xFF)
+				if (gbRegs.af.b.h + val + val2 > 0xFF)
 					setCFlag();
 				else
 					clearCFlag();
-				if ((af.b.h & 0xF) + (val & 0xF) + val2 > 0xF)
+				if ((gbRegs.af.b.h & 0xF) + (val & 0xF) + val2 > 0xF)
 					setHFlag();
 				else
 					clearHFlag();
-				af.b.h += val + val2;
-				if (af.b.h == 0)
+				gbRegs.af.b.h += val + val2;
+				if (gbRegs.af.b.h == 0)
 					setZFlag();
 				else
 					clearZFlag();
@@ -611,16 +621,16 @@ int runOpcode(int cycles) {
                 {
 				int val = quickRead(locPC++);
 				int val2 = carrySet();
-				if (af.b.h + val + val2 > 0xFF)
+				if (gbRegs.af.b.h + val + val2 > 0xFF)
 					setCFlag();
 				else
 					clearCFlag();
-				if ((af.b.h & 0xF) + (val & 0xF) + val2 > 0xF)
+				if ((gbRegs.af.b.h & 0xF) + (val & 0xF) + val2 > 0xF)
 					setHFlag();
 				else
 					clearHFlag();
-				af.b.h += val + val2;
-				if (af.b.h == 0)
+				gbRegs.af.b.h += val + val2;
+				if (gbRegs.af.b.h == 0)
 					setZFlag();
 				else
 					clearZFlag();
@@ -636,17 +646,17 @@ int runOpcode(int cycles) {
 			case 0x94:		// SUB A, H			4
 			case 0x95:		// SUB A, L			4
                 {
-                    u8 r = *reg8[opcode&7];
-                    if (af.b.h < r)
+                    u8 r = *numberedGbReg(opcode&7);
+                    if (gbRegs.af.b.h < r)
                         setCFlag();
                     else
                         clearCFlag();
-                    if ((af.b.h & 0xF) < (r & 0xF))
+                    if ((gbRegs.af.b.h & 0xF) < (r & 0xF))
                         setHFlag();
                     else
                         clearHFlag();
-                    af.b.h -= r;
-                    if (af.b.h == 0)
+                    gbRegs.af.b.h -= r;
+                    if (gbRegs.af.b.h == 0)
                         setZFlag();
                     else
                         clearZFlag();
@@ -655,17 +665,17 @@ int runOpcode(int cycles) {
                 }
 			case 0x96:		// SUB A, (hl)	8
                 {
-				int val = readMemory(hl.w);
-				if (af.b.h < val)
+				int val = readMemory(gbRegs.hl.w);
+				if (gbRegs.af.b.h < val)
 					setCFlag();
 				else
 					clearCFlag();
-				if ((af.b.h & 0xF) < (val & 0xF))
+				if ((gbRegs.af.b.h & 0xF) < (val & 0xF))
 					setHFlag();
 				else
 					clearHFlag();
-				af.b.h -= val;
-				if (af.b.h == 0)
+				gbRegs.af.b.h -= val;
+				if (gbRegs.af.b.h == 0)
 					setZFlag();
 				else
 					clearZFlag();
@@ -675,16 +685,16 @@ int runOpcode(int cycles) {
 			case 0xD6:		// SUB A, n			8
                 {
 				int val = quickRead(locPC++);
-				if (af.b.h < val)
+				if (gbRegs.af.b.h < val)
 					setCFlag();
 				else
 					clearCFlag();
-				if ((af.b.h & 0xF) < (val & 0xF))
+				if ((gbRegs.af.b.h & 0xF) < (val & 0xF))
 					setHFlag();
 				else
 					clearHFlag();
-				af.b.h -= val;
-				if (af.b.h == 0)
+				gbRegs.af.b.h -= val;
+				if (gbRegs.af.b.h == 0)
 					setZFlag();
 				else
 					clearZFlag();
@@ -700,18 +710,18 @@ int runOpcode(int cycles) {
 			case 0x9C:		// SBC A, H			4
 			case 0x9D:		// SBC A, L			4
                 {
-                    u8 r = *reg8[opcode&7];
+                    u8 r = *numberedGbReg(opcode&7);
                     int val2 = carrySet();
-                    if (af.b.h < r + val2)
+                    if (gbRegs.af.b.h < r + val2)
                         setCFlag();
                     else
                         clearCFlag();
-                    if ((af.b.h & 0xF) < (r & 0xF) + val2)
+                    if ((gbRegs.af.b.h & 0xF) < (r & 0xF) + val2)
                         setHFlag();
                     else
                         clearHFlag();
-                    af.b.h -= (r + val2);
-                    if (af.b.h == 0)
+                    gbRegs.af.b.h -= (r + val2);
+                    if (gbRegs.af.b.h == 0)
                         setZFlag();
                     else
                         clearZFlag();
@@ -721,17 +731,17 @@ int runOpcode(int cycles) {
 			case 0x9E:		// SBC A, (hl)	8
                 {
 				int val2 = carrySet();
-				int val = readMemory(hl.w);
-				if (af.b.h < val + val2)
+				int val = readMemory(gbRegs.hl.w);
+				if (gbRegs.af.b.h < val + val2)
 					setCFlag();
 				else
 					clearCFlag();
-				if ((af.b.h & 0xF) < (val & 0xF)+val2)
+				if ((gbRegs.af.b.h & 0xF) < (val & 0xF)+val2)
 					setHFlag();
 				else
 					clearHFlag();
-				af.b.h -= val + val2;
-				if (af.b.h == 0)
+				gbRegs.af.b.h -= val + val2;
+				if (gbRegs.af.b.h == 0)
 					setZFlag();
 				else
 					clearZFlag();
@@ -742,16 +752,16 @@ int runOpcode(int cycles) {
                 {
 				int val = quickRead(locPC++);
 				int val2 = carrySet();
-				if (af.b.h <val + val2)
+				if (gbRegs.af.b.h <val + val2)
 					setCFlag();
 				else
 					clearCFlag();
-				if ((af.b.h & 0xF) < (val & 0xF)+val2)
+				if ((gbRegs.af.b.h & 0xF) < (val & 0xF)+val2)
 					setHFlag();
 				else
 					clearHFlag();
-				af.b.h -= (val + val2);
-				if (af.b.h == 0)
+				gbRegs.af.b.h -= (val + val2);
+				if (gbRegs.af.b.h == 0)
 					setZFlag();
 				else
 					clearZFlag();
@@ -766,8 +776,8 @@ int runOpcode(int cycles) {
 			case 0xA3:		// AND A, E		4
 			case 0xA4:		// AND A, H		4
 			case 0xA5:		// AND A, L		4
-				af.b.h &= *reg8[opcode&7];
-				if (af.b.h == 0)
+				gbRegs.af.b.h &= *numberedGbReg(opcode&7);
+				if (gbRegs.af.b.h == 0)
 					setZFlag();
 				else
 					clearZFlag();
@@ -776,8 +786,8 @@ int runOpcode(int cycles) {
 				clearCFlag();
 				break;
 			case 0xA6:		// AND A, (hl)	8
-				af.b.h &= readMemory(hl.w);
-				if (af.b.h == 0)
+				gbRegs.af.b.h &= readMemory(gbRegs.hl.w);
+				if (gbRegs.af.b.h == 0)
 					setZFlag();
 				else
 					clearZFlag();
@@ -786,8 +796,8 @@ int runOpcode(int cycles) {
 				clearCFlag();
 				break;
 			case 0xE6:		// AND A, n			8
-				af.b.h &= quickRead(locPC++);
-				if (af.b.h == 0)
+				gbRegs.af.b.h &= quickRead(locPC++);
+				if (gbRegs.af.b.h == 0)
 					setZFlag();
 				else
 					clearZFlag();
@@ -803,8 +813,8 @@ int runOpcode(int cycles) {
 			case 0xB3:		// OR A, E			4
 			case 0xB4:		// OR A, H			4
 			case 0xB5:		// OR A, L			4
-				af.b.h |= *reg8[opcode&7];
-				if (af.b.h == 0)
+				gbRegs.af.b.h |= *numberedGbReg(opcode&7);
+				if (gbRegs.af.b.h == 0)
 					setZFlag();
 				else
 					clearZFlag();
@@ -813,8 +823,8 @@ int runOpcode(int cycles) {
 				clearCFlag();
 				break;
 			case 0xB6:		// OR A, (hl)		8
-				af.b.h |= readMemory(hl.w);
-				if (af.b.h == 0)
+				gbRegs.af.b.h |= readMemory(gbRegs.hl.w);
+				if (gbRegs.af.b.h == 0)
 					setZFlag();
 				else
 					clearZFlag();
@@ -823,8 +833,8 @@ int runOpcode(int cycles) {
 				clearCFlag();
 				break;
 			case 0xF6:		// OR A, n			4
-				af.b.h |= quickRead(locPC++);
-				if (af.b.h == 0)
+				gbRegs.af.b.h |= quickRead(locPC++);
+				if (gbRegs.af.b.h == 0)
 					setZFlag();
 				else
 					clearZFlag();
@@ -840,8 +850,8 @@ int runOpcode(int cycles) {
 			case 0xAB:		// XOR A, E			4
 			case 0xAC:		// XOR A, H			4
 			case 0xAD:		// XOR A, L			4
-				af.b.h ^= *reg8[opcode&7];
-				if (af.b.h == 0)
+				gbRegs.af.b.h ^= *numberedGbReg(opcode&7);
+				if (gbRegs.af.b.h == 0)
 					setZFlag();
 				else
 					clearZFlag();
@@ -850,8 +860,8 @@ int runOpcode(int cycles) {
 				clearCFlag();
 				break;
 			case 0xAE:		// XOR A, (hl)	8
-				af.b.h ^= readMemory(hl.w);
-				if (af.b.h == 0)
+				gbRegs.af.b.h ^= readMemory(gbRegs.hl.w);
+				if (gbRegs.af.b.h == 0)
 					setZFlag();
 				else
 					clearZFlag();
@@ -860,8 +870,8 @@ int runOpcode(int cycles) {
 				clearCFlag();
 				break;
 			case 0xEE:		// XOR A, n			8
-				af.b.h ^= quickRead(locPC++);
-				if (af.b.h == 0)
+				gbRegs.af.b.h ^= quickRead(locPC++);
+				if (gbRegs.af.b.h == 0)
 					setZFlag();
 				else
 					clearZFlag();
@@ -878,16 +888,16 @@ int runOpcode(int cycles) {
 			case 0xBC:		// CP H					4
 			case 0xBD:		// CP L					4
                 {
-                    u8 r = *reg8[opcode&7];
-                    if (af.b.h < r)
+                    u8 r = *numberedGbReg(opcode&7);
+                    if (gbRegs.af.b.h < r)
                         setCFlag();
                     else
                         clearCFlag();
-                    if ((af.b.h & 0xF) < (r & 0xF))
+                    if ((gbRegs.af.b.h & 0xF) < (r & 0xF))
                         setHFlag();
                     else
                         clearHFlag();
-                    if (af.b.h - r == 0)
+                    if (gbRegs.af.b.h - r == 0)
                         setZFlag();
                     else
                         clearZFlag();
@@ -896,16 +906,16 @@ int runOpcode(int cycles) {
                 }
 			case 0xBE:		// CP (hl)			8
                 {
-				int val = readMemory(hl.w);
-				if (af.b.h < val)
+				int val = readMemory(gbRegs.hl.w);
+				if (gbRegs.af.b.h < val)
 					setCFlag();
 				else
 					clearCFlag();
-				if ((af.b.h & 0xF) < (val & 0xF))
+				if ((gbRegs.af.b.h & 0xF) < (val & 0xF))
 					setHFlag();
 				else
 					clearHFlag();
-				if (af.b.h - val == 0)
+				if (gbRegs.af.b.h - val == 0)
 					setZFlag();
 				else
 					clearZFlag();
@@ -915,15 +925,15 @@ int runOpcode(int cycles) {
 			case 0xFE:		// CP n					8
                 {
 				int val = quickRead(locPC++);
-				if (af.b.h < val)
+				if (gbRegs.af.b.h < val)
 					setCFlag();
 				else
 					clearCFlag();
-				if ((af.b.h & 0xF) < (val & 0xF))
+				if ((gbRegs.af.b.h & 0xF) < (val & 0xF))
 					setHFlag();
 				else
 					clearHFlag();
-				if (af.b.h - val == 0)
+				if (gbRegs.af.b.h - val == 0)
 					setZFlag();
 				else
 					clearZFlag();
@@ -940,7 +950,7 @@ int runOpcode(int cycles) {
 			case 0x24:		// INC H				4
 			case 0x2C:		// INC L				4
                 {
-                    u8* reg = reg8[opcode>>3];
+                    u8* reg = numberedGbReg(opcode>>3);
                     (*reg)++;
                     u8 r = *reg;
                     if (r == 0)
@@ -956,8 +966,8 @@ int runOpcode(int cycles) {
                 }
 			case 0x34:		// INC (hl)		12
                 {
-				u8 val = readMemory(hl.w)+1;
-				writeMemory(hl.w, val);
+				u8 val = readMemory(gbRegs.hl.w)+1;
+				writeMemory(gbRegs.hl.w, val);
 				if (val == 0)
 					setZFlag();
 				else
@@ -978,7 +988,7 @@ int runOpcode(int cycles) {
 			case 0x25:		// DEC H				4
 			case 0x2D:		// DEC L				4
                 {
-                    u8 *reg = reg8[opcode>>3];
+                    u8 *reg = numberedGbReg(opcode>>3);
                     (*reg)--;
                     u8 r = *reg;
                     if (r == 0)
@@ -994,8 +1004,8 @@ int runOpcode(int cycles) {
                 }
 			case 0x35:		// deC (hl)			12
                 {
-				u8 val = readMemory(hl.w)-1;
-				writeMemory(hl.w, val);
+				u8 val = readMemory(gbRegs.hl.w)-1;
+				writeMemory(gbRegs.hl.w, val);
 				if (val == 0)
 					setZFlag();
 				else
@@ -1011,52 +1021,52 @@ int runOpcode(int cycles) {
 				// 16-bit Arithmetic
 
 			case 0x09:		// ADD hl, BC		8
-				if (hl.w + bc.w > 0xFFFF)
+				if (gbRegs.hl.w + gbRegs.bc.w > 0xFFFF)
 					setCFlag();
 				else
 					clearCFlag();
-				if ((hl.w & 0xFFF) + (bc.w & 0xFFF) > 0xFFF)
+				if ((gbRegs.hl.w & 0xFFF) + (gbRegs.bc.w & 0xFFF) > 0xFFF)
 					setHFlag();
 				else
 					clearHFlag();
 				clearNFlag();
-				hl.w += bc.w;
+				gbRegs.hl.w += gbRegs.bc.w;
 				break;
 			case 0x19:		// ADD hl, de		8
-				if (hl.w + de.w > 0xFFFF)
+				if (gbRegs.hl.w + gbRegs.de.w > 0xFFFF)
 					setCFlag();
 				else
 					clearCFlag();
-				if ((hl.w & 0xFFF) + (de.w & 0xFFF) > 0xFFF)
+				if ((gbRegs.hl.w & 0xFFF) + (gbRegs.de.w & 0xFFF) > 0xFFF)
 					setHFlag();
 				else
 					clearHFlag();
 				clearNFlag();
-				hl.w += de.w;
+				gbRegs.hl.w += gbRegs.de.w;
 				break;
 			case 0x29:		// ADD hl, hl		8
-				if (hl.w + hl.w > 0xFFFF)
+				if (gbRegs.hl.w + gbRegs.hl.w > 0xFFFF)
 					setCFlag();
 				else
 					clearCFlag();
-				if ((hl.w & 0xFFF) + (hl.w & 0xFFF) > 0xFFF)
+				if ((gbRegs.hl.w & 0xFFF) + (gbRegs.hl.w & 0xFFF) > 0xFFF)
 					setHFlag();
 				else
 					clearHFlag();
 				clearNFlag();
-				hl.w += hl.w;
+				gbRegs.hl.w += gbRegs.hl.w;
 				break;
 			case 0x39:		// ADD hl, SP		8
-				if (hl.w + locSP > 0xFFFF)
+				if (gbRegs.hl.w + locSP > 0xFFFF)
 					setCFlag();
 				else
 					clearCFlag();
-				if ((hl.w & 0xFFF) + (locSP & 0xFFF) > 0xFFF)
+				if ((gbRegs.hl.w & 0xFFF) + (locSP & 0xFFF) > 0xFFF)
 					setHFlag();
 				else
 					clearHFlag();
 				clearNFlag();
-				hl.w += locSP;
+				gbRegs.hl.w += locSP;
 				break;
 
 			case 0xE8:		// ADD SP, n		16
@@ -1076,26 +1086,26 @@ int runOpcode(int cycles) {
 				break;
                 }
 			case 0x03:		// INC BC				8
-				bc.w++;
+				gbRegs.bc.w++;
 				break;
 			case 0x13:		// INC de				8
-				de.w++;
+				gbRegs.de.w++;
 				break;
 			case 0x23:		// INC hl				8
-				hl.w++;
+				gbRegs.hl.w++;
 				break;
 			case 0x33:		// INC SP				8
 				locSP++;
 				break;
 
 			case 0x0B:		// DEC BC				8
-				bc.w--;
+				gbRegs.bc.w--;
 				break;
 			case 0x1B:		// DEC de				8
-				de.w--;
+				gbRegs.de.w--;
 				break;
 			case 0x2B:		// DEC hl				8
-				hl.w--;
+				gbRegs.hl.w--;
 				break;
 			case 0x3B:		// DEC SP				8
 				locSP--;
@@ -1103,7 +1113,7 @@ int runOpcode(int cycles) {
 
 			case 0x27:		// DAA					4
 				{
-					int a = af.b.h;
+					int a = gbRegs.af.b.h;
 
 					if (!negativeSet())
 					{
@@ -1122,7 +1132,7 @@ int runOpcode(int cycles) {
 							a -= 0x60;
 					}
 
-					af.b.l &= ~(0x20 | 0x80);
+					gbRegs.af.b.l &= ~(0x20 | 0x80);
 
 					if ((a & 0x100) == 0x100)
 						setCFlag();
@@ -1132,13 +1142,13 @@ int runOpcode(int cycles) {
 					if (a == 0)
 						setZFlag();
 
-					af.b.h = a;
+					gbRegs.af.b.h = a;
 
 				}
 				break;
 
 			case 0x2F:		// CPL					4
-				af.b.h = ~af.b.h;
+				gbRegs.af.b.h = ~gbRegs.af.b.h;
 				setNFlag();
 				setHFlag();
 				break;
@@ -1206,12 +1216,12 @@ int runOpcode(int cycles) {
 
 			case 0x07:		// RLCA 4
                 {
-				int val = af.b.h;
-				af.b.h <<= 1;
+				int val = gbRegs.af.b.h;
+				gbRegs.af.b.h <<= 1;
 				if (val & 0x80)
 				{
 					setCFlag();
-					af.b.h |= 1;
+					gbRegs.af.b.h |= 1;
 				}
 				else
 					clearCFlag();
@@ -1223,9 +1233,9 @@ int runOpcode(int cycles) {
 
 			case 0x17:		// RLA					4
                 {
-				int val = (af.b.h & 0x80);
-				af.b.h <<= 1;
-				af.b.h |= carrySet();
+				int val = (gbRegs.af.b.h & 0x80);
+				gbRegs.af.b.h <<= 1;
+				gbRegs.af.b.h |= carrySet();
 				if (val)
 					setCFlag();
 				else
@@ -1238,12 +1248,12 @@ int runOpcode(int cycles) {
 
 			case 0x0F:		// RRCA 4
                 {
-				int val = af.b.h;
-				af.b.h >>= 1;
+				int val = gbRegs.af.b.h;
+				gbRegs.af.b.h >>= 1;
 				if ((val & 1))
 				{
 					setCFlag();
-					af.b.h |= 0x80;
+					gbRegs.af.b.h |= 0x80;
 				}
 				else
 					clearCFlag();
@@ -1255,9 +1265,9 @@ int runOpcode(int cycles) {
 
 			case 0x1F:		// RRA					4
                 {
-				int val = af.b.h & 1;
-				af.b.h >>= 1;
-				af.b.h |= (carrySet() << 7);
+				int val = gbRegs.af.b.h & 1;
+				gbRegs.af.b.h >>= 1;
+				gbRegs.af.b.h |= (carrySet() << 7);
 				if (val)
 					setCFlag();
 				else
@@ -1312,7 +1322,7 @@ int runOpcode(int cycles) {
                 }
 				break;
 			case 0xE9:		// JP (hl)	4
-				locPC = hl.w;
+				locPC = gbRegs.hl.w;
 				break;
 			case 0x18:		// JR n 12
 				locPC += (s8)quickRead(locPC++);
@@ -1517,7 +1527,7 @@ int runOpcode(int cycles) {
 					case 0x34:		// SWAP H			8
 					case 0x35:		// SWAP L			8
                         {
-                            u8 *reg = reg8[opcode&7];
+                            u8 *reg = numberedGbReg(opcode&7);
                             u8 r = *reg;
                             int val = r >> 4;
                             r <<= 4;
@@ -1534,11 +1544,11 @@ int runOpcode(int cycles) {
                         }
 					case 0x36:		// SWAP (hl)		16
                         {
-                            int val = readMemory(hl.w);
+                            int val = readMemory(gbRegs.hl.w);
                             int val2 = val >> 4;
                             val <<= 4;
                             val |= val2;
-                            writeMemory(hl.w, val);
+                            writeMemory(gbRegs.hl.w, val);
                             if (val == 0)
                                 setZFlag();
                             else
@@ -1557,7 +1567,7 @@ int runOpcode(int cycles) {
 					case 0x04:		// RLC H					8
 					case 0x05:		// RLC L					8
                         {
-                            u8 *reg = reg8[opcode];
+                            u8 *reg = numberedGbReg(opcode);
                             u8 r = *reg;
                             r <<= 1;
                             if (((*reg) & 0x80) != 0)
@@ -1579,7 +1589,7 @@ int runOpcode(int cycles) {
 
 					case 0x06:		// RLC (hl)				16
                         {
-						int val = readMemory(hl.w);
+						int val = readMemory(gbRegs.hl.w);
 						int val2 = val;
 						val2 <<= 1;
 						if ((val & 0x80) != 0)
@@ -1595,7 +1605,7 @@ int runOpcode(int cycles) {
 							clearZFlag();
 						clearNFlag();
 						clearHFlag();
-						writeMemory(hl.w, val2);
+						writeMemory(gbRegs.hl.w, val2);
 						break;
 
                         }
@@ -1607,7 +1617,7 @@ int runOpcode(int cycles) {
 					case 0x14:		// RL H				8
 					case 0x15:		// RL L				8
                         {
-                            u8 *reg = reg8[opcode&7];
+                            u8 *reg = numberedGbReg(opcode&7);
                             u8 r = *reg;
                             int val = (r & 0x80);
                             r <<= 1;
@@ -1627,7 +1637,7 @@ int runOpcode(int cycles) {
                         }
 					case 0x16:		// RL (hl)			16
                         {
-						u8 val2 = readMemory(hl.w);
+						u8 val2 = readMemory(gbRegs.hl.w);
 						int val = (val2 & 0x80);
 						val2 <<= 1;
 						val2 |= carrySet();
@@ -1641,7 +1651,7 @@ int runOpcode(int cycles) {
 							clearZFlag();
 						clearNFlag();
 						clearHFlag();
-						writeMemory(hl.w, val2);
+						writeMemory(gbRegs.hl.w, val2);
 						break;
                         }
 					case 0x0F:		// RRC A					8
@@ -1652,7 +1662,7 @@ int runOpcode(int cycles) {
 					case 0x0C:		// RRC H					8
 					case 0x0D:		// RRC L					8
                         {
-                            u8 *reg = reg8[opcode&7];
+                            u8 *reg = numberedGbReg(opcode&7);
                             u8 r = *reg;
                             int val = r;
                             r >>= 1;
@@ -1674,7 +1684,7 @@ int runOpcode(int cycles) {
                         }
 					case 0x0E:		// RRC (hl)				16
                         {
-						u8 val2 = readMemory(hl.w);
+						u8 val2 = readMemory(gbRegs.hl.w);
 						int val = val2;
 						val2 >>= 1;
 						if ((val & 1) != 0)
@@ -1690,7 +1700,7 @@ int runOpcode(int cycles) {
 							clearZFlag();
 						clearNFlag();
 						clearHFlag();
-						writeMemory(hl.w, val2);
+						writeMemory(gbRegs.hl.w, val2);
 						break;
                         }
 
@@ -1702,7 +1712,7 @@ int runOpcode(int cycles) {
 					case 0x1C:		// RR H					8
 					case 0x1D:		// RR L					8
                         {
-                            u8 *reg = reg8[opcode&7];
+                            u8 *reg = numberedGbReg(opcode&7);
                             u8 r = *reg;
                             int val = r & 1;
                             r >>= 1;
@@ -1722,7 +1732,7 @@ int runOpcode(int cycles) {
                         }
 					case 0x1E:		// RR (hl)			16
                         {
-						u8 val2 = readMemory(hl.w);
+						u8 val2 = readMemory(gbRegs.hl.w);
 						int val = val2 & 1;
 						val2 >>= 1;
 						val2 |= carrySet() << 7;
@@ -1736,7 +1746,7 @@ int runOpcode(int cycles) {
 							clearZFlag();
 						clearNFlag();
 						clearHFlag();
-						writeMemory(hl.w, val2);
+						writeMemory(gbRegs.hl.w, val2);
 						break;
                         }
 
@@ -1749,7 +1759,7 @@ int runOpcode(int cycles) {
 					case 0x24:		// SLA H				8
 					case 0x25:		// SLA L				8
                         {
-                            u8 *reg = reg8[opcode&7];
+                            u8 *reg = numberedGbReg(opcode&7);
                             u8 r = *reg;
                             int val = (r & 0x80);
                             r <<= 1;
@@ -1768,7 +1778,7 @@ int runOpcode(int cycles) {
                         }
 					case 0x26:		// SLA (hl)			16
                         {
-						u8 val2 = readMemory(hl.w);
+						u8 val2 = readMemory(gbRegs.hl.w);
 						int val = (val2 & 0x80);
 						val2 <<= 1;
 						if (val)
@@ -1781,7 +1791,7 @@ int runOpcode(int cycles) {
 							clearZFlag();
 						clearNFlag();
 						clearHFlag();
-						writeMemory(hl.w, val2);
+						writeMemory(gbRegs.hl.w, val2);
 						break;
                         }
 
@@ -1793,7 +1803,7 @@ int runOpcode(int cycles) {
 					case 0x2C:		// SRA H				8
 					case 0x2D:		// SRA L				8
                         {
-                            u8 *reg = reg8[opcode&7];
+                            u8 *reg = numberedGbReg(opcode&7);
                             u8 r = *reg;
                             if (r & 1)
                                 setCFlag();
@@ -1813,7 +1823,7 @@ int runOpcode(int cycles) {
                         }
 					case 0x2E:		// SRA (hl)			16
                         {
-						int val = readMemory(hl.w);
+						int val = readMemory(gbRegs.hl.w);
 						if (val & 1)
 							setCFlag();
 						else
@@ -1827,7 +1837,7 @@ int runOpcode(int cycles) {
 							clearZFlag();
 						clearNFlag();
 						clearHFlag();
-						writeMemory(hl.w, val);
+						writeMemory(gbRegs.hl.w, val);
 						break;
                         }
 
@@ -1839,7 +1849,7 @@ int runOpcode(int cycles) {
 					case 0x3C:		// SRL H				8
 					case 0x3D:		// SRL L				8
                         {
-                            u8 *reg = reg8[opcode&7];
+                            u8 *reg = numberedGbReg(opcode&7);
                             u8 r = *reg;
                             if (r & 1)
                                 setCFlag();
@@ -1857,7 +1867,7 @@ int runOpcode(int cycles) {
                         }
 					case 0x3E:		// SRL (hl)			16
                         {
-                            int val = readMemory(hl.w);
+                            int val = readMemory(gbRegs.hl.w);
                             if (val & 1)
                                 setCFlag();
                             else
@@ -1869,7 +1879,7 @@ int runOpcode(int cycles) {
                                 clearZFlag();
                             clearNFlag();
                             clearHFlag();
-                            writeMemory(hl.w, val);
+                            writeMemory(gbRegs.hl.w, val);
                             break;
                         }
 
@@ -1930,7 +1940,7 @@ int runOpcode(int cycles) {
 					case 0x7D:		// BIT 7, L
 					case 0x7F:		// BIT 7, A
                         {
-                            if (((*reg8[opcode&7]) & (1<<((opcode>>3)&7))) == 0)
+                            if (((*numberedGbReg(opcode&7)) & (1<<((opcode>>3)&7))) == 0)
                                 setZFlag();
                             else
                                 clearZFlag();
@@ -1939,7 +1949,7 @@ int runOpcode(int cycles) {
                             break;
                         }
 					case 0x46:		// BIT 0, (hl)      12
-						if ((readMemory(hl.w) & 0x1) == 0)
+						if ((readMemory(gbRegs.hl.w) & 0x1) == 0)
 							setZFlag();
 						else
 							clearZFlag();
@@ -1947,7 +1957,7 @@ int runOpcode(int cycles) {
 						setHFlag();
 						break;
 					case 0x4E:		// BIT 1, (hl)
-						if ((readMemory(hl.w) & 0x2) == 0)
+						if ((readMemory(gbRegs.hl.w) & 0x2) == 0)
 							setZFlag();
 						else
 							clearZFlag();
@@ -1955,7 +1965,7 @@ int runOpcode(int cycles) {
 						setHFlag();
 						break;
 					case 0x56:		// BIT 2, (hl)
-						if ((readMemory(hl.w) & 0x4) == 0)
+						if ((readMemory(gbRegs.hl.w) & 0x4) == 0)
 							setZFlag();
 						else
 							clearZFlag();
@@ -1963,7 +1973,7 @@ int runOpcode(int cycles) {
 						setHFlag();
 						break;
 					case 0x5E:		// BIT 3, (hl)
-						if ((readMemory(hl.w) & 0x8) == 0)
+						if ((readMemory(gbRegs.hl.w) & 0x8) == 0)
 							setZFlag();
 						else
 							clearZFlag();
@@ -1971,7 +1981,7 @@ int runOpcode(int cycles) {
 						setHFlag();
 						break;
 					case 0x66:		// BIT 4, (hl)
-						if ((readMemory(hl.w) & 0x10) == 0)
+						if ((readMemory(gbRegs.hl.w) & 0x10) == 0)
 							setZFlag();
 						else
 							clearZFlag();
@@ -1979,7 +1989,7 @@ int runOpcode(int cycles) {
 						setHFlag();
 						break;
 					case 0x6E:		// BIT 5, (hl)
-						if ((readMemory(hl.w) & 0x20) == 0)
+						if ((readMemory(gbRegs.hl.w) & 0x20) == 0)
 							setZFlag();
 						else
 							clearZFlag();
@@ -1987,7 +1997,7 @@ int runOpcode(int cycles) {
 						setHFlag();
 						break;
 					case 0x76:		// BIT 6, (hl)
-						if ((readMemory(hl.w) & 0x40) == 0)
+						if ((readMemory(gbRegs.hl.w) & 0x40) == 0)
 							setZFlag();
 						else
 							clearZFlag();
@@ -1995,7 +2005,7 @@ int runOpcode(int cycles) {
 						setHFlag();
 						break;
 					case 0x7E:		// BIT 7, (hl)
-						if ((readMemory(hl.w) & 0x80) == 0)
+						if ((readMemory(gbRegs.hl.w) & 0x80) == 0)
 							setZFlag();
 						else
 							clearZFlag();
@@ -2003,453 +2013,453 @@ int runOpcode(int cycles) {
 						setHFlag();
 						break;
 					case 0xC0:		// SET 0, B
-						bc.b.h |= 1;
+						gbRegs.bc.b.h |= 1;
 						break;
 					case 0xC1:		// SET 0, C
-						bc.b.l |= 1;
+						gbRegs.bc.b.l |= 1;
 						break;
 					case 0xC2:		// SET 0, D
-						de.b.h |= 1;
+						gbRegs.de.b.h |= 1;
 						break;
 					case 0xC3:		// SET 0, E
-						de.b.l |= 1;
+						gbRegs.de.b.l |= 1;
 						break;
 					case 0xC4:		// SET 0, H
-						hl.b.h |= 1;
+						gbRegs.hl.b.h |= 1;
 						break;
 					case 0xC5:		// SET 0, L
-						hl.b.l |= 1;
+						gbRegs.hl.b.l |= 1;
 						break;
 					case 0xC6:		// SET 0, (hl)  16
                         {
-						int val = readMemory(hl.w);
+						int val = readMemory(gbRegs.hl.w);
 						val |= 1;
-						writeMemory(hl.w, val);
+						writeMemory(gbRegs.hl.w, val);
 						break;
                         }
 					case 0xC7:		// SET 0, A
-						af.b.h |= 1;
+						gbRegs.af.b.h |= 1;
 						break;
 					case 0xC8:		// SET 1, B
-						bc.b.h |= 2;
+						gbRegs.bc.b.h |= 2;
 						break;
 					case 0xC9:		// SET 1, C
-						bc.b.l |= 2;
+						gbRegs.bc.b.l |= 2;
 						break;
 					case 0xCA:		// SET 1, D
-						de.b.h |= 2;
+						gbRegs.de.b.h |= 2;
 						break;
 					case 0xCB:		// SET 1, E
-						de.b.l |= 2;
+						gbRegs.de.b.l |= 2;
 						break;
 					case 0xCC:		// SET 1, H
-						hl.b.h |= 2;
+						gbRegs.hl.b.h |= 2;
 						break;
 					case 0xCD:		// SET 1, L
-						hl.b.l |= 2;
+						gbRegs.hl.b.l |= 2;
 						break;
 					case 0xCE:		// SET 1, (hl)
                         {
-						int val = readMemory(hl.w);
+						int val = readMemory(gbRegs.hl.w);
 						val |= 2;
-						writeMemory(hl.w, val);
+						writeMemory(gbRegs.hl.w, val);
 						break;
                         }
 					case 0xCF:		// SET 1, A
-						af.b.h |= 2;
+						gbRegs.af.b.h |= 2;
 						break;
 					case 0xD0:		// SET 2, B
-						bc.b.h |= 4;
+						gbRegs.bc.b.h |= 4;
 						break;
 					case 0xD1:		// SET 2, C
-						bc.b.l |= 4;
+						gbRegs.bc.b.l |= 4;
 						break;
 					case 0xD2:		// SET 2, D
-						de.b.h |= 4;
+						gbRegs.de.b.h |= 4;
 						break;
 					case 0xD3:		// SET 2, E
-						de.b.l |= 4;
+						gbRegs.de.b.l |= 4;
 						break;
 					case 0xD4:		// SET 2, H
-						hl.b.h |= 4;
+						gbRegs.hl.b.h |= 4;
 						break;
 					case 0xD5:		// SET 2, L
-						hl.b.l |= 4;
+						gbRegs.hl.b.l |= 4;
 						break;
 					case 0xD6:		// SET 2, (hl)
                         {
-						int val = readMemory(hl.w);
+						int val = readMemory(gbRegs.hl.w);
 						val |= 4;
-						writeMemory(hl.w, val);
+						writeMemory(gbRegs.hl.w, val);
 						break;
                         }
 					case 0xD7:		// SET 2, A
-						af.b.h |= 4;
+						gbRegs.af.b.h |= 4;
 						break;
 					case 0xD8:		// SET 3, B
-						bc.b.h |= 8;
+						gbRegs.bc.b.h |= 8;
 						break;
 					case 0xD9:		// SET 3, C
-						bc.b.l |= 8;
+						gbRegs.bc.b.l |= 8;
 						break;
 					case 0xDA:		// SET 3, D
-						de.b.h |= 8;
+						gbRegs.de.b.h |= 8;
 						break;
 					case 0xDB:		// SET 3, E
-						de.b.l |= 8;
+						gbRegs.de.b.l |= 8;
 						break;
 					case 0xDC:		// SET 3, H
-						hl.b.h |= 8;
+						gbRegs.hl.b.h |= 8;
 						break;
 					case 0xDD:		// SET 3, L
-						hl.b.l |= 8;
+						gbRegs.hl.b.l |= 8;
 						break;
 					case 0xDE:		// SET 3, (hl)
                         {
-						int val = readMemory(hl.w);
+						int val = readMemory(gbRegs.hl.w);
 						val |= 8;
-						writeMemory(hl.w, val);
+						writeMemory(gbRegs.hl.w, val);
 						break;
                         }
 					case 0xDF:		// SET 3, A
-						af.b.h |= 8;
+						gbRegs.af.b.h |= 8;
 						break;
 					case 0xE0:		// SET 4, B
-						bc.b.h |= 0x10;
+						gbRegs.bc.b.h |= 0x10;
 						break;
 					case 0xE1:		// SET 4, C
-						bc.b.l |= 0x10;
+						gbRegs.bc.b.l |= 0x10;
 						break;
 					case 0xE2:		// SET 4, D
-						de.b.h |= 0x10;
+						gbRegs.de.b.h |= 0x10;
 						break;
 					case 0xE3:		// SET 4, E
-						de.b.l |= 0x10;
+						gbRegs.de.b.l |= 0x10;
 						break;
 					case 0xE4:		// SET 4, H
-						hl.b.h |= 0x10;
+						gbRegs.hl.b.h |= 0x10;
 						break;
 					case 0xE5:		// SET 4, L
-						hl.b.l |= 0x10;
+						gbRegs.hl.b.l |= 0x10;
 						break;
 					case 0xE6:		// SET 4, (hl)
                         {
-						int val = readMemory(hl.w);
+						int val = readMemory(gbRegs.hl.w);
 						val |= 0x10;
-						writeMemory(hl.w, val);
+						writeMemory(gbRegs.hl.w, val);
 						break;
                         }
 					case 0xE7:		// SET 4, A
-						af.b.h |= 0x10;
+						gbRegs.af.b.h |= 0x10;
 						break;
 					case 0xE8:		// SET 5, B
-						bc.b.h |= 0x20;
+						gbRegs.bc.b.h |= 0x20;
 						break;
 					case 0xE9:		// SET 5, C
-						bc.b.l |= 0x20;
+						gbRegs.bc.b.l |= 0x20;
 						break;
 					case 0xEA:		// SET 5, D
-						de.b.h |= 0x20;
+						gbRegs.de.b.h |= 0x20;
 						break;
 					case 0xEB:		// SET 5, E
-						de.b.l |= 0x20;
+						gbRegs.de.b.l |= 0x20;
 						break;
 					case 0xEC:		// SET 5, H
-						hl.b.h |= 0x20;
+						gbRegs.hl.b.h |= 0x20;
 						break;
 					case 0xED:		// SET 5, L
-						hl.b.l |= 0x20;
+						gbRegs.hl.b.l |= 0x20;
 						break;
 					case 0xEE:		// SET 5, (hl)
                         {
-						int val = readMemory(hl.w);
+						int val = readMemory(gbRegs.hl.w);
 						val |= 0x20;
-						writeMemory(hl.w, val);
+						writeMemory(gbRegs.hl.w, val);
 						break;
                         }
 					case 0xEF:		// SET 5, A
-						af.b.h |= 0x20;
+						gbRegs.af.b.h |= 0x20;
 						break;
 					case 0xF0:		// SET 6, B
-						bc.b.h |= 0x40;
+						gbRegs.bc.b.h |= 0x40;
 						break;
 					case 0xF1:		// SET 6, C
-						bc.b.l |= 0x40;
+						gbRegs.bc.b.l |= 0x40;
 						break;
 					case 0xF2:		// SET 6, D
-						de.b.h |= 0x40;
+						gbRegs.de.b.h |= 0x40;
 						break;
 					case 0xF3:		// SET 6, E
-						de.b.l |= 0x40;
+						gbRegs.de.b.l |= 0x40;
 						break;
 					case 0xF4:		// SET 6, H
-						hl.b.h |= 0x40;
+						gbRegs.hl.b.h |= 0x40;
 						break;
 					case 0xF5:		// SET 6, L
-						hl.b.l |= 0x40;
+						gbRegs.hl.b.l |= 0x40;
 						break;
 					case 0xF6:		// SET 6, (hl)
                         {
-						int val = readMemory(hl.w);
+						int val = readMemory(gbRegs.hl.w);
 						val |= 0x40;
-						writeMemory(hl.w, val);
+						writeMemory(gbRegs.hl.w, val);
 						break;
                         }
 					case 0xF7:		// SET 6, A
-						af.b.h |= 0x40;
+						gbRegs.af.b.h |= 0x40;
 						break;
 					case 0xF8:		// SET 7, B
-						bc.b.h |= 0x80;
+						gbRegs.bc.b.h |= 0x80;
 						break;
 					case 0xF9:		// SET 7, C
-						bc.b.l |= 0x80;
+						gbRegs.bc.b.l |= 0x80;
 						break;
 					case 0xFA:		// SET 7, D
-						de.b.h |= 0x80;
+						gbRegs.de.b.h |= 0x80;
 						break;
 					case 0xFB:		// SET 7, E
-						de.b.l |= 0x80;
+						gbRegs.de.b.l |= 0x80;
 						break;
 					case 0xFC:		// SET 7, H
-						hl.b.h |= 0x80;
+						gbRegs.hl.b.h |= 0x80;
 						break;
 					case 0xFD:		// SET 7, L
-						hl.b.l |= 0x80;
+						gbRegs.hl.b.l |= 0x80;
 						break;
 					case 0xFE:		// SET 7, (hl)
                         {
-						int val = readMemory(hl.w);
+						int val = readMemory(gbRegs.hl.w);
 						val |= 0x80;
-						writeMemory(hl.w, val);
+						writeMemory(gbRegs.hl.w, val);
 						break;
                         }
 					case 0xFF:		// SET 7, A
-						af.b.h |= 0x80;
+						gbRegs.af.b.h |= 0x80;
 						break;
 
 					case 0x80:		// RES 0, B
-						bc.b.h &= 0xFE;
+						gbRegs.bc.b.h &= 0xFE;
 						break;
 					case 0x81:		// RES 0, C
-						bc.b.l &= 0xFE;
+						gbRegs.bc.b.l &= 0xFE;
 						break;
 					case 0x82:		// RES 0, D
-						de.b.h &= 0xFE;
+						gbRegs.de.b.h &= 0xFE;
 						break;
 					case 0x83:		// RES 0, E
-						de.b.l &= 0xFE;
+						gbRegs.de.b.l &= 0xFE;
 						break;
 					case 0x84:		// RES 0, H
-						hl.b.h &= 0xFE;
+						gbRegs.hl.b.h &= 0xFE;
 						break;
 					case 0x85:		// RES 0, L
-						hl.b.l &= 0xFE;
+						gbRegs.hl.b.l &= 0xFE;
 						break;
 					case 0x86:		// RES 0, (hl)
                         {
-						int val = readMemory(hl.w);
+						int val = readMemory(gbRegs.hl.w);
 						val &= 0xFE;
-						writeMemory(hl.w, val);
+						writeMemory(gbRegs.hl.w, val);
 						break;
                         }
 					case 0x87:		// RES 0, A
-						af.b.h &= 0xFE;
+						gbRegs.af.b.h &= 0xFE;
 						break;
 					case 0x88:		// RES 1, B
-						bc.b.h &= 0xFD;
+						gbRegs.bc.b.h &= 0xFD;
 						break;
 					case 0x89:		// RES 1, C
-						bc.b.l &= 0xFD;
+						gbRegs.bc.b.l &= 0xFD;
 						break;
 					case 0x8A:		// RES 1, D
-						de.b.h &= 0xFD;
+						gbRegs.de.b.h &= 0xFD;
 						break;
 					case 0x8B:		// RES 1, E
-						de.b.l &= 0xFD;
+						gbRegs.de.b.l &= 0xFD;
 						break;
 					case 0x8C:		// RES 1, H
-						hl.b.h &= 0xFD;
+						gbRegs.hl.b.h &= 0xFD;
 						break;
 					case 0x8D:		// RES 1, L
-						hl.b.l &= 0xFD;
+						gbRegs.hl.b.l &= 0xFD;
 						break;
 					case 0x8E:		// RES 1, (hl)
                         {
-						int val = readMemory(hl.w);
+						int val = readMemory(gbRegs.hl.w);
 						val &= 0xFD;
-						writeMemory(hl.w, val);
+						writeMemory(gbRegs.hl.w, val);
 						break;
                         }
 					case 0x8F:		// RES 1, A
-						af.b.h &= 0xFD;
+						gbRegs.af.b.h &= 0xFD;
 						break;
 					case 0x90:		// RES 2, B
-						bc.b.h &= 0xFB;
+						gbRegs.bc.b.h &= 0xFB;
 						break;
 					case 0x91:		// RES 2, C
-						bc.b.l &= 0xFB;
+						gbRegs.bc.b.l &= 0xFB;
 						break;
 					case 0x92:		// RES 2, D
-						de.b.h &= 0xFB;
+						gbRegs.de.b.h &= 0xFB;
 						break;
 					case 0x93:		// RES 2, E
-						de.b.l &= 0xFB;
+						gbRegs.de.b.l &= 0xFB;
 						break;
 					case 0x94:		// RES 2, H
-						hl.b.h &= 0xFB;
+						gbRegs.hl.b.h &= 0xFB;
 						break;
 					case 0x95:		// RES 2, L
-						hl.b.l &= 0xFB;
+						gbRegs.hl.b.l &= 0xFB;
 						break;
 					case 0x96:		// RES 2, (hl)
                         {
-						int val = readMemory(hl.w);
+						int val = readMemory(gbRegs.hl.w);
 						val &= 0xFB;
-						writeMemory(hl.w, val);
+						writeMemory(gbRegs.hl.w, val);
 						break;
                         }
 					case 0x97:		// RES 2, A
-						af.b.h &= 0xFB;
+						gbRegs.af.b.h &= 0xFB;
 						break;
 					case 0x98:		// RES 3, B
-						bc.b.h &= 0xF7;
+						gbRegs.bc.b.h &= 0xF7;
 						break;
 					case 0x99:		// RES 3, C
-						bc.b.l &= 0xF7;
+						gbRegs.bc.b.l &= 0xF7;
 						break;
 					case 0x9A:		// RES 3, D
-						de.b.h &= 0xF7;
+						gbRegs.de.b.h &= 0xF7;
 						break;
 					case 0x9B:		// RES 3, E
-						de.b.l &= 0xF7;
+						gbRegs.de.b.l &= 0xF7;
 						break;
 					case 0x9C:		// RES 3, H
-						hl.b.h &= 0xF7;
+						gbRegs.hl.b.h &= 0xF7;
 						break;
 					case 0x9D:		// RES 3, L
-						hl.b.l &= 0xF7;
+						gbRegs.hl.b.l &= 0xF7;
 						break;
 					case 0x9E:		// RES 3, (hl)
                         {
-						int val = readMemory(hl.w);
+						int val = readMemory(gbRegs.hl.w);
 						val &= 0xF7;
-						writeMemory(hl.w, val);
+						writeMemory(gbRegs.hl.w, val);
 						break;
                         }
 					case 0x9F:		// RES 3, A
-						af.b.h &= 0xF7;
+						gbRegs.af.b.h &= 0xF7;
 						break;
 					case 0xA0:		// RES 4, B
-						bc.b.h &= 0xEF;
+						gbRegs.bc.b.h &= 0xEF;
 						break;
 					case 0xA1:		// RES 4, C
-						bc.b.l &= 0xEF;
+						gbRegs.bc.b.l &= 0xEF;
 						break;
 					case 0xA2:		// RES 4, D
-						de.b.h &= 0xEF;
+						gbRegs.de.b.h &= 0xEF;
 						break;
 					case 0xA3:		// RES 4, E
-						de.b.l &= 0xEF;
+						gbRegs.de.b.l &= 0xEF;
 						break;
 					case 0xA4:		// RES 4, H
-						hl.b.h &= 0xEF;
+						gbRegs.hl.b.h &= 0xEF;
 						break;
 					case 0xA5:		// RES 4, L
-						hl.b.l &= 0xEF;
+						gbRegs.hl.b.l &= 0xEF;
 						break;
 					case 0xA6:		// RES 4, (hl)
                         {
-						int val = readMemory(hl.w);
+						int val = readMemory(gbRegs.hl.w);
 						val &= 0xEF;
-						writeMemory(hl.w, val);
+						writeMemory(gbRegs.hl.w, val);
 						break;
                         }
 					case 0xA7:		// RES 4, A
-						af.b.h &= 0xEF;
+						gbRegs.af.b.h &= 0xEF;
 						break;
 					case 0xA8:		// RES 5, B
-						bc.b.h &= 0xDF;
+						gbRegs.bc.b.h &= 0xDF;
 						break;
 					case 0xA9:		// RES 5, C
-						bc.b.l &= 0xDF;
+						gbRegs.bc.b.l &= 0xDF;
 						break;
 					case 0xAA:		// RES 5, D
-						de.b.h &= 0xDF;
+						gbRegs.de.b.h &= 0xDF;
 						break;
 					case 0xAB:		// RES 5, E
-						de.b.l &= 0xDF;
+						gbRegs.de.b.l &= 0xDF;
 						break;
 					case 0xAC:		// RES 5, H
-						hl.b.h &= 0xDF;
+						gbRegs.hl.b.h &= 0xDF;
 						break;
 					case 0xAD:		// RES 5, L
-						hl.b.l &= 0xDF;
+						gbRegs.hl.b.l &= 0xDF;
 						break;
 					case 0xAE:		// RES 5, (hl)
                         {
-						int val = readMemory(hl.w);
+						int val = readMemory(gbRegs.hl.w);
 						val &= 0xDF;
-						writeMemory(hl.w, val);
+						writeMemory(gbRegs.hl.w, val);
 						break;
                         }
 					case 0xAF:		// RES 5, A
-						af.b.h &= 0xDF;
+						gbRegs.af.b.h &= 0xDF;
 						break;
 					case 0xB0:		// RES 6, B
-						bc.b.h &= 0xBF;
+						gbRegs.bc.b.h &= 0xBF;
 						break;
 					case 0xB1:		// RES 6, C
-						bc.b.l &= 0xBF;
+						gbRegs.bc.b.l &= 0xBF;
 						break;
 					case 0xB2:		// RES 6, D
-						de.b.h &= 0xBF;
+						gbRegs.de.b.h &= 0xBF;
 						break;
 					case 0xB3:		// RES 6, E
-						de.b.l &= 0xBF;
+						gbRegs.de.b.l &= 0xBF;
 						break;
 					case 0xB4:		// RES 6, H
-						hl.b.h &= 0xBF;
+						gbRegs.hl.b.h &= 0xBF;
 						break;
 					case 0xB5:		// RES 6, L
-						hl.b.l &= 0xBF;
+						gbRegs.hl.b.l &= 0xBF;
 						break;
 					case 0xB6:		// RES 6, (hl)
                         {
-						int val = readMemory(hl.w);
+						int val = readMemory(gbRegs.hl.w);
 						val &= 0xBF;
-						writeMemory(hl.w, val);
+						writeMemory(gbRegs.hl.w, val);
 						break;
                         }
 					case 0xB7:		// RES 6, A
-						af.b.h &= 0xBF;
+						gbRegs.af.b.h &= 0xBF;
 						break;
 					case 0xB8:		// RES 7, B
-						bc.b.h &= 0x7F;
+						gbRegs.bc.b.h &= 0x7F;
 						break;
 					case 0xB9:		// RES 7, C
-						bc.b.l &= 0x7F;
+						gbRegs.bc.b.l &= 0x7F;
 						break;
 					case 0xBA:		// RES 7, D
-						de.b.h &= 0x7F;
+						gbRegs.de.b.h &= 0x7F;
 						break;
 					case 0xBB:		// RES 7, E
-						de.b.l &= 0x7F;
+						gbRegs.de.b.l &= 0x7F;
 						break;
 					case 0xBC:		// RES 7, H
-						hl.b.h &= 0x7F;
+						gbRegs.hl.b.h &= 0x7F;
 						break;
 					case 0xBD:		// RES 7, L
-						hl.b.l &= 0x7F;
+						gbRegs.hl.b.l &= 0x7F;
 						break;
 					case 0xBE:		// RES 7, (hl)
                         {
-						int val = readMemory(hl.w);
+						int val = readMemory(gbRegs.hl.w);
 						val &= 0x7F;
-						writeMemory(hl.w, val);
+						writeMemory(gbRegs.hl.w, val);
 						break;
                         }
 					case 0xBF:		// RES 7, A
-						af.b.h &= 0x7F;
+						gbRegs.af.b.h &= 0x7F;
 						break;
 					default:
 						break;
@@ -2461,7 +2471,7 @@ int runOpcode(int cycles) {
 	}
 
 end:
-    gbPC = locPC;
-    gbSP = locSP;
+    gbRegs.pc = locPC;
+    gbRegs.sp = locSP;
 	return totalCycles;
 }
