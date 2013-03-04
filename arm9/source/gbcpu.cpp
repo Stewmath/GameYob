@@ -110,7 +110,7 @@ DTCM_DATA
 void initCPU()
 {
 	int i;
-	gbRegs.sp = 0xFFFE;
+	gbRegs.sp.w = 0xFFFE;
 	ime = 1;			// Correct default value?
 
 	MBC = readMemory(0x147);
@@ -190,12 +190,12 @@ void initCPU()
     biosOn = biosEnabled;
 	if (biosOn)
 	{
-		gbRegs.pc = 0;
+		gbRegs.pc.w = 0;
 		gbMode = CGB;
 	}
 	else
 	{
-		gbRegs.pc = 0x100;
+		gbRegs.pc.w = 0x100;
 		if (rom[0][0x143] == 0x80 || rom[0][0x143] == 0xC0)
 			gbMode = CGB;
 		else
@@ -222,9 +222,9 @@ void handleInterrupts()
 	{
 		halt = 0;
         if (ime) {
-            writeMemory(--gbRegs.sp, (gbRegs.pc) >> 8);
-            writeMemory(--gbRegs.sp, gbRegs.pc & 0xFF);
-            gbRegs.pc = 0x40;
+            writeMemory(--gbRegs.sp.w, gbRegs.pc.b.h);
+            writeMemory(--gbRegs.sp.w, gbRegs.pc.b.l);
+            gbRegs.pc.w = 0x40;
             ioRam[0x0F] &= ~VBLANK;
             ime = 0;
         }
@@ -233,9 +233,9 @@ void handleInterrupts()
 	{
 		halt = 0;
         if (ime) {
-            writeMemory(--gbRegs.sp, (gbRegs.pc) >> 8);
-            writeMemory(--gbRegs.sp, gbRegs.pc & 0xFF);
-            gbRegs.pc = 0x48;
+            writeMemory(--gbRegs.sp.w, gbRegs.pc.b.h);
+            writeMemory(--gbRegs.sp.w, gbRegs.pc.b.l);
+            gbRegs.pc.w = 0x48;
             ioRam[0x0F] &= ~LCD;
             ime = 0;
         }
@@ -244,9 +244,9 @@ void handleInterrupts()
 	{
 		halt = 0;
         if (ime) {
-            writeMemory(--gbRegs.sp, (gbRegs.pc) >> 8);
-            writeMemory(--gbRegs.sp, gbRegs.pc & 0xFF);
-            gbRegs.pc = 0x50;
+            writeMemory(--gbRegs.sp.w, gbRegs.pc.b.h);
+            writeMemory(--gbRegs.sp.w, gbRegs.pc.b.l);
+            gbRegs.pc.w = 0x50;
             ioRam[0x0F] &= ~TIMER;
             ime = 0;
         }
@@ -256,9 +256,9 @@ void handleInterrupts()
 	{
         halt = 0;
         if (ime) {
-            writeMemory(--gbRegs.sp, (gbRegs.pc) >> 8);
-            writeMemory(--gbRegs.sp, gbRegs.pc & 0xFF);
-            gbRegs.pc = 0x60;
+            writeMemory(--gbRegs.sp.w, gbRegs.pc.b.h);
+            writeMemory(--gbRegs.sp.w, gbRegs.pc.b.l);
+            gbRegs.pc.w = 0x60;
             ioRam[0x0F] &= ~JOYPAD;
             ime = 0;
             interruptTriggered = 0;
@@ -286,8 +286,8 @@ int runOpcode(int cycles) ITCM_CODE;
 int runOpcode(int cycles) {
     cyclesToExecute = cycles;
     // Having these commonly-used registers in local variables should improve speed
-    u16 locPC=gbRegs.pc;
-    u16 locSP=gbRegs.sp;
+    u16 locPC=gbRegs.pc.w;
+    u16 locSP=gbRegs.sp.w;
 
 	int totalCycles=0;
 
@@ -2471,7 +2471,7 @@ int runOpcode(int cycles) {
 	}
 
 end:
-    gbRegs.pc = locPC;
-    gbRegs.sp = locSP;
+    gbRegs.pc.w = locPC;
+    gbRegs.sp.w = locSP;
 	return totalCycles;
 }
