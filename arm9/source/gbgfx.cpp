@@ -233,7 +233,7 @@ void initGFX()
         offMap[i] = 8<<12;
     }
     // Off map palette
-    BG_PALETTE[8*16+1] = RGB8(0,0,0);
+    BG_PALETTE[8*16+1] = RGB8(255,255,255);
 
     int i=0;
     for (i=40; i<128; i++)
