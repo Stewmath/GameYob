@@ -572,7 +572,7 @@ void writeIO(u8 ioReg, u8 val)
         case 0x3D:
         case 0x3E:
         case 0x3F:
-            handleSoundRegister(0xFF00 + ioReg, val);
+            handleSoundRegister(ioReg, val);
             return;
         case 0x40:    // LCDC
             if ((val & 0x7F) != (ioRam[0x40] & 0x7F))
