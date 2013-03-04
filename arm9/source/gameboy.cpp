@@ -153,7 +153,7 @@ void updateLCD(int cycles)
         phaseCounter -= cycles;
         if (phaseCounter <= 0) {
             swiIntrWait(interruptWaitMode, IRQ_VCOUNT);
-            updateTiles();
+            //updateTiles();
             updateInput();
             fps++;
             phaseCounter += 456*153*(doubleSpeed?2:1);

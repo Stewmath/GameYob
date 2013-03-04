@@ -145,66 +145,6 @@ void latchClock()
     gbClock.clockControlL = gbClock.clockControl;
 }
 
-void writeVram(u16 addr, u8 val) {
-    vram[vramBank][addr] = val;
-
-    if (addr < 0x1800) {
-        int tileNum = addr/16;
-        int scanline = ioRam[0x44];
-        if (scanline >= 128 && scanline < 144) {
-            if (!changedTileInFrame[vramBank][tileNum]) {
-                changedTileInFrame[vramBank][tileNum] = true;
-                changedTileInFrameQueue[changedTileInFrameQueueLength++] = tileNum|(vramBank<<9);
-            }
-        }
-        else {
-            if (!changedTile[vramBank][tileNum]) {
-                changedTile[vramBank][tileNum] = true;
-                changedTileQueue[changedTileQueueLength++] = tileNum|(vramBank<<9);
-            }
-        }
-    }
-    else {
-        int map = (addr-0x1800)/0x400;
-        if (map)
-            updateTileMap(map, addr-0x1c00, val);
-        else
-            updateTileMap(map, addr-0x1800, val);
-    }
-}
-void writeVram16(u16 dest, u16 src) {
-    for (int i=0; i<16; i++) {
-        vram[vramBank][dest++] = readMemory(src++);
-    }
-    dest -= 16;
-    src -= 16;
-    if (dest < 0x1800) {
-        int tileNum = dest/16;
-        if (ioRam[0x44] < 144) {
-            if (!changedTileInFrame[vramBank][tileNum]) {
-                changedTileInFrame[vramBank][tileNum] = true;
-                changedTileInFrameQueue[changedTileInFrameQueueLength++] = tileNum|(vramBank<<9);
-            }
-        }
-        else {
-            if (!changedTile[vramBank][tileNum]) {
-                changedTile[vramBank][tileNum] = true;
-                changedTileQueue[changedTileQueueLength++] = tileNum|(vramBank<<9);
-            }
-        }
-    }
-    else {
-        for (int i=0; i<16; i++) {
-            int addr = dest+i;
-            int map = (addr-0x1800)/0x400;
-            if (map)
-                updateTileMap(map, addr-0x1c00, vram[vramBank][src+i]);
-            else
-                updateTileMap(map, addr-0x1800, vram[vramBank][src+i]);
-        }
-    }
-}
-
 #ifdef DS
 u8 readMemory(u16 addr) ITCM_CODE;
 #endif
@@ -562,106 +502,25 @@ void writeIO(u8 ioReg, u8 val)
         case 0x3F:
             handleSoundRegister(0xFF00 + ioReg, val);
             return;
-        case 0x40:    // LCDC
-            if ((val & 0x7F) != (ioRam[0x40] & 0x7F))
-                lineModified = true;
-            ioRam[0x40] = val;
-            return;
+        case 0x40:
         case 0x41:
-            ioRam[0x41] &= 0x7;
-            ioRam[0x41] |= val&0xF8;
-            return;
-        case 0x46:				// DMA
-            {
-                u16 src = val << 8;
-                int i;
-                for (i=0; i<0xA0; i++) {
-                    u8 val = readMemory(src+i);
-                    hram[i] = val;
-                    if (ioRam[0x44] >= 144 || ioRam[0x44] <= 1)
-                        spriteData[i] = val;
-                }
-
-                totalCycles += 50;
-                dmaLine = ioRam[0x44];
-                //printLog("dma write %d\n", ioRam[0x44]);
-                return;
-            }
+        case 0x46:
         case 0x42:
         case 0x43:
         case 0x4B:
-            {
-                if (val != ioRam[ioReg]) {
-                    ioRam[ioReg] = val;
-                    lineModified = true;
-                }
-            }
-            break;
-            // winY
         case 0x4A:
-            if (ioRam[0x44] >= 144 || val > ioRam[0x44])
-                winPosY = -1;
-            else {
-            // Signal that winPosY must be reset according to winY
-                winPosY = -2;
-            }
-            lineModified = true;
-            ioRam[0x4a] = val;
-            break;
         case 0x44:
-            //ioRam[0x44] = 0;
-            return;
-        case 0x47:				// BG Palette (GB classic only)
-            ioRam[0x47] = val;
-            if (gbMode == GB)
-            {
-                updateClassicBgPalette();
-            }
-            return;
-        case 0x48:				// Spr Palette (GB classic only)
-            ioRam[0x48] = val;
-            if (gbMode == GB)
-            {
-                updateClassicSprPalette(0);
-            }
-            return;
-        case 0x49:				// Spr Palette (GB classic only)
-            ioRam[0x49] = val;
-            if (gbMode == GB)
-            {
-                updateClassicSprPalette(1);
-            }
-            return;
-        case 0x68:				// BG Palette Index (GBC only)
-            ioRam[0x68] = val;
-            return;
-        case 0x69:				// BG Palette Data (GBC only)
-            {
-                int index = ioRam[0x68] & 0x3F;
-                bgPaletteData[index] = val;
-                if (index%8 == 7)
-                    updateBgPalette(index/8);
-
-                if (ioRam[0x68] & 0x80)
-                    ioRam[0x68]++;
-                return;
-            }
-        case 0x6B:				// Sprite Palette Data (GBC only)
-            {
-                int index = ioRam[0x6A] & 0x3F;
-                sprPaletteData[index] = val;
-                if (index%8 == 7)
-                    updateSprPalette(index/8);
-
-                if (ioRam[0x6A] & 0x80)
-                    ioRam[0x6A]++;
-                return;
-            }
+        case 0x47:
+        case 0x48:
+        case 0x49:
+        case 0x68:
+        case 0x69:
+        case 0x6B:
         case 0x4D:
-            ioRam[0x4D] &= ~1;
-            ioRam[0x4D] |= (val&1);
+        case 0x55:
+            handleVideoRegister(ioReg, val);
             return;
-        case 0x4F:
+        case 0x4F: // Vram bank
             if (gbMode == CGB)
             {
                 vramBank = val & 1;
@@ -677,55 +536,6 @@ void writeIO(u8 ioReg, u8 val)
                 gbMode = CGB;
             else
                 gbMode = GB;
-            return;
-        case 0x55: // CGB DMA
-            if (gbMode == CGB)
-            {
-                if (dmaLength > 0)
-                {
-                    if ((val&0x80) == 0)
-                    {
-                        ioRam[0x55] |= 0x80;
-                        dmaLength = 0;
-                    }
-                    return;
-                }
-                int i;
-                dmaLength = ((val & 0x7F)+1);
-                int length = dmaLength*0x10;
-                int source = (ioRam[0x51]<<8) | (ioRam[0x52]);
-                source &= 0xFFF0;
-                int dest = (ioRam[0x53]<<8) | (ioRam[0x54]);
-                dest &= 0x1FF0;
-                dmaSource = source;
-                dmaDest = dest;
-                dmaMode = val&0x80;
-                ioRam[0x55] = dmaLength-1;
-                if (dmaMode == 0)
-                {
-                    int i;
-                    for (i=0; i<dmaLength; i++)
-                    {
-                        writeVram16(dest, source);
-                        dest += 0x10;
-                        source += 0x10;
-                    }
-                    totalCycles += dmaLength*8*(doubleSpeed+1);
-                    dmaLength = 0;
-                    ioRam[0x55] = 0xFF;
-                }
-            }
-            else
-                ioRam[0x55] = val;
-            return;
-        case 0x6C:
-        case 0x72:
-        case 0x73:
-        case 0x74:
-        case 0x75:
-        case 0x76:
-        case 0x77:
-            ioRam[ioReg] = val;
             return;
         case 0x70:				// WRAM bank, for CGB only
             if (gbMode == CGB)
@@ -766,10 +576,9 @@ bool updateHblankDMA()
     if (dmaLength > 0)
     {
         int i;
-        for (i=0; i<0x10; i++)
-        {
-            writeVram((dmaDest++)&0x1fff, readMemory(dmaSource++));
-        }
+        writeVram16(dmaDest, dmaSource);
+        dmaDest += 16;
+        dmaSource += 16;
         dmaLength --;
         if (dmaLength == 0)
         {
