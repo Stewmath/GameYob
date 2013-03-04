@@ -819,33 +819,7 @@ void handleVideoRegister(u8 ioReg, u8 val) {
             else
                 ioRam[0x55] = val;
             return;
-            // Special register, used by the gameboy bios
-        case 0x50:
-            biosOn = 0;
-            memory[0x0] = rom[0];
-            if (rom[0][0x143] == 0x80 || rom[0][0x143] == 0xC0)
-                gbMode = CGB;
-            else
-                gbMode = GB;
-            return;
+        default:
+            ioRam[ioReg] = val;
     }
-}
-
-void updateSprPalette(int paletteid)
-{
-    spritePaletteModified[paletteid] = true;
-}
-void updateBgPalette(int paletteid)
-{
-    bgPaletteModified[paletteid] = true;
-}
-
-void updateClassicBgPalette()
-{
-    bgPaletteModified[0] = true;
-}
-
-void updateClassicSprPalette(int paletteid)
-{
-    spritePaletteModified[paletteid] = true;
 }
