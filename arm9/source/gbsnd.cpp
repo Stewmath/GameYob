@@ -195,6 +195,8 @@ void updateSoundSample() {
     setSoundVolume(2);
 }
 
+void updateSound(int cycles) ITCM_CODE;
+
 void updateSound(int cycles)
 {
     if (soundDisabled)

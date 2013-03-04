@@ -525,6 +525,7 @@ void drawSprites() {
         spriteData[i] = hram[i];
 }
 
+void drawScanline(int scanline) ITCM_CODE;
 
 void drawScanline(int scanline)
 {

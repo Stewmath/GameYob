@@ -140,6 +140,9 @@ void initLCD()
 }
 
 bool screenOn = true;
+
+void updateLCD(int cycles) ITCM_CODE;
+
 void updateLCD(int cycles)
 {
     if (!(ioRam[0x40] & 0x80))		// If LCD is off
