@@ -14,9 +14,17 @@ typedef union
     } b;
 } Register;
 
+struct Registers
+{
+    u16      sp; /* Stack Pointer */
+    u16      pc; /* Program Counter */
+    Register af;
+    Register bc;
+    Register de;
+    Register hl;
+};
 
-//extern Register af,bc,de,hl;
-extern u16 gbSP,gbPC;
+extern struct Registers gbRegs;
 extern int fps;
 extern int halt;
 extern int ime;
