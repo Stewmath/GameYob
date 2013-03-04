@@ -120,30 +120,29 @@ typedef struct
 // These changes are recorded and applied during DS hblank.
 
 inline void drawLine(int gbLine) {
-    ScanlineStruct state = drawingState[gbLine];
+    ScanlineStruct *state = &drawingState[gbLine];
 
-    if (state.spritesOn)
+    if (state->spritesOn)
         REG_DISPCNT |= DISPLAY_SPR_ACTIVE;
     else
         REG_DISPCNT &= ~DISPLAY_SPR_ACTIVE;
 
-    int hofs = state.hofs-screenOffsX;
-    int vofs = state.vofs-screenOffsY;
+    int hofs = state->hofs-screenOffsX;
+    int vofs = state->vofs-screenOffsY;
 
     REG_BG3HOFS = hofs;
     REG_BG3VOFS = vofs;
-    REG_BG3CNT = state.bgCnt;
+    REG_BG3CNT = state->bgCnt;
 
-    REG_BG2CNT = state.bgBlankCnt;
+    REG_BG2CNT = state->bgBlankCnt;
     REG_BG2HOFS = hofs;
     REG_BG2VOFS = vofs;
 
-    if (!state.winOn || windowDisabled) {
+    if (!state->winOn || windowDisabled) {
         REG_DISPCNT &= ~DISPLAY_WIN0_ON;
-        WIN_IN |= 1<<8;
-        WIN_IN &= ~4;
+        WIN_IN = (WIN_IN | (1<<8)) & ~4; // Set bit 8, unset bit 2
 
-        REG_BG0CNT = state.bgOverlayCnt;
+        REG_BG0CNT = state->bgOverlayCnt;
         REG_BG0HOFS = hofs;
         REG_BG0VOFS = vofs;
     }
@@ -151,24 +150,24 @@ inline void drawLine(int gbLine) {
         REG_DISPCNT |= DISPLAY_WIN0_ON;
         WIN_IN &= ~(1<<8);
 
-        int winX = state.winX;
+        int winX = state->winX;
 
         if (winX <= 7)
             WIN0_X0 = screenOffsX;
         else
             WIN0_X0 = winX-7+screenOffsX;
-        WIN0_Y0 = state.winY+screenOffsY;
+        WIN0_Y0 = state->winY+screenOffsY;
 
         int whofs = -(winX-7)-screenOffsX;
-        int wvofs = -(gbLine-state.winPosY)-screenOffsY;
+        int wvofs = -(gbLine-state->winPosY)-screenOffsY;
 
         REG_BG0HOFS = whofs;
         REG_BG0VOFS = wvofs;
-        REG_BG0CNT = state.winBlankCnt;
+        REG_BG0CNT = state->winBlankCnt;
 
         REG_BG1HOFS = whofs;
         REG_BG1VOFS = wvofs;
-        REG_BG1CNT = state.winCnt;
+        REG_BG1CNT = state->winCnt;
 
         // If window fills whole scanline, give it one of the background layers 
         // for "tile priority" (overlay).
@@ -177,7 +176,7 @@ inline void drawLine(int gbLine) {
 
             REG_BG2HOFS = whofs;
             REG_BG2VOFS = wvofs;
-            REG_BG2CNT = state.winOverlayCnt;
+            REG_BG2CNT = state->winOverlayCnt;
         }
     }
 }
