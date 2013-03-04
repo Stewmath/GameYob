@@ -775,50 +775,6 @@ void handleVideoRegister(u8 ioReg, u8 val) {
                     ioRam[0x6A]++;
                 return;
             }
-        case 0x4D:
-            ioRam[0x4D] &= ~1;
-            ioRam[0x4D] |= (val&1);
-            return;
-        case 0x55: // CGB DMA
-            if (gbMode == CGB)
-            {
-                if (dmaLength > 0)
-                {
-                    if ((val&0x80) == 0)
-                    {
-                        ioRam[0x55] |= 0x80;
-                        dmaLength = 0;
-                    }
-                    return;
-                }
-                int i;
-                dmaLength = ((val & 0x7F)+1);
-                int length = dmaLength*0x10;
-                int source = (ioRam[0x51]<<8) | (ioRam[0x52]);
-                source &= 0xFFF0;
-                int dest = (ioRam[0x53]<<8) | (ioRam[0x54]);
-                dest &= 0x1FF0;
-                dmaSource = source;
-                dmaDest = dest;
-                dmaMode = val&0x80;
-                ioRam[0x55] = dmaLength-1;
-                if (dmaMode == 0)
-                {
-                    int i;
-                    for (i=0; i<dmaLength; i++)
-                    {
-                        writeVram16(dest, source);
-                        dest += 0x10;
-                        source += 0x10;
-                    }
-                    totalCycles += dmaLength*8*(doubleSpeed+1);
-                    dmaLength = 0;
-                    ioRam[0x55] = 0xFF;
-                }
-            }
-            else
-                ioRam[0x55] = val;
-            return;
         default:
             ioRam[ioReg] = val;
     }
