@@ -401,10 +401,10 @@ int runOpcode(int cycles) {
 				locPC += 2;
 				break;
 			case 0xF2:		// LD A, (C)	8
-				gbRegs.af.b.h = readMemory(0xFF00 + gbRegs.bc.b.l);
+				gbRegs.af.b.h = readIO(gbRegs.bc.b.l);
 				break;
 			case 0xE2:		// LD (C), A	8
-				writeMemory(0xFF00 + gbRegs.bc.b.l, gbRegs.af.b.h);
+				writeIO(gbRegs.bc.b.l, gbRegs.af.b.h);
 				break;
 			case 0x3A:		// LDD A, (hl)	8
 				gbRegs.af.b.h = readMemory(gbRegs.hl.w--);
@@ -419,10 +419,10 @@ int runOpcode(int cycles) {
 				writeMemory(gbRegs.hl.w++, gbRegs.af.b.h);
 				break;
 			case 0xE0:		// LDH (n), A   12
-				writeMemory(0xFF00 + quickRead(locPC++), gbRegs.af.b.h);
+				writeIO(quickRead(locPC++), gbRegs.af.b.h);
 				break;
 			case 0xF0:		// LDH A, (n)   12
-				gbRegs.af.b.h = readMemory(0xFF00 + quickRead(locPC++));
+				gbRegs.af.b.h = readIO(quickRead(locPC++));
 				break;
 
 				// 16-bit loads
