@@ -288,6 +288,7 @@ int runOpcode(int cycles) {
     // Having these commonly-used registers in local variables should improve speed
     u16 locPC=gbRegs.pc.w;
     u16 locSP=gbRegs.sp.w;
+    u8  locA =gbRegs.af.b.h;
     u8  locF =gbRegs.af.b.l;
 
 	int totalCycles=0;
@@ -309,7 +310,7 @@ int runOpcode(int cycles) {
 				(*numberedGbReg(opcode>>3)) = quickRead(locPC++);
 				break;
 			case 0x3E:		// LD A, n		8
-				gbRegs.af.b.h = quickRead(locPC++);
+				locA = quickRead(locPC++);
 				break;
 			/* These are equivalent to NOPs. */
 			case 0x7F:		// LD A, A		4
@@ -321,12 +322,22 @@ int runOpcode(int cycles) {
 			case 0x6D:		// LD L, L		4
 				break;
 			case 0x78:		// LD A, B		4
+                locA = gbRegs.bc.b.h;
+                break;
 			case 0x79:		// LD A, C		4
+                locA = gbRegs.bc.b.l;
+                break;
 			case 0x7A:		// LD A, D		4
+                locA = gbRegs.de.b.h;
+                break;
 			case 0x7B:		// LD A, E		4
+                locA = gbRegs.de.b.l;
+                break;
 			case 0x7C:		// LD A, H		4
+                locA = gbRegs.hl.b.h;
+                break;
 			case 0x7D:		// LD A, L		4
-                gbRegs.af.b.h = *numberedGbReg(opcode&7);
+                locA = gbRegs.hl.b.l;
                 break;
 			case 0x41:		// LD B, C		4
 			case 0x42:		// LD B, D		4
@@ -361,15 +372,25 @@ int runOpcode(int cycles) {
                 (*numberedGbReg((opcode>>3)&7)) = *numberedGbReg(opcode&7);
                 break;
 			case 0x47:		// LD B, A		4
+                gbRegs.bc.b.h = locA;
+                break;
 			case 0x4F:		// LD C, A		4
+                gbRegs.bc.b.l = locA;
+                break;
 			case 0x57:		// LD D, A		4
+                gbRegs.de.b.h = locA;
+                break;
 			case 0x5F:		// LD E, A		4
+                gbRegs.de.b.l = locA;
+                break;
 			case 0x67:		// LD H, A		4
+                gbRegs.hl.b.h = locA;
+                break;
 			case 0x6F:		// LD L, A		4
-                (*numberedGbReg((opcode>>3)&7)) = gbRegs.af.b.h;
+                gbRegs.hl.b.l = locA;
                 break;
 			case 0x7E:		// LD A, (hl)	8
-                gbRegs.af.b.h = readMemory(gbRegs.hl.w);
+                locA = readMemory(gbRegs.hl.w);
                 break;
 			case 0x46:		// LD B, (hl)	8
 			case 0x4E:		// LD C, (hl)	8
@@ -380,7 +401,7 @@ int runOpcode(int cycles) {
                 (*numberedGbReg((opcode>>3)&7)) = readMemory(gbRegs.hl.w);
                 break;
 			case 0x77:		// LD (hl), A	8
-                writeMemory(gbRegs.hl.w, gbRegs.af.b.h);
+                writeMemory(gbRegs.hl.w, locA);
                 break;
 			case 0x70:		// LD (hl), B	8
 			case 0x71:		// LD (hl), C	8
@@ -394,48 +415,48 @@ int runOpcode(int cycles) {
 				writeMemory(gbRegs.hl.w, quickRead(locPC++));
 				break;
 			case 0x0A:		// LD A, (BC)	8
-				gbRegs.af.b.h = readMemory(gbRegs.bc.w);
+				locA = readMemory(gbRegs.bc.w);
 				break;
 			case 0x1A:		// LD A, (de)	8
-				gbRegs.af.b.h = readMemory(gbRegs.de.w);
+				locA = readMemory(gbRegs.de.w);
 				break;
 			case 0xFA:		// LD A, (nn)	16
-				gbRegs.af.b.h = readMemory(quickRead(locPC) | (quickRead(locPC+1) << 8));
+				locA = readMemory(quickRead(locPC) | (quickRead(locPC+1) << 8));
 				locPC += 2;
 				break;
 			case 0x02:		// LD (BC), A	8
-				writeMemory(gbRegs.bc.w, gbRegs.af.b.h);
+				writeMemory(gbRegs.bc.w, locA);
 				break;
 			case 0x12:		// LD (de), A	8
-				writeMemory(gbRegs.de.w, gbRegs.af.b.h);
+				writeMemory(gbRegs.de.w, locA);
 				break;
 			case 0xEA:		// LD (nn), A	16
-				writeMemory(quickRead(locPC) | (quickRead(locPC+1) << 8), gbRegs.af.b.h);
+				writeMemory(quickRead(locPC) | (quickRead(locPC+1) << 8), locA);
 				locPC += 2;
 				break;
 			case 0xF2:		// LD A, (C)	8
-				gbRegs.af.b.h = readIO(gbRegs.bc.b.l);
+				locA = readIO(gbRegs.bc.b.l);
 				break;
 			case 0xE2:		// LD (C), A	8
-				writeIO(gbRegs.bc.b.l, gbRegs.af.b.h);
+				writeIO(gbRegs.bc.b.l, locA);
 				break;
 			case 0x3A:		// LDD A, (hl)	8
-				gbRegs.af.b.h = readMemory(gbRegs.hl.w--);
+				locA = readMemory(gbRegs.hl.w--);
 				break;
 			case 0x32:		// LDD (hl), A	8
-				writeMemory(gbRegs.hl.w--, gbRegs.af.b.h);
+				writeMemory(gbRegs.hl.w--, locA);
 				break;
 			case 0x2A:		// LDI A, (hl)	8
-				gbRegs.af.b.h = readMemory(gbRegs.hl.w++);
+				locA = readMemory(gbRegs.hl.w++);
 				break;
 			case 0x22:		// LDI (hl), A	8
-				writeMemory(gbRegs.hl.w++, gbRegs.af.b.h);
+				writeMemory(gbRegs.hl.w++, locA);
 				break;
 			case 0xE0:		// LDH (n), A   12
-				writeIO(quickRead(locPC++), gbRegs.af.b.h);
+				writeIO(quickRead(locPC++), locA);
 				break;
 			case 0xF0:		// LDH A, (n)   12
-				gbRegs.af.b.h = readIO(quickRead(locPC++));
+				locA = readIO(quickRead(locPC++));
 				break;
 
 				// 16-bit loads
@@ -485,7 +506,7 @@ int runOpcode(int cycles) {
 				break;
                 }
 			case 0xF5:		// PUSH AF
-				quickWrite(--locSP, gbRegs.af.b.h);
+				quickWrite(--locSP, locA);
 				quickWrite(--locSP, locF);
 				break;
 			case 0xC5:		// PUSH BC			16
@@ -502,7 +523,7 @@ int runOpcode(int cycles) {
 				break;
 			case 0xF1:		// POP AF				12
 				locF = quickRead(locSP++) & 0xF0;
-				gbRegs.af.b.h = quickRead(locSP++);
+				locA = quickRead(locSP++);
 				break;
 			case 0xC1:		// POP BC				12
 				gbRegs.bc.b.l = quickRead(locSP++);
@@ -520,7 +541,7 @@ int runOpcode(int cycles) {
 				// 8-bit arithmetic
 			case 0x87:		// ADD A, A			4
                 {
-                    u8 r = gbRegs.af.b.h;
+                    u8 r = locA;
                     if (r + r > 0xFF)
                         setCFlag();
                     else
@@ -529,8 +550,8 @@ int runOpcode(int cycles) {
                         setHFlag();
                     else
                         clearHFlag();
-                    gbRegs.af.b.h += r;
-                    if (gbRegs.af.b.h == 0)
+                    locA += r;
+                    if (locA == 0)
                         setZFlag();
                     else
                         clearZFlag();
@@ -545,16 +566,16 @@ int runOpcode(int cycles) {
 			case 0x85:		// ADD A, L			4
                 {
                     u8 r = *numberedGbReg(opcode&7);
-                    if (gbRegs.af.b.h + r > 0xFF)
+                    if (locA + r > 0xFF)
                         setCFlag();
                     else
                         clearCFlag();
-                    if ((gbRegs.af.b.h & 0xF) + (r & 0xF) > 0xF)
+                    if ((locA & 0xF) + (r & 0xF) > 0xF)
                         setHFlag();
                     else
                         clearHFlag();
-                    gbRegs.af.b.h += r;
-                    if (gbRegs.af.b.h == 0)
+                    locA += r;
+                    if (locA == 0)
                         setZFlag();
                     else
                         clearZFlag();
@@ -564,16 +585,16 @@ int runOpcode(int cycles) {
 			case 0x86:		// ADD A, (hl)	8
                 {
 				int val = readMemory(gbRegs.hl.w);
-				if (gbRegs.af.b.h + val > 0xFF)
+				if (locA + val > 0xFF)
 					setCFlag();
 				else
 					clearCFlag();
-				if ((gbRegs.af.b.h & 0xF) + (val & 0xF) > 0xF)
+				if ((locA & 0xF) + (val & 0xF) > 0xF)
 					setHFlag();
 				else
 					clearHFlag();
-				gbRegs.af.b.h += val;
-				if (gbRegs.af.b.h == 0)
+				locA += val;
+				if (locA == 0)
 					setZFlag();
 				else
 					clearZFlag();
@@ -583,16 +604,16 @@ int runOpcode(int cycles) {
 			case 0xC6:		// ADD A, n			8
                 {
 				int val = quickRead(locPC++);
-				if (gbRegs.af.b.h + val > 0xFF)
+				if (locA + val > 0xFF)
 					setCFlag();
 				else
 					clearCFlag();
-				if ((gbRegs.af.b.h & 0xF) + (val & 0xF) > 0xF)
+				if ((locA & 0xF) + (val & 0xF) > 0xF)
 					setHFlag();
 				else
 					clearHFlag();
-				gbRegs.af.b.h += val;
-				if (gbRegs.af.b.h == 0)
+				locA += val;
+				if (locA == 0)
 					setZFlag();
 				else
 					clearZFlag();
@@ -604,7 +625,7 @@ int runOpcode(int cycles) {
 			case 0x8F:		// ADC A, A			4
                 {
 				int val = carrySet();
-                u8 r = gbRegs.af.b.h;
+                u8 r = locA;
 				if (r + r + val > 0xFF)
 					setCFlag();
 				else
@@ -613,8 +634,8 @@ int runOpcode(int cycles) {
 					setHFlag();
 				else
 					clearHFlag();
-				gbRegs.af.b.h += r + val;
-				if (gbRegs.af.b.h == 0)
+				locA += r + val;
+				if (locA == 0)
 					setZFlag();
 				else
 					clearZFlag();
@@ -630,16 +651,16 @@ int runOpcode(int cycles) {
                 {
 				int val = carrySet();
                 u8 r = *numberedGbReg(opcode&7);
-				if (gbRegs.af.b.h + r + val > 0xFF)
+				if (locA + r + val > 0xFF)
 					setCFlag();
 				else
 					clearCFlag();
-				if ((gbRegs.af.b.h & 0xF) + (r & 0xF) + val > 0xF)
+				if ((locA & 0xF) + (r & 0xF) + val > 0xF)
 					setHFlag();
 				else
 					clearHFlag();
-				gbRegs.af.b.h += r + val;
-				if (gbRegs.af.b.h == 0)
+				locA += r + val;
+				if (locA == 0)
 					setZFlag();
 				else
 					clearZFlag();
@@ -650,16 +671,16 @@ int runOpcode(int cycles) {
                 {
 				int val = readMemory(gbRegs.hl.w);
 				int val2 = carrySet();
-				if (gbRegs.af.b.h + val + val2 > 0xFF)
+				if (locA + val + val2 > 0xFF)
 					setCFlag();
 				else
 					clearCFlag();
-				if ((gbRegs.af.b.h & 0xF) + (val & 0xF) + val2 > 0xF)
+				if ((locA & 0xF) + (val & 0xF) + val2 > 0xF)
 					setHFlag();
 				else
 					clearHFlag();
-				gbRegs.af.b.h += val + val2;
-				if (gbRegs.af.b.h == 0)
+				locA += val + val2;
+				if (locA == 0)
 					setZFlag();
 				else
 					clearZFlag();
@@ -670,16 +691,16 @@ int runOpcode(int cycles) {
                 {
 				int val = quickRead(locPC++);
 				int val2 = carrySet();
-				if (gbRegs.af.b.h + val + val2 > 0xFF)
+				if (locA + val + val2 > 0xFF)
 					setCFlag();
 				else
 					clearCFlag();
-				if ((gbRegs.af.b.h & 0xF) + (val & 0xF) + val2 > 0xF)
+				if ((locA & 0xF) + (val & 0xF) + val2 > 0xF)
 					setHFlag();
 				else
 					clearHFlag();
-				gbRegs.af.b.h += val + val2;
-				if (gbRegs.af.b.h == 0)
+				locA += val + val2;
+				if (locA == 0)
 					setZFlag();
 				else
 					clearZFlag();
@@ -689,7 +710,7 @@ int runOpcode(int cycles) {
 
 			case 0x97:		// SUB A, A			4
                 {
-                    gbRegs.af.b.h = 0;
+                    locA = 0;
                     clearCFlag();
                     clearHFlag();
                     setZFlag();
@@ -704,16 +725,16 @@ int runOpcode(int cycles) {
 			case 0x95:		// SUB A, L			4
                 {
                     u8 r = *numberedGbReg(opcode&7);
-                    if (gbRegs.af.b.h < r)
+                    if (locA < r)
                         setCFlag();
                     else
                         clearCFlag();
-                    if ((gbRegs.af.b.h & 0xF) < (r & 0xF))
+                    if ((locA & 0xF) < (r & 0xF))
                         setHFlag();
                     else
                         clearHFlag();
-                    gbRegs.af.b.h -= r;
-                    if (gbRegs.af.b.h == 0)
+                    locA -= r;
+                    if (locA == 0)
                         setZFlag();
                     else
                         clearZFlag();
@@ -723,16 +744,16 @@ int runOpcode(int cycles) {
 			case 0x96:		// SUB A, (hl)	8
                 {
 				int val = readMemory(gbRegs.hl.w);
-				if (gbRegs.af.b.h < val)
+				if (locA < val)
 					setCFlag();
 				else
 					clearCFlag();
-				if ((gbRegs.af.b.h & 0xF) < (val & 0xF))
+				if ((locA & 0xF) < (val & 0xF))
 					setHFlag();
 				else
 					clearHFlag();
-				gbRegs.af.b.h -= val;
-				if (gbRegs.af.b.h == 0)
+				locA -= val;
+				if (locA == 0)
 					setZFlag();
 				else
 					clearZFlag();
@@ -742,16 +763,16 @@ int runOpcode(int cycles) {
 			case 0xD6:		// SUB A, n			8
                 {
 				int val = quickRead(locPC++);
-				if (gbRegs.af.b.h < val)
+				if (locA < val)
 					setCFlag();
 				else
 					clearCFlag();
-				if ((gbRegs.af.b.h & 0xF) < (val & 0xF))
+				if ((locA & 0xF) < (val & 0xF))
 					setHFlag();
 				else
 					clearHFlag();
-				gbRegs.af.b.h -= val;
-				if (gbRegs.af.b.h == 0)
+				locA -= val;
+				if (locA == 0)
 					setZFlag();
 				else
 					clearZFlag();
@@ -761,7 +782,7 @@ int runOpcode(int cycles) {
                 }
 			case 0x9F:		// SBC A, A			4
                 {
-                    u8 r = gbRegs.af.b.h;
+                    u8 r = locA;
                     int val2 = carrySet();
                     if (val2 /* != 0 */) {
                         setCFlag();
@@ -771,8 +792,8 @@ int runOpcode(int cycles) {
                         clearCFlag();
                         clearHFlag();
                     }
-                    gbRegs.af.b.h -= (r + val2);
-                    if (gbRegs.af.b.h == 0)
+                    locA -= (r + val2);
+                    if (locA == 0)
                         setZFlag();
                     else
                         clearZFlag();
@@ -788,16 +809,16 @@ int runOpcode(int cycles) {
                 {
                     u8 r = *numberedGbReg(opcode&7);
                     int val2 = carrySet();
-                    if (gbRegs.af.b.h < r + val2)
+                    if (locA < r + val2)
                         setCFlag();
                     else
                         clearCFlag();
-                    if ((gbRegs.af.b.h & 0xF) < (r & 0xF) + val2)
+                    if ((locA & 0xF) < (r & 0xF) + val2)
                         setHFlag();
                     else
                         clearHFlag();
-                    gbRegs.af.b.h -= (r + val2);
-                    if (gbRegs.af.b.h == 0)
+                    locA -= (r + val2);
+                    if (locA == 0)
                         setZFlag();
                     else
                         clearZFlag();
@@ -808,16 +829,16 @@ int runOpcode(int cycles) {
                 {
 				int val2 = carrySet();
 				int val = readMemory(gbRegs.hl.w);
-				if (gbRegs.af.b.h < val + val2)
+				if (locA < val + val2)
 					setCFlag();
 				else
 					clearCFlag();
-				if ((gbRegs.af.b.h & 0xF) < (val & 0xF)+val2)
+				if ((locA & 0xF) < (val & 0xF)+val2)
 					setHFlag();
 				else
 					clearHFlag();
-				gbRegs.af.b.h -= val + val2;
-				if (gbRegs.af.b.h == 0)
+				locA -= val + val2;
+				if (locA == 0)
 					setZFlag();
 				else
 					clearZFlag();
@@ -828,16 +849,16 @@ int runOpcode(int cycles) {
                 {
 				int val = quickRead(locPC++);
 				int val2 = carrySet();
-				if (gbRegs.af.b.h <val + val2)
+				if (locA <val + val2)
 					setCFlag();
 				else
 					clearCFlag();
-				if ((gbRegs.af.b.h & 0xF) < (val & 0xF)+val2)
+				if ((locA & 0xF) < (val & 0xF)+val2)
 					setHFlag();
 				else
 					clearHFlag();
-				gbRegs.af.b.h -= (val + val2);
-				if (gbRegs.af.b.h == 0)
+				locA -= (val + val2);
+				if (locA == 0)
 					setZFlag();
 				else
 					clearZFlag();
@@ -846,7 +867,7 @@ int runOpcode(int cycles) {
                 }
 
 			case 0xA7:		// AND A, A		4
-				if (gbRegs.af.b.h == 0)
+				if (locA == 0)
 					setZFlag();
 				else
 					clearZFlag();
@@ -860,8 +881,8 @@ int runOpcode(int cycles) {
 			case 0xA3:		// AND A, E		4
 			case 0xA4:		// AND A, H		4
 			case 0xA5:		// AND A, L		4
-				gbRegs.af.b.h &= *numberedGbReg(opcode&7);
-				if (gbRegs.af.b.h == 0)
+				locA &= *numberedGbReg(opcode&7);
+				if (locA == 0)
 					setZFlag();
 				else
 					clearZFlag();
@@ -870,8 +891,8 @@ int runOpcode(int cycles) {
 				clearCFlag();
 				break;
 			case 0xA6:		// AND A, (hl)	8
-				gbRegs.af.b.h &= readMemory(gbRegs.hl.w);
-				if (gbRegs.af.b.h == 0)
+				locA &= readMemory(gbRegs.hl.w);
+				if (locA == 0)
 					setZFlag();
 				else
 					clearZFlag();
@@ -880,8 +901,8 @@ int runOpcode(int cycles) {
 				clearCFlag();
 				break;
 			case 0xE6:		// AND A, n			8
-				gbRegs.af.b.h &= quickRead(locPC++);
-				if (gbRegs.af.b.h == 0)
+				locA &= quickRead(locPC++);
+				if (locA == 0)
 					setZFlag();
 				else
 					clearZFlag();
@@ -891,7 +912,7 @@ int runOpcode(int cycles) {
 				break;
 
 			case 0xB7:		// OR A, A			4
-				if (gbRegs.af.b.h == 0)
+				if (locA == 0)
 					setZFlag();
 				else
 					clearZFlag();
@@ -905,8 +926,8 @@ int runOpcode(int cycles) {
 			case 0xB3:		// OR A, E			4
 			case 0xB4:		// OR A, H			4
 			case 0xB5:		// OR A, L			4
-				gbRegs.af.b.h |= *numberedGbReg(opcode&7);
-				if (gbRegs.af.b.h == 0)
+				locA |= *numberedGbReg(opcode&7);
+				if (locA == 0)
 					setZFlag();
 				else
 					clearZFlag();
@@ -915,8 +936,8 @@ int runOpcode(int cycles) {
 				clearCFlag();
 				break;
 			case 0xB6:		// OR A, (hl)		8
-				gbRegs.af.b.h |= readMemory(gbRegs.hl.w);
-				if (gbRegs.af.b.h == 0)
+				locA |= readMemory(gbRegs.hl.w);
+				if (locA == 0)
 					setZFlag();
 				else
 					clearZFlag();
@@ -925,8 +946,8 @@ int runOpcode(int cycles) {
 				clearCFlag();
 				break;
 			case 0xF6:		// OR A, n			4
-				gbRegs.af.b.h |= quickRead(locPC++);
-				if (gbRegs.af.b.h == 0)
+				locA |= quickRead(locPC++);
+				if (locA == 0)
 					setZFlag();
 				else
 					clearZFlag();
@@ -936,7 +957,7 @@ int runOpcode(int cycles) {
 				break;
 
 			case 0xAF:		// XOR A, A			4
-				gbRegs.af.b.h = 0;
+				locA = 0;
 				setZFlag();
 				clearNFlag();
 				clearHFlag();
@@ -948,8 +969,8 @@ int runOpcode(int cycles) {
 			case 0xAB:		// XOR A, E			4
 			case 0xAC:		// XOR A, H			4
 			case 0xAD:		// XOR A, L			4
-				gbRegs.af.b.h ^= *numberedGbReg(opcode&7);
-				if (gbRegs.af.b.h == 0)
+				locA ^= *numberedGbReg(opcode&7);
+				if (locA == 0)
 					setZFlag();
 				else
 					clearZFlag();
@@ -958,8 +979,8 @@ int runOpcode(int cycles) {
 				clearCFlag();
 				break;
 			case 0xAE:		// XOR A, (hl)	8
-				gbRegs.af.b.h ^= readMemory(gbRegs.hl.w);
-				if (gbRegs.af.b.h == 0)
+				locA ^= readMemory(gbRegs.hl.w);
+				if (locA == 0)
 					setZFlag();
 				else
 					clearZFlag();
@@ -968,8 +989,8 @@ int runOpcode(int cycles) {
 				clearCFlag();
 				break;
 			case 0xEE:		// XOR A, n			8
-				gbRegs.af.b.h ^= quickRead(locPC++);
-				if (gbRegs.af.b.h == 0)
+				locA ^= quickRead(locPC++);
+				if (locA == 0)
 					setZFlag();
 				else
 					clearZFlag();
@@ -994,15 +1015,15 @@ int runOpcode(int cycles) {
 			case 0xBD:		// CP L					4
                 {
                     u8 r = *numberedGbReg(opcode&7);
-                    if (gbRegs.af.b.h < r)
+                    if (locA < r)
                         setCFlag();
                     else
                         clearCFlag();
-                    if ((gbRegs.af.b.h & 0xF) < (r & 0xF))
+                    if ((locA & 0xF) < (r & 0xF))
                         setHFlag();
                     else
                         clearHFlag();
-                    if (gbRegs.af.b.h - r == 0)
+                    if (locA - r == 0)
                         setZFlag();
                     else
                         clearZFlag();
@@ -1012,15 +1033,15 @@ int runOpcode(int cycles) {
 			case 0xBE:		// CP (hl)			8
                 {
 				int val = readMemory(gbRegs.hl.w);
-				if (gbRegs.af.b.h < val)
+				if (locA < val)
 					setCFlag();
 				else
 					clearCFlag();
-				if ((gbRegs.af.b.h & 0xF) < (val & 0xF))
+				if ((locA & 0xF) < (val & 0xF))
 					setHFlag();
 				else
 					clearHFlag();
-				if (gbRegs.af.b.h - val == 0)
+				if (locA - val == 0)
 					setZFlag();
 				else
 					clearZFlag();
@@ -1030,15 +1051,15 @@ int runOpcode(int cycles) {
 			case 0xFE:		// CP n					8
                 {
 				int val = quickRead(locPC++);
-				if (gbRegs.af.b.h < val)
+				if (locA < val)
 					setCFlag();
 				else
 					clearCFlag();
-				if ((gbRegs.af.b.h & 0xF) < (val & 0xF))
+				if ((locA & 0xF) < (val & 0xF))
 					setHFlag();
 				else
 					clearHFlag();
-				if (gbRegs.af.b.h - val == 0)
+				if (locA - val == 0)
 					setZFlag();
 				else
 					clearZFlag();
@@ -1049,12 +1070,12 @@ int runOpcode(int cycles) {
 
 			case 0x3C:		// INC A				4
                 {
-                    gbRegs.af.b.h++;
-                    if (gbRegs.af.b.h == 0)
+                    locA++;
+                    if (locA == 0)
                         setZFlag();
                     else
                         clearZFlag();
-                    if ((gbRegs.af.b.h & 0xF) == 0)
+                    if ((locA & 0xF) == 0)
                         setHFlag();
                     else
                         clearHFlag();
@@ -1100,12 +1121,12 @@ int runOpcode(int cycles) {
 
 			case 0x3D:		// DEC A				4
                 {
-                    gbRegs.af.b.h--;
-                    if (gbRegs.af.b.h == 0)
+                    locA--;
+                    if (locA == 0)
                         setZFlag();
                     else
                         clearZFlag();
-                    if ((gbRegs.af.b.h & 0xF) == 0xF)
+                    if ((locA & 0xF) == 0xF)
                         setHFlag();
                     else
                         clearHFlag();
@@ -1244,7 +1265,7 @@ int runOpcode(int cycles) {
 
 			case 0x27:		// DAA					4
 				{
-					int a = gbRegs.af.b.h;
+					int a = locA;
 
 					if (!negativeSet())
 					{
@@ -1273,13 +1294,13 @@ int runOpcode(int cycles) {
 					if (a == 0)
 						setZFlag();
 
-					gbRegs.af.b.h = a;
+					locA = a;
 
 				}
 				break;
 
 			case 0x2F:		// CPL					4
-				gbRegs.af.b.h = ~gbRegs.af.b.h;
+				locA = ~locA;
 				setNFlag();
 				setHFlag();
 				break;
@@ -1347,12 +1368,12 @@ int runOpcode(int cycles) {
 
 			case 0x07:		// RLCA 4
                 {
-				int val = gbRegs.af.b.h;
-				gbRegs.af.b.h <<= 1;
+				int val = locA;
+				locA <<= 1;
 				if (val & 0x80)
 				{
 					setCFlag();
-					gbRegs.af.b.h |= 1;
+					locA |= 1;
 				}
 				else
 					clearCFlag();
@@ -1364,9 +1385,9 @@ int runOpcode(int cycles) {
 
 			case 0x17:		// RLA					4
                 {
-				int val = (gbRegs.af.b.h & 0x80);
-				gbRegs.af.b.h <<= 1;
-				gbRegs.af.b.h |= carrySet();
+				int val = (locA & 0x80);
+				locA <<= 1;
+				locA |= carrySet();
 				if (val)
 					setCFlag();
 				else
@@ -1379,12 +1400,12 @@ int runOpcode(int cycles) {
 
 			case 0x0F:		// RRCA 4
                 {
-				int val = gbRegs.af.b.h;
-				gbRegs.af.b.h >>= 1;
+				int val = locA;
+				locA >>= 1;
 				if ((val & 1))
 				{
 					setCFlag();
-					gbRegs.af.b.h |= 0x80;
+					locA |= 0x80;
 				}
 				else
 					clearCFlag();
@@ -1396,9 +1417,9 @@ int runOpcode(int cycles) {
 
 			case 0x1F:		// RRA					4
                 {
-				int val = gbRegs.af.b.h & 1;
-				gbRegs.af.b.h >>= 1;
-				gbRegs.af.b.h |= (carrySet() << 7);
+				int val = locA & 1;
+				locA >>= 1;
+				locA |= (carrySet() << 7);
 				if (val)
 					setCFlag();
 				else
@@ -1652,7 +1673,7 @@ int runOpcode(int cycles) {
 				{
 					case 0x37:		// SWAP A			8
                         {
-                            u8 r = gbRegs.af.b.h;
+                            u8 r = locA;
                             int val = r >> 4;
                             r <<= 4;
                             r |= val;
@@ -1663,7 +1684,7 @@ int runOpcode(int cycles) {
                             clearNFlag();
                             clearHFlag();
                             clearCFlag();
-                            gbRegs.af.b.h = r;
+                            locA = r;
                             break;
                         }
 					case 0x30:		// SWAP B			8
@@ -1707,9 +1728,9 @@ int runOpcode(int cycles) {
 
 					case 0x07:		// RLC A					8
                         {
-                            u8 r = gbRegs.af.b.h;
+                            u8 r = locA;
                             r <<= 1;
-                            if (((gbRegs.af.b.h) & 0x80) != 0)
+                            if (((locA) & 0x80) != 0)
                             {
                                 setCFlag();
                                 r |= 1;
@@ -1722,7 +1743,7 @@ int runOpcode(int cycles) {
                                 clearZFlag();
                             clearNFlag();
                             clearHFlag();
-                            gbRegs.af.b.h = r;
+                            locA = r;
                             break;
                         }
 					case 0x00:		// RLC B					8
@@ -1776,7 +1797,7 @@ int runOpcode(int cycles) {
                         }
 					case 0x17:		// RL A				8
                         {
-                            u8 r = gbRegs.af.b.h;
+                            u8 r = locA;
                             int val = (r & 0x80);
                             r <<= 1;
                             r |= carrySet();
@@ -1790,7 +1811,7 @@ int runOpcode(int cycles) {
                                 clearZFlag();
                             clearNFlag();
                             clearHFlag();
-                            gbRegs.af.b.h = r;
+                            locA = r;
                             break;
                         }
 					case 0x10:		// RL B				8
@@ -1839,7 +1860,7 @@ int runOpcode(int cycles) {
                         }
 					case 0x0F:		// RRC A					8
                         {
-                            u8 r = gbRegs.af.b.h;
+                            u8 r = locA;
                             int val = r;
                             r >>= 1;
                             if (val&1)
@@ -1855,7 +1876,7 @@ int runOpcode(int cycles) {
                                 clearZFlag();
                             clearNFlag();
                             clearHFlag();
-                            gbRegs.af.b.h = r;
+                            locA = r;
                             break;
                         }
 					case 0x08:		// RRC B					8
@@ -1909,7 +1930,7 @@ int runOpcode(int cycles) {
 
 					case 0x1F:		// RR A					8
                         {
-                            u8 r = gbRegs.af.b.h;
+                            u8 r = locA;
                             int val = r & 1;
                             r >>= 1;
                             r |= carrySet() << 7;
@@ -1923,7 +1944,7 @@ int runOpcode(int cycles) {
                                 clearZFlag();
                             clearNFlag();
                             clearHFlag();
-                            gbRegs.af.b.h = r;
+                            locA = r;
                             break;
                         }
 					case 0x18:		// RR B					8
@@ -1974,7 +1995,7 @@ int runOpcode(int cycles) {
 
 					case 0x27:		// SLA A				8
                         {
-                            u8 r = gbRegs.af.b.h;
+                            u8 r = locA;
                             int val = (r & 0x80);
                             r <<= 1;
                             if (val)
@@ -1987,7 +2008,7 @@ int runOpcode(int cycles) {
                                 clearZFlag();
                             clearNFlag();
                             clearHFlag();
-                            gbRegs.af.b.h = r;
+                            locA = r;
                             break;
                         }
 					case 0x20:		// SLA B				8
@@ -2035,7 +2056,7 @@ int runOpcode(int cycles) {
 
 					case 0x2F:		// SRA A				8
                         {
-                            u8 r = gbRegs.af.b.h;
+                            u8 r = locA;
                             if (r & 1)
                                 setCFlag();
                             else
@@ -2049,7 +2070,7 @@ int runOpcode(int cycles) {
                                 clearZFlag();
                             clearNFlag();
                             clearHFlag();
-                            gbRegs.af.b.h = r;
+                            locA = r;
                             break;
                         }
 					case 0x28:		// SRA B				8
@@ -2099,7 +2120,7 @@ int runOpcode(int cycles) {
 
 					case 0x3F:		// SRL A				8
                         {
-                            u8 r = gbRegs.af.b.h;
+                            u8 r = locA;
                             if (r & 1)
                                 setCFlag();
                             else
@@ -2111,7 +2132,7 @@ int runOpcode(int cycles) {
                                 clearZFlag();
                             clearNFlag();
                             clearHFlag();
-                            gbRegs.af.b.h = r;
+                            locA = r;
                             break;
                         }
 					case 0x38:		// SRL B				8
@@ -2164,7 +2185,7 @@ int runOpcode(int cycles) {
 					case 0x77:		// BIT 6, A
 					case 0x7F:		// BIT 7, A
                         {
-                            if (((gbRegs.af.b.h) & (1<<((opcode>>3)&7))) == 0)
+                            if (((locA) & (1<<((opcode>>3)&7))) == 0)
                                 setZFlag();
                             else
                                 clearZFlag();
@@ -2319,7 +2340,7 @@ int runOpcode(int cycles) {
 						break;
                         }
 					case 0xC7:		// SET 0, A
-						gbRegs.af.b.h |= 1;
+						locA |= 1;
 						break;
 					case 0xC8:		// SET 1, B
 						gbRegs.bc.b.h |= 2;
@@ -2347,7 +2368,7 @@ int runOpcode(int cycles) {
 						break;
                         }
 					case 0xCF:		// SET 1, A
-						gbRegs.af.b.h |= 2;
+						locA |= 2;
 						break;
 					case 0xD0:		// SET 2, B
 						gbRegs.bc.b.h |= 4;
@@ -2375,7 +2396,7 @@ int runOpcode(int cycles) {
 						break;
                         }
 					case 0xD7:		// SET 2, A
-						gbRegs.af.b.h |= 4;
+						locA |= 4;
 						break;
 					case 0xD8:		// SET 3, B
 						gbRegs.bc.b.h |= 8;
@@ -2403,7 +2424,7 @@ int runOpcode(int cycles) {
 						break;
                         }
 					case 0xDF:		// SET 3, A
-						gbRegs.af.b.h |= 8;
+						locA |= 8;
 						break;
 					case 0xE0:		// SET 4, B
 						gbRegs.bc.b.h |= 0x10;
@@ -2431,7 +2452,7 @@ int runOpcode(int cycles) {
 						break;
                         }
 					case 0xE7:		// SET 4, A
-						gbRegs.af.b.h |= 0x10;
+						locA |= 0x10;
 						break;
 					case 0xE8:		// SET 5, B
 						gbRegs.bc.b.h |= 0x20;
@@ -2459,7 +2480,7 @@ int runOpcode(int cycles) {
 						break;
                         }
 					case 0xEF:		// SET 5, A
-						gbRegs.af.b.h |= 0x20;
+						locA |= 0x20;
 						break;
 					case 0xF0:		// SET 6, B
 						gbRegs.bc.b.h |= 0x40;
@@ -2487,7 +2508,7 @@ int runOpcode(int cycles) {
 						break;
                         }
 					case 0xF7:		// SET 6, A
-						gbRegs.af.b.h |= 0x40;
+						locA |= 0x40;
 						break;
 					case 0xF8:		// SET 7, B
 						gbRegs.bc.b.h |= 0x80;
@@ -2515,7 +2536,7 @@ int runOpcode(int cycles) {
 						break;
                         }
 					case 0xFF:		// SET 7, A
-						gbRegs.af.b.h |= 0x80;
+						locA |= 0x80;
 						break;
 
 					case 0x80:		// RES 0, B
@@ -2544,7 +2565,7 @@ int runOpcode(int cycles) {
 						break;
                         }
 					case 0x87:		// RES 0, A
-						gbRegs.af.b.h &= 0xFE;
+						locA &= 0xFE;
 						break;
 					case 0x88:		// RES 1, B
 						gbRegs.bc.b.h &= 0xFD;
@@ -2572,7 +2593,7 @@ int runOpcode(int cycles) {
 						break;
                         }
 					case 0x8F:		// RES 1, A
-						gbRegs.af.b.h &= 0xFD;
+						locA &= 0xFD;
 						break;
 					case 0x90:		// RES 2, B
 						gbRegs.bc.b.h &= 0xFB;
@@ -2600,7 +2621,7 @@ int runOpcode(int cycles) {
 						break;
                         }
 					case 0x97:		// RES 2, A
-						gbRegs.af.b.h &= 0xFB;
+						locA &= 0xFB;
 						break;
 					case 0x98:		// RES 3, B
 						gbRegs.bc.b.h &= 0xF7;
@@ -2628,7 +2649,7 @@ int runOpcode(int cycles) {
 						break;
                         }
 					case 0x9F:		// RES 3, A
-						gbRegs.af.b.h &= 0xF7;
+						locA &= 0xF7;
 						break;
 					case 0xA0:		// RES 4, B
 						gbRegs.bc.b.h &= 0xEF;
@@ -2656,7 +2677,7 @@ int runOpcode(int cycles) {
 						break;
                         }
 					case 0xA7:		// RES 4, A
-						gbRegs.af.b.h &= 0xEF;
+						locA &= 0xEF;
 						break;
 					case 0xA8:		// RES 5, B
 						gbRegs.bc.b.h &= 0xDF;
@@ -2684,7 +2705,7 @@ int runOpcode(int cycles) {
 						break;
                         }
 					case 0xAF:		// RES 5, A
-						gbRegs.af.b.h &= 0xDF;
+						locA &= 0xDF;
 						break;
 					case 0xB0:		// RES 6, B
 						gbRegs.bc.b.h &= 0xBF;
@@ -2712,7 +2733,7 @@ int runOpcode(int cycles) {
 						break;
                         }
 					case 0xB7:		// RES 6, A
-						gbRegs.af.b.h &= 0xBF;
+						locA &= 0xBF;
 						break;
 					case 0xB8:		// RES 7, B
 						gbRegs.bc.b.h &= 0x7F;
@@ -2740,7 +2761,7 @@ int runOpcode(int cycles) {
 						break;
                         }
 					case 0xBF:		// RES 7, A
-						gbRegs.af.b.h &= 0x7F;
+						locA &= 0x7F;
 						break;
 					default:
 						break;
@@ -2752,6 +2773,7 @@ int runOpcode(int cycles) {
 	}
 
 end:
+    gbRegs.af.b.h = locA;
     gbRegs.af.b.l = locF;
     gbRegs.pc.w = locPC;
     gbRegs.sp.w = locSP;
