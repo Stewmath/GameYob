@@ -309,49 +309,51 @@ int runOpcode(int cycles) {
 			case 0x3E:		// LD A, n		8
 				(*numberedGbReg(opcode>>3)) = quickRead(locPC++);
 				break;
+			/* These are equivalent to NOPs. */
 			case 0x7F:		// LD A, A		4
+			case 0x40:		// LD B, B		4
+			case 0x49:		// LD C, C		4
+			case 0x52:		// LD D, D		4
+			case 0x5B:		// LD E, E		4
+			case 0x64:		// LD H, H		4
+			case 0x6D:		// LD L, L		4
+				break;
 			case 0x78:		// LD A, B		4
 			case 0x79:		// LD A, C		4
 			case 0x7A:		// LD A, D		4
 			case 0x7B:		// LD A, E		4
 			case 0x7C:		// LD A, H		4
 			case 0x7D:		// LD A, L		4
-			case 0x40:		// LD B, B		4
 			case 0x41:		// LD B, C		4
 			case 0x42:		// LD B, D		4
 			case 0x43:		// LD B, E		4
 			case 0x44:		// LD B, H		4
 			case 0x45:		// LD B, L		4
 			case 0x48:		// LD C, B		4
-			case 0x49:		// LD C, C		4
 			case 0x4A:		// LD C, D		4
 			case 0x4B:		// LD C, E		4
 			case 0x4C:		// LD C, H		4
 			case 0x4D:		// LD C, L		4
 			case 0x50:		// LD D, B		4
 			case 0x51:		// LD D, C		4
-			case 0x52:		// LD D, D		4
 			case 0x53:		// LD D, E		4
 			case 0x54:		// LD D, H		4
 			case 0x55:		// LD D, L		4
 			case 0x58:		// LD E, B		4
 			case 0x59:		// LD E, C		4
 			case 0x5A:		// LD E, D		4
-			case 0x5B:		// LD E, E		4
 			case 0x5C:		// LD E, H		4
 			case 0x5D:		// LD E, L		4
 			case 0x60:		// LD H, B		4
 			case 0x61:		// LD H, C		4
 			case 0x62:		// LD H, D		4
 			case 0x63:		// LD H, E		4
-			case 0x64:		// LD H, H		4
 			case 0x65:		// LD H, L		4
 			case 0x68:		// LD L, B		4
 			case 0x69:		// LD L, C		4
 			case 0x6A:		// LD L, D		4
 			case 0x6B:		// LD L, E		4
 			case 0x6C:		// LD L, H		4
-			case 0x6D:		// LD L, L		4
 			case 0x47:		// LD B, A		4
 			case 0x4F:		// LD C, A		4
 			case 0x57:		// LD D, A		4
@@ -639,6 +641,14 @@ int runOpcode(int cycles) {
                 }
 
 			case 0x97:		// SUB A, A			4
+                {
+                    gbRegs.af.b.h = 0;
+                    clearCFlag();
+                    clearHFlag();
+                    setZFlag();
+                    setNFlag();
+                    break;
+                }
 			case 0x90:		// SUB A, B			4
 			case 0x91:		// SUB A, C			4
 			case 0x92:		// SUB A, D			4
@@ -770,6 +780,14 @@ int runOpcode(int cycles) {
                 }
 
 			case 0xA7:		// AND A, A		4
+				if (gbRegs.af.b.h == 0)
+					setZFlag();
+				else
+					clearZFlag();
+				clearNFlag();
+				setHFlag();
+				clearCFlag();
+				break;
 			case 0xA0:		// AND A, B		4
 			case 0xA1:		// AND A, C		4
 			case 0xA2:		// AND A, D		4
@@ -807,6 +825,14 @@ int runOpcode(int cycles) {
 				break;
 
 			case 0xB7:		// OR A, A			4
+				if (gbRegs.af.b.h == 0)
+					setZFlag();
+				else
+					clearZFlag();
+				clearNFlag();
+				clearHFlag();
+				clearCFlag();
+				break;
 			case 0xB0:		// OR A, B			4
 			case 0xB1:		// OR A, C			4
 			case 0xB2:		// OR A, D			4
@@ -844,6 +870,12 @@ int runOpcode(int cycles) {
 				break;
 
 			case 0xAF:		// XOR A, A			4
+				gbRegs.af.b.h = 0;
+				setZFlag();
+				clearNFlag();
+				clearHFlag();
+				clearCFlag();
+				break;
 			case 0xA8:		// XOR A, B			4
 			case 0xA9:		// XOR A, C			4
 			case 0xAA:		// XOR A, D			4
@@ -881,6 +913,13 @@ int runOpcode(int cycles) {
 				break;
 
 			case 0xBF:		// CP A					4
+                {
+                    clearCFlag();
+                    clearHFlag();
+                    setZFlag();
+                    setNFlag();
+                    break;
+                }
 			case 0xB8:		// CP B					4
 			case 0xB9:		// CP C				4
 			case 0xBA:		// CP D					4
