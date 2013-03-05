@@ -306,8 +306,10 @@ int runOpcode(int cycles) {
 			case 0x1E:		// LD E, n		8
 			case 0x26:		// LD H, n		8
 			case 0x2E:		// LD L, n		8
-			case 0x3E:		// LD A, n		8
 				(*numberedGbReg(opcode>>3)) = quickRead(locPC++);
+				break;
+			case 0x3E:		// LD A, n		8
+				gbRegs.af.b.h = quickRead(locPC++);
 				break;
 			/* These are equivalent to NOPs. */
 			case 0x7F:		// LD A, A		4
@@ -324,6 +326,8 @@ int runOpcode(int cycles) {
 			case 0x7B:		// LD A, E		4
 			case 0x7C:		// LD A, H		4
 			case 0x7D:		// LD A, L		4
+                gbRegs.af.b.h = *numberedGbReg(opcode&7);
+                break;
 			case 0x41:		// LD B, C		4
 			case 0x42:		// LD B, D		4
 			case 0x43:		// LD B, E		4
@@ -354,15 +358,19 @@ int runOpcode(int cycles) {
 			case 0x6A:		// LD L, D		4
 			case 0x6B:		// LD L, E		4
 			case 0x6C:		// LD L, H		4
+                (*numberedGbReg((opcode>>3)&7)) = *numberedGbReg(opcode&7);
+                break;
 			case 0x47:		// LD B, A		4
 			case 0x4F:		// LD C, A		4
 			case 0x57:		// LD D, A		4
 			case 0x5F:		// LD E, A		4
 			case 0x67:		// LD H, A		4
 			case 0x6F:		// LD L, A		4
-                (*numberedGbReg((opcode>>3)&7)) = *numberedGbReg(opcode&7);
+                (*numberedGbReg((opcode>>3)&7)) = gbRegs.af.b.h;
                 break;
 			case 0x7E:		// LD A, (hl)	8
+                gbRegs.af.b.h = readMemory(gbRegs.hl.w);
+                break;
 			case 0x46:		// LD B, (hl)	8
 			case 0x4E:		// LD C, (hl)	8
 			case 0x56:		// LD D, (hl)	8
@@ -372,6 +380,8 @@ int runOpcode(int cycles) {
                 (*numberedGbReg((opcode>>3)&7)) = readMemory(gbRegs.hl.w);
                 break;
 			case 0x77:		// LD (hl), A	8
+                writeMemory(gbRegs.hl.w, gbRegs.af.b.h);
+                break;
 			case 0x70:		// LD (hl), B	8
 			case 0x71:		// LD (hl), C	8
 			case 0x72:		// LD (hl), D	8
@@ -509,6 +519,24 @@ int runOpcode(int cycles) {
 
 				// 8-bit arithmetic
 			case 0x87:		// ADD A, A			4
+                {
+                    u8 r = gbRegs.af.b.h;
+                    if (r + r > 0xFF)
+                        setCFlag();
+                    else
+                        clearCFlag();
+                    if ((r & 0xF) + (r & 0xF) > 0xF)
+                        setHFlag();
+                    else
+                        clearHFlag();
+                    gbRegs.af.b.h += r;
+                    if (gbRegs.af.b.h == 0)
+                        setZFlag();
+                    else
+                        clearZFlag();
+                    clearNFlag();
+                    break;
+                }
 			case 0x80:		// ADD A, B			4
 			case 0x81:		// ADD A, C			4
 			case 0x82:		// ADD A, D			4
@@ -574,6 +602,25 @@ int runOpcode(int cycles) {
 
 
 			case 0x8F:		// ADC A, A			4
+                {
+				int val = carrySet();
+                u8 r = gbRegs.af.b.h;
+				if (r + r + val > 0xFF)
+					setCFlag();
+				else
+					clearCFlag();
+				if ((r & 0xF) + (r & 0xF) + val > 0xF)
+					setHFlag();
+				else
+					clearHFlag();
+				gbRegs.af.b.h += r + val;
+				if (gbRegs.af.b.h == 0)
+					setZFlag();
+				else
+					clearZFlag();
+				clearNFlag();
+				break;
+                }
 			case 0x88:		// ADC A, B			4
 			case 0x89:		// ADC A, C			4
 			case 0x8A:		// ADC A, D			4
@@ -713,6 +760,25 @@ int runOpcode(int cycles) {
 
                 }
 			case 0x9F:		// SBC A, A			4
+                {
+                    u8 r = gbRegs.af.b.h;
+                    int val2 = carrySet();
+                    if (val2 /* != 0 */) {
+                        setCFlag();
+                        setHFlag();
+                    }
+                    else {
+                        clearCFlag();
+                        clearHFlag();
+                    }
+                    gbRegs.af.b.h -= (r + val2);
+                    if (gbRegs.af.b.h == 0)
+                        setZFlag();
+                    else
+                        clearZFlag();
+                    setNFlag();
+                    break;
+                }
 			case 0x98:		// SBC A, B			4
 			case 0x99:		// SBC A, C			4
 			case 0x9A:		// SBC A, D			4
@@ -982,6 +1048,19 @@ int runOpcode(int cycles) {
 
 
 			case 0x3C:		// INC A				4
+                {
+                    gbRegs.af.b.h++;
+                    if (gbRegs.af.b.h == 0)
+                        setZFlag();
+                    else
+                        clearZFlag();
+                    if ((gbRegs.af.b.h & 0xF) == 0)
+                        setHFlag();
+                    else
+                        clearHFlag();
+                    clearNFlag();
+                    break;
+                }
 			case 0x04:		// INC B				4
 			case 0x0C:		// INC C				4
 			case 0x14:		// INC D				4
@@ -1020,6 +1099,19 @@ int runOpcode(int cycles) {
                 }
 
 			case 0x3D:		// DEC A				4
+                {
+                    gbRegs.af.b.h--;
+                    if (gbRegs.af.b.h == 0)
+                        setZFlag();
+                    else
+                        clearZFlag();
+                    if ((gbRegs.af.b.h & 0xF) == 0xF)
+                        setHFlag();
+                    else
+                        clearHFlag();
+                    setNFlag();
+                    break;
+                }
 			case 0x05:		// DEC B				4
 			case 0x0D:		// DEC C				4
 			case 0x15:		// DEC D				4
@@ -1559,6 +1651,21 @@ int runOpcode(int cycles) {
 				switch(opcode)
 				{
 					case 0x37:		// SWAP A			8
+                        {
+                            u8 r = gbRegs.af.b.h;
+                            int val = r >> 4;
+                            r <<= 4;
+                            r |= val;
+                            if (r == 0)
+                                setZFlag();
+                            else
+                                clearZFlag();
+                            clearNFlag();
+                            clearHFlag();
+                            clearCFlag();
+                            gbRegs.af.b.h = r;
+                            break;
+                        }
 					case 0x30:		// SWAP B			8
 					case 0x31:		// SWAP C			8
 					case 0x32:		// SWAP D			8
@@ -1599,6 +1706,25 @@ int runOpcode(int cycles) {
                         }
 
 					case 0x07:		// RLC A					8
+                        {
+                            u8 r = gbRegs.af.b.h;
+                            r <<= 1;
+                            if (((gbRegs.af.b.h) & 0x80) != 0)
+                            {
+                                setCFlag();
+                                r |= 1;
+                            }
+                            else
+                                clearCFlag();
+                            if (r == 0)
+                                setZFlag();
+                            else
+                                clearZFlag();
+                            clearNFlag();
+                            clearHFlag();
+                            gbRegs.af.b.h = r;
+                            break;
+                        }
 					case 0x00:		// RLC B					8
 					case 0x01:		// RLC C					8
 					case 0x02:		// RLC D					8
@@ -1649,6 +1775,24 @@ int runOpcode(int cycles) {
 
                         }
 					case 0x17:		// RL A				8
+                        {
+                            u8 r = gbRegs.af.b.h;
+                            int val = (r & 0x80);
+                            r <<= 1;
+                            r |= carrySet();
+                            if (val)
+                                setCFlag();
+                            else
+                                clearCFlag();
+                            if (r == 0)
+                                setZFlag();
+                            else
+                                clearZFlag();
+                            clearNFlag();
+                            clearHFlag();
+                            gbRegs.af.b.h = r;
+                            break;
+                        }
 					case 0x10:		// RL B				8
 					case 0x11:		// RL C				8
 					case 0x12:		// RL D				8
@@ -1694,6 +1838,26 @@ int runOpcode(int cycles) {
 						break;
                         }
 					case 0x0F:		// RRC A					8
+                        {
+                            u8 r = gbRegs.af.b.h;
+                            int val = r;
+                            r >>= 1;
+                            if (val&1)
+                            {
+                                setCFlag();
+                                r |= 0x80;
+                            }
+                            else
+                                clearCFlag();
+                            if (r == 0)
+                                setZFlag();
+                            else
+                                clearZFlag();
+                            clearNFlag();
+                            clearHFlag();
+                            gbRegs.af.b.h = r;
+                            break;
+                        }
 					case 0x08:		// RRC B					8
 					case 0x09:		// RRC C					8
 					case 0x0A:		// RRC D					8
@@ -1744,6 +1908,24 @@ int runOpcode(int cycles) {
                         }
 
 					case 0x1F:		// RR A					8
+                        {
+                            u8 r = gbRegs.af.b.h;
+                            int val = r & 1;
+                            r >>= 1;
+                            r |= carrySet() << 7;
+                            if (val)
+                                setCFlag();
+                            else
+                                clearCFlag();
+                            if (r == 0)
+                                setZFlag();
+                            else
+                                clearZFlag();
+                            clearNFlag();
+                            clearHFlag();
+                            gbRegs.af.b.h = r;
+                            break;
+                        }
 					case 0x18:		// RR B					8
 					case 0x19:		// RR C					8
 					case 0x1A:		// RR D					8
@@ -1791,6 +1973,23 @@ int runOpcode(int cycles) {
 
 
 					case 0x27:		// SLA A				8
+                        {
+                            u8 r = gbRegs.af.b.h;
+                            int val = (r & 0x80);
+                            r <<= 1;
+                            if (val)
+                                setCFlag();
+                            else
+                                clearCFlag();
+                            if (r == 0)
+                                setZFlag();
+                            else
+                                clearZFlag();
+                            clearNFlag();
+                            clearHFlag();
+                            gbRegs.af.b.h = r;
+                            break;
+                        }
 					case 0x20:		// SLA B				8
 					case 0x21:		// SLA C				8
 					case 0x22:		// SLA D				8
@@ -1835,6 +2034,24 @@ int runOpcode(int cycles) {
                         }
 
 					case 0x2F:		// SRA A				8
+                        {
+                            u8 r = gbRegs.af.b.h;
+                            if (r & 1)
+                                setCFlag();
+                            else
+                                clearCFlag();
+                            r >>= 1;
+                            if (r & 0x40)
+                                r |= 0x80;
+                            if (r == 0)
+                                setZFlag();
+                            else
+                                clearZFlag();
+                            clearNFlag();
+                            clearHFlag();
+                            gbRegs.af.b.h = r;
+                            break;
+                        }
 					case 0x28:		// SRA B				8
 					case 0x29:		// SRA C				8
 					case 0x2A:		// SRA D				8
@@ -1881,6 +2098,22 @@ int runOpcode(int cycles) {
                         }
 
 					case 0x3F:		// SRL A				8
+                        {
+                            u8 r = gbRegs.af.b.h;
+                            if (r & 1)
+                                setCFlag();
+                            else
+                                clearCFlag();
+                            r >>= 1;
+                            if (r == 0)
+                                setZFlag();
+                            else
+                                clearZFlag();
+                            clearNFlag();
+                            clearHFlag();
+                            gbRegs.af.b.h = r;
+                            break;
+                        }
 					case 0x38:		// SRL B				8
 					case 0x39:		// SRL C				8
 					case 0x3A:		// SRL D				8
@@ -1923,6 +2156,22 @@ int runOpcode(int cycles) {
                         }
 
 					case 0x47:		// BIT 0, A     8
+					case 0x4F:		// BIT 1, A
+					case 0x57:		// BIT 2, A
+					case 0x5F:		// BIT 3, A
+					case 0x67:		// BIT 4, A
+					case 0x6F:		// BIT 5, A
+					case 0x77:		// BIT 6, A
+					case 0x7F:		// BIT 7, A
+                        {
+                            if (((gbRegs.af.b.h) & (1<<((opcode>>3)&7))) == 0)
+                                setZFlag();
+                            else
+                                clearZFlag();
+                            clearNFlag();
+                            setHFlag();
+                            break;
+                        }
 					case 0x40:		// BIT 0, B     8
 					case 0x41:		// BIT 0, C     8
 					case 0x42:		// BIT 0, D     8
@@ -1935,49 +2184,42 @@ int runOpcode(int cycles) {
 					case 0x4B:		// BIT 1, E
 					case 0x4C:		// BIT 1, H
 					case 0x4D:		// BIT 1, L
-					case 0x4F:		// BIT 1, A
 					case 0x50:		// BIT 2, B
 					case 0x51:		// BIT 2, C
 					case 0x52:		// BIT 2, D
 					case 0x53:		// BIT 2, E
 					case 0x54:		// BIT 2, H
 					case 0x55:		// BIT 2, L
-					case 0x57:		// BIT 2, A
 					case 0x58:		// BIT 3, B
 					case 0x59:		// BIT 3, C
 					case 0x5A:		// BIT 3, D
 					case 0x5B:		// BIT 3, E
 					case 0x5C:		// BIT 3, H
 					case 0x5D:		// BIT 3, L
-					case 0x5F:		// BIT 3, A
 					case 0x60:		// BIT 4, B
 					case 0x61:		// BIT 4, C
 					case 0x62:		// BIT 4, D
 					case 0x63:		// BIT 4, E
 					case 0x64:		// BIT 4, H
 					case 0x65:		// BIT 4, L
-					case 0x67:		// BIT 4, A
 					case 0x68:		// BIT 5, B
 					case 0x69:		// BIT 5, C
 					case 0x6A:		// BIT 5, D
 					case 0x6B:		// BIT 5, E
 					case 0x6C:		// BIT 5, H
 					case 0x6D:		// BIT 5, L
-					case 0x6F:		// BIT 5, A
 					case 0x70:		// BIT 6, B
 					case 0x71:		// BIT 6, C
 					case 0x72:		// BIT 6, D
 					case 0x73:		// BIT 6, E
 					case 0x74:		// BIT 6, H
 					case 0x75:		// BIT 6, L
-					case 0x77:		// BIT 6, A
 					case 0x78:		// BIT 7, B
 					case 0x79:		// BIT 7, C
 					case 0x7A:		// BIT 7, D
 					case 0x7B:		// BIT 7, E
 					case 0x7C:		// BIT 7, H
 					case 0x7D:		// BIT 7, L
-					case 0x7F:		// BIT 7, A
                         {
                             if (((*numberedGbReg(opcode&7)) & (1<<((opcode>>3)&7))) == 0)
                                 setZFlag();
