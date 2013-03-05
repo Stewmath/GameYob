@@ -13,18 +13,18 @@
 #include <nds.h>
 #endif
 
-#define setZFlag()		gbRegs.af.b.l |= 0x80
-#define clearZFlag()	gbRegs.af.b.l &= 0x7F
-#define setNFlag()		gbRegs.af.b.l |= 0x40
-#define clearNFlag()	gbRegs.af.b.l &= 0xBF
-#define setHFlag()		gbRegs.af.b.l |= 0x20
-#define clearHFlag()	gbRegs.af.b.l &= 0xDF
-#define setCFlag()		gbRegs.af.b.l |= 0x10
-#define clearCFlag()	gbRegs.af.b.l &= 0xEF
-#define carrySet() 	(gbRegs.af.b.l & 0x10 ? 1 : 0)
-#define zeroSet()	(gbRegs.af.b.l & 0x80 ? 1 : 0)
-#define negativeSet()	(gbRegs.af.b.l & 0x40 ? 1 : 0)
-#define halfSet()		(gbRegs.af.b.l & 0x20 ? 1 : 0)
+#define setZFlag()		locF |= 0x80
+#define clearZFlag()	locF &= 0x7F
+#define setNFlag()		locF |= 0x40
+#define clearNFlag()	locF &= 0xBF
+#define setHFlag()		locF |= 0x20
+#define clearHFlag()	locF &= 0xDF
+#define setCFlag()		locF |= 0x10
+#define clearCFlag()	locF &= 0xEF
+#define carrySet() 	(locF & 0x10 ? 1 : 0)
+#define zeroSet()	(locF & 0x80 ? 1 : 0)
+#define negativeSet()	(locF & 0x40 ? 1 : 0)
+#define halfSet()		(locF & 0x20 ? 1 : 0)
 #define numberedGbReg(n)	((u8 *) &gbRegs + reg8Offsets[n])
 
 inline u8 quickRead(u16 addr) {
@@ -288,6 +288,7 @@ int runOpcode(int cycles) {
     // Having these commonly-used registers in local variables should improve speed
     u16 locPC=gbRegs.pc.w;
     u16 locSP=gbRegs.sp.w;
+    u8  locF =gbRegs.af.b.l;
 
 	int totalCycles=0;
 
@@ -473,7 +474,7 @@ int runOpcode(int cycles) {
                 }
 			case 0xF5:		// PUSH AF
 				quickWrite(--locSP, gbRegs.af.b.h);
-				quickWrite(--locSP, gbRegs.af.b.l);
+				quickWrite(--locSP, locF);
 				break;
 			case 0xC5:		// PUSH BC			16
 				quickWrite(--locSP, gbRegs.bc.b.h);
@@ -488,9 +489,8 @@ int runOpcode(int cycles) {
 				quickWrite(--locSP, gbRegs.hl.b.l);
 				break;
 			case 0xF1:		// POP AF				12
-				gbRegs.af.b.l = quickRead(locSP++);
+				locF = quickRead(locSP++) & 0xF0;
 				gbRegs.af.b.h = quickRead(locSP++);
-				gbRegs.af.b.l &= 0xF0;
 				break;
 			case 0xC1:		// POP BC				12
 				gbRegs.bc.b.l = quickRead(locSP++);
@@ -1132,7 +1132,7 @@ int runOpcode(int cycles) {
 							a -= 0x60;
 					}
 
-					gbRegs.af.b.l &= ~(0x20 | 0x80);
+					locF &= ~(0x20 | 0x80);
 
 					if ((a & 0x100) == 0x100)
 						setCFlag();
@@ -2471,6 +2471,7 @@ int runOpcode(int cycles) {
 	}
 
 end:
+    gbRegs.af.b.l = locF;
     gbRegs.pc.w = locPC;
     gbRegs.sp.w = locSP;
 	return totalCycles;
