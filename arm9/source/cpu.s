@@ -1484,9 +1484,8 @@ _FB:
 @ LD (ff00+n), A
 _E0:
 	quickRead regpc r0
-	add r0,#0xff00
 	_stA r1
-	bl writeMemory
+	bl writeIO
 	endOp 12
 @ --------------------------------------
 @ POP HL
@@ -1497,9 +1496,8 @@ _E1:
 @ LD (ff00+C), A
 _E2:
 	_stC r0
-	add r0,#0xff00
 	_stA r1
-	bl writeMemory
+	bl writeIO
 	endOp 8
 @ --------------------------------------
 @ PUSH HL
@@ -1546,8 +1544,7 @@ _EF:
 @ LD A,(ff00+n)
 _F0:
 	quickRead regpc r0
-	add r0,#0xff00
-	bl readMemory
+	bl readIO
 	_ldA r0
 	endOp 12
 @ --------------------------------------
@@ -1562,8 +1559,7 @@ _F1:
 @ LD A,(ff00+C)
 _F2:
 	_stC r0
-	add r0,#0xff00
-	bl readMemory
+	bl readIO
 	_ldA r0
 	endOp 8
 @ --------------------------------------

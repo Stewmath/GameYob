@@ -8,6 +8,9 @@
 #include "gbsnd.h"
 #include "gameboy.h"
 #include "main.h"
+#ifdef DS
+#include <nds.h>
+#endif
 
 #define setZFlag()		af.b.l |= 0x80
 #define clearZFlag()	af.b.l &= 0x7F
@@ -32,7 +35,7 @@ inline void quickWrite(u16 addr, u8 val) {
     memory[addr>>12][addr&0xFFF] = val;
 }
 
-extern u16 gbSP,gbPC;
+extern Register gbSP,gbPC;
 extern int halt;
 
 u8 buttonsPressed = 0xff;
@@ -47,16 +50,64 @@ extern Register hl;
 // IMPORTANT: This variable is unchanging, it DOES NOT change in double speed mode!
 const int clockSpeed = 4194304;
 
-u8 opCycles[0x100];
-u8 CBopCycles[0x100];
+u8 opCycles[0x100]
+#ifdef DS
+DTCM_DATA
+#endif
+    = {
+    /* Low nybble -> */
+    /* High nybble v */
+           /*  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, A, B, C, D, E, F  */
+    /* 0X */   4,12, 8, 8, 4, 4, 8, 4,20, 8, 8, 8, 4, 4, 8, 4,
+    /* 1X */   4,12, 8, 8, 4, 4, 8, 4,12, 8, 8, 8, 4, 4, 8, 4,
+    /* 2X */  12,12, 8, 8, 4, 4, 8, 4,12, 8, 8, 8, 4, 4, 8, 4,
+    /* 3X */  12,12, 8, 8,12,12,12, 4,12, 8, 8, 8, 4, 4, 8, 4,
+    /* 4X */   4, 4, 4, 4, 4, 4, 8, 4, 4, 4, 4, 4, 4, 4, 8, 4,
+    /* 5X */   4, 4, 4, 4, 4, 4, 8, 4, 4, 4, 4, 4, 4, 4, 8, 4,
+    /* 6X */   4, 4, 4, 4, 4, 4, 8, 4, 4, 4, 4, 4, 4, 4, 8, 4,
+    /* 7X */   8, 8, 8, 8, 8, 8, 4, 8, 4, 4, 4, 4, 4, 4, 8, 4,
+    /* 8X */   4, 4, 4, 4, 4, 4, 8, 4, 4, 4, 4, 4, 4, 4, 8, 4,
+    /* 9X */   4, 4, 4, 4, 4, 4, 8, 4, 4, 4, 4, 4, 4, 4, 8, 4,
+    /* AX */   4, 4, 4, 4, 4, 4, 8, 4, 4, 4, 4, 4, 4, 4, 8, 4,
+    /* BX */   4, 4, 4, 4, 4, 4, 8, 4, 4, 4, 4, 4, 4, 4, 8, 4,
+    /* CX */  16,12,16,16,24,16, 8,16,16,16,16, 0,24,24, 8,16,
+    /* DX */  16,12,16,99,24,16, 8,16,16,16,16,99,24,99, 8,16,
+    /* EX */  12,12, 8,99,99,16, 8,16,16, 4,16,99,99,99, 8,16,
+    /* FX */  12,12, 8, 4,99,16, 8,16,12, 8,16, 4,99,99, 8,16
+    /* opcodes that have 99 cycles are undefined, but don't hang on them */
+};
+
+u8 CBopCycles[0x100]
+#ifdef DS
+DTCM_DATA
+#endif
+    = {
+    /* Low nybble -> */
+    /* High nybble v */
+           /*  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, A, B, C, D, E, F  */
+    /* 0X */   8, 8, 8, 8, 8, 8,16, 8, 8, 8, 8, 8, 8, 8,16, 8,
+    /* 1X */   8, 8, 8, 8, 8, 8,16, 8, 8, 8, 8, 8, 8, 8,16, 8,
+    /* 2X */   8, 8, 8, 8, 8, 8,16, 8, 8, 8, 8, 8, 8, 8,16, 8,
+    /* 3X */   8, 8, 8, 8, 8, 8,16, 8, 8, 8, 8, 8, 8, 8,16, 8,
+    /* 4X */   8, 8, 8, 8, 8, 8,12, 8, 8, 8, 8, 8, 8, 8,12, 8,
+    /* 5X */   8, 8, 8, 8, 8, 8,12, 8, 8, 8, 8, 8, 8, 8,12, 8,
+    /* 6X */   8, 8, 8, 8, 8, 8,12, 8, 8, 8, 8, 8, 8, 8,12, 8,
+    /* 7X */   8, 8, 8, 8, 8, 8,12, 8, 8, 8, 8, 8, 8, 8,12, 8,
+    /* 8X */   8, 8, 8, 8, 8, 8,16, 8, 8, 8, 8, 8, 8, 8,16, 8,
+    /* 9X */   8, 8, 8, 8, 8, 8,16, 8, 8, 8, 8, 8, 8, 8,16, 8,
+    /* AX */   8, 8, 8, 8, 8, 8,16, 8, 8, 8, 8, 8, 8, 8,16, 8,
+    /* BX */   8, 8, 8, 8, 8, 8,16, 8, 8, 8, 8, 8, 8, 8,16, 8,
+    /* CX */   8, 8, 8, 8, 8, 8,16, 8, 8, 8, 8, 8, 8, 8,16, 8,
+    /* DX */   8, 8, 8, 8, 8, 8,16, 8, 8, 8, 8, 8, 8, 8,16, 8,
+    /* EX */   8, 8, 8, 8, 8, 8,16, 8, 8, 8, 8, 8, 8, 8,16, 8,
+    /* FX */   8, 8, 8, 8, 8, 8,16, 8, 8, 8, 8, 8, 8, 8,16, 8
+};
 
 void initCPU()
 {
 	int i;
-	gbSP = 0xFFFE;
+	gbSP.w = 0xFFFE;
 	ime = 1;			// Correct default value?
-
-#include "opcodetimings.h"
 
 	MBC = readMemory(0x147);
 	if (MBC == 0)
@@ -135,12 +186,12 @@ void initCPU()
     biosOn = biosEnabled;
 	if (biosOn)
 	{
-		gbPC = 0;
+		gbPC.w = 0;
 		gbMode = CGB;
 	}
 	else
 	{
-		gbPC = 0x100;
+		gbPC.w = 0x100;
 		if (rom[0][0x143] == 0x80 || rom[0][0x143] == 0xC0)
 			gbMode = CGB;
 		else
@@ -167,9 +218,9 @@ void handleInterrupts()
 	{
 		halt = 0;
         if (ime) {
-            writeMemory(--gbSP, (gbPC) >> 8);
-            writeMemory(--gbSP, gbPC & 0xFF);
-            gbPC = 0x40;
+            writeMemory(--gbSP.w, gbPC.b.h);
+            writeMemory(--gbSP.w, gbPC.b.l);
+            gbPC.w = 0x40;
             ioRam[0x0F] &= ~VBLANK;
             ime = 0;
         }
@@ -178,9 +229,9 @@ void handleInterrupts()
 	{
 		halt = 0;
         if (ime) {
-            writeMemory(--gbSP, (gbPC) >> 8);
-            writeMemory(--gbSP, gbPC & 0xFF);
-            gbPC = 0x48;
+            writeMemory(--gbSP.w, gbPC.b.h);
+            writeMemory(--gbSP.w, gbPC.b.l);
+            gbPC.w = 0x48;
             ioRam[0x0F] &= ~LCD;
             ime = 0;
         }
@@ -189,9 +240,9 @@ void handleInterrupts()
 	{
 		halt = 0;
         if (ime) {
-            writeMemory(--gbSP, (gbPC) >> 8);
-            writeMemory(--gbSP, gbPC & 0xFF);
-            gbPC = 0x50;
+            writeMemory(--gbSP.w, gbPC.b.h);
+            writeMemory(--gbSP.w, gbPC.b.l);
+            gbPC.w = 0x50;
             ioRam[0x0F] &= ~TIMER;
             ime = 0;
         }
@@ -201,9 +252,9 @@ void handleInterrupts()
 	{
         halt = 0;
         if (ime) {
-            writeMemory(--gbSP, (gbPC) >> 8);
-            writeMemory(--gbSP, gbPC & 0xFF);
-            gbPC = 0x60;
+            writeMemory(--gbSP.w, gbPC.b.h);
+            writeMemory(--gbSP.w, gbPC.b.l);
+            gbPC.w = 0x60;
             ioRam[0x0F] &= ~JOYPAD;
             ime = 0;
             interruptTriggered = 0;
@@ -226,7 +277,7 @@ void cheat(int opcode)
         case 0x26:		// LD H, n		8
         case 0x2E:		// LD L, n		8
         case 0x3E:		// LD A, n		8
-            (*reg8[opcode>>3]) = quickRead(gbPC++);
+            (*reg8[opcode>>3]) = quickRead(gbPC.w++);
             break;
         case 0x7F:		// LD A, A		4
         case 0x78:		// LD A, B		4
@@ -298,7 +349,7 @@ void cheat(int opcode)
             writeMemory(hl.w, *reg8[opcode&7]);
             break;
         case 0x36:		// LD (hl), n	12
-            writeMemory(hl.w, quickRead(gbPC++));
+            writeMemory(hl.w, quickRead(gbPC.w++));
             break;
         case 0x0A:		// LD A, (BC)	8
             af.b.h = readMemory(bc.w);
@@ -307,8 +358,8 @@ void cheat(int opcode)
             af.b.h = readMemory(de.w);
             break;
         case 0xFA:		// LD A, (nn)	16
-            af.b.h = readMemory(quickRead(gbPC) | (quickRead(gbPC+1) << 8));
-            gbPC += 2;
+            af.b.h = readMemory(quickRead(gbPC.w) | (quickRead(gbPC.w+1) << 8));
+            gbPC.w += 2;
             break;
         case 0x02:		// LD (BC), A	8
             writeMemory(bc.w, af.b.h);
@@ -317,8 +368,8 @@ void cheat(int opcode)
             writeMemory(de.w, af.b.h);
             break;
         case 0xEA:		// LD (nn), A	16
-            writeMemory(quickRead(gbPC) | (quickRead(gbPC+1) << 8), af.b.h);
-            gbPC += 2;
+            writeMemory(quickRead(gbPC.w) | (quickRead(gbPC.w+1) << 8), af.b.h);
+            gbPC.w += 2;
             break;
         case 0xF2:		// LD A, (C)	8
             af.b.h = readMemory(0xFF00 + bc.b.l);
@@ -339,42 +390,42 @@ void cheat(int opcode)
             writeMemory(hl.w++, af.b.h);
             break;
         case 0xE0:		// LDH (n), A   12
-            writeMemory(0xFF00 + quickRead(gbPC++), af.b.h);
+            writeMemory(0xFF00 + quickRead(gbPC.w++), af.b.h);
             break;
         case 0xF0:		// LDH A, (n)   12
-            af.b.h = readMemory(0xFF00 + quickRead(gbPC++));
+            af.b.h = readMemory(0xFF00 + quickRead(gbPC.w++));
             break;
 
             // 16-bit loads
 
         case 0x01:		// LD BC, nn	12
-            bc.b.l = quickRead(gbPC++);
-            bc.b.h = quickRead(gbPC++);
+            bc.b.l = quickRead(gbPC.w++);
+            bc.b.h = quickRead(gbPC.w++);
             break;
         case 0x11:		// LD de, nn	12
-            de.b.l = quickRead(gbPC++);
-            de.b.h = quickRead(gbPC++);
+            de.b.l = quickRead(gbPC.w++);
+            de.b.h = quickRead(gbPC.w++);
             break;
         case 0x21:		// LD hl, nn	12
-            hl.b.l = quickRead(gbPC++);
-            hl.b.h = quickRead(gbPC++);
+            hl.b.l = quickRead(gbPC.w++);
+            hl.b.h = quickRead(gbPC.w++);
             break;
         case 0x31:		// LD SP, nn	12
-            gbSP = quickRead(gbPC) | (quickRead(gbPC+1) << 8);
-            gbPC += 2;
+            gbSP.w = quickRead(gbPC.w) | (quickRead(gbPC.w+1) << 8);
+            gbPC.w += 2;
             break;
         case 0xF9:		// LD SP, hl	8
-            gbSP = hl.w;
+            gbSP.w = hl.w;
             break;
         case 0xF8:		// LDHL SP, n   12
             {
-                int sval = (s8)quickRead(gbPC++);
-                int val = (gbSP + sval)&0xFFFF;
-                if ((sval >= 0 && gbSP > val))// || (sval<0 && gbSP < val))
+                int sval = (s8)quickRead(gbPC.w++);
+                int val = (gbSP.w + sval)&0xFFFF;
+                if ((sval >= 0 && gbSP.w > val))// || (sval<0 && gbSP.w < val))
                     setCFlag();
                 else
                     clearCFlag();
-                if ((gbSP&0xFFF)+(sval) >= 0x1000)// || (gbSP&0xF)+(sval&0xF) < 0)
+                if ((gbSP.w&0xFFF)+(sval) >= 0x1000)// || (gbSP.w&0xF)+(sval&0xF) < 0)
                     setHFlag();
                 else
                     clearHFlag();
@@ -385,44 +436,44 @@ void cheat(int opcode)
             }
         case 0x08:		// LD (nn), SP	20
             {
-                int val = quickRead(gbPC) | (quickRead(gbPC+1) << 8);
-                gbPC += 2;
-                writeMemory(val, gbSP & 0xFF);
-                writeMemory(val+1, (gbSP) >> 8);
+                int val = quickRead(gbPC.w) | (quickRead(gbPC.w+1) << 8);
+                gbPC.w += 2;
+                writeMemory(val, gbSP.w & 0xFF);
+                writeMemory(val+1, (gbSP.w) >> 8);
                 break;
             }
         case 0xF5:		// PUSH AF
-            quickWrite(--gbSP, af.b.h);
-            quickWrite(--gbSP, af.b.l);
+            quickWrite(--gbSP.w, af.b.h);
+            quickWrite(--gbSP.w, af.b.l);
             break;
         case 0xC5:		// PUSH BC			16
-            quickWrite(--gbSP, bc.b.h);
-            quickWrite(--gbSP, bc.b.l);
+            quickWrite(--gbSP.w, bc.b.h);
+            quickWrite(--gbSP.w, bc.b.l);
             break;
         case 0xD5:		// PUSH de			16
-            quickWrite(--gbSP, de.b.h);
-            quickWrite(--gbSP, de.b.l);
+            quickWrite(--gbSP.w, de.b.h);
+            quickWrite(--gbSP.w, de.b.l);
             break;
         case 0xE5:		// PUSH hl			16
-            quickWrite(--gbSP, hl.b.h);
-            quickWrite(--gbSP, hl.b.l);
+            quickWrite(--gbSP.w, hl.b.h);
+            quickWrite(--gbSP.w, hl.b.l);
             break;
         case 0xF1:		// POP AF				12
-            af.b.l = quickRead(gbSP++);
-            af.b.h = quickRead(gbSP++);
+            af.b.l = quickRead(gbSP.w++);
+            af.b.h = quickRead(gbSP.w++);
             af.b.l &= 0xF0;
             break;
         case 0xC1:		// POP BC				12
-            bc.b.l = quickRead(gbSP++);
-            bc.b.h = quickRead(gbSP++);
+            bc.b.l = quickRead(gbSP.w++);
+            bc.b.h = quickRead(gbSP.w++);
             break;
         case 0xD1:		// POP de				12
-            de.b.l = quickRead(gbSP++);
-            de.b.h = quickRead(gbSP++);
+            de.b.l = quickRead(gbSP.w++);
+            de.b.h = quickRead(gbSP.w++);
             break;
         case 0xE1:		// POP hl				12
-            hl.b.l = quickRead(gbSP++);
-            hl.b.h = quickRead(gbSP++);
+            hl.b.l = quickRead(gbSP.w++);
+            hl.b.h = quickRead(gbSP.w++);
             break;
 
             // 8-bit arithmetic
@@ -472,7 +523,7 @@ void cheat(int opcode)
             }
         case 0xC6:		// ADD A, n			8
             {
-                int val = quickRead(gbPC++);
+                int val = quickRead(gbPC.w++);
                 if (af.b.h + val > 0xFF)
                     setCFlag();
                 else
@@ -539,7 +590,7 @@ void cheat(int opcode)
             }
         case 0xCE:		// ADC A, n			8
             {
-                int val = quickRead(gbPC++);
+                int val = quickRead(gbPC.w++);
                 int val2 = carrySet();
                 if (af.b.h + val + val2 > 0xFF)
                     setCFlag();
@@ -604,7 +655,7 @@ void cheat(int opcode)
             }
         case 0xD6:		// SUB A, n			8
             {
-                int val = quickRead(gbPC++);
+                int val = quickRead(gbPC.w++);
                 if (af.b.h < val)
                     setCFlag();
                 else
@@ -670,7 +721,7 @@ void cheat(int opcode)
             }
         case 0xde:		// SBC A, n			4
             {
-                int val = quickRead(gbPC++);
+                int val = quickRead(gbPC.w++);
                 int val2 = carrySet();
                 if (af.b.h <val + val2)
                     setCFlag();
@@ -716,7 +767,7 @@ void cheat(int opcode)
             clearCFlag();
             break;
         case 0xE6:		// AND A, n			8
-            af.b.h &= quickRead(gbPC++);
+            af.b.h &= quickRead(gbPC.w++);
             if (af.b.h == 0)
                 setZFlag();
             else
@@ -753,7 +804,7 @@ void cheat(int opcode)
             clearCFlag();
             break;
         case 0xF6:		// OR A, n			4
-            af.b.h |= quickRead(gbPC++);
+            af.b.h |= quickRead(gbPC.w++);
             if (af.b.h == 0)
                 setZFlag();
             else
@@ -790,7 +841,7 @@ void cheat(int opcode)
             clearCFlag();
             break;
         case 0xEE:		// XOR A, n			8
-            af.b.h ^= quickRead(gbPC++);
+            af.b.h ^= quickRead(gbPC.w++);
             if (af.b.h == 0)
                 setZFlag();
             else
@@ -844,7 +895,7 @@ void cheat(int opcode)
             }
         case 0xFE:		// CP n					8
             {
-                int val = quickRead(gbPC++);
+                int val = quickRead(gbPC.w++);
                 if (af.b.h < val)
                     setCFlag();
                 else
@@ -977,32 +1028,32 @@ void cheat(int opcode)
             hl.w += hl.w;
             break;
         case 0x39:		// ADD hl, SP		8
-            if (hl.w + gbSP > 0xFFFF)
+            if (hl.w + gbSP.w > 0xFFFF)
                 setCFlag();
             else
                 clearCFlag();
-            if ((hl.w & 0xFFF) + (gbSP & 0xFFF) > 0xFFF)
+            if ((hl.w & 0xFFF) + (gbSP.w & 0xFFF) > 0xFFF)
                 setHFlag();
             else
                 clearHFlag();
             clearNFlag();
-            hl.w += gbSP;
+            hl.w += gbSP.w;
             break;
 
         case 0xE8:		// ADD SP, n		16
             {
-                int sval = (s8)quickRead(gbPC++);
-                if ((gbSP + sval) > 0xFFFF)
+                int sval = (s8)quickRead(gbPC.w++);
+                if ((gbSP.w + sval) > 0xFFFF)
                     setCFlag();
                 else
                     clearCFlag();
-                if (((gbSP & 0xFFF) + sval) > 0xFFF)
+                if (((gbSP.w & 0xFFF) + sval) > 0xFFF)
                     setHFlag();
                 else
                     clearHFlag();
                 clearNFlag();
                 clearZFlag();
-                gbSP += sval;
+                gbSP.w += sval;
                 break;
             }
         case 0x03:		// INC BC				8
@@ -1015,7 +1066,7 @@ void cheat(int opcode)
             hl.w++;
             break;
         case 0x33:		// INC SP				8
-            gbSP++;
+            gbSP.w++;
             break;
 
         case 0x0B:		// DEC BC				8
@@ -1028,7 +1079,7 @@ void cheat(int opcode)
             hl.w--;
             break;
         case 0x3B:		// DEC SP				8
-            gbSP--;
+            gbSP.w--;
             break;
 
         case 0x27:		// DAA					4
@@ -1199,204 +1250,204 @@ void cheat(int opcode)
             }
 
         case 0xC3:		// JP				16
-            gbPC = quickRead(gbPC) | (quickRead(gbPC+1) << 8);
+            gbPC.w = quickRead(gbPC.w) | (quickRead(gbPC.w+1) << 8);
             break;
         case 0xC2:		// JP NZ, nn	16/12
             if (!zeroSet())
             {
-                gbPC = quickRead(gbPC) | (quickRead(gbPC+1) << 8);
+                gbPC.w = quickRead(gbPC.w) | (quickRead(gbPC.w+1) << 8);
             }
             else {
-                gbPC += 2;
+                gbPC.w += 2;
                 totalCycles -= 4;
             }
             break;
         case 0xCA:		// JP Z, nn		16/12
             if (zeroSet())
             {
-                gbPC = quickRead(gbPC) | (quickRead(gbPC+1) << 8);
+                gbPC.w = quickRead(gbPC.w) | (quickRead(gbPC.w+1) << 8);
             }
             else {
-                gbPC += 2;
+                gbPC.w += 2;
                 totalCycles -= 4;
             }
             break;
         case 0xD2:		// JP NC, nn	16/12
             if (!carrySet())
             {
-                gbPC = quickRead(gbPC) | (quickRead(gbPC+1) << 8);
+                gbPC.w = quickRead(gbPC.w) | (quickRead(gbPC.w+1) << 8);
             }
             else {
-                gbPC += 2;
+                gbPC.w += 2;
                 totalCycles -= 4;
             }
             break;
         case 0xDA:		// JP C, nn	12
             if (carrySet())
             {
-                gbPC = quickRead(gbPC) | (quickRead(gbPC+1) << 8);
+                gbPC.w = quickRead(gbPC.w) | (quickRead(gbPC.w+1) << 8);
             }
             else {
-                gbPC += 2;
+                gbPC.w += 2;
                 totalCycles -= 4;
             }
             break;
         case 0xE9:		// JP (hl)	4
-            gbPC = hl.w;
+            gbPC.w = hl.w;
             break;
         case 0x18:		// JR n 12
-            gbPC += (s8)quickRead(gbPC++);
+            gbPC.w += (s8)quickRead(gbPC.w++);
             break;
         case 0x20:		// JR NZ n  8/12
             if (!zeroSet())
-                gbPC += (s8)quickRead(gbPC++);
+                gbPC.w += (s8)quickRead(gbPC.w++);
             else {
-                gbPC ++;
+                gbPC.w ++;
                 totalCycles -= 4;
             }
             break;
         case 0x28:		// JR Z, n  8/12
             if (zeroSet())
             {
-                gbPC += (s8)quickRead(gbPC++);
+                gbPC.w += (s8)quickRead(gbPC.w++);
             }
             else {
-                gbPC ++;
+                gbPC.w ++;
                 totalCycles -= 4;
             }
             break;
         case 0x30:		// JR NC, n 8/12
             if (!carrySet())
             {
-                gbPC += (s8)quickRead(gbPC++);
+                gbPC.w += (s8)quickRead(gbPC.w++);
             }
             else {
-                gbPC ++;
+                gbPC.w ++;
                 totalCycles -= 4;
             }
             break;
         case 0x38:		// JR C, n  8/12
             if (carrySet())
             {
-                gbPC += (s8)quickRead(gbPC++);
+                gbPC.w += (s8)quickRead(gbPC.w++);
             }
             else {
-                gbPC ++;
+                gbPC.w ++;
                 totalCycles -= 4;
             }
             break;
 
         case 0xCD:		// CALL nn			24
             {
-                int val = gbPC + 2;
-                quickWrite(--gbSP, (val) >> 8);
-                quickWrite(--gbSP, (val & 0xFF));
-                gbPC = quickRead(gbPC) | (quickRead(gbPC+1) << 8);
+                int val = gbPC.w + 2;
+                quickWrite(--gbSP.w, (val) >> 8);
+                quickWrite(--gbSP.w, (val & 0xFF));
+                gbPC.w = quickRead(gbPC.w) | (quickRead(gbPC.w+1) << 8);
                 break;
             }
         case 0xC4:		// CALL NZ, nn	12/24
             if (!zeroSet())
             {
-                int val = gbPC + 2;
-                quickWrite(--gbSP, (val) >> 8);
-                quickWrite(--gbSP, (val & 0xFF));
-                gbPC = quickRead(gbPC) | (quickRead(gbPC+1) << 8);
+                int val = gbPC.w + 2;
+                quickWrite(--gbSP.w, (val) >> 8);
+                quickWrite(--gbSP.w, (val & 0xFF));
+                gbPC.w = quickRead(gbPC.w) | (quickRead(gbPC.w+1) << 8);
             }
             else {
-                gbPC += 2;
+                gbPC.w += 2;
                 totalCycles -= 12;
             }
             break;
         case 0xCC:		// CALL Z, nn		12/24
             if (zeroSet())
             {
-                int val = gbPC + 2;
-                quickWrite(--gbSP, (val) >> 8);
-                quickWrite(--gbSP, (val & 0xFF));
-                gbPC = quickRead(gbPC) | (quickRead(gbPC+1) << 8);
+                int val = gbPC.w + 2;
+                quickWrite(--gbSP.w, (val) >> 8);
+                quickWrite(--gbSP.w, (val & 0xFF));
+                gbPC.w = quickRead(gbPC.w) | (quickRead(gbPC.w+1) << 8);
             }
             else {
-                gbPC += 2;
+                gbPC.w += 2;
                 totalCycles -= 12;
             }
             break;
         case 0xD4:		// CALL NC, nn	12/24
             if (!carrySet())
             {
-                int val = gbPC + 2;
-                quickWrite(--gbSP, (val) >> 8);
-                quickWrite(--gbSP, (val & 0xFF));
-                gbPC = quickRead(gbPC) | (quickRead(gbPC+1) << 8);
+                int val = gbPC.w + 2;
+                quickWrite(--gbSP.w, (val) >> 8);
+                quickWrite(--gbSP.w, (val & 0xFF));
+                gbPC.w = quickRead(gbPC.w) | (quickRead(gbPC.w+1) << 8);
             }
             else {
-                gbPC += 2;
+                gbPC.w += 2;
                 totalCycles -= 12;
             }
             break;
         case 0xDC:		// CALL C, nn	12/24
             if (carrySet())
             {
-                int val = gbPC + 2;
-                quickWrite(--gbSP, (val) >> 8);
-                quickWrite(--gbSP, (val & 0xFF));
-                gbPC = quickRead(gbPC) | (quickRead(gbPC+1) << 8);
+                int val = gbPC.w + 2;
+                quickWrite(--gbSP.w, (val) >> 8);
+                quickWrite(--gbSP.w, (val & 0xFF));
+                gbPC.w = quickRead(gbPC.w) | (quickRead(gbPC.w+1) << 8);
             }
             else {
-                gbPC += 2;
+                gbPC.w += 2;
                 totalCycles -= 12;
             }
             break;
 
         case 0xC7:		// RST 00H			16
-            quickWrite(--gbSP, (gbPC) >> 8);
-            quickWrite(--gbSP, (gbPC & 0xFF));
-            gbPC = 0x0;
+            quickWrite(--gbSP.w, (gbPC.w) >> 8);
+            quickWrite(--gbSP.w, (gbPC.w & 0xFF));
+            gbPC.w = 0x0;
             break;
         case 0xCF:		// RST 08H			16
-            quickWrite(--gbSP, (gbPC) >> 8);
-            quickWrite(--gbSP, (gbPC & 0xFF));
-            gbPC = 0x8;
+            quickWrite(--gbSP.w, (gbPC.w) >> 8);
+            quickWrite(--gbSP.w, (gbPC.w & 0xFF));
+            gbPC.w = 0x8;
             break;
         case 0xD7:		// RST 10H			16
-            quickWrite(--gbSP, (gbPC) >> 8);
-            quickWrite(--gbSP, (gbPC & 0xFF));
-            gbPC = 0x10;
+            quickWrite(--gbSP.w, (gbPC.w) >> 8);
+            quickWrite(--gbSP.w, (gbPC.w & 0xFF));
+            gbPC.w = 0x10;
             break;
         case 0xDF:		// RST 18H			16
-            quickWrite(--gbSP, (gbPC) >> 8);
-            quickWrite(--gbSP, (gbPC & 0xFF));
-            gbPC = 0x18;
+            quickWrite(--gbSP.w, (gbPC.w) >> 8);
+            quickWrite(--gbSP.w, (gbPC.w & 0xFF));
+            gbPC.w = 0x18;
             break;
         case 0xE7:		// RST 20H			16
-            quickWrite(--gbSP, (gbPC) >> 8);
-            quickWrite(--gbSP, (gbPC & 0xFF));
-            gbPC = 0x20;
+            quickWrite(--gbSP.w, (gbPC.w) >> 8);
+            quickWrite(--gbSP.w, (gbPC.w & 0xFF));
+            gbPC.w = 0x20;
             break;
         case 0xEF:		// RST 28H			16
-            quickWrite(--gbSP, (gbPC) >> 8);
-            quickWrite(--gbSP, (gbPC & 0xFF));
-            gbPC = 0x28;
+            quickWrite(--gbSP.w, (gbPC.w) >> 8);
+            quickWrite(--gbSP.w, (gbPC.w & 0xFF));
+            gbPC.w = 0x28;
             break;
         case 0xF7:		// RST 30H			16
-            quickWrite(--gbSP, (gbPC) >> 8);
-            quickWrite(--gbSP, (gbPC & 0xFF));
-            gbPC = 0x30;
+            quickWrite(--gbSP.w, (gbPC.w) >> 8);
+            quickWrite(--gbSP.w, (gbPC.w & 0xFF));
+            gbPC.w = 0x30;
             break;
         case 0xFF:		// RST 38H			16
-            quickWrite(--gbSP, (gbPC) >> 8);
-            quickWrite(--gbSP, (gbPC & 0xFF));
-            gbPC = 0x38;
+            quickWrite(--gbSP.w, (gbPC.w) >> 8);
+            quickWrite(--gbSP.w, (gbPC.w & 0xFF));
+            gbPC.w = 0x38;
             break;
 
         case 0xC9:		// RET					16
-            gbPC = quickRead(gbSP) + (quickRead(gbSP+1) << 8);
-            gbSP += 2;
+            gbPC.w = quickRead(gbSP.w) + (quickRead(gbSP.w+1) << 8);
+            gbSP.w += 2;
             break;
         case 0xC0:		// RET NZ				8/20
             if (!zeroSet())
             {
-                gbPC = quickRead(gbSP) + (quickRead(gbSP+1) << 8);
-                gbSP += 2;
+                gbPC.w = quickRead(gbSP.w) + (quickRead(gbSP.w+1) << 8);
+                gbSP.w += 2;
             }
             else
                 totalCycles -= 12;
@@ -1404,8 +1455,8 @@ void cheat(int opcode)
         case 0xC8:		// RET Z				8/20
             if (zeroSet())
             {
-                gbPC = quickRead(gbSP) + (quickRead(gbSP+1) << 8);
-                gbSP += 2;
+                gbPC.w = quickRead(gbSP.w) + (quickRead(gbSP.w+1) << 8);
+                gbSP.w += 2;
             }
             else
                 totalCycles -= 12;
@@ -1413,8 +1464,8 @@ void cheat(int opcode)
         case 0xD0:		// RET NC				8/20
             if (!carrySet())
             {
-                gbPC = quickRead(gbSP) + (quickRead(gbSP+1) << 8);
-                gbSP += 2;
+                gbPC.w = quickRead(gbSP.w) + (quickRead(gbSP.w+1) << 8);
+                gbSP.w += 2;
             }
             else
                 totalCycles -= 12;
@@ -1422,15 +1473,15 @@ void cheat(int opcode)
         case 0xD8:		// RET C				8/20
             if (carrySet())
             {
-                gbPC = quickRead(gbSP) + (quickRead(gbSP+1) << 8);
-                gbSP += 2;
+                gbPC.w = quickRead(gbSP.w) + (quickRead(gbSP.w+1) << 8);
+                gbSP.w += 2;
             }
             else
                 totalCycles -= 12;
             break;
         case 0xD9:		// RETI					16
-            gbPC = quickRead(gbSP) + (quickRead(gbSP+1) << 8);
-            gbSP += 2;
+            gbPC.w = quickRead(gbSP.w) + (quickRead(gbSP.w+1) << 8);
+            gbSP.w += 2;
             enableInterrupts();
             break;
 

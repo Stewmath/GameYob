@@ -24,18 +24,17 @@ extern int watchAddr;
 extern int readWatchAddr;
 extern int bankWatchAddr;
 
-// Functions which interact with assembly should have "extern C" in their 
-// declarations.
+// Functions which must communicate with asm
 extern "C" {
     u8 readMemory(u16 addr);
+    u8 readIO(u8 ioReg);
     void writeMemory(u16 addr, u8 val);
+    void writeIO(u8 ioReg, u8 val);
     void writehword(u16 addr, u16 val);
     u16 readhword(u16 addr);
 }
-
 bool updateHblankDMA();
 void latchClock();
-void initMMU();
 
 extern int numRomBanks;
 extern int numRamBanks;
@@ -72,3 +71,5 @@ extern u16 dmaSource;
 extern u16 dmaDest;
 extern u16 dmaLength;
 extern int dmaMode;
+
+void initMMU();

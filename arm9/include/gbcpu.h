@@ -16,7 +16,7 @@ typedef union
 
 
 //extern Register af,bc,de,hl;
-extern u16 gbSP,gbPC;
+//extern u16 gbSP,gbPC;
 extern int fps;
 extern int halt;
 extern int ime;

@@ -5,6 +5,7 @@
 #include "mmu.h"
 #include "gbcpu.h"
 #include "main.h"
+#include "gameboy.h"
 
 const int spr_priority = 2;
 const int spr_priority_low = 3;
@@ -77,7 +78,11 @@ bool hblankDisabled = false;
 
 int dmaLine;
 
+
 void drawSprites();
+void drawTile(int tile, int bank);
+void updateTiles();
+void updateTileMap(int map, int i, u8 val);
 
 typedef struct {
     bool modified;
@@ -118,31 +123,31 @@ typedef struct
 // The graphics are drawn with the DS's native hardware.
 // Games tend to modify the graphics in the middle of being drawn.
 // These changes are recorded and applied during DS hblank.
-inline void drawLine(int gbLine) {
-    ScanlineStruct state = drawingState[gbLine];
 
-    if (state.spritesOn)
+inline void drawLine(int gbLine) {
+    ScanlineStruct *state = &drawingState[gbLine];
+
+    if (state->spritesOn)
         REG_DISPCNT |= DISPLAY_SPR_ACTIVE;
     else
         REG_DISPCNT &= ~DISPLAY_SPR_ACTIVE;
 
-    int hofs = state.hofs-screenOffsX;
-    int vofs = state.vofs-screenOffsY;
+    int hofs = state->hofs-screenOffsX;
+    int vofs = state->vofs-screenOffsY;
 
     REG_BG3HOFS = hofs;
     REG_BG3VOFS = vofs;
-    REG_BG3CNT = state.bgCnt;
+    REG_BG3CNT = state->bgCnt;
 
-    REG_BG2CNT = state.bgBlankCnt;
+    REG_BG2CNT = state->bgBlankCnt;
     REG_BG2HOFS = hofs;
     REG_BG2VOFS = vofs;
 
-    if (!state.winOn || windowDisabled) {
+    if (!state->winOn || windowDisabled) {
         REG_DISPCNT &= ~DISPLAY_WIN0_ON;
-        WIN_IN |= 1<<8;
-        WIN_IN &= ~4;
+        WIN_IN = (WIN_IN | (1<<8)) & ~4; // Set bit 8, unset bit 2
 
-        REG_BG0CNT = state.bgOverlayCnt;
+        REG_BG0CNT = state->bgOverlayCnt;
         REG_BG0HOFS = hofs;
         REG_BG0VOFS = vofs;
     }
@@ -150,24 +155,24 @@ inline void drawLine(int gbLine) {
         REG_DISPCNT |= DISPLAY_WIN0_ON;
         WIN_IN &= ~(1<<8);
 
-        int winX = state.winX;
+        int winX = state->winX;
 
         if (winX <= 7)
             WIN0_X0 = screenOffsX;
         else
             WIN0_X0 = winX-7+screenOffsX;
-        WIN0_Y0 = state.winY+screenOffsY;
+        WIN0_Y0 = state->winY+screenOffsY;
 
         int whofs = -(winX-7)-screenOffsX;
-        int wvofs = -(gbLine-state.winPosY)-screenOffsY;
+        int wvofs = -(gbLine-state->winPosY)-screenOffsY;
 
         REG_BG0HOFS = whofs;
         REG_BG0VOFS = wvofs;
-        REG_BG0CNT = state.winBlankCnt;
+        REG_BG0CNT = state->winBlankCnt;
 
         REG_BG1HOFS = whofs;
         REG_BG1VOFS = wvofs;
-        REG_BG1CNT = state.winCnt;
+        REG_BG1CNT = state->winCnt;
 
         // If window fills whole scanline, give it one of the background layers 
         // for "tile priority" (overlay).
@@ -176,10 +181,12 @@ inline void drawLine(int gbLine) {
 
             REG_BG2HOFS = whofs;
             REG_BG2VOFS = wvofs;
-            REG_BG2CNT = state.winOverlayCnt;
+            REG_BG2CNT = state->winOverlayCnt;
         }
     }
 }
+
+void hblankHandler() ITCM_CODE;
 
 void hblankHandler()
 {
@@ -522,6 +529,7 @@ void drawSprites() {
         spriteData[i] = hram[i];
 }
 
+void drawScanline(int scanline) ITCM_CODE;
 
 void drawScanline(int scanline)
 {
@@ -591,6 +599,67 @@ void drawScanline(int scanline)
     return;
 }
 
+void writeVram(u16 addr, u8 val) {
+    vram[vramBank][addr] = val;
+
+    if (addr < 0x1800) {
+        int tileNum = addr/16;
+        int scanline = ioRam[0x44];
+        if (scanline >= 128 && scanline < 144) {
+            if (!changedTileInFrame[vramBank][tileNum]) {
+                changedTileInFrame[vramBank][tileNum] = true;
+                changedTileInFrameQueue[changedTileInFrameQueueLength++] = tileNum|(vramBank<<9);
+            }
+        }
+        else {
+            if (!changedTile[vramBank][tileNum]) {
+                changedTile[vramBank][tileNum] = true;
+                changedTileQueue[changedTileQueueLength++] = tileNum|(vramBank<<9);
+            }
+        }
+    }
+    else {
+        int map = (addr-0x1800)/0x400;
+        if (map)
+            updateTileMap(map, addr-0x1c00, val);
+        else
+            updateTileMap(map, addr-0x1800, val);
+    }
+}
+void writeVram16(u16 dest, u16 src) {
+    for (int i=0; i<16; i++) {
+        vram[vramBank][dest++] = readMemory(src++);
+    }
+    dest -= 16;
+    src -= 16;
+    if (dest < 0x1800) {
+        int tileNum = dest/16;
+        if (ioRam[0x44] < 144) {
+            if (!changedTileInFrame[vramBank][tileNum]) {
+                changedTileInFrame[vramBank][tileNum] = true;
+                changedTileInFrameQueue[changedTileInFrameQueueLength++] = tileNum|(vramBank<<9);
+            }
+        }
+        else {
+            if (!changedTile[vramBank][tileNum]) {
+                changedTile[vramBank][tileNum] = true;
+                changedTileQueue[changedTileQueueLength++] = tileNum|(vramBank<<9);
+            }
+        }
+    }
+    else {
+        for (int i=0; i<16; i++) {
+            int addr = dest+i;
+            int map = (addr-0x1800)/0x400;
+            if (map)
+                updateTileMap(map, addr-0x1c00, vram[vramBank][src+i]);
+            else
+                updateTileMap(map, addr-0x1800, vram[vramBank][src+i]);
+        }
+    }
+}
+
+
 void updateTiles() {
     while (changedTileQueueLength > 0) {
         int val = changedTileQueue[--changedTileQueueLength];
@@ -609,21 +678,104 @@ void updateTiles() {
     }
 }
 
-void updateSprPalette(int paletteid)
-{
-    spritePaletteModified[paletteid] = true;
-}
-void updateBgPalette(int paletteid)
-{
-    bgPaletteModified[paletteid] = true;
-}
+void handleVideoRegister(u8 ioReg, u8 val) {
+    switch(ioReg) {
+        case 0x40:    // LCDC
+            if ((val & 0x7F) != (ioRam[0x40] & 0x7F))
+                lineModified = true;
+            ioRam[0x40] = val;
+            return;
+        case 0x41:
+            ioRam[0x41] &= 0x7;
+            ioRam[0x41] |= val&0xF8;
+            return;
+        case 0x46:				// DMA
+            {
+                u16 src = val << 8;
+                int i;
+                for (i=0; i<0xA0; i++) {
+                    u8 val = readMemory(src+i);
+                    hram[i] = val;
+                    if (ioRam[0x44] >= 144 || ioRam[0x44] <= 1)
+                        spriteData[i] = val;
+                }
 
-void updateClassicBgPalette()
-{
-    bgPaletteModified[0] = true;
-}
+                totalCycles += 50;
+                dmaLine = ioRam[0x44];
+                //printLog("dma write %d\n", ioRam[0x44]);
+                return;
+            }
+        case 0x42:
+        case 0x43:
+        case 0x4B:
+            {
+                if (val != ioRam[ioReg]) {
+                    ioRam[ioReg] = val;
+                    lineModified = true;
+                }
+            }
+            break;
+            // winY
+        case 0x4A:
+            if (ioRam[0x44] >= 144 || val > ioRam[0x44])
+                winPosY = -1;
+            else {
+                // Signal that winPosY must be reset according to winY
+                winPosY = -2;
+            }
+            lineModified = true;
+            ioRam[0x4a] = val;
+            break;
+        case 0x44:
+            //ioRam[0x44] = 0;
+            return;
+        case 0x47:				// BG Palette (GB classic only)
+            ioRam[0x47] = val;
+            if (gbMode == GB)
+            {
+                bgPaletteModified[0] = true;
+            }
+            return;
+        case 0x48:				// Spr Palette (GB classic only)
+            ioRam[0x48] = val;
+            if (gbMode == GB)
+            {
+                spritePaletteModified[0] = true;
+            }
+            return;
+        case 0x49:				// Spr Palette (GB classic only)
+            ioRam[0x49] = val;
+            if (gbMode == GB)
+            {
+                spritePaletteModified[1] = true;
+            }
+            return;
+        case 0x68:				// BG Palette Index (GBC only)
+            ioRam[0x68] = val;
+            return;
+        case 0x69:				// BG Palette Data (GBC only)
+            {
+                int index = ioRam[0x68] & 0x3F;
+                bgPaletteData[index] = val;
+                if (index%8 == 7)
+                    bgPaletteModified[index/8] = true;
 
-void updateClassicSprPalette(int paletteid)
-{
-    spritePaletteModified[paletteid] = true;
+                if (ioRam[0x68] & 0x80)
+                    ioRam[0x68]++;
+                return;
+            }
+        case 0x6B:				// Sprite Palette Data (GBC only)
+            {
+                int index = ioRam[0x6A] & 0x3F;
+                sprPaletteData[index] = val;
+                if (index%8 == 7)
+                    spritePaletteModified[index/8] = true;
+
+                if (ioRam[0x6A] & 0x80)
+                    ioRam[0x6A]++;
+                return;
+            }
+        default:
+            ioRam[ioReg] = val;
+    }
 }
