@@ -16,8 +16,8 @@ typedef union
 
 struct Registers
 {
-    u16      sp; /* Stack Pointer */
-    u16      pc; /* Program Counter */
+    Register sp; /* Stack Pointer */
+    Register pc; /* Program Counter */
     Register af;
     Register bc;
     Register de;
