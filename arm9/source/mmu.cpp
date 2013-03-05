@@ -42,15 +42,27 @@ bool biosExists = false;
 bool biosEnabled = false;
 bool biosOn = false;
 
-u8* memory[0x10];
+u8* memory[0x10]
+#ifdef DS
+DTCM_BSS
+#endif
+;
 u8* rom[MAX_ROM_BANKS];
 u8 vram[2][0x2000];
 u8** externRam = NULL;
 u8 wram[8][0x1000];
-u8 hram[0x200];
-u8* highram = hram-0xe00;
+u8 hram[0x200]
+#ifdef DS
+DTCM_BSS
+#endif
+;
+u8* highram = hram-0xe00; // This points to arbitrary memory for 0xE00 bytes
 u8* ioRam = &hram[0x100];
-u8 spriteData[0xA0];
+u8 spriteData[0xA0]
+#ifdef DS
+DTCM_BSS
+#endif
+;
 int wramBank;
 int vramBank;
 
@@ -500,7 +512,7 @@ void writeIO(u8 ioReg, u8 val)
         case 0x3D:
         case 0x3E:
         case 0x3F:
-            handleSoundRegister(0xFF00 + ioReg, val);
+            handleSoundRegister(ioReg, val);
             return;
         case 0x40:
         case 0x41:
