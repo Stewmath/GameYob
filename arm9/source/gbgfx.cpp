@@ -446,7 +446,6 @@ void drawScreen()
 
     // Palettes
     for (int paletteid=0; paletteid<8; paletteid++) {
-        const int multiplier = 3;
         if (spritePaletteModified[paletteid]) {
             spritePaletteModified[paletteid] = false;
             for (int i=0; i<4; i++) {
@@ -455,12 +454,8 @@ void drawScreen()
                     id = (ioRam[0x48+paletteid]>>(i*2))&3;
                 else
                     id = i;
-                int red = (sprPaletteData[(paletteid*8)+(id*2)]&0x1F);
-                int green = (((sprPaletteData[(paletteid*8)+(id*2)]&0xE0) >> 5) |
-                        ((sprPaletteData[(paletteid*8)+(id*2)+1]) & 0x3) << 3);
-                int blue = ((sprPaletteData[(paletteid*8)+(id*2)+1] >> 2) & 0x1F);
 
-                SPRITE_PALETTE[((paletteid)*16)+i] = RGB8(red<<multiplier, green<<multiplier, blue<<multiplier);
+                SPRITE_PALETTE[((paletteid)*16)+i] = sprPaletteData[(paletteid*8)+(id*2)] | sprPaletteData[(paletteid*8)+(id*2)+1]<<8;
             }
         }
         if (bgPaletteModified[paletteid]) {
@@ -471,12 +466,8 @@ void drawScreen()
                     id = (ioRam[0x47]>>(i*2))&3;
                 else
                     id = i;
-                int red = (bgPaletteData[(paletteid*8)+(id*2)]&0x1F);
-                int green = (((bgPaletteData[(paletteid*8)+(id*2)]&0xE0) >> 5) |
-                        ((bgPaletteData[(paletteid*8)+(id*2)+1]) & 0x3) << 3);
-                int blue = ((bgPaletteData[(paletteid*8)+(id*2)+1] >> 2) & 0x1F);
 
-                BG_PALETTE[((paletteid)*16)+i+1] = RGB8(red<<multiplier, green<<multiplier, blue<<multiplier);
+				BG_PALETTE[((paletteid)*16)+i+1] = bgPaletteData[(paletteid*8)+(id*2)] | bgPaletteData[(paletteid*8)+(id*2)+1]<<8;
             }
         }
     }
