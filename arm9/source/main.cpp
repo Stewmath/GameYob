@@ -14,6 +14,7 @@
 #include "mmu.h"
 #include "main.h"
 #include "console.h"
+#include "nifi.h"
 
 // defaultConsole is defined within libnds
 extern PrintConsole defaultConsole;
@@ -58,6 +59,7 @@ int main(int argc, char* argv[])
 
     initConsole();
     initInput();
+    initNifi();
 
     fifoSetValue32Handler(FIFO_USER_02, fifoValue32Handler, NULL);
 

@@ -251,7 +251,18 @@ void handleInterrupts()
             ime = 0;
         }
 	}
-	// Serial IO would go here
+	else if (interruptTriggered & SERIAL)
+	{
+        halt = 0;
+        if (ime) {
+            writeMemory(--gbRegs.sp.w, gbRegs.pc.b.h);
+            writeMemory(--gbRegs.sp.w, gbRegs.pc.b.l);
+            gbRegs.pc.w = 0x58;
+            ioRam[0x0F] &= ~SERIAL;
+            ime = 0;
+            interruptTriggered = 0;
+        }
+    }
 	else if (interruptTriggered & JOYPAD)
 	{
         halt = 0;

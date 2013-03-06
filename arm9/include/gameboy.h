@@ -8,6 +8,7 @@
 extern int timerPeriod;
 extern long periods[4];
 extern int timerCounter;
+extern int serialCounter;
 
 extern int mode2Cycles;
 extern int mode3Cycles;

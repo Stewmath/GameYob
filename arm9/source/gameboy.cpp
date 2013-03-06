@@ -9,6 +9,7 @@
 #include "timer.h"
 #include "main.h"
 #include "inputhelper.h"
+#include "nifi.h"
 
 int mode2Cycles, mode3Cycles;
 int scanlineDrawn;
@@ -83,6 +84,23 @@ int updateInput() {
     }
     return retval;
 }
+
+int serialCounter=0;
+void updateSerial(int cycles) {
+    if (ioRam[0x02] & 0x80) {
+        serialCounter -= cycles;
+        if (serialCounter <= 0) {
+            char data[4];
+            data[0] = 'A';
+            data[1] = 'C';
+            data[2] = ioRam[0x01];
+            data[3] = 0;
+            sendPacket(4,(unsigned short *)data);
+            serialCounter = (clockSpeed*60)/8192*8;
+        }
+    }
+}
+
 int totalCycles;
 void runEmul()
 {
@@ -100,6 +118,7 @@ void runEmul()
         updateTimers(cycles);
         updateSound(cycles);
         updateLCD(cycles);
+        updateSerial(cycles);
 
         if (ime || halt)
             handleInterrupts();

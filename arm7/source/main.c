@@ -42,7 +42,7 @@ extern bool sleepIsEnabled;
 //---------------------------------------------------------------------------------
 void VblankHandler(void) {
 //---------------------------------------------------------------------------------
-	//Wifi_Update();
+	Wifi_Update();
 }
 
 //---------------------------------------------------------------------------------
@@ -155,13 +155,16 @@ int main() {
 
 	SetYtrigger(80);
 
-	//installWifiFIFO();
+	installWifiFIFO();
 	installSoundFIFO();
 
-	//installSystemFIFO();
+	installSystemFIFO();
+    // Replaces handler established in installSystemFIFO().
 	fifoSetValue32Handler(FIFO_PM, powerHandler, 0);
+    /*
 	fifoSetValue32Handler(FIFO_SDMMC, sdmmcValueHandler, 0);
 	fifoSetDatamsgHandler(FIFO_SDMMC, sdmmcMsgHandler, 0);
+    */
 
 	irqSet(IRQ_VCOUNT, VcountHandler);
 	irqSet(IRQ_VBLANK, VblankHandler);

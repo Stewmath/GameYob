@@ -465,6 +465,11 @@ void writeIO(u8 ioReg, u8 val)
 {
     switch (ioReg)
     {
+        case 0x02:
+            if (val & 0x80)
+                serialCounter = (clockSpeed*60)/8192*8;
+            ioRam[0x02] = val;
+            return;
         case 0x04:
             ioRam[0x04] = 0;
             return;
