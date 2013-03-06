@@ -1,4 +1,4 @@
-.text
+.section .itcm,"ax",%progbits
 .align 2
 #include "macros.s"
 
