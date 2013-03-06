@@ -3,4 +3,4 @@
 extern int packetData;
 
 void initNifi();
-void sendPacket(int bytes, unsigned short buffer[]);
+void sendPacketByte(u8 data);

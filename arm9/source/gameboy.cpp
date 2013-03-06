@@ -86,17 +86,23 @@ int updateInput() {
 }
 
 int serialCounter=0;
+bool sentPacket=true;
+bool receivedPacket=true;
 void updateSerial(int cycles) {
     if (ioRam[0x02] & 0x80) {
         serialCounter -= cycles;
         if (serialCounter <= 0) {
-            char data[4];
-            data[0] = 'A';
-            data[1] = 'C';
-            data[2] = ioRam[0x01];
-            data[3] = 0;
-            sendPacket(4,(unsigned short *)data);
-            serialCounter = (clockSpeed*60)/8192*8;
+            if (!sentPacket) {
+                sentPacket = true;
+                sendPacketByte(ioRam[0x01]);
+                /*
+                ioRam[0x01] = dat;
+                ioRam[0x02] &= ~0x80;
+                requestInterrupt(SERIAL);
+                //serialCounter = (clockSpeed*60)/8192*8;
+                packetData = -1;
+                */
+            }
         }
     }
 }

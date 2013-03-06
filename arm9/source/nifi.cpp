@@ -18,22 +18,19 @@ void packetHandler(int packetID, int readlength)
 //  unsigned short * data:	location for the data to be read into
 	bytesRead = Wifi_RxRawReadPacket(packetID, readlength, (unsigned short *)data);
 
-	// Lazy test to see if this is our packet (does it start with ** ?).
-	if (data[32] == 'A' && data[33] == 'C') {
-        packetData = data[34];
-        if (ioRam[0x02] & 0x80) {
+	// Check this is the right kind of packet
+	if (data[32] == 'Y' && data[33] == 'O' && data[34] == 'B') {
+        packetData = data[35];
+        if (!sentPacket) {
+            sentPacket = true;
+            sendPacketByte(ioRam[0x01]);
+        }
+        if (!receivedPacket) {
+            receivedPacket = true;
+            ioRam[0x01] = data[35];
             ioRam[0x02] &= ~0x80;
-            data[0] = 'A';
-            data[1] = 'C';
-            data[2] = ioRam[0x01];
-            data[3] = 0;
-            sendPacket(4,(unsigned short *)data);
-            ioRam[0x01] = packetData;
             requestInterrupt(SERIAL);
         }
-    }
-	else {
-	//	PA_OutputText(1, 0, 5,"Recv Unknown:%s    ",data+32);
     }
 }
 
@@ -66,13 +63,13 @@ void initNifi()
     swiWaitForVBlank();
 }
 
-void sendPacket(int bytes, unsigned short buffer[])
+void sendPacketByte(u8 data)
 {
-// Wifi_RawTxFrame: Send a raw 802.11 frame at a specified rate
-//  unsigned short datalen:	The length in bytes of the frame to send
-//  unsigned short rate:	The rate to transmit at (Specified as mbits/10, 1mbit=0x000A, 2mbit=0x0014)		
-//  unsigned short * data:	Pointer to the data to send (should be halfword-aligned)
-//  Returns:			Nothing of interest.
-	if (Wifi_RawTxFrame(bytes, 0x0014, buffer) != 0)
+    unsigned char buffer[4];
+    buffer[0] = 'Y';
+    buffer[1] = 'O';
+    buffer[2] = 'B';
+    buffer[3] = data;
+	if (Wifi_RawTxFrame(4, 0x0014, (unsigned short *)buffer) != 0)
         printLog("Nifi send error\n");
 }

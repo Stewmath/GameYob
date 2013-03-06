@@ -260,7 +260,6 @@ void handleInterrupts()
             gbRegs.pc.w = 0x58;
             ioRam[0x0F] &= ~SERIAL;
             ime = 0;
-            interruptTriggered = 0;
         }
     }
 	else if (interruptTriggered & JOYPAD)
@@ -272,7 +271,6 @@ void handleInterrupts()
             gbRegs.pc.w = 0x60;
             ioRam[0x0F] &= ~JOYPAD;
             ime = 0;
-            interruptTriggered = 0;
         }
     }
 }
