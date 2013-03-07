@@ -135,7 +135,7 @@ void initLCD()
        maxWaitCycles = 100;
     else
     */
-    maxWaitCycles = 50;
+    maxWaitCycles = 400;
 
     mode2Cycles = 456 - 80;
     mode3Cycles = 456 - 172 - 80;
