@@ -49,6 +49,7 @@ int main(int argc, char* argv[])
 {
     videoSetModeSub(MODE_0_2D);
     vramSetBankH(VRAM_H_SUB_BG);
+    REG_POWERCNT = POWER_ALL & ~(POWER_MATRIX | POWER_3D_CORE); // don't need 3D
     PrintConsole console;
     consoleInit(NULL, defaultConsole.bgLayer, BgType_Text4bpp, BgSize_T_256x256, defaultConsole.mapBase, defaultConsole.gfxBase, false, true);
     consoleDebugInit(DebugDevice_CONSOLE);
