@@ -89,20 +89,14 @@ int serialCounter=0;
 bool sentPacket=true;
 bool receivedPacket=true;
 void updateSerial(int cycles) {
-    if (ioRam[0x02] & 0x80) {
+    if (ioRam[0x02] & 0x80 && serialCounter > 0) {
         serialCounter -= cycles;
         if (serialCounter <= 0) {
-            if (!sentPacket) {
-                sentPacket = true;
-                sendPacketByte(ioRam[0x01]);
-                /*
-                ioRam[0x01] = dat;
-                ioRam[0x02] &= ~0x80;
-                requestInterrupt(SERIAL);
-                //serialCounter = (clockSpeed*60)/8192*8;
-                packetData = -1;
-                */
-            }
+            while (packetData == -1);
+            ioRam[0x01] = packetData;
+            requestInterrupt(SERIAL);
+            ioRam[0x02] &= ~0x80;
+            packetData = -1;
         }
     }
 }
@@ -142,7 +136,7 @@ void initLCD()
        maxWaitCycles = 100;
     else
     */
-    maxWaitCycles = 400;
+    maxWaitCycles = 50;
 
     mode2Cycles = 456 - 80;
     mode3Cycles = 456 - 172 - 80;

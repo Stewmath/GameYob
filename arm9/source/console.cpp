@@ -156,7 +156,7 @@ ConsoleSubMenu menuList[] = {
         {"Load ROM", "Game Screen", "A & B Buttons", "Console Output", "GBC Bios", "Reset", "Return to game"},
         {{},{"Top","Bottom"},{"A/B", "B/Y"},{"Off","FPS","FPS+Time","Debug"},{"Off","On"},{},{}},
         {selectRomFunc, setScreenFunc, buttonModeFunc, consoleOutputFunc, biosEnableFunc, resetFunc, returnFunc},
-        {0,0,0,2,1,0,0}
+        {0,0,0,3,1,0,0}
     },
     {
         "Debug",
