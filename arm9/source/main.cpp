@@ -49,6 +49,7 @@ int main(int argc, char* argv[])
 {
     videoSetModeSub(MODE_0_2D);
     vramSetBankH(VRAM_H_SUB_BG);
+    REG_POWERCNT = POWER_ALL & ~(POWER_MATRIX | POWER_3D_CORE); // don't need 3D
     PrintConsole console;
     consoleInit(NULL, defaultConsole.bgLayer, BgType_Text4bpp, BgSize_T_256x256, defaultConsole.mapBase, defaultConsole.gfxBase, false, true);
     consoleDebugInit(DebugDevice_CONSOLE);
@@ -61,12 +62,14 @@ int main(int argc, char* argv[])
     fifoSetValue32Handler(FIFO_USER_02, fifoValue32Handler, NULL);
 
     char *filename;
+    bool filenameAllocated = false;
     if (argc >= 2) {
         filename = argv[1];
     }
     else {
         chdir("/lameboy");
         filename = startFileChooser();
+        filenameAllocated = true;
     }
 
     FILE* file;
@@ -80,6 +83,8 @@ int main(int argc, char* argv[])
         biosEnabled = false;
 
     loadProgram(filename);
+    if (filenameAllocated)
+        free(filename);
 
     initializeGameboy();
     startTimer();
