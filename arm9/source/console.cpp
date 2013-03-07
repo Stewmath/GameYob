@@ -21,7 +21,9 @@ extern int halt;
 
 void selectRomFunc(int value) {
     saveGame();
-    loadProgram(startFileChooser());
+    char* filename = startFileChooser();
+    loadProgram(filename);
+    free(filename);
     initializeGameboy();
     quitConsole = true;
     displayConsoleRetval = 1;

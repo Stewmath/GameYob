@@ -64,6 +64,161 @@ void updateScrollUp() {
         scrollY = fileSelection-1;
 
 }
+
+int nameSortFunction(char*& a, char*& b)
+{
+	// ".." sorts before everything except itself.
+	bool aIsParent = strcmp(a, "..") == 0;
+	bool bIsParent = strcmp(b, "..") == 0;
+
+	if (aIsParent && bIsParent)
+		return 0;
+	else if (aIsParent) // Sorts before
+		return -1;
+	else if (bIsParent) // Sorts after
+		return 1;
+	else
+		return strcmp(a, b);
+}
+
+/*
+ * Determines whether a portion of a vector is sorted.
+ * Input assertions: 'from' and 'to' are valid indices into data. 'to' can be
+ *   the maximum value for the type 'unsigned int'.
+ * Input: 'data', data vector, possibly sorted.
+ *        'sortFunction', function determining the sort order of two elements.
+ *        'from', index of the first element in the range to test.
+ *        'to', index of the last element in the range to test.
+ * Output: true if, for any valid index 'i' such as from <= i < to,
+ *   data[i] < data[i + 1].
+ *   true if the range is one or no elements, or if from > to.
+ *   false otherwise.
+ */
+template <class Data> bool isSorted(std::vector<Data>& data, int (*sortFunction) (Data&, Data&), const unsigned int from, const unsigned int to)
+{
+	if (from >= to)
+		return true;
+
+	Data* prev = &data[from];
+	for (int i = from + 1; i < to; i++)
+	{
+		if ((*sortFunction)(*prev, data[i]) > 0)
+			return false;
+		prev = &data[i];
+	}
+	if ((*sortFunction)(*prev, data[to]) > 0)
+		return false;
+
+	return true;
+}
+
+/*
+ * Chooses a pivot for Quicksort. Uses the median-of-three search algorithm
+ * first proposed by Robert Sedgewick.
+ * Input assertions: 'from' and 'to' are valid indices into data. 'to' can be
+ *   the maximum value for the type 'unsigned int'.
+ * Input: 'data', data vector.
+ *        'sortFunction', function determining the sort order of two elements.
+ *        'from', index of the first element in the range to be sorted.
+ *        'to', index of the last element in the range to be sorted.
+ * Output: a valid index into data, between 'from' and 'to' inclusive.
+ */
+template <class Data> unsigned int choosePivot(std::vector<Data>& data, int (*sortFunction) (Data&, Data&), const unsigned int from, const unsigned int to)
+{
+	// The highest of the two extremities is calculated first.
+	unsigned int highest = ((*sortFunction)(data[from], data[to]) > 0)
+		? from
+		: to;
+	// Then the lowest of that highest extremity and the middle
+	// becomes the pivot.
+	return ((*sortFunction)(data[from + (to - from) / 2], data[highest]) < 0)
+		? (from + (to - from) / 2)
+		: highest;
+}
+
+/*
+ * Partition function for Quicksort. Moves elements such that those that are
+ * less than the pivot end up before it in the data vector.
+ * Input assertions: 'from', 'to' and 'pivotIndex' are valid indices into data.
+ *   'to' can be the maximum value for the type 'unsigned int'.
+ * Input: 'data', data vector.
+ *        'metadata', data describing the values in 'data'.
+ *        'sortFunction', function determining the sort order of two elements.
+ *        'from', index of the first element in the range to sort.
+ *        'to', index of the last element in the range to sort.
+ *        'pivotIndex', index of the value chosen as the pivot.
+ * Output: the index of the value chosen as the pivot after it has been moved
+ *   after all the values that are less than it.
+ */
+template <class Data, class Metadata> unsigned int partition(std::vector<Data>& data, std::vector<Metadata>& metadata, int (*sortFunction) (Data&, Data&), const unsigned int from, const unsigned int to, const unsigned int pivotIndex)
+{
+	Data pivotValue = data[pivotIndex];
+	data[pivotIndex] = data[to];
+	data[to] = pivotValue;
+	{
+		const Metadata tM = metadata[pivotIndex];
+		metadata[pivotIndex] = metadata[to];
+		metadata[to] = tM;
+	}
+
+	unsigned int storeIndex = from;
+	for (unsigned int i = from; i < to; i++)
+	{
+		if ((*sortFunction)(data[i], pivotValue) < 0)
+		{
+			const Data tD = data[storeIndex];
+			data[storeIndex] = data[i];
+			data[i] = tD;
+			const Metadata tM = metadata[storeIndex];
+			metadata[storeIndex] = metadata[i];
+			metadata[i] = tM;
+			++storeIndex;
+		}
+	}
+
+	{
+		const Data tD = data[to];
+		data[to] = data[storeIndex];
+		data[storeIndex] = tD;
+		const Metadata tM = metadata[to];
+		metadata[to] = metadata[storeIndex];
+		metadata[storeIndex] = tM;
+	}
+	return storeIndex;
+}
+
+/*
+ * Sorts an array while keeping metadata in sync.
+ * This sort is unstable and its average performance is
+ *   O(data.size() * log2(data.size()).
+ * Input assertions: for any valid index 'i' in data, index 'i' is valid in
+ *   metadata. 'from' and 'to' are valid indices into data. 'to' can be
+ *   the maximum value for the type 'unsigned int'.
+ * Invariant: index 'i' in metadata describes index 'i' in data.
+ * Input: 'data', data to sort.
+ *        'metadata', data describing the values in 'data'.
+ *        'sortFunction', function determining the sort order of two elements.
+ *        'from', index of the first element in the range to sort.
+ *        'to', index of the last element in the range to sort.
+ */
+template <class Data, class Metadata> void quickSort(std::vector<Data>& data, std::vector<Metadata>& metadata, int (*sortFunction) (Data&, Data&), const unsigned int from, const unsigned int to)
+{
+	if (isSorted(data, sortFunction, from, to))
+		return;
+
+	unsigned int pivotIndex = choosePivot(data, sortFunction, from, to);
+	unsigned int newPivotIndex = partition(data, metadata, sortFunction, from, to, pivotIndex);
+	if (newPivotIndex > 0)
+		quickSort(data, metadata, sortFunction, from, newPivotIndex - 1);
+	if (newPivotIndex < to)
+		quickSort(data, metadata, sortFunction, newPivotIndex + 1, to);
+}
+
+/*
+ * Prompts the user for a file to load.
+ * Returns a pointer to a newly-allocated string. The caller is responsible
+ * for free()ing it.
+ */
 char* startFileChooser() {
     char* retval;
     char cwd[256];
@@ -83,32 +238,15 @@ char* startFileChooser() {
             if (entry->d_type & DT_DIR || strcmpi(ext, "cgb") == 0 || strcmpi(ext, "gbc") == 0 || strcmpi(ext, "gb") == 0 || strcmpi(ext, "sgb") == 0) {
                 if (!(strcmp(".", entry->d_name) == 0)) {
                     directory.push_back(entry->d_type & DT_DIR);
-                    char *name = (char*)malloc(sizeof(char)*256);
+                    char *name = (char*)malloc(sizeof(char)*(strlen(entry->d_name)+1));
                     strcpy(name, entry->d_name);
                     filenames.push_back(name);
                     numFiles++;
                 }
             }
         }
-        // start sorting
-        for (int i=1; i<numFiles; i++) {
-            int j;
-            for (j=0; j<i; j++) {
-                if (strcmp(filenames[i], filenames[j]) <= 0) {
-                    break;
-                }
-            }
-            char name[MAX_FILENAME_LEN];
-            strcpy(name, filenames[i]);
-            bool dir = directory[i];
-            for (int k=i; k>j; k--) {
-                strcpy(filenames[k], filenames[k-1]);
-                directory[k] = directory[k-1];
-            }
-            strcpy(filenames[j], name);
-            directory[j] = dir;
-        }
-        // sorting done
+
+	quickSort(filenames, directory, nameSortFunction, 0, numFiles - 1);
 
         scrollY=0;
         updateScrollDown();
@@ -149,7 +287,14 @@ char* startFileChooser() {
                         break;
                     }
                     else {
-                        retval = filenames[fileSelection];
+                        // Copy the result to a new allocation, as the
+                        // filename would become unavailable when freed.
+                        retval = (char*) malloc(sizeof(char*) * (strlen(filenames[fileSelection]) + 1));
+                        strcpy(retval, filenames[fileSelection]);
+                        // free memory used for filenames in this dir
+                        for (int i=0; i<numFiles; i++) {
+                            free(filenames[i]);
+                        }
                         goto end;
                     }
                 }
@@ -176,12 +321,12 @@ char* startFileChooser() {
                         break;
                     }
                 }
-                else if (keyJustPressed(KEY_RIGHT)) {
+                else if (keyPressedAutoRepeat(KEY_RIGHT)) {
                     fileSelection += filesPerPage/2;
                     updateScrollDown();
                     break;
                 }
-                else if (keyJustPressed(KEY_LEFT)) {
+                else if (keyPressedAutoRepeat(KEY_LEFT)) {
                     fileSelection -= filesPerPage/2;
                     updateScrollUp();
                     break;

@@ -61,12 +61,14 @@ int main(int argc, char* argv[])
     fifoSetValue32Handler(FIFO_USER_02, fifoValue32Handler, NULL);
 
     char *filename;
+    bool filenameAllocated = false;
     if (argc >= 2) {
         filename = argv[1];
     }
     else {
         chdir("/lameboy");
         filename = startFileChooser();
+        filenameAllocated = true;
     }
 
     FILE* file;
@@ -80,6 +82,8 @@ int main(int argc, char* argv[])
         biosEnabled = false;
 
     loadProgram(filename);
+    if (filenameAllocated)
+        free(filename);
 
     initializeGameboy();
     startTimer();
