@@ -28,7 +28,7 @@ int GB_KEY_A, GB_KEY_B;
 
 bool advanceFrame;
 
-u8 romBankSlots[0x80][0x4000];
+u8 romBankSlots[MAX_LOADED_ROM_BANKS][0x4000];
 int bankSlotIDs[MAX_ROM_BANKS];
 std::vector<int> lastBanksUsed;
 
@@ -369,8 +369,8 @@ int loadProgram(char* f)
     }
 
     int banksToLoad = numRomBanks;
-    if (numRomBanks > 0x80)
-        banksToLoad = 0x80;
+    if (numRomBanks > MAX_LOADED_ROM_BANKS)
+        banksToLoad = MAX_LOADED_ROM_BANKS;
 
     lastBanksUsed = std::vector<int>();
 	int i;
@@ -403,7 +403,7 @@ int loadProgram(char* f)
 }
 
 void loadRomBank() {
-    if (numRomBanks <= 0x80 || bankSlotIDs[currentRomBank] != -1)
+    if (numRomBanks <= MAX_LOADED_ROM_BANKS || bankSlotIDs[currentRomBank] != -1)
         return;
     int bankToUnload = lastBanksUsed.back();
     lastBanksUsed.pop_back();
