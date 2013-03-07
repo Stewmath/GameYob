@@ -85,14 +85,15 @@ int updateInput() {
     return retval;
 }
 
-int serialCounter=0;
+volatile int serialCounter=0;
 bool sentPacket=true;
 bool receivedPacket=true;
 void updateSerial(int cycles) {
     if (ioRam[0x02] & 0x80 && serialCounter > 0) {
         serialCounter -= cycles;
         if (serialCounter <= 0) {
-            while (packetData == -1);
+            if (packetData == -1)
+                printLog("Packet not received\n");
             ioRam[0x01] = packetData;
             requestInterrupt(SERIAL);
             ioRam[0x02] &= ~0x80;

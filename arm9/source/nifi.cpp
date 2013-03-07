@@ -23,16 +23,22 @@ void packetHandler(int packetID, int readlength)
 
     u8 command = data[32];
     u8 val = data[33];
+
+    if (command == 55 || command == 56) {
+        packetData = val;
+        printLog("%d: Received %x\n", ioRam[0x02]&1, packetData);
+    }
+
     //packetData = 0;
     switch(command) {
-        // Command sent from "external clock"
+        // Command sent from "internal clock"
         case 55:
             serialCounter = clockSpeed/8192;
             packetData = val;
             //ioRam[0x01] = packetData;
             sendPacketByte(56, sendData);
             break;
-        // External clock receives a response from internal clock
+        // Internal clock receives a response from external clock
         case 56:
             //serialCounter = clockSpeed/8192*8;
             packetData = val;
@@ -40,10 +46,6 @@ void packetHandler(int packetID, int readlength)
             break;
         default:
             break;
-    }
-    if (command == 55 || command == 56) {
-        packetData = val;
-        printLog("Received %x\n", packetData);
     }
 }
 
@@ -81,7 +83,7 @@ void sendPacketByte(u8 command, u8 data)
     unsigned char buffer[2];
     buffer[0] = command;
     buffer[1] = data;
-    printLog("Sent %x\n", data);
+    printLog("%d: Sent %x\n", ioRam[0x02]&1, data);
 	if (Wifi_RawTxFrame(2, 0x0014, (unsigned short *)buffer) != 0)
         printLog("Nifi send error\n");
 }

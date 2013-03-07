@@ -8,7 +8,7 @@
 extern int timerPeriod;
 extern long periods[4];
 extern int timerCounter;
-extern int serialCounter;
+extern volatile int serialCounter;
 extern bool sentPacket;
 extern bool receivedPacket;
 
