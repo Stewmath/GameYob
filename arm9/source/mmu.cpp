@@ -471,10 +471,11 @@ void writeIO(u8 ioReg, u8 val)
                 int old = ioRam[0x02];
                 ioRam[0x02] = val;
                 sendData = ioRam[0x01];
-                if (!(old & 0x80 && old & 1) && val & 0x80) {
+                if (val & 0x80) {
+                    receivedPacket = false;
                     if (val & 1) {
                         serialCounter = clockSpeed/8192;
-                        sendPacketByte(55, ioRam[0x01]);
+                        sentPacket = false;
                     }
                 }
                 return;

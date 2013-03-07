@@ -4,9 +4,12 @@
 #include "mmu.h"
 #include "main.h"
 #include "gameboy.h"
+#include "gbcpu.h"
 
 volatile int packetData=-1;
 volatile int sendData;
+
+extern int cyclesToEvent;
 
 void packetHandler(int packetID, int readlength)
 {
@@ -33,16 +36,18 @@ void packetHandler(int packetID, int readlength)
     switch(command) {
         // Command sent from "internal clock"
         case 55:
-            serialCounter = clockSpeed/8192;
-            packetData = val;
-            //ioRam[0x01] = packetData;
-            sendPacketByte(56, sendData);
-            break;
+            if (ioRam[0x02] & 0x80) {
+                sendPacketByte(56, sendData);
+            }
+            else {
+                printLog("Not ready!\n");
+                break;
+            }
         // Internal clock receives a response from external clock
         case 56:
-            //serialCounter = clockSpeed/8192*8;
-            packetData = val;
-            //ioRam[0x01] = packetData;
+            ioRam[0x01] = val;
+            requestInterrupt(SERIAL);
+            ioRam[0x02] &= ~0x80;
             break;
         default:
             break;

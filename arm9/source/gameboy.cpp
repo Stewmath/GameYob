@@ -91,14 +91,12 @@ bool receivedPacket=true;
 void updateSerial(int cycles) {
     if (ioRam[0x02] & 0x80 && serialCounter > 0) {
         serialCounter -= cycles;
-        if (serialCounter <= 0) {
-            if (packetData == -1)
-                printLog("Packet not received\n");
-            ioRam[0x01] = packetData;
-            requestInterrupt(SERIAL);
-            ioRam[0x02] &= ~0x80;
-            packetData = -1;
+        if (serialCounter <= 0 && !sentPacket) {
+            sentPacket = true;
+            sendPacketByte(55, ioRam[0x01]);
         }
+        else
+            setEventCycles(serialCounter);
     }
 }
 
