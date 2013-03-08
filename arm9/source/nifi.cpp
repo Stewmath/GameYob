@@ -5,6 +5,7 @@
 #include "main.h"
 #include "gameboy.h"
 #include "gbcpu.h"
+#include "console.h"
 
 volatile int packetData=-1;
 volatile int sendData;
@@ -14,6 +15,8 @@ extern int cyclesToEvent;
 
 void packetHandler(int packetID, int readlength)
 {
+    if (isConsoleEnabled())
+        return;
     static char data[4096];
     static int bytesRead;
 
@@ -93,6 +96,8 @@ void initNifi()
 
 void sendPacketByte(u8 command, u8 data)
 {
+    if (isConsoleEnabled())
+        return;
     unsigned char buffer[4];
     buffer[0] = 'Y';
     buffer[1] = 'O';
