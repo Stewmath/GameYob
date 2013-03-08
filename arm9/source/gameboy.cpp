@@ -89,6 +89,7 @@ volatile int serialCounter=0;
 bool sentPacket=true;
 bool receivedPacket=true;
 void updateSerial(int cycles) {
+    return;
     if (ioRam[0x02] & 0x80 && serialCounter > 0) {
         serialCounter -= cycles;
         if (serialCounter <= 0 && !sentPacket) {
@@ -155,6 +156,8 @@ void initLCD()
     periods[2] = clockSpeed/65536;
     periods[3] = clockSpeed/16384;
     timerPeriod = periods[0];
+
+    timerStop(2);
 }
 
 bool screenOn = true;

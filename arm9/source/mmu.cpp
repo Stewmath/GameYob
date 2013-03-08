@@ -462,6 +462,11 @@ void writeMemory(u16 addr, u8 val)
 void writeIO(u8 ioReg, u8 val) ITCM_CODE;
 #endif
 
+void timeoutFunc() {
+    printLog("Timeout\n");
+    sendPacketByte(55, ioRam[0x01]);
+}
+
 void writeIO(u8 ioReg, u8 val)
 {
     switch (ioReg)
@@ -473,9 +478,17 @@ void writeIO(u8 ioReg, u8 val)
                 sendData = ioRam[0x01];
                 if (val & 0x80) {
                     receivedPacket = false;
+                    if (transferWaiting) {
+                        sendPacketByte(56, sendData);
+                        ioRam[0x01] = packetData;
+                        requestInterrupt(SERIAL);
+                        ioRam[0x02] &= ~0x80;
+                        transferWaiting = false;
+                    }
                     if (val & 1) {
-                        serialCounter = clockSpeed/8192;
-                        sentPacket = false;
+                        sentPacket = true;
+                        timerStart(2, ClockDivider_64, 10000, timeoutFunc);
+                        sendPacketByte(55, ioRam[0x01]);
                     }
                 }
                 return;

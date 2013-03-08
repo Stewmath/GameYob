@@ -8,6 +8,7 @@
 
 volatile int packetData=-1;
 volatile int sendData;
+bool transferWaiting = false;
 
 extern int cyclesToEvent;
 
@@ -23,34 +24,41 @@ void packetHandler(int packetID, int readlength)
     bytesRead = Wifi_RxRawReadPacket(packetID, readlength, (unsigned short *)data);
 
     // Check this is the right kind of packet
+    if (data[32] == 'Y' && data[33] == 'O') {
+        u8 command = data[34];
+        u8 val = data[35];
 
-    u8 command = data[32];
-    u8 val = data[33];
+        if (command == 55 || command == 56) {
+            packetData = val;
+            printLog("%d: Received %x\n", ioRam[0x02]&1, packetData);
+        }
 
-    if (command == 55 || command == 56) {
-        packetData = val;
-        printLog("%d: Received %x\n", ioRam[0x02]&1, packetData);
-    }
-
-    //packetData = 0;
-    switch(command) {
-        // Command sent from "internal clock"
-        case 55:
-            if (ioRam[0x02] & 0x80) {
-                sendPacketByte(56, sendData);
-            }
-            else {
-                printLog("Not ready!\n");
+        //packetData = 0;
+        switch(command) {
+            // Command sent from "internal clock"
+            case 55:
+                if (ioRam[0x02] & 0x80) {
+                    sendPacketByte(56, sendData);
+                    // Falls through to case 56
+                }
+                else {
+                    printLog("Not ready!\n");
+                    transferWaiting = true;
+                    break;
+                }
+                // Internal clock receives a response from external clock
+            case 56:
+                if (!receivedPacket) {
+                    receivedPacket = true;
+                    timerStop(2);
+                    ioRam[0x01] = val;
+                    requestInterrupt(SERIAL);
+                    ioRam[0x02] &= ~0x80;
+                }
                 break;
-            }
-        // Internal clock receives a response from external clock
-        case 56:
-            ioRam[0x01] = val;
-            requestInterrupt(SERIAL);
-            ioRam[0x02] &= ~0x80;
-            break;
-        default:
-            break;
+            default:
+                break;
+        }
     }
 }
 
@@ -85,10 +93,12 @@ void initNifi()
 
 void sendPacketByte(u8 command, u8 data)
 {
-    unsigned char buffer[2];
-    buffer[0] = command;
-    buffer[1] = data;
+    unsigned char buffer[4];
+    buffer[0] = 'Y';
+    buffer[1] = 'O';
+    buffer[2] = command;
+    buffer[3] = data;
     printLog("%d: Sent %x\n", ioRam[0x02]&1, data);
-	if (Wifi_RawTxFrame(2, 0x0014, (unsigned short *)buffer) != 0)
+	if (Wifi_RawTxFrame(4, 0x0014, (unsigned short *)buffer) != 0)
         printLog("Nifi send error\n");
 }
