@@ -86,8 +86,8 @@ int updateInput() {
 }
 
 volatile int serialCounter=0;
-bool sentPacket=true;
-bool receivedPacket=true;
+volatile bool sentPacket=true;
+volatile bool receivedPacket=true;
 void updateSerial(int cycles) {
     return;
     if (ioRam[0x02] & 0x80 && serialCounter > 0) {

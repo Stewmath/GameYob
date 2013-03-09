@@ -5,6 +5,7 @@
 #include "main.h"
 #include "gameboy.h"
 #include "mmu.h"
+#include "nifi.h"
 
 const int screenTileWidth = 32;
 bool consoleDebugOutput = false;
@@ -135,6 +136,11 @@ void chan4Func(int value) {
     setChanEnabled(3, value);
 }
 
+void serialFunc(int value) {
+    ioRam[0x01] = packetData;
+    requestInterrupt(SERIAL);
+    ioRam[0x02] &= ~0x80;
+}
 
 
 struct ConsoleSubMenu {
@@ -160,12 +166,12 @@ ConsoleSubMenu menuList[] = {
     },
     {
         "Debug",
-        5,
-        {2,2,2,2,0},
-        {"Wait for Vblank", "Hblank", "Window", "Sound", "Advance Frame" },
-        {{"Off", "On"}, {"Off", "On"}, {"Off", "On"}, {"Off", "On"}, {}},
-        {vblankWaitFunc, hblankEnableFunc, windowEnableFunc, soundEnableFunc, advanceFrameFunc},
-        {0,1,1,1,0}
+        6,
+        {2,2,2,2,0,0},
+        {"Wait for Vblank", "Hblank", "Window", "Sound", "Advance Frame", "Serial Interrupt" },
+        {{"Off", "On"}, {"Off", "On"}, {"Off", "On"}, {"Off", "On"}, {}, {}},
+        {vblankWaitFunc, hblankEnableFunc, windowEnableFunc, soundEnableFunc, advanceFrameFunc, serialFunc},
+        {0,1,1,1,0,0}
     },
     {
         "Sound Channels",

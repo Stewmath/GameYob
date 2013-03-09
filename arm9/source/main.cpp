@@ -26,6 +26,7 @@ void initializeGameboy() {
     initLCD();
     initGFX();
     initSND();
+    initNifi();
 }
 
 extern bool advanceFrame;
@@ -59,7 +60,6 @@ int main(int argc, char* argv[])
 
     initConsole();
     initInput();
-    initNifi();
 
     fifoSetValue32Handler(FIFO_USER_02, fifoValue32Handler, NULL);
 

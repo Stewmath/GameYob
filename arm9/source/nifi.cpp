@@ -9,14 +9,16 @@
 
 volatile int packetData=-1;
 volatile int sendData;
-bool transferWaiting = false;
+volatile bool transferWaiting = false;
 
 extern int cyclesToEvent;
 
 void packetHandler(int packetID, int readlength)
 {
+    /*
     if (isConsoleEnabled())
         return;
+    */
     static char data[4096];
     static int bytesRead;
 
@@ -27,7 +29,7 @@ void packetHandler(int packetID, int readlength)
     bytesRead = Wifi_RxRawReadPacket(packetID, readlength, (unsigned short *)data);
 
     // Check this is the right kind of packet
-    if (data[32] == 'Y' && data[33] == 'O') {
+    //if (data[32] == 'Y' && data[33] == 'O') {
         u8 command = data[34];
         u8 val = data[35];
 
@@ -51,18 +53,21 @@ void packetHandler(int packetID, int readlength)
                 }
                 // Internal clock receives a response from external clock
             case 56:
+                /*
                 if (!receivedPacket) {
                     receivedPacket = true;
+                    */
                     timerStop(2);
                     ioRam[0x01] = val;
                     requestInterrupt(SERIAL);
                     ioRam[0x02] &= ~0x80;
-                }
+                //}
                 break;
             default:
+                //printLog("Unknown packet\n");
                 break;
         }
-    }
+    //}
 }
 
 
@@ -92,6 +97,8 @@ void initNifi()
 //  int channel: the channel to change to, in the range of 1-13
 	Wifi_SetChannel(10);
     swiWaitForVBlank();
+
+    transferWaiting = false;
 }
 
 void sendPacketByte(u8 command, u8 data)
