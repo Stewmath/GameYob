@@ -464,7 +464,11 @@ void writeIO(u8 ioReg, u8 val) ITCM_CODE;
 
 void timeoutFunc() {
     printLog("Timeout\n");
-    sendPacketByte(55, ioRam[0x01]);
+    //sendPacketByte(55, ioRam[0x01]);
+    ioRam[0x01] = 0xff;
+    requestInterrupt(SERIAL);
+    ioRam[0x02] &= ~0x80;
+    timerStop(2);
 }
 
 void writeIO(u8 ioReg, u8 val)
