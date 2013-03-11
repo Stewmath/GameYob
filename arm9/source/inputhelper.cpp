@@ -585,7 +585,7 @@ void printRomInfo() {
     consoleClear();
     printf("ROM Title: \"%s\"\n", romTitle);
     if (mapperNumber == 0)
-        printf("Cartridge type: %.2x (No MBC)\n", mapperNumber, MBC);
+        printf("Cartridge type: %.2x (No MBC)\n", mapperNumber);
     else
         printf("Cartridge type: %.2x (MBC%d)\n", mapperNumber, MBC);
     printf("ROM Size: %.2x (%d banks)\n", romSize, numRomBanks);

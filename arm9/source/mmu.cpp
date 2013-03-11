@@ -86,7 +86,7 @@ void initMMU()
     vramBank = 0;
     currentRomBank = 1;
     currentRamBank = 0;
-    memoryModel = 1;
+    memoryModel = 0;
 
     if (biosEnabled)
         memory[0x0] = bios;
@@ -346,14 +346,14 @@ void writeMemory(u16 addr, u8 val)
                     if (memoryModel == 0)
                     {
                         currentRomBank &= 0x1F;
-                        val &= 0xE0;
-                        currentRomBank |= val;
+                        val &= 3;
+                        currentRomBank |= (val<<5);
                         if (currentRomBank == 0)
                             currentRomBank = 1;
                         if (currentRomBank >= numRomBanks)
                         {
+                            printLog("Game tried to access more rom than it has (%x)\n", currentRomBank);
                             currentRomBank = numRomBanks-1;
-                            printLog("Game tried to access more rom than it has\n");
                         }
                         refreshRomBank();
                     }
@@ -366,7 +366,6 @@ void writeMemory(u16 addr, u8 val)
                 case 3:
                 case 5:
                     currentRamBank = val;
-                    currentRamBank = val;
                     refreshRamBank();
                     break;
                 default:
@@ -377,8 +376,8 @@ void writeMemory(u16 addr, u8 val)
                 if (numRamBanks == 0)
                     currentRamBank = 0;
                 else {
+                    printLog("Game tried to access more ram than it has (%x)\n", currentRamBank);
                     currentRamBank = numRamBanks-1;
-                    printLog("Game tried to access more ram than it has\n");
                     refreshRamBank();
                 }
             }
