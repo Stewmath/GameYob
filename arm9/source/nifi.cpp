@@ -10,12 +10,19 @@
 volatile int packetData=-1;
 volatile int sendData;
 volatile bool transferWaiting = false;
+volatile bool transferReady = false;
+volatile int nifiSendid = 0;
 
 bool nifiEnabled=true;
 
 volatile bool readyToSend=true;
 
-u8 lastSendid = 0xff;
+int lastSendid = 0xff;
+
+void transferWaitingTimeoutFunc() {
+    transferWaiting = false;
+    timerStop(2);
+}
 
 void packetHandler(int packetID, int readlength)
 {
@@ -34,14 +41,21 @@ void packetHandler(int packetID, int readlength)
     if (data[32] == 'Y' && data[33] == 'O') {
         u8 command = data[34];
         u8 val = data[35];
-        u8 sendid = data[36];
+        int sendid = *((int*)(data+36));
 
-        if (lastSendid == sendid)
+        if (lastSendid == sendid) {
+            if (!(ioRam[0x02] & 0x01)) {
+                nifiSendid--;
+                sendPacketByte(56, sendData);
+                nifiSendid++;
+            }
             return;
+        }
         lastSendid = sendid;
 
         if (command == 55 || command == 56) {
             printLog("%d: Received %x\n", ioRam[0x02]&1, val);
+            packetData = val;
         }
 
         //packetData = 0;
@@ -54,12 +68,14 @@ void packetHandler(int packetID, int readlength)
                 else {
                     printLog("Not ready!\n");
                     transferWaiting = true;
+                    timerStart(2, ClockDivider_64, 10000, transferWaitingTimeoutFunc);
                     break;
                 }
                 // Internal clock receives a response from external clock
             case 56:
-                packetData = val;
+                transferReady = true;
                 cyclesToExecute = 0;
+                nifiSendid++;
                 break;
             default:
                 //printLog("Unknown packet\n");
@@ -104,20 +120,17 @@ void disableNifi() {
 }
 
 
-u8 sendid = 0;
 void sendPacketByte(u8 command, u8 data)
 {
     if (!nifiEnabled || isConsoleEnabled())
         return;
-    unsigned char buffer[6];
+    unsigned char buffer[8];
     buffer[0] = 'Y';
     buffer[1] = 'O';
     buffer[2] = command;
     buffer[3] = data;
-    buffer[4] = sendid++;
+    *((int*)(buffer+4)) = nifiSendid;
     printLog("%d: Sent %x\n", ioRam[0x02]&1, data);
-    if (Wifi_RawTxFrame(6, 0x0014, (unsigned short *)buffer) != 0)
+    if (Wifi_RawTxFrame(8, 0x0014, (unsigned short *)buffer) != 0)
         printLog("Nifi send error\n");
-    Wifi_RawTxFrame(6, 0x0014, (unsigned short *)buffer);
-    Wifi_RawTxFrame(6, 0x0014, (unsigned short *)buffer);
 }

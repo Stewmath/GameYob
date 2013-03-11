@@ -102,14 +102,16 @@ void runEmul()
         updateSound(cycles);
         updateLCD(cycles);
 
-        if (packetData != -1) {
-            if (!(ioRam[0x02] & 1))
+        if (transferReady) {
+            if (!(ioRam[0x02] & 1)) {
                 sendPacketByte(56, sendData);
+            }
             timerStop(2);
             ioRam[0x01] = packetData;
             requestInterrupt(SERIAL);
             ioRam[0x02] &= ~0x80;
             packetData = -1;
+            transferReady = false;
         }
 
         if (ime || halt)

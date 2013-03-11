@@ -459,16 +459,22 @@ void writeMemory(u16 addr, u8 val)
 }
 
 
+bool nifiTryAgain=true;
 void nifiTimeoutFunc() {
     printLog("Nifi timeout\n");
-    // Try again? Nah.
-    //sendPacketByte(55, ioRam[0x01]);
-
-    // There was no response from nifi, assume no connection.
-    ioRam[0x01] = 0xff;
-    requestInterrupt(SERIAL);
-    ioRam[0x02] &= ~0x80;
-    timerStop(2);
+    if (nifiTryAgain) {
+        nifiSendid--;
+        sendPacketByte(55, ioRam[0x01]);
+        nifiSendid++;
+        nifiTryAgain = false;
+    }
+    else {
+        // There was no response from nifi, assume no connection.
+        ioRam[0x01] = 0xff;
+        requestInterrupt(SERIAL);
+        ioRam[0x02] &= ~0x80;
+        timerStop(2);
+    }
 }
 
 #ifdef DS
@@ -486,15 +492,17 @@ void writeIO(u8 ioReg, u8 val)
                 sendData = ioRam[0x01];
                 if (val & 0x80) {
                     if (transferWaiting) {
-                        sendPacketByte(56, sendData);
+                        sendPacketByte(56, ioRam[0x01]);
                         ioRam[0x01] = packetData;
                         requestInterrupt(SERIAL);
                         ioRam[0x02] &= ~0x80;
                         transferWaiting = false;
                     }
                     if (val & 1) {
+                        nifiTryAgain = true;
                         timerStart(2, ClockDivider_64, 10000, nifiTimeoutFunc);
                         sendPacketByte(55, ioRam[0x01]);
+                        nifiSendid++;
                     }
                 }
                 return;
