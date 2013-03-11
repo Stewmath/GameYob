@@ -458,18 +458,22 @@ void writeMemory(u16 addr, u8 val)
     }
 }
 
-#ifdef DS
-void writeIO(u8 ioReg, u8 val) ITCM_CODE;
-#endif
 
-void timeoutFunc() {
-    printLog("Timeout\n");
+void nifiTimeoutFunc() {
+    printLog("Nifi timeout\n");
+    // Try again? Nah.
     //sendPacketByte(55, ioRam[0x01]);
+
+    // There was no response from nifi, assume no connection.
     ioRam[0x01] = 0xff;
     requestInterrupt(SERIAL);
     ioRam[0x02] &= ~0x80;
     timerStop(2);
 }
+
+#ifdef DS
+void writeIO(u8 ioReg, u8 val) ITCM_CODE;
+#endif
 
 void writeIO(u8 ioReg, u8 val)
 {
@@ -481,7 +485,6 @@ void writeIO(u8 ioReg, u8 val)
                 ioRam[0x02] = val;
                 sendData = ioRam[0x01];
                 if (val & 0x80) {
-                    receivedPacket = false;
                     if (transferWaiting) {
                         sendPacketByte(56, sendData);
                         ioRam[0x01] = packetData;
@@ -490,8 +493,7 @@ void writeIO(u8 ioReg, u8 val)
                         transferWaiting = false;
                     }
                     if (val & 1) {
-                        sentPacket = true;
-                        timerStart(2, ClockDivider_64, 10000, timeoutFunc);
+                        timerStart(2, ClockDivider_64, 10000, nifiTimeoutFunc);
                         sendPacketByte(55, ioRam[0x01]);
                     }
                 }

@@ -75,6 +75,13 @@ void biosEnableFunc(int value) {
         biosEnabled = 0;
 }
 
+void nifiEnableFunc(int value) {
+    if (value)
+        enableNifi();
+    else
+        disableNifi();
+}
+
 void frameskipFunc(int value) {
     frameskip = value;
 }
@@ -103,9 +110,6 @@ void soundEnableFunc(int value) {
 void advanceFrameFunc(int value) {
     advanceFrame = true;
     quitConsole = true;
-}
-void logViewFunc(int value) {
-
 }
 void resetFunc(int value) {
     initializeGameboy();
@@ -157,21 +161,21 @@ struct ConsoleSubMenu {
 ConsoleSubMenu menuList[] = { 
     {
         "Options",
-        7,
-        {0,2,2,4,2,0,0},
-        {"Load ROM", "Game Screen", "A & B Buttons", "Console Output", "GBC Bios", "Reset", "Return to game"},
-        {{},{"Top","Bottom"},{"A/B", "B/Y"},{"Off","FPS","FPS+Time","Debug"},{"Off","On"},{},{}},
-        {selectRomFunc, setScreenFunc, buttonModeFunc, consoleOutputFunc, biosEnableFunc, resetFunc, returnFunc},
-        {0,0,0,3,1,0,0}
+        8,
+        {0,2,2,4,2,2,0,0},
+        {"Load ROM", "Game Screen", "A & B Buttons", "Console Output", "GBC Bios", "NiFi", "Reset", "Return to game"},
+        {{},{"Top","Bottom"},{"A/B", "B/Y"},{"Off","FPS","FPS+Time","Debug"},{"Off","On"},{"Off","On"},{},{}},
+        {selectRomFunc, setScreenFunc, buttonModeFunc, consoleOutputFunc, biosEnableFunc, nifiEnableFunc, resetFunc, returnFunc},
+        {0,0,0,2,1,0,0,0}
     },
     {
         "Debug",
-        6,
-        {2,2,2,2,0,0},
-        {"Wait for Vblank", "Hblank", "Window", "Sound", "Advance Frame", "Serial Interrupt" },
-        {{"Off", "On"}, {"Off", "On"}, {"Off", "On"}, {"Off", "On"}, {}, {}},
-        {vblankWaitFunc, hblankEnableFunc, windowEnableFunc, soundEnableFunc, advanceFrameFunc, serialFunc},
-        {0,1,1,1,0,0}
+        5,
+        {2,2,2,2,0},
+        {"Wait for Vblank", "Hblank", "Window", "Sound", "Advance Frame" },
+        {{"Off", "On"}, {"Off", "On"}, {"Off", "On"}, {"Off", "On"}, {}},
+        {vblankWaitFunc, hblankEnableFunc, windowEnableFunc, soundEnableFunc, advanceFrameFunc},
+        {0,1,1,1,0}
     },
     {
         "Sound Channels",
@@ -183,7 +187,7 @@ ConsoleSubMenu menuList[] = {
         {1,1,1,1}
     }
 };
-int numMenus = sizeof(menuList)/sizeof(ConsoleSubMenu);
+const int numMenus = sizeof(menuList)/sizeof(ConsoleSubMenu);
 
 void initConsole() {
     for (int i=0; i<numMenus; i++) {
@@ -307,7 +311,7 @@ int displayConsole() {
                     break;
                 }
             }
-            else if (keyPressedAutoRepeat(KEY_A)) {
+            else if (keyJustPressed(KEY_A)) {
                 if (option >= 0 && menuList[menu].numSelections[option] == 0) {
                     menuList[menu].optionFunctions[option](menuList[menu].optionSelections[option]);
                     forceReleaseKey(KEY_A);

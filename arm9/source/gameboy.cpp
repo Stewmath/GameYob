@@ -79,26 +79,9 @@ int updateInput() {
             for (int i=0; i<spaces; i++)
                 printf(" ");
             printf("%s\n", s);
-            //tm *timeInfo = localTime(&rawTime);
         }
     }
     return retval;
-}
-
-volatile int serialCounter=0;
-volatile bool sentPacket=true;
-volatile bool receivedPacket=true;
-void updateSerial(int cycles) {
-    return;
-    if (ioRam[0x02] & 0x80 && serialCounter > 0) {
-        serialCounter -= cycles;
-        if (serialCounter <= 0 && !sentPacket) {
-            sentPacket = true;
-            sendPacketByte(55, ioRam[0x01]);
-        }
-        else
-            setEventCycles(serialCounter);
-    }
 }
 
 int totalCycles;
@@ -118,7 +101,16 @@ void runEmul()
         updateTimers(cycles);
         updateSound(cycles);
         updateLCD(cycles);
-        updateSerial(cycles);
+
+        if (packetData != -1) {
+            if (!(ioRam[0x02] & 1))
+                sendPacketByte(56, sendData);
+            timerStop(2);
+            ioRam[0x01] = packetData;
+            requestInterrupt(SERIAL);
+            ioRam[0x02] &= ~0x80;
+            packetData = -1;
+        }
 
         if (ime || halt)
             handleInterrupts();
@@ -177,7 +169,6 @@ void updateLCD(int cycles)
         phaseCounter -= cycles;
         if (phaseCounter <= 0) {
             swiIntrWait(interruptWaitMode, IRQ_VCOUNT);
-            //updateTiles();
             updateInput();
             fps++;
             phaseCounter += 456*153*(doubleSpeed?2:1);
@@ -185,7 +176,6 @@ void updateLCD(int cycles)
                 disableScreen();
                 screenOn = false;
             }
-            return;
         }
         return;
     }

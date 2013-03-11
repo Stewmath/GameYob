@@ -11,14 +11,14 @@ volatile int packetData=-1;
 volatile int sendData;
 volatile bool transferWaiting = false;
 
-extern int cyclesToEvent;
+bool nifiEnabled=true;
+
+volatile bool readyToSend=true;
 
 void packetHandler(int packetID, int readlength)
 {
-    /*
     if (isConsoleEnabled())
         return;
-    */
     static char data[4096];
     static int bytesRead;
 
@@ -29,7 +29,7 @@ void packetHandler(int packetID, int readlength)
     bytesRead = Wifi_RxRawReadPacket(packetID, readlength, (unsigned short *)data);
 
     // Check this is the right kind of packet
-    //if (data[32] == 'Y' && data[33] == 'O') {
+    if (data[32] == 'Y' && data[33] == 'O') {
         u8 command = data[34];
         u8 val = data[35];
 
@@ -43,7 +43,6 @@ void packetHandler(int packetID, int readlength)
             // Command sent from "internal clock"
             case 55:
                 if (ioRam[0x02] & 0x80) {
-                    sendPacketByte(56, sendData);
                     // Falls through to case 56
                 }
                 else {
@@ -53,28 +52,20 @@ void packetHandler(int packetID, int readlength)
                 }
                 // Internal clock receives a response from external clock
             case 56:
-                /*
-                if (!receivedPacket) {
-                    receivedPacket = true;
-                    */
-                    timerStop(2);
-                    ioRam[0x01] = val;
-                    requestInterrupt(SERIAL);
-                    ioRam[0x02] &= ~0x80;
-                //}
+                packetData = val;
+                cyclesToExecute = 0;
                 break;
             default:
                 //printLog("Unknown packet\n");
                 break;
         }
-    //}
+    }
 }
 
 
 
-void initNifi()
+void enableNifi()
 {
-    swiWaitForVBlank();
 	Wifi_InitDefault(false);
 
 // Wifi_SetPromiscuousMode: Allows the DS to enter or leave a "promsicuous" mode, in which 
@@ -96,14 +87,20 @@ void initNifi()
 //   the chipset to change channel
 //  int channel: the channel to change to, in the range of 1-13
 	Wifi_SetChannel(10);
-    swiWaitForVBlank();
 
     transferWaiting = false;
+    nifiEnabled = true;
 }
+
+void disableNifi() {
+    Wifi_DisableWifi();
+    nifiEnabled = false;
+}
+
 
 void sendPacketByte(u8 command, u8 data)
 {
-    if (isConsoleEnabled())
+    if (!nifiEnabled || isConsoleEnabled())
         return;
     unsigned char buffer[4];
     buffer[0] = 'Y';

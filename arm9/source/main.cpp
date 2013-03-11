@@ -26,7 +26,6 @@ void initializeGameboy() {
     initLCD();
     initGFX();
     initSND();
-    initNifi();
 }
 
 extern bool advanceFrame;
