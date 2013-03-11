@@ -5,7 +5,6 @@
 
 void startTimer()
 {
-    return;
 	cpuStartTiming(0);
 	timerElapsed(0);
 	//startTicks = 0;
@@ -14,6 +13,5 @@ void startTimer()
 
 int getTimerTicks()
 {
-    return 0;
 	return (cpuGetTiming() / (DSCLOCKSPEED));
 }

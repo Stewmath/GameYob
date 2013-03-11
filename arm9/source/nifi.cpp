@@ -15,6 +15,8 @@ bool nifiEnabled=true;
 
 volatile bool readyToSend=true;
 
+u8 lastSendid = 0xff;
+
 void packetHandler(int packetID, int readlength)
 {
     if (isConsoleEnabled())
@@ -32,10 +34,14 @@ void packetHandler(int packetID, int readlength)
     if (data[32] == 'Y' && data[33] == 'O') {
         u8 command = data[34];
         u8 val = data[35];
+        u8 sendid = data[36];
+
+        if (lastSendid == sendid)
+            return;
+        lastSendid = sendid;
 
         if (command == 55 || command == 56) {
-            packetData = val;
-            printLog("%d: Received %x\n", ioRam[0x02]&1, packetData);
+            printLog("%d: Received %x\n", ioRam[0x02]&1, val);
         }
 
         //packetData = 0;
@@ -98,16 +104,20 @@ void disableNifi() {
 }
 
 
+u8 sendid = 0;
 void sendPacketByte(u8 command, u8 data)
 {
     if (!nifiEnabled || isConsoleEnabled())
         return;
-    unsigned char buffer[4];
+    unsigned char buffer[6];
     buffer[0] = 'Y';
     buffer[1] = 'O';
     buffer[2] = command;
     buffer[3] = data;
+    buffer[4] = sendid++;
     printLog("%d: Sent %x\n", ioRam[0x02]&1, data);
-	if (Wifi_RawTxFrame(4, 0x0014, (unsigned short *)buffer) != 0)
+    if (Wifi_RawTxFrame(6, 0x0014, (unsigned short *)buffer) != 0)
         printLog("Nifi send error\n");
+    Wifi_RawTxFrame(6, 0x0014, (unsigned short *)buffer);
+    Wifi_RawTxFrame(6, 0x0014, (unsigned short *)buffer);
 }
