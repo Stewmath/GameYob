@@ -34,6 +34,7 @@ void loadRomBank();
 int loadSave();
 int saveGame();
 char* getRomTitle();
+void printRomInfo();
 
 int handleEvents();
 

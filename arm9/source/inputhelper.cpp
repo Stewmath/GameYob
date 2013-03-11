@@ -18,6 +18,12 @@ FILE* romFile=NULL;
 char filename[100];
 char savename[100];
 char romTitle[20];
+// Values taken from the cartridge header
+u8 ramSize;
+u8 mapperNumber;
+u8 cgbFlag;
+u8 romSize;
+
 int keysPressed=0;
 int lastKeysPressed=0;
 int keysForceReleased=0;
@@ -34,7 +40,7 @@ std::vector<int> lastBanksUsed;
 
 void initInput()
 {
-	fatInitDefault();
+    fatInitDefault();
     advanceFrame=false;
 }
 
@@ -67,18 +73,18 @@ void updateScrollUp() {
 
 int nameSortFunction(char*& a, char*& b)
 {
-	// ".." sorts before everything except itself.
-	bool aIsParent = strcmp(a, "..") == 0;
-	bool bIsParent = strcmp(b, "..") == 0;
+    // ".." sorts before everything except itself.
+    bool aIsParent = strcmp(a, "..") == 0;
+    bool bIsParent = strcmp(b, "..") == 0;
 
-	if (aIsParent && bIsParent)
-		return 0;
-	else if (aIsParent) // Sorts before
-		return -1;
-	else if (bIsParent) // Sorts after
-		return 1;
-	else
-		return strcmp(a, b);
+    if (aIsParent && bIsParent)
+        return 0;
+    else if (aIsParent) // Sorts before
+        return -1;
+    else if (bIsParent) // Sorts after
+        return 1;
+    else
+        return strcmp(a, b);
 }
 
 /*
@@ -96,20 +102,20 @@ int nameSortFunction(char*& a, char*& b)
  */
 template <class Data> bool isSorted(std::vector<Data>& data, int (*sortFunction) (Data&, Data&), const unsigned int from, const unsigned int to)
 {
-	if (from >= to)
-		return true;
+    if (from >= to)
+        return true;
 
-	Data* prev = &data[from];
-	for (int i = from + 1; i < to; i++)
-	{
-		if ((*sortFunction)(*prev, data[i]) > 0)
-			return false;
-		prev = &data[i];
-	}
-	if ((*sortFunction)(*prev, data[to]) > 0)
-		return false;
+    Data* prev = &data[from];
+    for (int i = from + 1; i < to; i++)
+    {
+        if ((*sortFunction)(*prev, data[i]) > 0)
+            return false;
+        prev = &data[i];
+    }
+    if ((*sortFunction)(*prev, data[to]) > 0)
+        return false;
 
-	return true;
+    return true;
 }
 
 /*
@@ -125,15 +131,15 @@ template <class Data> bool isSorted(std::vector<Data>& data, int (*sortFunction)
  */
 template <class Data> unsigned int choosePivot(std::vector<Data>& data, int (*sortFunction) (Data&, Data&), const unsigned int from, const unsigned int to)
 {
-	// The highest of the two extremities is calculated first.
-	unsigned int highest = ((*sortFunction)(data[from], data[to]) > 0)
-		? from
-		: to;
-	// Then the lowest of that highest extremity and the middle
-	// becomes the pivot.
-	return ((*sortFunction)(data[from + (to - from) / 2], data[highest]) < 0)
-		? (from + (to - from) / 2)
-		: highest;
+    // The highest of the two extremities is calculated first.
+    unsigned int highest = ((*sortFunction)(data[from], data[to]) > 0)
+        ? from
+        : to;
+    // Then the lowest of that highest extremity and the middle
+    // becomes the pivot.
+    return ((*sortFunction)(data[from + (to - from) / 2], data[highest]) < 0)
+        ? (from + (to - from) / 2)
+        : highest;
 }
 
 /*
@@ -152,39 +158,39 @@ template <class Data> unsigned int choosePivot(std::vector<Data>& data, int (*so
  */
 template <class Data, class Metadata> unsigned int partition(std::vector<Data>& data, std::vector<Metadata>& metadata, int (*sortFunction) (Data&, Data&), const unsigned int from, const unsigned int to, const unsigned int pivotIndex)
 {
-	Data pivotValue = data[pivotIndex];
-	data[pivotIndex] = data[to];
-	data[to] = pivotValue;
-	{
-		const Metadata tM = metadata[pivotIndex];
-		metadata[pivotIndex] = metadata[to];
-		metadata[to] = tM;
-	}
+    Data pivotValue = data[pivotIndex];
+    data[pivotIndex] = data[to];
+    data[to] = pivotValue;
+    {
+        const Metadata tM = metadata[pivotIndex];
+        metadata[pivotIndex] = metadata[to];
+        metadata[to] = tM;
+    }
 
-	unsigned int storeIndex = from;
-	for (unsigned int i = from; i < to; i++)
-	{
-		if ((*sortFunction)(data[i], pivotValue) < 0)
-		{
-			const Data tD = data[storeIndex];
-			data[storeIndex] = data[i];
-			data[i] = tD;
-			const Metadata tM = metadata[storeIndex];
-			metadata[storeIndex] = metadata[i];
-			metadata[i] = tM;
-			++storeIndex;
-		}
-	}
+    unsigned int storeIndex = from;
+    for (unsigned int i = from; i < to; i++)
+    {
+        if ((*sortFunction)(data[i], pivotValue) < 0)
+        {
+            const Data tD = data[storeIndex];
+            data[storeIndex] = data[i];
+            data[i] = tD;
+            const Metadata tM = metadata[storeIndex];
+            metadata[storeIndex] = metadata[i];
+            metadata[i] = tM;
+            ++storeIndex;
+        }
+    }
 
-	{
-		const Data tD = data[to];
-		data[to] = data[storeIndex];
-		data[storeIndex] = tD;
-		const Metadata tM = metadata[to];
-		metadata[to] = metadata[storeIndex];
-		metadata[storeIndex] = tM;
-	}
-	return storeIndex;
+    {
+        const Data tD = data[to];
+        data[to] = data[storeIndex];
+        data[storeIndex] = tD;
+        const Metadata tM = metadata[to];
+        metadata[to] = metadata[storeIndex];
+        metadata[storeIndex] = tM;
+    }
+    return storeIndex;
 }
 
 /*
@@ -203,15 +209,15 @@ template <class Data, class Metadata> unsigned int partition(std::vector<Data>& 
  */
 template <class Data, class Metadata> void quickSort(std::vector<Data>& data, std::vector<Metadata>& metadata, int (*sortFunction) (Data&, Data&), const unsigned int from, const unsigned int to)
 {
-	if (isSorted(data, sortFunction, from, to))
-		return;
+    if (isSorted(data, sortFunction, from, to))
+        return;
 
-	unsigned int pivotIndex = choosePivot(data, sortFunction, from, to);
-	unsigned int newPivotIndex = partition(data, metadata, sortFunction, from, to, pivotIndex);
-	if (newPivotIndex > 0)
-		quickSort(data, metadata, sortFunction, from, newPivotIndex - 1);
-	if (newPivotIndex < to)
-		quickSort(data, metadata, sortFunction, newPivotIndex + 1, to);
+    unsigned int pivotIndex = choosePivot(data, sortFunction, from, to);
+    unsigned int newPivotIndex = partition(data, metadata, sortFunction, from, to, pivotIndex);
+    if (newPivotIndex > 0)
+        quickSort(data, metadata, sortFunction, from, newPivotIndex - 1);
+    if (newPivotIndex < to)
+        quickSort(data, metadata, sortFunction, newPivotIndex + 1, to);
 }
 
 /*
@@ -246,7 +252,7 @@ char* startFileChooser() {
             }
         }
 
-	quickSort(filenames, directory, nameSortFunction, 0, numFiles - 1);
+        quickSort(filenames, directory, nameSortFunction, 0, numFiles - 1);
 
         scrollY=0;
         updateScrollDown();
@@ -349,20 +355,20 @@ int loadProgram(char* f)
 {
     if (romFile != NULL)
         fclose(romFile);
-	strcpy(filename, f);
+    strcpy(filename, f);
 
-	romFile = fopen(filename, "rb");
-	if (romFile == NULL)
-	{
-		printLog("Error opening %s.\n", filename);
-		return 1;
-	}
+    romFile = fopen(filename, "rb");
+    if (romFile == NULL)
+    {
+        printLog("Error opening %s.\n", filename);
+        return 1;
+    }
 
-	// First calculate the size
-	fseek(romFile, 0, SEEK_END);
-	numRomBanks = ftell(romFile)/0x4000;
+    // First calculate the size
+    fseek(romFile, 0, SEEK_END);
+    numRomBanks = ftell(romFile)/0x4000;
 
-	rewind(romFile);
+    rewind(romFile);
 
     for (int i=0; i<numRomBanks; i++) {
         bankSlotIDs[i] = -1;
@@ -373,33 +379,56 @@ int loadProgram(char* f)
         banksToLoad = MAX_LOADED_ROM_BANKS;
 
     lastBanksUsed = std::vector<int>();
-	int i;
-	for (i=0; i<banksToLoad; i++)
-	{
-		rom[i] = romBankSlots[i];
+    for (int i=0; i<banksToLoad; i++)
+    {
+        rom[i] = romBankSlots[i];
         bankSlotIDs[i] = i;
-		fread(rom[i], 1, 0x4000, romFile);
+        fread(rom[i], 1, 0x4000, romFile);
         if (i != 0)
             lastBanksUsed.push_back(i);
-	}
-	
-	strcpy(savename, filename);
-    *(strrchr(savename, '.')) = '\0';
-	strcat(savename, ".sav");
+    }
 
-    for (int i=0; i<0xe; i++) {
+    strcpy(savename, filename);
+    *(strrchr(savename, '.')) = '\0';
+    strcat(savename, ".sav");
+
+    cgbFlag = rom[0][0x143];
+    mapperNumber = rom[0][0x147];
+    romSize = rom[0][0x148];
+    ramSize = rom[0][0x149];
+
+    int nameLength = 16;
+    if (cgbFlag == 0x80 || cgbFlag == 0xc0)
+        nameLength = 15;
+    for (int i=0; i<nameLength; i++) {
         romTitle[i] = (char)rom[0][i+0x134];
     }
-    romTitle[0xe] = '\0';
+    romTitle[nameLength] = '\0';
 
-    loadSave();
+    if (mapperNumber == 0)
+        MBC = 0;
+    else if (mapperNumber <= 3)
+        MBC = 1;
+    else if (mapperNumber >= 5 && mapperNumber <= 6)
+        MBC = 2;
+    else if (mapperNumber == 0x10 || mapperNumber == 0x12 || mapperNumber == 0x13)
+        MBC = 3;
+    else if (mapperNumber >= 0x19 && mapperNumber <= 0x1E)
+        MBC = 5;
+    else {
+        printLog("Unknown MBC: %x\nDefaulting to MBC5\n", mapperNumber);
+        MBC = 5;
+    }
 
     // Little hack to preserve "quickread" from gbcpu.cpp.
     if (biosEnabled) {
         for (int i=0x100; i<0x150; i++)
             bios[i] = rom[0][i];
     }
-	return 0;
+
+    loadSave();
+
+    return 0;
 }
 
 void loadRomBank() {
@@ -429,84 +458,82 @@ int loadSave()
     }
     externRam = NULL;
 
-	// Get the game's external memory size and allocate the memory
-	numRamBanks = readMemory(0x149);
-	switch(numRamBanks)
-	{
-		case 0:
+    // Get the game's external memory size and allocate the memory
+    switch(ramSize)
+    {
+        case 0:
             numRamBanks = 0;
             break;
-		case 1:
-		case 2:
-			numRamBanks = 1;
-			break;
-		case 3:
-			numRamBanks = 4;
-			break;
-		case 4:
-			numRamBanks = 16;
-			break;
-		default:
-			printLog("Invalid RAM bank number: %d\nDefaulting to 4 banks\n", numRamBanks);
-			numRamBanks = 4;
-			break;
-	}
+        case 1:
+        case 2:
+            numRamBanks = 1;
+            break;
+        case 3:
+            numRamBanks = 4;
+            break;
+        case 4:
+            numRamBanks = 16;
+            break;
+        default:
+            printLog("Invalid RAM bank number: %x\nDefaulting to 4 banks\n", ramSize);
+            numRamBanks = 4;
+            break;
+    }
 
     if (numRamBanks == 0)
         return 0;
 
-	externRam = (u8**)malloc(numRamBanks*sizeof(u8*));
-	int i;
-	for (i=0; i<numRamBanks; i++)
-	{
-		externRam[i] = (u8*)malloc(0x2000*sizeof(u8));
-	}
+    externRam = (u8**)malloc(numRamBanks*sizeof(u8*));
+    int i;
+    for (i=0; i<numRamBanks; i++)
+    {
+        externRam[i] = (u8*)malloc(0x2000*sizeof(u8));
+    }
 
-	// Now load the data.
-	FILE* file;
-	file = fopen(savename, "r");
-	if (file != NULL)
-	{
-		for (i=0; i<numRamBanks; i++)
-			fread(externRam[i], 1, 0x2000, file);
-        u8 mapper = readMemory(0x147);
-        if (mapper == 0x10 || mapper == 0x12 || mapper == 0x13)
-		{
-			fread(&gbClock.clockSeconds, 1, sizeof(int)*10+sizeof(time_t), file);
-		}
-		fclose(file);
-	}
-	else
-	{
-		printLog("Couldn't open file \"%s\".\n", savename);
-		return 1;
-	}
-	return 0;
+    // Now load the data.
+    FILE* file;
+    file = fopen(savename, "r");
+    if (file != NULL)
+    {
+        for (i=0; i<numRamBanks; i++)
+            fread(externRam[i], 1, 0x2000, file);
+        if (MBC == 3)
+        {
+            fread(&gbClock.clockSeconds, 1, sizeof(int)*10+sizeof(time_t), file);
+        }
+        fclose(file);
+    }
+    else
+    {
+        printLog("Couldn't open file \"%s\".\n", savename);
+        return 1;
+    }
+    return 0;
 }
 
 int saveGame()
 {
     if (numRamBanks == 0)
         return 0;
-	FILE* file;
-	file = fopen(savename, "w");
-	if (file != NULL)
-	{
-		int i;
-		for (i=0; i<numRamBanks; i++)
-			fwrite(externRam[i], 1, 0x2000, file);
-		if (MBC == 3)
-		{
-			fwrite(&gbClock.clockSeconds, 1, sizeof(int)*10+sizeof(time_t), file);
-		}
-		fclose(file);
-	}
-	else
-	{
-		fprintf(stderr, "Error saving to file.\n");
-		return 1;
-	}
-	return 0;
+    FILE* file;
+    file = fopen(savename, "w");
+    if (file != NULL)
+    {
+        int i;
+        for (i=0; i<numRamBanks; i++)
+            fwrite(externRam[i], 1, 0x2000, file);
+        if (MBC == 3)
+        {
+            fwrite(&gbClock.clockSeconds, 1, sizeof(int)*10+sizeof(time_t), file);
+        }
+        fclose(file);
+    }
+    else
+    {
+        fprintf(stderr, "Error saving to file.\n");
+        return 1;
+    }
+    return 0;
 }
 
 bool keyPressed(int key) {
@@ -528,7 +555,7 @@ bool keyJustPressed(int key) {
 }
 
 void readKeys() {
-	scanKeys();
+    scanKeys();
 
     lastKeysPressed = keysPressed;
     keysPressed = keysHeld();
@@ -554,88 +581,105 @@ char* getRomTitle() {
     return romTitle;
 }
 
+void printRomInfo() {
+    consoleClear();
+    printf("ROM Title: \"%s\"\n", romTitle);
+    if (mapperNumber == 0)
+        printf("Cartridge type: %.2x (No MBC)\n", mapperNumber, MBC);
+    else
+        printf("Cartridge type: %.2x (MBC%d)\n", mapperNumber, MBC);
+    printf("ROM Size: %.2x (%d banks)\n", romSize, numRomBanks);
+    printf("RAM Size: %.2x (%d banks)\n", ramSize, numRamBanks);
+    while (true) {
+        swiWaitForVBlank();
+        readKeys();
+        if (keyJustPressed(KEY_A) || keyJustPressed(KEY_B))
+            break;
+    }
+}
+
 int handleEvents()
 {
     int keys = keysPressed;
-	if (keys & KEY_UP)
-	{
-		buttonsPressed &= (0xFF ^ UP);
-		requestInterrupt(JOYPAD);
-	}
-	else
-	{
-		buttonsPressed |= UP;
-	}
-	if (keys & KEY_DOWN)
-	{
-		buttonsPressed &= (0xFF ^ DOWN);
-		requestInterrupt(JOYPAD);
-	}
-	else
-	{
-		buttonsPressed |= DOWN;
-	}
-	if (keys & KEY_LEFT)
-	{
-		buttonsPressed &= (0xFF ^ LEFT);
-		requestInterrupt(JOYPAD);
-	}
-	else
-	{
-		buttonsPressed |= LEFT;
-	}
-	if (keys & KEY_RIGHT)
-	{
-		buttonsPressed &= (0xFF ^ RIGHT);
-		requestInterrupt(JOYPAD);
-	}
-	else
-	{
-		buttonsPressed |= RIGHT;
-	}
-	if (keys & GB_KEY_A)
-	{
-		buttonsPressed &= (0xFF ^ BUTTONA);
-		requestInterrupt(JOYPAD);
-	}
-	else
-	{
-		buttonsPressed |= BUTTONA;
-	}
-	if (keys & GB_KEY_B)
-	{
-		buttonsPressed &= (0xFF ^ BUTTONB);
-		requestInterrupt(JOYPAD);
-	}
-	else
-	{
-		buttonsPressed |= BUTTONB;
-	}
-	if (keys & KEY_START)
-	{
-		buttonsPressed &= (0xFF ^ START);
-		requestInterrupt(JOYPAD);
-	}
-	else
-	{
-		buttonsPressed |= START;
-	}
-	if (keys & KEY_SELECT)
-	{
-		buttonsPressed &= (0xFF ^ SELECT);
-		requestInterrupt(JOYPAD);
-	}
-	else
-	{
-		buttonsPressed |= SELECT;
-	}
+    if (keys & KEY_UP)
+    {
+        buttonsPressed &= (0xFF ^ UP);
+        requestInterrupt(JOYPAD);
+    }
+    else
+    {
+        buttonsPressed |= UP;
+    }
+    if (keys & KEY_DOWN)
+    {
+        buttonsPressed &= (0xFF ^ DOWN);
+        requestInterrupt(JOYPAD);
+    }
+    else
+    {
+        buttonsPressed |= DOWN;
+    }
+    if (keys & KEY_LEFT)
+    {
+        buttonsPressed &= (0xFF ^ LEFT);
+        requestInterrupt(JOYPAD);
+    }
+    else
+    {
+        buttonsPressed |= LEFT;
+    }
+    if (keys & KEY_RIGHT)
+    {
+        buttonsPressed &= (0xFF ^ RIGHT);
+        requestInterrupt(JOYPAD);
+    }
+    else
+    {
+        buttonsPressed |= RIGHT;
+    }
+    if (keys & GB_KEY_A)
+    {
+        buttonsPressed &= (0xFF ^ BUTTONA);
+        requestInterrupt(JOYPAD);
+    }
+    else
+    {
+        buttonsPressed |= BUTTONA;
+    }
+    if (keys & GB_KEY_B)
+    {
+        buttonsPressed &= (0xFF ^ BUTTONB);
+        requestInterrupt(JOYPAD);
+    }
+    else
+    {
+        buttonsPressed |= BUTTONB;
+    }
+    if (keys & KEY_START)
+    {
+        buttonsPressed &= (0xFF ^ START);
+        requestInterrupt(JOYPAD);
+    }
+    else
+    {
+        buttonsPressed |= START;
+    }
+    if (keys & KEY_SELECT)
+    {
+        buttonsPressed &= (0xFF ^ SELECT);
+        requestInterrupt(JOYPAD);
+    }
+    else
+    {
+        buttonsPressed |= SELECT;
+    }
 
-	if (keyJustPressed(KEY_X))
-		saveGame();
+    if (keyJustPressed(KEY_X))
+        saveGame();
     if (advanceFrame || keyJustPressed(KEY_R)) {
         advanceFrame = 0;
         return displayConsole();
     }
 
-	return 0;
+    return 0;
 }

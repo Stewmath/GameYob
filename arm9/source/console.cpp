@@ -81,10 +81,16 @@ void nifiEnableFunc(int value) {
     else
         disableNifi();
 }
-
-void frameskipFunc(int value) {
-    frameskip = value;
+void resetFunc(int value) {
+    initializeGameboy();
+    quitConsole = true;
+    displayConsoleRetval = 1;
 }
+void returnFunc(int value) {
+    quitConsole = true;
+}
+
+
 void vblankWaitFunc(int value) {
     interruptWaitMode = value;
 }
@@ -111,15 +117,9 @@ void advanceFrameFunc(int value) {
     advanceFrame = true;
     quitConsole = true;
 }
-void resetFunc(int value) {
-    initializeGameboy();
-    quitConsole = true;
-    displayConsoleRetval = 1;
+void romInfoFunc(int value) {
+    printRomInfo();
 }
-void returnFunc(int value) {
-    quitConsole = true;
-}
-
 
 void setChanEnabled(int chan, int value) {
     if (value == 0)
@@ -170,12 +170,12 @@ ConsoleSubMenu menuList[] = {
     },
     {
         "Debug",
-        5,
-        {2,2,2,2,0},
-        {"Wait for Vblank", "Hblank", "Window", "Sound", "Advance Frame" },
-        {{"Off", "On"}, {"Off", "On"}, {"Off", "On"}, {"Off", "On"}, {}},
-        {vblankWaitFunc, hblankEnableFunc, windowEnableFunc, soundEnableFunc, advanceFrameFunc},
-        {0,1,1,1,0}
+        6,
+        {2,2,2,2,0,0},
+        {"Wait for Vblank", "Hblank", "Window", "Sound", "Advance Frame", "ROM Info" },
+        {{"Off", "On"}, {"Off", "On"}, {"Off", "On"}, {"Off", "On"}, {}, {}},
+        {vblankWaitFunc, hblankEnableFunc, windowEnableFunc, soundEnableFunc, advanceFrameFunc, romInfoFunc},
+        {0,1,1,1,0,0}
     },
     {
         "Sound Channels",
