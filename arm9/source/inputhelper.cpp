@@ -479,6 +479,8 @@ int loadSave()
             numRamBanks = 4;
             break;
     }
+    if (MBC == 2)
+        numRamBanks = 1;
 
     if (numRamBanks == 0)
         return 0;

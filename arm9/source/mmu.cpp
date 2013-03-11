@@ -69,7 +69,7 @@ int vramBank;
 
 int MBC;
 int memoryModel;
-bool hasClock=false;
+
 int currentRomBank;
 int currentRamBank;
 
@@ -164,7 +164,7 @@ u8 readMemory(u16 addr) ITCM_CODE;
 
 u8 readMemory(u16 addr)
 {
-    switch ((addr & 0xF000) >> 12)
+    switch (addr >> 12)
     {
         case 0x0:
             if (biosOn)
@@ -210,6 +210,9 @@ u8 readMemory(u16 addr)
                     default:
                         return 0;
                 }
+            }
+            else if (MBC == 2) {
+                return externRam[currentRamBank][addr&0x1fff] & 0xf;
             }
             return externRam[currentRamBank][addr&0x1fff];
             break;
@@ -295,8 +298,12 @@ void writeMemory(u16 addr, u8 val)
     if (addr == watchAddr)
         debugMode = 1;
 #endif
-    switch ((addr & 0xF000) >> 12)
+    switch (addr >> 12)
     {
+        case 0x0:
+        case 0x1:
+            // MBC2's ram enable would be here
+            return;
         case 0x2:
             if (MBC == 5)
             {
@@ -310,12 +317,18 @@ void writeMemory(u16 addr, u8 val)
                 refreshRomBank();
                 return;
             }
+            // Else fall through
         case 0x3:
             switch (MBC)
             {
                 case 1:
                     currentRomBank &= 0xE0;
                     currentRomBank |= (val & 0x1F);
+                    if (currentRomBank == 0)
+                        currentRomBank = 1;
+                    break;
+                case 2:
+                    currentRomBank = val;
                     if (currentRomBank == 0)
                         currentRomBank = 1;
                     break;
@@ -431,6 +444,8 @@ void writeMemory(u16 addr, u8 val)
                         return;
                 }
             }
+            if (MBC == 2)
+                val &= 0xf;
             externRam[currentRamBank][addr&0x1fff] = val;
             return;
         case 0xC:
