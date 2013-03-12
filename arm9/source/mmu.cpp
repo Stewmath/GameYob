@@ -164,85 +164,37 @@ u8 readMemory(u16 addr) ITCM_CODE;
 
 u8 readMemory(u16 addr)
 {
-    switch (addr >> 12)
-    {
-        case 0x0:
-            if (biosOn)
-                return bios[addr];
-        case 0x1:
-        case 0x2:
-        case 0x3:
-            return rom[0][addr];
-            break;
-        case 0x4:
-        case 0x5:
-        case 0x6:
-        case 0x7:
-            return rom[currentRomBank][addr&0x3fff];
-            break;
-        case 0x8:
-        case 0x9:
-            return vram[vramBank][addr&0x1fff];
-            break;
-        case 0xA:
-            //	if (addr == 0xa080)
-            //		return 1;
-        case 0xB:
-            if (MBC == 3)
-            {
-                switch (currentRamBank)
-                {
-                    case 0x8:
-                        return gbClock.clockSecondsL;
-                    case 0x9:
-                        return gbClock.clockMinutesL;
-                    case 0xA:
-                        return gbClock.clockHoursL;
-                    case 0xB:
-                        return gbClock.clockDaysL&0xFF;
-                    case 0xC:
-                        return gbClock.clockControlL;
-                    case 0:
-                    case 1:
-                    case 2:
-                    case 3:
-                        break;
-                    default:
-                        return 0;
-                }
-            }
-            else if (MBC == 2) {
-                return externRam[currentRamBank][addr&0x1fff] & 0xf;
-            }
-            return externRam[currentRamBank][addr&0x1fff];
-            break;
-        case 0xC:
-            return wram[0][addr&0xFFF];
-            break;
-        case 0xD:
-            return wram[wramBank][addr&0xFFF];
-            break;
-        case 0xE:
-            return wram[0][addr&0xFFF];
-            break;
-        case 0xF:
-            if (addr < 0xFE00)
-                return wram[wramBank][addr&0xFFF];
-            else if (addr < 0xFF00)
-                return hram[addr&0x1ff];
-            else
-                return readIO(addr&0xff);
-            break;
-        default:
-            //return memory[addr];
-            break;
+    if (MBC == 3 && (addr&0xe000) == 0xa000) {
+        switch (currentRamBank)
+        {
+            case 0x8:
+                return gbClock.clockSecondsL;
+            case 0x9:
+                return gbClock.clockMinutesL;
+            case 0xA:
+                return gbClock.clockHoursL;
+            case 0xB:
+                return gbClock.clockDaysL&0xFF;
+            case 0xC:
+                return gbClock.clockControlL;
+            case 0:
+            case 1:
+            case 2:
+            case 3:
+                break;
+            default:
+                return 0;
+        }
     }
-    return 0;
+    return memory[addr>>12][addr&0xfff];
 }
 
+// readIO currently not used
+/*
 #ifdef DS
 u8 readIO(u8 ioReg) ITCM_CODE;
 #endif
+*/
 
 u8 readIO(u8 ioReg)
 {
@@ -499,6 +451,12 @@ void writeIO(u8 ioReg, u8 val)
 {
     switch (ioReg)
     {
+        case 0x00:
+            if (val & 0x20)
+                ioRam[0x00] = (val & 0xF0) | ((buttonsPressed & 0xF0)>>4);
+            else
+                ioRam[0x00] = (val & 0xF0) | (buttonsPressed & 0xF);
+            return;
         case 0x02:
             {
                 int old = ioRam[0x02];
@@ -581,10 +539,17 @@ void writeIO(u8 ioReg, u8 val)
         case 0x49:
         case 0x4A:
         case 0x4B:
-        case 0x68:
         case 0x69:
         case 0x6B:
             handleVideoRegister(ioReg, val);
+            return;
+        case 0x68:
+            ioRam[0x68] = val;
+            ioRam[0x69] = bgPaletteData[val&0x3F];
+            return;
+        case 0x6A:
+            ioRam[0x6A] = val;
+            ioRam[0x6B] = sprPaletteData[val&0x3F];
             return;
         case 0x4D:
             ioRam[0x4D] &= ~1;

@@ -741,9 +741,6 @@ void handleVideoRegister(u8 ioReg, u8 val) {
                 spritePaletteModified[1] = true;
             }
             return;
-        case 0x68:				// BG Palette Index (GBC only)
-            ioRam[0x68] = val;
-            return;
         case 0x69:				// BG Palette Data (GBC only)
             {
                 int index = ioRam[0x68] & 0x3F;
@@ -753,6 +750,7 @@ void handleVideoRegister(u8 ioReg, u8 val) {
 
                 if (ioRam[0x68] & 0x80)
                     ioRam[0x68]++;
+                ioRam[0x69] = bgPaletteData[ioRam[0x68]&0x3F];
                 return;
             }
         case 0x6B:				// Sprite Palette Data (GBC only)
@@ -764,6 +762,7 @@ void handleVideoRegister(u8 ioReg, u8 val) {
 
                 if (ioRam[0x6A] & 0x80)
                     ioRam[0x6A]++;
+                ioRam[0x6B] = sprPaletteData[ioRam[0x6A]&0x3F];
                 return;
             }
         default:

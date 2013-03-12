@@ -30,6 +30,9 @@
 inline u8 quickRead(u16 addr) {
     return memory[addr>>12][addr&0xFFF];
 }
+inline u8 quickReadIO(u8 addr) {
+    return ioRam[addr];
+}
 inline u16 quickRead16(u16 addr) {
     return quickRead(addr)|(quickRead(addr+1)<<8);
 }
@@ -191,8 +194,8 @@ void handleInterrupts()
     {
         halt = 0;
         if (ime) {
-            writeMemory(--gbRegs.sp.w, gbRegs.pc.b.h);
-            writeMemory(--gbRegs.sp.w, gbRegs.pc.b.l);
+            quickWrite(--gbRegs.sp.w, gbRegs.pc.b.h);
+            quickWrite(--gbRegs.sp.w, gbRegs.pc.b.l);
             gbRegs.pc.w = 0x40;
             ioRam[0x0F] &= ~VBLANK;
             ime = 0;
@@ -202,8 +205,8 @@ void handleInterrupts()
     {
         halt = 0;
         if (ime) {
-            writeMemory(--gbRegs.sp.w, gbRegs.pc.b.h);
-            writeMemory(--gbRegs.sp.w, gbRegs.pc.b.l);
+            quickWrite(--gbRegs.sp.w, gbRegs.pc.b.h);
+            quickWrite(--gbRegs.sp.w, gbRegs.pc.b.l);
             gbRegs.pc.w = 0x48;
             ioRam[0x0F] &= ~LCD;
             ime = 0;
@@ -213,8 +216,8 @@ void handleInterrupts()
     {
         halt = 0;
         if (ime) {
-            writeMemory(--gbRegs.sp.w, gbRegs.pc.b.h);
-            writeMemory(--gbRegs.sp.w, gbRegs.pc.b.l);
+            quickWrite(--gbRegs.sp.w, gbRegs.pc.b.h);
+            quickWrite(--gbRegs.sp.w, gbRegs.pc.b.l);
             gbRegs.pc.w = 0x50;
             ioRam[0x0F] &= ~TIMER;
             ime = 0;
@@ -224,8 +227,8 @@ void handleInterrupts()
     {
         halt = 0;
         if (ime) {
-            writeMemory(--gbRegs.sp.w, gbRegs.pc.b.h);
-            writeMemory(--gbRegs.sp.w, gbRegs.pc.b.l);
+            quickWrite(--gbRegs.sp.w, gbRegs.pc.b.h);
+            quickWrite(--gbRegs.sp.w, gbRegs.pc.b.l);
             gbRegs.pc.w = 0x58;
             ioRam[0x0F] &= ~SERIAL;
             ime = 0;
@@ -235,8 +238,8 @@ void handleInterrupts()
     {
         halt = 0;
         if (ime) {
-            writeMemory(--gbRegs.sp.w, gbRegs.pc.b.h);
-            writeMemory(--gbRegs.sp.w, gbRegs.pc.b.l);
+            quickWrite(--gbRegs.sp.w, gbRegs.pc.b.h);
+            quickWrite(--gbRegs.sp.w, gbRegs.pc.b.l);
             gbRegs.pc.w = 0x60;
             ioRam[0x0F] &= ~JOYPAD;
             ime = 0;
@@ -413,7 +416,7 @@ int runOpcode(int cycles) {
                 locPC += 2;
                 break;
             case 0xF2:		// LD A, (C)	8
-                locA = readIO(gbRegs.bc.b.l);
+                locA = quickReadIO(gbRegs.bc.b.l);
                 break;
             case 0xE2:		// LD (C), A	8
                 writeIO(gbRegs.bc.b.l, locA);
@@ -434,7 +437,7 @@ int runOpcode(int cycles) {
                 writeIO(quickRead(locPC++), locA);
                 break;
             case 0xF0:		// LDH A, (n)   12
-                locA = readIO(quickRead(locPC++));
+                locA = quickReadIO(quickRead(locPC++));
                 break;
 
                 // 16-bit loads
