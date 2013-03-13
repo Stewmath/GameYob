@@ -281,6 +281,11 @@ void handleSoundRegister(u8 ioReg, u8 val)
 {
     if (soundDisabled)
         return;
+    // If sound is globally disabled via shutting down the APU,
+    if (!(ioRam[0x26] & 0x80)
+        // ignore register writes to between FF10 and FF25 inclusive.
+     && ioReg >= 0x10 && ioReg <= 0x25)
+            return;
     switch (ioReg)
     {
         // CHANNEL 1
@@ -556,6 +561,8 @@ void handleSoundRegister(u8 ioReg, u8 val)
                 clearChan2();
                 clearChan3();
                 clearChan4();
+                for (int reg = 0x10; reg <= 0x25; reg++)
+                    ioRam[reg] = 0;
                 for (int i=0; i<4; i++)
                     setSoundVolume(i);
             }
