@@ -316,7 +316,7 @@ void enableScreen() {
     videoBgEnable(1);
     videoBgEnable(2);
     videoBgEnable(3);
-    REG_DISPCNT |= DISPLAY_SPR_ACTIVE | DISPLAY_WIN0_ON;
+    REG_DISPCNT |= DISPLAY_SPR_ACTIVE;
     if (!hblankDisabled) {
         irqEnable(IRQ_HBLANK);
     }
