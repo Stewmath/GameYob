@@ -254,20 +254,59 @@ u8 readIO(u8 ioReg)
             else
                 return (ioRam[0x00] & 0xF0) | (buttonsPressed & 0xF);
             break;
-        case 0x26:
-            return ioRam[ioReg];
-            break;
+        case 0x10: // NR10, sweep register 1, bit 7 set on read
+            return ioRam[ioReg] | 0x80;
+        case 0x11: // NR11, sound length/pattern duty 1, bits 5-0 set on read
+            return ioRam[ioReg] | 0x3F;
+        case 0x13: // NR13, sound frequency low byte 1, all bits set on read
+            return 0xFF;
+        case 0x14: // NR14, sound frequency high byte 1, bits 7,5-0 set on read
+            return ioRam[ioReg] | 0xBF;
+        case 0x15: // No register, all bits set on read
+            return 0xFF;
+        case 0x16: // NR21, sound length/pattern duty 2, bits 5-0 set on read
+            return ioRam[ioReg] | 0x3F;
+        case 0x18: // NR23, sound frequency low byte 2, all bits set on read
+            return 0xFF;
+        case 0x19: // NR24, sound frequency high byte 2, bits 7,5-0 set on read
+            return ioRam[ioReg] | 0xBF;
+        case 0x1A: // NR30, sound mode 3, bits 6-0 set on read
+            return ioRam[ioReg] | 0x7F;
+        case 0x1B: // NR31, sound length 3, all bits set on read
+            return 0xFF;
+        case 0x1C: // NR32, sound output level 3, bits 7,4-0 set on read
+            return ioRam[ioReg] | 0x9F;
+        case 0x1D: // NR33, sound frequency low byte 2, all bits set on read
+            return 0xFF;
+        case 0x1E: // NR34, sound frequency high byte 2, bits 7,5-0 set on read
+            return ioRam[ioReg] | 0xBF;
+        case 0x1F: // No register, all bits set on read
+            return 0xFF;
+        case 0x20: // NR41, sound mode/length 4, all bits set on read
+            return 0xFF;
+        case 0x23: // NR44, sound counter/consecutive, bits 7,5-0 set on read
+            return ioRam[ioReg] | 0xBF;
+        case 0x26: // NR52, global sound status, bits 6-4 set on read
+            return ioRam[ioReg] | 0x70;
+        case 0x27: // No register, all bits set on read
+        case 0x28:
+        case 0x29:
+        case 0x2A:
+        case 0x2B:
+        case 0x2C:
+        case 0x2D:
+        case 0x2E:
+        case 0x2F:
+            return 0xFF;
         case 0x69:
             {
                 int index = ioRam[0x68] & 0x3F;
                 return bgPaletteData[index];
-                break;
             }
         case 0x6B:
             {
                 int index = ioRam[0x6A] & 0x3F;
                 return sprPaletteData[index];
-                break;
             }
         case 0x6C:
         case 0x72:
@@ -277,9 +316,8 @@ u8 readIO(u8 ioReg)
         case 0x76:
         case 0x77:
             return ioRam[ioReg];
-            break;
         default:
-            return hram[0x100 + ioReg];
+            return ioRam[ioReg];
     }
 }
 
