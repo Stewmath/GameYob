@@ -417,7 +417,7 @@ void drawScreen()
     DC_FlushRange(overlayMapBuf[0], 0x400*2);
     DC_FlushRange(overlayMapBuf[1], 0x400*2);
 
-    swiIntrWait(interruptWaitMode, IRQ_VCOUNT);
+    swiIntrWait(interruptWaitMode, IRQ_VBLANK);
 
     dmaCopy(mapBuf[0], map[0], 0x400*2);
     dmaCopy(mapBuf[1], map[1], 0x400*2);

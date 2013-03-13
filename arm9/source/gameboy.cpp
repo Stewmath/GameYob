@@ -170,7 +170,7 @@ void updateLCD(int cycles)
         // ds should check for input and whatnot.
         phaseCounter -= cycles;
         if (phaseCounter <= 0) {
-            swiIntrWait(interruptWaitMode, IRQ_VCOUNT);
+            swiIntrWait(interruptWaitMode, IRQ_VBLANK);
             updateInput();
             fps++;
             phaseCounter += 456*153*(doubleSpeed?2:1);
