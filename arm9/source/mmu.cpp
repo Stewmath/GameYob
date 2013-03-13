@@ -497,8 +497,14 @@ void writeIO(u8 ioReg, u8 val)
             return;
         case 0x02:
             {
-                int old = ioRam[0x02];
                 ioRam[0x02] = val;
+                if (!nifiEnabled) {
+                    if (val & 1) {
+                        packetData = 0xff;
+                        transferReady = true;
+                    }
+                    return;
+                }
                 sendData = ioRam[0x01];
                 if (val & 0x80) {
                     if (transferWaiting) {
