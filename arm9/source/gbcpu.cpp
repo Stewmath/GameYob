@@ -125,6 +125,11 @@ void initCPU()
     writeIO(0x05, 0x00);
     writeIO(0x06, 0x00);
     writeIO(0x07, 0x00);
+
+    // Ordering note: Writing a byte to FF26 with bit 7 set enables writes to
+    // the other registers. With bit 7 unset, writes are ignored.
+    writeIO(0x26, 0xf1);
+
     writeIO(0x10, 0x80);
     writeIO(0x11, 0xBF);
     writeIO(0x12, 0xF3);
@@ -142,7 +147,6 @@ void initCPU()
     writeIO(0x23, 0xbf);
     writeIO(0x24, 0x77);
     writeIO(0x25, 0xf3);
-    writeIO(0x26, 0xf1);
     writeIO(0x40, 0x91);
     writeIO(0x42, 0x00);
     writeIO(0x43, 0x00);
