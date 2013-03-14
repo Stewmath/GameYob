@@ -13,10 +13,14 @@
 #include "gameboy.h"
 #include "main.h"
 #include "console.h"
+#include "gbcpu.h"
+#include "nifi.h"
+#include "gbgfx.h"
 
 FILE* romFile=NULL;
 char filename[100];
 char savename[100];
+char basename[100];
 char romTitle[20];
 // Values taken from the cartridge header
 u8 ramSize;
@@ -351,6 +355,8 @@ end:
     return retval;
 }
 
+// END of file chooser functions
+
 int loadProgram(char* f)
 {
     if (romFile != NULL)
@@ -388,8 +394,9 @@ int loadProgram(char* f)
             lastBanksUsed.push_back(i);
     }
 
-    strcpy(savename, filename);
-    *(strrchr(savename, '.')) = '\0';
+    strcpy(basename, filename);
+    *(strrchr(basename, '.')) = '\0';
+    strcpy(savename, basename);
     strcat(savename, ".sav");
 
     cgbFlag = rom[0][0x143];
@@ -532,7 +539,7 @@ int saveGame()
     }
     else
     {
-        fprintf(stderr, "Error saving to file.\n");
+        printLog("There was an error while saving.\n");
         return 1;
     }
     return 0;
@@ -684,4 +691,93 @@ int handleEvents()
     }
 
     return 0;
+}
+
+struct StateStruct {
+    int stateVersion;
+    Registers regs;
+    int halt, ime;
+    bool doubleSpeed, biosOn;
+    int gbMode;
+    int romBank, ramBank, wramBank, vramBank;
+    int memoryModel;
+    clockStruct clock;
+    bool screenOn;
+    int scanlineCounter, timerCounter, phaseCounter, dividerCounter;
+    // vram
+    // wram
+    // hram
+    // sram
+};
+
+void saveState(int num) {
+    StateStruct state;
+
+    state.stateVersion = 0;
+    state.regs = gbRegs;
+    state.halt = halt;
+    state.ime = ime;
+    state.doubleSpeed = doubleSpeed;
+    state.biosOn = biosOn;
+    state.gbMode = gbMode;
+    state.romBank = currentRomBank;
+    state.ramBank = currentRamBank;
+    state.wramBank = wramBank;
+    state.vramBank = vramBank;
+    state.memoryModel = memoryModel;
+    state.clock = gbClock;
+    state.screenOn = screenOn;
+    state.scanlineCounter = scanlineCounter;
+    state.timerCounter = timerCounter;
+    state.phaseCounter = phaseCounter;
+    state.dividerCounter = dividerCounter;
+
+    char statename[100];
+    sprintf(statename, "%s.ys%d", basename, num);
+    FILE* outFile = fopen(statename, "w");
+    fwrite((char*)&state, 1, sizeof(StateStruct), outFile);
+    fwrite((char*)vram, 1, sizeof(vram), outFile);
+    fwrite((char*)wram, 1, sizeof(wram), outFile);
+    fwrite((char*)hram, 1, sizeof(hram), outFile);
+    fwrite((char*)externRam, 1, sizeof(externRam), outFile);
+    fclose(outFile);
+}
+
+void loadState(int num) {
+    StateStruct state;
+    char statename[100];
+    sprintf(statename, "%s.ys%d", basename, num);
+    FILE* inFile = fopen(statename, "r");
+
+    fread((char*)&state, 1, sizeof(StateStruct), inFile);
+    fread((char*)vram, 1, sizeof(vram), inFile);
+    fread((char*)wram, 1, sizeof(wram), inFile);
+    fread((char*)hram, 1, sizeof(hram), inFile);
+    fread((char*)externRam, 1, sizeof(externRam), inFile);
+    fclose(inFile);
+
+    gbRegs = state.regs;
+    halt = state.halt;
+    ime = state.ime;
+    doubleSpeed = state.doubleSpeed;
+    biosOn = state.biosOn;
+    gbMode = state.gbMode;
+    currentRomBank = state.romBank;
+    currentRamBank = state.ramBank;
+    wramBank = state.wramBank;
+    vramBank = state.vramBank;
+    memoryModel = state.memoryModel;
+    gbClock = state.clock;
+    screenOn = state.screenOn;
+    scanlineCounter = state.scanlineCounter;
+    timerCounter = state.timerCounter;
+    phaseCounter = state.phaseCounter;
+    dividerCounter = state.dividerCounter;
+
+    transferReady = false;
+    timerPeriod = periods[ioRam[0x07]&0x3];
+
+    printLog("%x\n", sizeof(vram));
+
+    refreshGFX();
 }

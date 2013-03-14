@@ -88,7 +88,12 @@ void initMMU()
     currentRamBank = 0;
     memoryModel = 0;
 
-    if (biosEnabled)
+    biosOn = biosEnabled;
+    mapMemory();
+}
+
+void mapMemory() {
+    if (biosOn)
         memory[0x0] = bios;
     else
         memory[0x0] = rom[0];

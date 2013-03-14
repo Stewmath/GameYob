@@ -12,6 +12,12 @@ bool consoleDebugOutput = false;
 bool quitConsole = false;
 bool consoleOn = false;
 int displayConsoleRetval=0;
+int menu=0;
+int option = -1;
+char printMessage[33];
+
+
+int stateNum=0;
 
 extern int interruptWaitMode;
 extern bool advanceFrame;
@@ -80,6 +86,20 @@ void nifiEnableFunc(int value) {
         enableNifi();
     else
         disableNifi();
+}
+
+void stateSelectFunc(int value) {
+    stateNum = value;
+}
+void stateLoadFunc(int value) {
+    printConsoleMessage("Loading state...");
+    loadState(stateNum);
+    printConsoleMessage("State loaded.");
+}
+void stateSaveFunc(int value) {
+    printConsoleMessage("Saving state...");
+    saveState(stateNum);
+    printConsoleMessage("State saved.");
 }
 void resetFunc(int value) {
     initializeGameboy();
@@ -161,12 +181,12 @@ struct ConsoleSubMenu {
 ConsoleSubMenu menuList[] = { 
     {
         "Options",
-        8,
-        {0,2,2,4,2,2,0,0},
-        {"Load ROM", "Game Screen", "A & B Buttons", "Console Output", "GBC Bios", "NiFi", "Reset", "Return to game"},
-        {{},{"Top","Bottom"},{"A/B", "B/Y"},{"Off","FPS","FPS+Time","Debug"},{"Off","On"},{"Off","On"},{},{}},
-        {selectRomFunc, setScreenFunc, buttonModeFunc, consoleOutputFunc, biosEnableFunc, nifiEnableFunc, resetFunc, returnFunc},
-        {0,0,0,2,1,0,0,0}
+        9,
+        {0,         2,              2,              4,                              2,              2,              0,       0,              0},
+        {"Load ROM", "Game Screen", "A & B Buttons", "Console Output",              "GBC Bios",     "NiFi",         "Reset", "Save State", "Load State"},
+        {{},        {"Top","Bottom"},{"A/B", "B/Y"},{"Off","FPS","FPS+Time","Debug"},{"Off","On"},  {"Off","On"},   {},      {},             {}},
+        {selectRomFunc, setScreenFunc, buttonModeFunc, consoleOutputFunc,           biosEnableFunc, nifiEnableFunc, resetFunc, stateSaveFunc,stateLoadFunc},
+        {0,             0,             0,               2,                          1,              0,              0,          0,          0}
     },
     {
         "Debug",
@@ -200,6 +220,20 @@ void initConsole() {
     }
 }
 
+// Message will be printed immediately, but also stored in case it's overwritten 
+// right away.
+void printConsoleMessage(char* s) {
+    strncpy(printMessage, s, 33);
+
+    int newlines = 23-(menuList[menu].numOptions*2+2)-1;
+    for (int i=0; i<newlines; i++)
+        printf("\n");
+    int spaces = 31-strlen(printMessage);
+    for (int i=0; i<spaces; i++)
+        printf(" ");
+    printf("%s\n", printMessage);
+}
+
 void enterConsole() {
     if (!consoleOn)
         advanceFrame = true;
@@ -212,9 +246,6 @@ bool isConsoleEnabled() {
 }
 
 int displayConsole() {
-    static int menu=0;
-    static int option = -1;
-
     advanceFrame = 0;
     displayConsoleRetval=0;
     consoleOn = true;
@@ -260,6 +291,18 @@ int displayConsole() {
                     printf(" *");
                 printf("\n\n");
             }
+        }
+
+        if (printMessage[0] != '\0') {
+            int newlines = 23-(menuList[menu].numOptions*2+2)-1;
+            for (int i=0; i<newlines; i++)
+                printf("\n");
+            int spaces = 31-strlen(printMessage);
+            for (int i=0; i<spaces; i++)
+                printf(" ");
+            printf("%s\n", printMessage);
+
+            printMessage[0] = '\0';
         }
 
         // get input

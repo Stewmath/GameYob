@@ -54,7 +54,6 @@ int gbMode;
 // IMPORTANT: This variable is unchanging, it DOES NOT change in double speed mode!
 const int clockSpeed = 4194304;
 
-extern int halt;
 int ime;
 
 u8 opCycles[0x100]
@@ -163,7 +162,6 @@ void initCPU()
     // writeIO shouldn't interfere in this case
     ioRam[0x4d] = 0;
 
-    biosOn = biosEnabled;
     if (biosOn)
     {
         gbRegs.pc.w = 0;

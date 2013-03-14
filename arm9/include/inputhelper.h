@@ -15,7 +15,6 @@
 
 extern u8 buttonsPressed;
 extern char filename[100];
-extern int quit;
 
 extern int GB_KEY_A;
 extern int GB_KEY_B;
@@ -40,3 +39,6 @@ int handleEvents();
 
 void enableTurbo();
 void disableTurbo();
+
+void saveState(int num);
+void loadState(int num);

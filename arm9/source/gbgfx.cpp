@@ -208,8 +208,6 @@ void vblankHandler()
 
 void initGFX()
 {
-    tileSize = 8;
-
     vramSetBankA(VRAM_A_MAIN_BG);
     vramSetBankB(VRAM_B_MAIN_BG);
     vramSetBankE(VRAM_E_MAIN_SPRITE);
@@ -239,8 +237,7 @@ void initGFX()
     // Off map palette
     BG_PALETTE[8*16+1] = RGB8(255,255,255);
 
-    int i=0;
-    for (i=40; i<128; i++)
+    for (int i=40; i<128; i++)
         sprites[i].attr0 = ATTR0_DISABLED;
 
     colors[0] = 255;
@@ -296,11 +293,26 @@ void initGFX()
     irqSet(IRQ_VBLANK, &vblankHandler);
     irqSet(IRQ_HBLANK, &hblankHandler);
 
-    for (i=0; i<0x180; i++)
-    {
+    refreshGFX();
+}
+
+void refreshGFX() {
+    for (int i=0; i<0x180; i++) {
         drawTile(i, 0);
         drawTile(i, 1);
     }
+    for (int i=0; i<0x400; i++) {
+        updateTileMap(0, i, vram[0][0x1800+i]);
+        updateTileMap(1, i, vram[0][0x1c00+i]);
+    }
+    for (int i=0; i<8; i++) {
+        bgPaletteModified[i] = true;
+        spritePaletteModified[i] = true;
+    }
+    if (screenOn)
+        enableScreen();
+    else
+        disableScreen();
 }
 
 void disableScreen() {
@@ -323,6 +335,7 @@ void enableScreen() {
     irqSet(IRQ_HBLANK, hblankHandler);
 }
 
+// Possibly doing twice the work necessary in gbc games, when writing to bank 0, then bank 1.
 void updateTileMap(int m, int i, u8 val) {
     int mapAddr = (m ? 0x1c00+i : 0x1800+i);
     int tileNum = vram[0][mapAddr];

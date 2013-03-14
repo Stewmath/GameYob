@@ -1,6 +1,7 @@
 #include <stdarg.h>
 
 void initConsole();
+void printConsoleMessage(char *s);
 void enterConsole();
 void exitConsole();
 bool isConsoleEnabled();

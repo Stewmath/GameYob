@@ -5,12 +5,14 @@
 
 //#define LOG
 
+extern int scanlineCounter;
+extern int phaseCounter;
+extern int dividerCounter;
+extern int timerCounter;
 extern int timerPeriod;
 extern long periods[4];
-extern int timerCounter;
-extern volatile int serialCounter;
-extern volatile bool sentPacket;
-extern volatile bool receivedPacket;
+
+extern bool screenOn;
 
 extern int mode2Cycles;
 extern int mode3Cycles;

@@ -12,11 +12,8 @@
 #include "nifi.h"
 
 int mode2Cycles, mode3Cycles;
-int scanlineDrawn;
 int scanlineCounter;
 int doubleSpeed;
-int madeInterrupt;
-int quit;
 
 int turbo;
 int turboFrameSkip;
@@ -33,6 +30,8 @@ int dividerCounter;
 int timerCounter;
 int timerPeriod;
 long periods[4];
+
+bool screenOn = true;
 
 int cyclesToEvent;
 int maxWaitCycles;
@@ -139,10 +138,8 @@ void initLCD()
     phaseCounter = 456*153;
     timerCounter = 0;
     dividerCounter = 256;
-    madeInterrupt = 0;
     turboFrameSkip = 4;
     turbo=0;
-    quit=0;
 
     // Timer stuff
     periods[0] = clockSpeed/4096;
@@ -153,8 +150,6 @@ void initLCD()
 
     timerStop(2);
 }
-
-bool screenOn = true;
 
 void updateLCD(int cycles) ITCM_CODE;
 

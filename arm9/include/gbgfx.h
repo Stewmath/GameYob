@@ -10,6 +10,7 @@ void drawScanline(int scanline);
 void drawScreen();
 
 void initGFX();
+void refreshGFX();
 void disableScreen();
 void enableScreen();
 
