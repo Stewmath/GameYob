@@ -131,8 +131,7 @@ void initLCD()
     */
     maxWaitCycles = 400;
 
-    mode2Cycles = 456 - 80;
-    mode3Cycles = 456 - 172 - 80;
+    setDoubleSpeed(0);
 
     scanlineCounter = 456;
     phaseCounter = 456*153;
@@ -316,4 +315,19 @@ void requestInterrupt(int id)
     ioRam[0x0F] |= id;
     if (ioRam[0x0F] & ioRam[0xFF])
         cyclesToExecute = 0;
+}
+
+void setDoubleSpeed(int val) {
+    if (val == 0) {
+        mode2Cycles = 456 - 80;
+        mode3Cycles = 456 - 172 - 80;
+        doubleSpeed = 0;
+        ioRam[0x4D] &= ~0x80;
+    }
+    else {
+        mode2Cycles = (456 - 80)*2;
+        mode3Cycles = (456 - 172 - 80)*2;
+        doubleSpeed = 1;
+        ioRam[0x4D] |= 0x80;
+    }
 }

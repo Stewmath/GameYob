@@ -1317,19 +1317,11 @@ int runOpcode(int cycles) {
                 {
                     if (ioRam[0x4D] & 0x80)
                     {
-                        mode2Cycles /= 2;
-                        mode3Cycles /= 2;
-                        doubleSpeed = 0;
-                        //clockSpeed /= 2;
-                        ioRam[0x4D] &= ~0x80;
+                        setDoubleSpeed(0);
                     }
                     else
                     {
-                        mode2Cycles *= 2;
-                        mode3Cycles *= 2;
-                        doubleSpeed = 1;
-                        //clockSpeed *= 2;
-                        ioRam[0x4D] |= 0x80;
+                        setDoubleSpeed(1);
                     }
 
                     ioRam[0x4D] &= ~1;

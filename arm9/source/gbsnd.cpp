@@ -140,6 +140,12 @@ void initSND()
         soundEnable();
 }
 
+void refreshSND() {
+    for (int i=0x10; i<=0x3F; i++) {
+        handleSoundRegister(i, ioRam[i]);
+    }
+}
+
 void enableChannel(int i) {
     chanEnabled[i] = true;
 }

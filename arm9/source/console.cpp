@@ -93,8 +93,10 @@ void stateSelectFunc(int value) {
 }
 void stateLoadFunc(int value) {
     printConsoleMessage("Loading state...");
-    loadState(stateNum);
-    printConsoleMessage("State loaded.");
+    if (loadState(stateNum) == 0) {
+        printMessage[0] = '\0';
+        quitConsole = true;
+    }
 }
 void stateSaveFunc(int value) {
     printConsoleMessage("Saving state...");
@@ -172,7 +174,7 @@ struct ConsoleSubMenu {
     int numOptions;
     int numSelections[10];
     char *options[10];
-    char *optionValues[10][5];
+    char *optionValues[10][10];
     void (*optionFunctions[10])(int);
     int defaultOptionSelections[10];
     int optionSelections[10];
@@ -181,12 +183,13 @@ struct ConsoleSubMenu {
 ConsoleSubMenu menuList[] = { 
     {
         "Options",
-        9,
-        {0,         2,              2,              4,                              2,              2,              0,       0,              0},
-        {"Load ROM", "Game Screen", "A & B Buttons", "Console Output",              "GBC Bios",     "NiFi",         "Reset", "Save State", "Load State"},
-        {{},        {"Top","Bottom"},{"A/B", "B/Y"},{"Off","FPS","FPS+Time","Debug"},{"Off","On"},  {"Off","On"},   {},      {},             {}},
-        {selectRomFunc, setScreenFunc, buttonModeFunc, consoleOutputFunc,           biosEnableFunc, nifiEnableFunc, resetFunc, stateSaveFunc,stateLoadFunc},
-        {0,             0,             0,               2,                          1,              0,              0,          0,          0}
+        10,
+        {0,         2,              2,              4,                              2,              2,              10,                  0,              0,         0},
+        {"Load ROM", "Game Screen", "A & B Buttons", "Console Output",              "GBC Bios",     "NiFi",         "State Slot",      "Save State", "Load State",  "Reset"},
+        {{},        {"Top","Bottom"},{"A/B", "B/Y"},{"Off","FPS","FPS+Time","Debug"},{"Off","On"},  {"Off","On"},
+                                                                                        {"0","1","2","3","4","5","6","7","8","9"},  {},                {},          {}},
+        {selectRomFunc, setScreenFunc, buttonModeFunc, consoleOutputFunc,           biosEnableFunc, nifiEnableFunc, stateSelectFunc, stateSaveFunc,stateLoadFunc,   resetFunc},
+        {0,             0,             0,               2,                          1,              0,              0,              0,              0,              0}
     },
     {
         "Debug",

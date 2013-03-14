@@ -41,4 +41,4 @@ void enableTurbo();
 void disableTurbo();
 
 void saveState(int num);
-void loadState(int num);
+int loadState(int num);

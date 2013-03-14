@@ -18,7 +18,7 @@ extern int mode2Cycles;
 extern int mode3Cycles;
 
 extern int doubleSpeed;
-extern int cycles;
+extern int cyclesToEvent;
 
 extern bool screenOn;
 
@@ -27,9 +27,9 @@ extern bool fpsOutput;
 extern bool timeOutput;
 
 void runEmul();
-int haltWait(int cycles);
 void initLCD();
 void updateLCD(int cycles);
 void updateTimers(int cycles);
 void handleInterrupts();
 void requestInterrupt(int id);
+void setDoubleSpeed(int val);

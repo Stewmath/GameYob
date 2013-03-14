@@ -93,6 +93,8 @@ void initMMU()
 }
 
 void mapMemory() {
+    loadRomBank();
+
     if (biosOn)
         memory[0x0] = bios;
     else

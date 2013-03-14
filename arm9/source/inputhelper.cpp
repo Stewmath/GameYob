@@ -16,6 +16,7 @@
 #include "gbcpu.h"
 #include "nifi.h"
 #include "gbgfx.h"
+#include "gbsnd.h"
 
 FILE* romFile=NULL;
 char filename[100];
@@ -693,8 +694,9 @@ int handleEvents()
     return 0;
 }
 
+#define STATE_VERSION 0
 struct StateStruct {
-    int stateVersion;
+    int version;
     Registers regs;
     int halt, ime;
     bool doubleSpeed, biosOn;
@@ -704,6 +706,7 @@ struct StateStruct {
     clockStruct clock;
     bool screenOn;
     int scanlineCounter, timerCounter, phaseCounter, dividerCounter;
+    // bg/sprite PaletteData
     // vram
     // wram
     // hram
@@ -713,7 +716,7 @@ struct StateStruct {
 void saveState(int num) {
     StateStruct state;
 
-    state.stateVersion = 0;
+    state.version = STATE_VERSION;
     state.regs = gbRegs;
     state.halt = halt;
     state.ime = ime;
@@ -735,25 +738,52 @@ void saveState(int num) {
     char statename[100];
     sprintf(statename, "%s.ys%d", basename, num);
     FILE* outFile = fopen(statename, "w");
+
+    if (outFile == 0) {
+        printConsoleMessage("Error opening file for writing.");
+        return;
+    }
+
     fwrite((char*)&state, 1, sizeof(StateStruct), outFile);
+    fwrite((char*)bgPaletteData, 1, sizeof(bgPaletteData), outFile);
+    fwrite((char*)sprPaletteData, 1, sizeof(sprPaletteData), outFile);
     fwrite((char*)vram, 1, sizeof(vram), outFile);
     fwrite((char*)wram, 1, sizeof(wram), outFile);
     fwrite((char*)hram, 1, sizeof(hram), outFile);
-    fwrite((char*)externRam, 1, sizeof(externRam), outFile);
+    for (int i=0; i<numRamBanks; i++)
+        fwrite((char*)externRam[i], 1, 0x2000, outFile);
     fclose(outFile);
 }
 
-void loadState(int num) {
+int loadState(int num) {
     StateStruct state;
     char statename[100];
     sprintf(statename, "%s.ys%d", basename, num);
     FILE* inFile = fopen(statename, "r");
 
+    if (inFile == 0) {
+        printConsoleMessage("Error opening state file.");
+        return 1;
+    }
+
     fread((char*)&state, 1, sizeof(StateStruct), inFile);
+
+    if (state.version > STATE_VERSION) {
+        printConsoleMessage("State is from a newer GameYob.");
+        return 1;
+    }
+    else if (state.version < STATE_VERSION) {
+        printConsoleMessage("State is from an older GameYob.");
+        return 1;
+    }
+
+    fread((char*)bgPaletteData, 1, sizeof(bgPaletteData), inFile);
+    fread((char*)sprPaletteData, 1, sizeof(sprPaletteData), inFile);
     fread((char*)vram, 1, sizeof(vram), inFile);
     fread((char*)wram, 1, sizeof(wram), inFile);
     fread((char*)hram, 1, sizeof(hram), inFile);
-    fread((char*)externRam, 1, sizeof(externRam), inFile);
+    for (int i=0; i<numRamBanks; i++)
+        fread((char*)externRam[i], 1, 0x2000, inFile);
     fclose(inFile);
 
     gbRegs = state.regs;
@@ -761,6 +791,8 @@ void loadState(int num) {
     ime = state.ime;
     doubleSpeed = state.doubleSpeed;
     biosOn = state.biosOn;
+    if (!biosExists)
+        biosOn = false;
     gbMode = state.gbMode;
     currentRomBank = state.romBank;
     currentRamBank = state.ramBank;
@@ -776,8 +808,12 @@ void loadState(int num) {
 
     transferReady = false;
     timerPeriod = periods[ioRam[0x07]&0x3];
+    cyclesToEvent = 1;
 
-    printLog("%x\n", sizeof(vram));
-
+    mapMemory();
     refreshGFX();
+    refreshSND();
+    setDoubleSpeed(doubleSpeed);
+
+    return 0;
 }
