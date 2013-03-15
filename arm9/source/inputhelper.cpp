@@ -694,9 +694,15 @@ int handleEvents()
     return 0;
 }
 
-#define STATE_VERSION 0
+const int STATE_VERSION = 1;
+
 struct StateStruct {
-    int version;
+    // version
+    // bg/sprite PaletteData
+    // vram
+    // wram
+    // hram
+    // sram
     Registers regs;
     int halt, ime;
     bool doubleSpeed, biosOn;
@@ -704,19 +710,21 @@ struct StateStruct {
     int romBank, ramBank, wramBank, vramBank;
     int memoryModel;
     clockStruct clock;
-    bool screenOn;
     int scanlineCounter, timerCounter, phaseCounter, dividerCounter;
-    // bg/sprite PaletteData
-    // vram
-    // wram
-    // hram
-    // sram
 };
 
 void saveState(int num) {
     StateStruct state;
 
-    state.version = STATE_VERSION;
+    char statename[100];
+    sprintf(statename, "%s.ys%d", basename, num);
+    FILE* outFile = fopen(statename, "w");
+
+    if (outFile == 0) {
+        printConsoleMessage("Error opening file for writing.");
+        return;
+    }
+
     state.regs = gbRegs;
     state.halt = halt;
     state.ime = ime;
@@ -729,22 +737,12 @@ void saveState(int num) {
     state.vramBank = vramBank;
     state.memoryModel = memoryModel;
     state.clock = gbClock;
-    state.screenOn = screenOn;
     state.scanlineCounter = scanlineCounter;
     state.timerCounter = timerCounter;
     state.phaseCounter = phaseCounter;
     state.dividerCounter = dividerCounter;
 
-    char statename[100];
-    sprintf(statename, "%s.ys%d", basename, num);
-    FILE* outFile = fopen(statename, "w");
-
-    if (outFile == 0) {
-        printConsoleMessage("Error opening file for writing.");
-        return;
-    }
-
-    fwrite((char*)&state, 1, sizeof(StateStruct), outFile);
+    fwrite(&STATE_VERSION, sizeof(int), 1, outFile);
     fwrite((char*)bgPaletteData, 1, sizeof(bgPaletteData), outFile);
     fwrite((char*)sprPaletteData, 1, sizeof(sprPaletteData), outFile);
     fwrite((char*)vram, 1, sizeof(vram), outFile);
@@ -752,6 +750,8 @@ void saveState(int num) {
     fwrite((char*)hram, 1, sizeof(hram), outFile);
     for (int i=0; i<numRamBanks; i++)
         fwrite((char*)externRam[i], 1, 0x2000, outFile);
+    fwrite((char*)&state, 1, sizeof(StateStruct), outFile);
+
     fclose(outFile);
 }
 
@@ -766,14 +766,17 @@ int loadState(int num) {
         return 1;
     }
 
-    fread((char*)&state, 1, sizeof(StateStruct), inFile);
+    int version;
+    fread(&version, sizeof(int), 1, inFile);
 
+    /*
     if (state.version > STATE_VERSION) {
         printConsoleMessage("State is from a newer GameYob.");
         return 1;
     }
-    else if (state.version < STATE_VERSION) {
-        printConsoleMessage("State is from an older GameYob.");
+    */
+    if (version == 0) {
+        printConsoleMessage("State is incompatible.");
         return 1;
     }
 
@@ -784,6 +787,7 @@ int loadState(int num) {
     fread((char*)hram, 1, sizeof(hram), inFile);
     for (int i=0; i<numRamBanks; i++)
         fread((char*)externRam[i], 1, 0x2000, inFile);
+    fread((char*)&state, 1, sizeof(StateStruct), inFile);
     fclose(inFile);
 
     gbRegs = state.regs;
@@ -800,11 +804,12 @@ int loadState(int num) {
     vramBank = state.vramBank;
     memoryModel = state.memoryModel;
     gbClock = state.clock;
-    screenOn = state.screenOn;
     scanlineCounter = state.scanlineCounter;
     timerCounter = state.timerCounter;
     phaseCounter = state.phaseCounter;
     dividerCounter = state.dividerCounter;
+
+    screenOn = ioRam[0x40] & 0x80;
 
     transferReady = false;
     timerPeriod = periods[ioRam[0x07]&0x3];

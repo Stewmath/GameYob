@@ -9,6 +9,7 @@ extern int scanlineCounter;
 extern int phaseCounter;
 extern int dividerCounter;
 extern int timerCounter;
+extern int serialCounter;
 extern int timerPeriod;
 extern long periods[4];
 
