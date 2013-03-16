@@ -231,7 +231,7 @@ void initConsole() {
         for (int j=0; j<menuList[i].numOptions; j++) {
             menuList[i].optionSelections[j] = menuList[i].defaultOptionSelections[j];
             // check "Wait for VBlank" which for some reason causes issues on dsi's.
-            if (__dsimode && i == 1 && j == 0)
+            if (__dsimode && i == 2 && j == 0)
                 menuList[i].optionSelections[j] = 1;
             if (menuList[i].numSelections[j] != 0) {
                 menuList[i].optionFunctions[j](menuList[i].defaultOptionSelections[j]);
