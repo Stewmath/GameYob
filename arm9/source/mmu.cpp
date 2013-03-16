@@ -88,6 +88,8 @@ void initMMU()
     currentRamBank = 0;
     memoryModel = 0;
 
+    if (!biosExists)
+        biosEnabled = false;
     biosOn = biosEnabled;
     mapMemory();
 }

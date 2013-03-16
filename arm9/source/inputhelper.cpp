@@ -358,6 +358,31 @@ end:
 
 // END of file chooser functions
 
+void readConfigFile() {
+    FILE* file = fopen("/gameyob.ini", "r");
+    if (file == NULL)
+        return;
+    char option[50], value[50];
+    while (true) {
+        int stringsRead = fscanf(file, "%49[^=]=%49[^\n]\n", option, value);
+        if (stringsRead == 1) {
+        }
+        else if (stringsRead == 2) {
+            consoleParseConfig(option, value);
+        }
+        else
+            break;
+    }
+    fclose(file);
+}
+
+void writeConfigFile() {
+    FILE* file = fopen("/gameyob.ini", "w");
+    fprintf(file, "[console]\n");
+    consolePrintConfig(file);
+    fclose(file);
+}
+
 int loadProgram(char* f)
 {
     if (romFile != NULL)
@@ -424,7 +449,7 @@ int loadProgram(char* f)
     else if (mapperNumber >= 0x19 && mapperNumber <= 0x1E)
         MBC = 5;
     else {
-        printLog("Unknown MBC: %x\nDefaulting to MBC5\n", mapperNumber);
+        printLog("Unknown MBC: %.2x\nDefaulting to MBC5\n", mapperNumber);
         MBC = 5;
     }
 
@@ -439,6 +464,8 @@ int loadProgram(char* f)
     return 0;
 }
 
+// POTENTIAL CAVEAT: This may not work for MBC5 games which load bank 0 into 
+// 4000-7FFF.
 void loadRomBank() {
     if (numRomBanks <= MAX_LOADED_ROM_BANKS || bankSlotIDs[currentRomBank] != -1)
         return;

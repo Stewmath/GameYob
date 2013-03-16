@@ -59,6 +59,7 @@ int main(int argc, char* argv[])
 
     initConsole();
     initInput();
+    readConfigFile();
 
     fifoSetValue32Handler(FIFO_USER_02, fifoValue32Handler, NULL);
 
@@ -76,10 +77,8 @@ int main(int argc, char* argv[])
     FILE* file;
     file = fopen("gbc_bios.bin", "rb");
     biosExists = file != NULL;
-    if (biosExists) {
+    if (biosExists)
         fread(bios, 1, 0x900, file);
-        biosEnabled = true;
-    }
     else
         biosEnabled = false;
 

@@ -29,7 +29,9 @@ extern int halt;
 extern bool __dsimode;
 
 void selectRomFunc(int value) {
+    printConsoleMessage("Saving SRAM...");
     saveGame();
+    printMessage[0] = '\0';
     char* filename = startFileChooser();
     loadProgram(filename);
     free(filename);
@@ -77,10 +79,7 @@ void consoleOutputFunc(int value) {
 }
 
 void biosEnableFunc(int value) {
-    if (biosExists)
-        biosEnabled = value;
-    else
-        biosEnabled = 0;
+    biosEnabled = value;
 }
 
 void nifiEnableFunc(int value) {
@@ -88,6 +87,11 @@ void nifiEnableFunc(int value) {
         enableNifi();
     else
         disableNifi();
+}
+
+void saveSettingsFunc(int value) {
+    writeConfigFile();
+    printConsoleMessage("Settings saved.");
 }
 
 void stateSelectFunc(int value) {
@@ -185,13 +189,21 @@ struct ConsoleSubMenu {
 ConsoleSubMenu menuList[] = { 
     {
         "Options",
-        10,
-        {0,         2,              2,              4,                              2,              2,              10,                  0,              0,         0},
-        {"Load ROM", "Game Screen", "A & B Buttons", "Console Output",              "GBC Bios",     "NiFi",         "State Slot",      "Save State", "Load State",  "Reset"},
-        {{},        {"Top","Bottom"},{"A/B", "B/Y"},{"Off","Time","FPS+Time","Debug"},{"Off","On"}, {"Off","On"},
-                                                                                        {"0","1","2","3","4","5","6","7","8","9"},  {},                {},          {}},
-        {selectRomFunc, setScreenFunc, buttonModeFunc, consoleOutputFunc,           biosEnableFunc, nifiEnableFunc, stateSelectFunc, stateSaveFunc,stateLoadFunc,   resetFunc},
-        {0,             0,             0,               2,                          1,              0,              0,              0,              0,              0}
+        5,
+        {0,         10,                                         0,              0,              0},
+        {"Load ROM","State Slot",                               "Save State",   "Load State",   "Reset"},
+        {{},        {"0","1","2","3","4","5","6","7","8","9"},  {},             {},             {}},
+        {selectRomFunc,stateSelectFunc,                         stateSaveFunc,  stateLoadFunc,   resetFunc},
+        {0,             0,                                      0,              0,              0}
+    },
+    {
+        "Settings",
+        6,
+        {2,              2,              4,                                 2,              2,              0},
+        {"Game Screen", "A & B Buttons", "Console Output",                  "GBC Bios",     "NiFi",         "Save Settings"},
+        {{"Top","Bottom"},{"A/B", "B/Y"},{"Off","Time","FPS+Time","Debug"},{"Off","On"},    {"Off","On"},   {}},
+        {setScreenFunc, buttonModeFunc, consoleOutputFunc,                  biosEnableFunc, nifiEnableFunc, saveSettingsFunc},
+        {0,             0,               2,                                 1,              0,              0}
     },
     {
         "Debug",
@@ -399,7 +411,28 @@ end:
     return displayConsoleRetval;
 }
 
-void addToLog(const char *format, va_list args) {
+void consoleParseConfig(const char* option, const char* value) {
+    int val = atoi(value);
+    for (int i=0; i<numMenus; i++) {
+        for (int j=0; j<menuList[i].numOptions; j++) {
+            if (strcmpi(menuList[i].options[j], option) == 0) {
+                menuList[i].optionSelections[j] = val;
+                menuList[i].optionFunctions[j](val);
+            }
+        }
+    }
+}
+
+void consolePrintConfig(FILE* file) {
+    for (int i=0; i<numMenus; i++) {
+        for (int j=0; j<menuList[i].numOptions; j++) {
+            if (menuList[i].numSelections[j] != 0)
+                fprintf(file, "%s=%d\n", menuList[i].options[j], menuList[i].optionSelections[j]);
+        }
+    }
+}
+
+void addToLog(const char* format, va_list args) {
     if (consoleDebugOutput)
         vprintf(format, args);
 }

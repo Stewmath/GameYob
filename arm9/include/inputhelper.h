@@ -20,6 +20,8 @@ extern int GB_KEY_A;
 extern int GB_KEY_B;
 
 void initInput();
+char* startFileChooser();
+
 void readKeys();
 bool keyPressed(int key);
 bool keyPressedAutoRepeat(int key);
@@ -27,7 +29,8 @@ bool keyJustPressed(int key);
 // Consider this key unpressed until released and pressed again
 void forceReleaseKey(int key);
 
-char* startFileChooser();
+void readConfigFile();
+void writeConfigFile();
 int loadProgram(char* filename);
 void loadRomBank();
 int loadSave();
@@ -36,9 +39,6 @@ char* getRomTitle();
 void printRomInfo();
 
 int handleEvents();
-
-void enableTurbo();
-void disableTurbo();
 
 void saveState(int num);
 int loadState(int num);
