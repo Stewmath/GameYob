@@ -26,6 +26,8 @@ extern bool hblankDisabled;
 extern int frameskip;
 extern int halt;
 
+extern bool __dsimode;
+
 void selectRomFunc(int value) {
     saveGame();
     char* filename = startFileChooser();

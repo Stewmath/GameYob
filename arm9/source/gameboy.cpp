@@ -26,6 +26,7 @@ bool timeOutput=true;
 // screen is off.
 int phaseCounter;
 int dividerCounter;
+int serialCounter;
 
 int timerCounter;
 int timerPeriod;
@@ -97,10 +98,17 @@ void runEmul()
         cycles += totalCycles;
 
         cyclesToEvent = maxWaitCycles;
-        updateTimers(cycles);
-        updateSound(cycles);
-        updateLCD(cycles);
 
+        if (serialCounter > 0) {
+            serialCounter -= cycles;
+            if (serialCounter <= 0) {
+                serialCounter = 0;
+                packetData = 0xff;
+                transferReady = true;
+            }
+            else
+                setEventCycles(serialCounter);
+        }
         if (transferReady) {
             if (!(ioRam[0x02] & 1)) {
                 sendPacketByte(56, sendData);
@@ -112,6 +120,9 @@ void runEmul()
             packetData = -1;
             transferReady = false;
         }
+        updateTimers(cycles);
+        updateSound(cycles);
+        updateLCD(cycles);
 
         if (ime || halt)
             handleInterrupts();
@@ -137,6 +148,7 @@ void initLCD()
     phaseCounter = 456*153;
     timerCounter = 0;
     dividerCounter = 256;
+    serialCounter = 0;
     turboFrameSkip = 4;
     turbo=0;
 

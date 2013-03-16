@@ -506,10 +506,13 @@ void writeIO(u8 ioReg, u8 val)
             {
                 ioRam[0x02] = val;
                 if (!nifiEnabled) {
-                    if (val & 1) {
-                        packetData = 0xff;
-                        transferReady = true;
+                    if (val & 0x80 && val & 0x01) {
+                        serialCounter = clockSpeed/1024;
+                        if (cyclesToExecute > serialCounter)
+                            cyclesToExecute = serialCounter;
                     }
+                    else
+                        serialCounter = 0;
                     return;
                 }
                 sendData = ioRam[0x01];
