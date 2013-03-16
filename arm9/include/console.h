@@ -1,5 +1,7 @@
 #include <stdarg.h>
 
+extern bool consoleDebugOutput;
+
 void initConsole();
 void printConsoleMessage(char *s);
 void enterConsole();

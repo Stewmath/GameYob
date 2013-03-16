@@ -60,8 +60,8 @@ void consoleOutputFunc(int value) {
         consoleDebugOutput = false;
     }
     else if (value == 1) {
-        fpsOutput = true;
-        timeOutput = false;
+        fpsOutput = false;
+        timeOutput = true;
         consoleDebugOutput = false;
     }
     else if (value == 2) {
@@ -188,7 +188,7 @@ ConsoleSubMenu menuList[] = {
         10,
         {0,         2,              2,              4,                              2,              2,              10,                  0,              0,         0},
         {"Load ROM", "Game Screen", "A & B Buttons", "Console Output",              "GBC Bios",     "NiFi",         "State Slot",      "Save State", "Load State",  "Reset"},
-        {{},        {"Top","Bottom"},{"A/B", "B/Y"},{"Off","FPS","FPS+Time","Debug"},{"Off","On"},  {"Off","On"},
+        {{},        {"Top","Bottom"},{"A/B", "B/Y"},{"Off","Time","FPS+Time","Debug"},{"Off","On"}, {"Off","On"},
                                                                                         {"0","1","2","3","4","5","6","7","8","9"},  {},                {},          {}},
         {selectRomFunc, setScreenFunc, buttonModeFunc, consoleOutputFunc,           biosEnableFunc, nifiEnableFunc, stateSelectFunc, stateSaveFunc,stateLoadFunc,   resetFunc},
         {0,             0,             0,               2,                          1,              0,              0,              0,              0,              0}

@@ -10,6 +10,7 @@
 #include "main.h"
 #include "inputhelper.h"
 #include "nifi.h"
+#include "console.h"
 
 int mode2Cycles, mode3Cycles;
 int scanlineCounter;
@@ -51,8 +52,9 @@ inline void setEventCycles(int cycles) {
 int updateInput() {
     readKeys();
     int retval = handleEvents();		// Input mostly
-    if (getTimerTicks() >= 1000)
+    if (!consoleDebugOutput && getTimerTicks() >= 1000)
     {
+        consoleClear();
         int line=0;
         if (fpsOutput) {
             consoleClear();
