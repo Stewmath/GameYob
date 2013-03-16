@@ -195,26 +195,19 @@ u8 readMemory(u16 addr)
                 return 0;
         }
     }
+    if (addr >= 0xff00)
+        return readIO(addr&0xff);
     return memory[addr>>12][addr&0xfff];
 }
 
-// readIO currently not used
-/*
 #ifdef DS
 u8 readIO(u8 ioReg) ITCM_CODE;
 #endif
-*/
 
 u8 readIO(u8 ioReg)
 {
     switch (ioReg)
     {
-        case 0x00:
-            if (ioRam[0x00] & 0x20)
-                return (ioRam[0x00] & 0xF0) | ((buttonsPressed & 0xF0)>>4);
-            else
-                return (ioRam[0x00] & 0xF0) | (buttonsPressed & 0xF);
-            break;
         case 0x10: // NR10, sweep register 1, bit 7 set on read
             return ioRam[ioReg] | 0x80;
         case 0x11: // NR11, sound length/pattern duty 1, bits 5-0 set on read
@@ -259,24 +252,6 @@ u8 readIO(u8 ioReg)
         case 0x2E:
         case 0x2F:
             return 0xFF;
-        case 0x69:
-            {
-                int index = ioRam[0x68] & 0x3F;
-                return bgPaletteData[index];
-            }
-        case 0x6B:
-            {
-                int index = ioRam[0x6A] & 0x3F;
-                return sprPaletteData[index];
-            }
-        case 0x6C:
-        case 0x72:
-        case 0x73:
-        case 0x74:
-        case 0x75:
-        case 0x76:
-        case 0x77:
-            return ioRam[ioReg];
         default:
             return ioRam[ioReg];
     }

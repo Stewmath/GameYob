@@ -418,7 +418,7 @@ int runOpcode(int cycles) {
                 locPC += 2;
                 break;
             case 0xF2:		// LD A, (C)	8
-                locA = quickReadIO(gbRegs.bc.b.l);
+                locA = readIO(gbRegs.bc.b.l);
                 break;
             case 0xE2:		// LD (C), A	8
                 writeIO(gbRegs.bc.b.l, locA);
@@ -439,7 +439,7 @@ int runOpcode(int cycles) {
                 writeIO(quickRead(locPC++), locA);
                 break;
             case 0xF0:		// LDH A, (n)   12
-                locA = quickReadIO(quickRead(locPC++));
+                locA = readIO(quickRead(locPC++));
                 break;
 
                 // 16-bit loads
