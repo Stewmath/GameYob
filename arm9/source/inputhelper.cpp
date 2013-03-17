@@ -358,22 +358,82 @@ end:
 
 // END of file chooser functions
 
+enum {
+    KEY_NONE,
+    KEY_GB_A, KEY_GB_B, KEY_GB_LEFT, KEY_GB_RIGHT, KEY_GB_UP, KEY_GB_DOWN, KEY_GB_START, KEY_GB_SELECT,
+    KEY_MENU, KEY_SAVE, KEY_AUTO_A, KEY_AUTO_B
+};
+const int NUM_KEYS = 13;
+int keys[NUM_KEYS];
+
+struct KeyConfig {
+    char name[32];
+    int dsKeys[12];
+};
+
+std::vector<KeyConfig> keyConfigs;
+
+void loadKeyConfig(KeyConfig* keyConfig) {
+    for (int i=0; i<NUM_KEYS; i++)
+        keys[i] = 0;
+    for (int i=0; i<12; i++) {
+        keys[keyConfig->dsKeys[i]] |= BIT(i);
+    }
+}
+
+void controlsParseConfig(const char* line) {
+    if (line[0] == '(') {
+        char* bracketEnd;
+        if ((bracketEnd = strrchr(line, ')')) != 0) {
+            *bracketEnd = '\0';
+            const char* name = line+1;
+
+            keyConfigs.push_back(KeyConfig());
+            KeyConfig* keyConfig = &keyConfigs.back();
+            strncpy(keyConfig->name, name, 32);
+            keyConfig->name[31] = '\0';
+            for (int i=0; i<12; i++)
+                keyConfig->dsKeys[i] = KEY_NONE;
+        }
+        return;
+    }
+    char* equalsPos;
+    if ((equalsPos = strrchr(line, '=')) != 0 && equalsPos != line+strlen(line)-1) {
+        *equalsPos = '\0';
+        int dsKey = atoi(line);
+        int gbKey = atoi(equalsPos+1);
+
+        KeyConfig* config = &keyConfigs.back();
+        config->dsKeys[dsKey] = gbKey;
+    }
+}
+
 void readConfigFile() {
     FILE* file = fopen("/gameyob.ini", "r");
     if (file == NULL)
         return;
-    char option[50], value[50];
-    while (true) {
-        int stringsRead = fscanf(file, "%49[^=]=%49[^\n]\n", option, value);
-        if (stringsRead == 1) {
-        }
-        else if (stringsRead == 2) {
-            consoleParseConfig(option, value);
+    char line[100];
+    void (*configParser)(const char*) = consoleParseConfig;
+    while (!feof(file)) {
+        fgets(line, 100, file);
+        if (line[0] == '[') {
+            char* endBrace;
+            if ((endBrace = strrchr(line, ']')) != 0) {
+                *endBrace = '\0';
+                const char* section = line+1;
+                if (strcmpi(section, "console") == 0) {
+                    configParser = consoleParseConfig;
+                }
+                else if (strcmpi(section, "controls") == 0) {
+                    configParser = controlsParseConfig;
+                }
+            }
         }
         else
-            break;
+            configParser(line);
     }
     fclose(file);
+    loadKeyConfig(&keyConfigs.front());
 }
 
 void writeConfigFile() {
@@ -637,83 +697,58 @@ void printRomInfo() {
 
 int handleEvents()
 {
-    int keys = keysPressed;
-    if (keys & KEY_UP)
-    {
+    if (keyPressed(keys[KEY_GB_UP])) {
         buttonsPressed &= (0xFF ^ UP);
         requestInterrupt(JOYPAD);
     }
     else
-    {
         buttonsPressed |= UP;
-    }
-    if (keys & KEY_DOWN)
-    {
+    if (keyPressed(keys[KEY_GB_DOWN])) {
         buttonsPressed &= (0xFF ^ DOWN);
         requestInterrupt(JOYPAD);
     }
     else
-    {
         buttonsPressed |= DOWN;
-    }
-    if (keys & KEY_LEFT)
-    {
+    if (keyPressed(keys[KEY_GB_LEFT])) {
         buttonsPressed &= (0xFF ^ LEFT);
         requestInterrupt(JOYPAD);
     }
     else
-    {
         buttonsPressed |= LEFT;
-    }
-    if (keys & KEY_RIGHT)
-    {
+    if (keyPressed(keys[KEY_GB_RIGHT])) {
         buttonsPressed &= (0xFF ^ RIGHT);
         requestInterrupt(JOYPAD);
     }
     else
-    {
         buttonsPressed |= RIGHT;
-    }
-    if (keys & GB_KEY_A)
-    {
+    if (keyPressed(keys[KEY_GB_A])) {
         buttonsPressed &= (0xFF ^ BUTTONA);
         requestInterrupt(JOYPAD);
     }
     else
-    {
         buttonsPressed |= BUTTONA;
-    }
-    if (keys & GB_KEY_B)
-    {
+    if (keyPressed(keys[KEY_GB_B])) {
         buttonsPressed &= (0xFF ^ BUTTONB);
         requestInterrupt(JOYPAD);
     }
     else
-    {
         buttonsPressed |= BUTTONB;
-    }
-    if (keys & KEY_START)
-    {
+    if (keyPressed(keys[KEY_GB_START])) {
         buttonsPressed &= (0xFF ^ START);
         requestInterrupt(JOYPAD);
     }
     else
-    {
         buttonsPressed |= START;
-    }
-    if (keys & KEY_SELECT)
-    {
+    if (keyPressed(keys[KEY_GB_SELECT])) {
         buttonsPressed &= (0xFF ^ SELECT);
         requestInterrupt(JOYPAD);
     }
     else
-    {
         buttonsPressed |= SELECT;
-    }
 
-    if (keyJustPressed(KEY_X))
+    if (keyJustPressed(keys[KEY_SAVE]))
         saveGame();
-    if (advanceFrame || keyJustPressed(KEY_R)) {
+    if (advanceFrame || keyJustPressed(keys[KEY_MENU])) {
         advanceFrame = 0;
         return displayConsole();
     }

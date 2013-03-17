@@ -9,6 +9,6 @@ void enterConsole();
 void exitConsole();
 bool isConsoleEnabled();
 int displayConsole();
-void consoleParseConfig(const char* option, const char* value);
+void consoleParseConfig(const char* line);
 void consolePrintConfig(FILE* file);
 void addToLog(const char* format, va_list args);

@@ -412,7 +412,13 @@ end:
     return displayConsoleRetval;
 }
 
-void consoleParseConfig(const char* option, const char* value) {
+void consoleParseConfig(const char* line) {
+    char* equalsPos = strchr(line, '=');
+    if (equalsPos == 0)
+        return;
+    *equalsPos = '\0';
+    const char* option = line;
+    const char* value = equalsPos+1;
     int val = atoi(value);
     for (int i=0; i<numMenus; i++) {
         for (int j=0; j<menuList[i].numOptions; j++) {
