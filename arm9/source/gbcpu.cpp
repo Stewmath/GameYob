@@ -465,19 +465,18 @@ int runOpcode(int cycles) {
                 break;
             case 0xF8:		// LDHL SP, n   12
                 {
-                    int sval = (s8)quickRead(locPC++);
-                    int val = (locSP + sval)&0xFFFF;
-                    if ((sval >= 0 && locSP > val))// || (sval<0 && locSP < val))
+                    int val = quickRead(locPC++);
+                    if (((locSP&0xFF)+val) > 0xFF)
                         setCFlag();
                     else
                         clearCFlag();
-                    if ((locSP&0xFFF)+(sval) >= 0x1000)// || (locSP&0xF)+(sval&0xF) < 0)
+                    if ((locSP&0xF)+(val&0xF) > 0xF)
                         setHFlag();
                     else
                         clearHFlag();
-                    clearZFlag();
                     clearNFlag();
-                    gbRegs.hl.w = val;
+                    clearZFlag();
+                    gbRegs.hl.w = locSP+(s8)val;
                     break;
                 }
             case 0x08:		// LD (nn), SP	20
@@ -1206,18 +1205,18 @@ int runOpcode(int cycles) {
 
             case 0xE8:		// ADD SP, n		16
                 {
-                    int sval = (s8)quickRead(locPC++);
-                    if ((locSP + sval) > 0xFFFF)
+                    int val = quickRead(locPC++);
+                    if (((locSP&0xFF)+val) > 0xFF)
                         setCFlag();
                     else
                         clearCFlag();
-                    if (((locSP & 0xFFF) + sval) > 0xFFF)
+                    if ((locSP&0xF)+(val&0xF) > 0xF)
                         setHFlag();
                     else
                         clearHFlag();
                     clearNFlag();
                     clearZFlag();
-                    locSP += sval;
+                    locSP += (s8)val;
                     break;
                 }
             case 0x03:		// INC BC				8
