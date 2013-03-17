@@ -831,54 +831,39 @@ void printRomInfo() {
 int autoFireCounterA=0,autoFireCounterB=0;
 int handleEvents()
 {
+    buttonsPressed = 0xff;
     if (keyPressed(keys[KEY_GB_UP])) {
         buttonsPressed &= (0xFF ^ UP);
         requestInterrupt(JOYPAD);
     }
-    else
-        buttonsPressed |= UP;
     if (keyPressed(keys[KEY_GB_DOWN])) {
         buttonsPressed &= (0xFF ^ DOWN);
         requestInterrupt(JOYPAD);
     }
-    else
-        buttonsPressed |= DOWN;
     if (keyPressed(keys[KEY_GB_LEFT])) {
         buttonsPressed &= (0xFF ^ LEFT);
         requestInterrupt(JOYPAD);
     }
-    else
-        buttonsPressed |= LEFT;
     if (keyPressed(keys[KEY_GB_RIGHT])) {
         buttonsPressed &= (0xFF ^ RIGHT);
         requestInterrupt(JOYPAD);
     }
-    else
-        buttonsPressed |= RIGHT;
     if (keyPressed(keys[KEY_GB_A])) {
         buttonsPressed &= (0xFF ^ BUTTONA);
         requestInterrupt(JOYPAD);
     }
-    else
-        buttonsPressed |= BUTTONA;
     if (keyPressed(keys[KEY_GB_B])) {
         buttonsPressed &= (0xFF ^ BUTTONB);
         requestInterrupt(JOYPAD);
     }
-    else
-        buttonsPressed |= BUTTONB;
     if (keyPressed(keys[KEY_GB_START])) {
         buttonsPressed &= (0xFF ^ START);
         requestInterrupt(JOYPAD);
     }
-    else
-        buttonsPressed |= START;
     if (keyPressed(keys[KEY_GB_SELECT])) {
         buttonsPressed &= (0xFF ^ SELECT);
         requestInterrupt(JOYPAD);
     }
-    else
-        buttonsPressed |= SELECT;
 
     if (keyPressed(keys[KEY_AUTO_GB_A])) {
         if (autoFireCounterA == 0) {
