@@ -186,8 +186,8 @@ struct ConsoleSubMenu {
     char *name;
     int numOptions;
     int numSelections[10];
-    char *options[10];
-    char *optionValues[10][10];
+    const char *options[10];
+    const char *optionValues[10][10];
     void (*optionFunctions[10])(int);
     int defaultOptionSelections[10];
     int optionSelections[10];
