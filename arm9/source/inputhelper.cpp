@@ -774,7 +774,7 @@ void saveState(int num) {
     fwrite((char*)sprPaletteData, 1, sizeof(sprPaletteData), outFile);
     fwrite((char*)vram, 1, sizeof(vram), outFile);
     fwrite((char*)wram, 1, sizeof(wram), outFile);
-    fwrite((char*)hram, 1, sizeof(hram), outFile);
+    fwrite((char*)hram, 1, 0x200, outFile);
     for (int i=0; i<numRamBanks; i++)
         fwrite((char*)externRam[i], 1, 0x2000, outFile);
     fwrite((char*)&state, 1, sizeof(StateStruct), outFile);
@@ -811,7 +811,7 @@ int loadState(int num) {
     fread((char*)sprPaletteData, 1, sizeof(sprPaletteData), inFile);
     fread((char*)vram, 1, sizeof(vram), inFile);
     fread((char*)wram, 1, sizeof(wram), inFile);
-    fread((char*)hram, 1, sizeof(hram), inFile);
+    fread((char*)hram, 1, 0x200, inFile);
     for (int i=0; i<numRamBanks; i++)
         fread((char*)externRam[i], 1, 0x2000, inFile);
     fread((char*)&state, 1, sizeof(StateStruct), inFile);

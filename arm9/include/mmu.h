@@ -50,7 +50,7 @@ extern u8* rom[];
 extern u8 vram[2][0x2000];
 extern u8** externRam;
 extern u8 wram[8][0x1000];
-extern u8 hram[0x200];
+extern u8* hram;
 extern u8* ioRam;
 extern u8 spriteData[];
 extern int wramBank;
