@@ -120,7 +120,11 @@ void returnFunc(int value) {
 
 
 void vblankWaitFunc(int value) {
-    interruptWaitMode = value;
+    // For SOME REASON it crashes in dsi mode when it's zero.
+    if (__dsimode)
+        interruptWaitMode = 1;
+    else
+        interruptWaitMode = value;
 }
 void hblankEnableFunc(int value) {
     hblankDisabled = !value;
@@ -230,9 +234,6 @@ void initConsole() {
     for (int i=0; i<numMenus; i++) {
         for (int j=0; j<menuList[i].numOptions; j++) {
             menuList[i].optionSelections[j] = menuList[i].defaultOptionSelections[j];
-            // check "Wait for VBlank" which for some reason causes issues on dsi's.
-            if (__dsimode && i == 2 && j == 0)
-                menuList[i].optionSelections[j] = 1;
             if (menuList[i].numSelections[j] != 0) {
                 menuList[i].optionFunctions[j](menuList[i].defaultOptionSelections[j]);
             }

@@ -46,7 +46,6 @@ void fifoValue32Handler(u32 value, void* user_data) {
     }
 }
 
-extern bool __dsimode;
 int main(int argc, char* argv[])
 {
     videoSetModeSub(MODE_0_2D);
@@ -89,22 +88,6 @@ int main(int argc, char* argv[])
 
     initializeGameboy();
     startTimer();
-
-    consoleClear();
-    printf("__dsimode = %d\n", __dsimode);
-    while (true) {
-        readKeys();
-        if (keyJustPressed(KEY_A))
-            break;
-    }
-    if (interruptWaitMode != 1) {
-        printf("interruptWaitMode = %d\nIf you're using a dsi this might crash\n", interruptWaitMode);
-        while (true) {
-            readKeys();
-            if (keyJustPressed(KEY_A))
-                break;
-        }
-    }
 
     runEmul();
 
