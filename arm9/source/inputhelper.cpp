@@ -364,20 +364,26 @@ enum {
     KEY_MENU, KEY_SAVE, KEY_AUTO_A, KEY_AUTO_B
 };
 const int NUM_KEYS = 13;
+const char* gbKeyNames[] = {"-","A","B","Left","Right","Up","Down","Start","Select",
+    "Menu","Save","Autofire A","Autofire B"};
+const char* dsKeyNames[] = {"A","B","Select","Start","Right","Left","Up","Down",
+    "R","L","X","Y"};
 int keys[NUM_KEYS];
 
 struct KeyConfig {
     char name[32];
-    int dsKeys[12];
+    int gbKeys[12];
 };
 
 std::vector<KeyConfig> keyConfigs;
+int selectedKeyConfig=0;
 
-void loadKeyConfig(KeyConfig* keyConfig) {
+void loadKeyConfig() {
+    KeyConfig* keyConfig = &keyConfigs[selectedKeyConfig];
     for (int i=0; i<NUM_KEYS; i++)
         keys[i] = 0;
     for (int i=0; i<12; i++) {
-        keys[keyConfig->dsKeys[i]] |= BIT(i);
+        keys[keyConfig->gbKeys[i]] |= BIT(i);
     }
 }
 
@@ -389,11 +395,11 @@ void controlsParseConfig(const char* line) {
             const char* name = line+1;
 
             keyConfigs.push_back(KeyConfig());
-            KeyConfig* keyConfig = &keyConfigs.back();
-            strncpy(keyConfig->name, name, 32);
-            keyConfig->name[31] = '\0';
+            KeyConfig* config = &keyConfigs.back();
+            strncpy(config->name, name, 32);
+            config->name[31] = '\0';
             for (int i=0; i<12; i++)
-                keyConfig->dsKeys[i] = KEY_NONE;
+                config->gbKeys[i] = KEY_NONE;
         }
         return;
     }
@@ -404,8 +410,90 @@ void controlsParseConfig(const char* line) {
         int gbKey = atoi(equalsPos+1);
 
         KeyConfig* config = &keyConfigs.back();
-        config->dsKeys[dsKey] = gbKey;
+        config->gbKeys[dsKey] = gbKey;
     }
+}
+void controlsPrintConfig(FILE* file) {
+    for (int i=0; i<keyConfigs.size(); i++) {
+        fprintf(file, "(%s)\n", keyConfigs[i].name);
+        for (int j=0; j<12; j++) {
+            fprintf(file, "%d=%d\n", j, keyConfigs[i].gbKeys[j]);
+        }
+    }
+}
+
+void startKeyConfigChooser() {
+    bool quit=false;
+    int option=-1;
+    while (!quit) {
+        KeyConfig* config = &keyConfigs[selectedKeyConfig];
+        consoleClear();
+        printf("Config: ");
+        if (option == -1)
+            printf("* %s *\n\n", config->name);
+        else
+            printf("  %s  \n\n", config->name);
+
+        printf("       Button   Function\n\n");
+
+        for (int i=0; i<12; i++) {
+            int len = 11-strlen(dsKeyNames[i]);
+            while (len > 0) {
+                printf(" ");
+                len--;
+            }
+            if (option == i) 
+                printf("* %s | %s *\n", dsKeyNames[i], gbKeyNames[config->gbKeys[i]]);
+            else
+                printf("  %s | %s  \n", dsKeyNames[i], gbKeyNames[config->gbKeys[i]]);
+        }
+
+        while (true) {
+            swiWaitForVBlank();
+            readKeys();
+            if (keyJustPressed(KEY_B)) {
+                quit = true;
+                break;
+            }
+            else if (keyPressedAutoRepeat(KEY_DOWN)) {
+                if (option < 11)
+                    option++;
+                break;
+            }
+            else if (keyPressedAutoRepeat(KEY_UP)) {
+                if (option > -1)
+                    option--;
+                break;
+            }
+            else if (keyPressedAutoRepeat(KEY_LEFT)) {
+                if (option == -1) {
+                    selectedKeyConfig--;
+                    if (selectedKeyConfig < 0)
+                        selectedKeyConfig = keyConfigs.size()-1;
+                }
+                else {
+                    config->gbKeys[option]--;
+                    if (config->gbKeys[option] < 0)
+                        config->gbKeys[option] = NUM_KEYS-1;
+                }
+                break;
+            }
+            else if (keyPressedAutoRepeat(KEY_RIGHT)) {
+                if (option == -1) {
+                    selectedKeyConfig++;
+                    if (selectedKeyConfig >= keyConfigs.size())
+                        selectedKeyConfig = 0;
+                }
+                else {
+                    config->gbKeys[option]++;
+                    if (config->gbKeys[option] >= NUM_KEYS)
+                        config->gbKeys[option] = 0;
+                }
+                break;
+            }
+        }
+    }
+    loadKeyConfig();
 }
 
 void readConfigFile() {
@@ -433,15 +521,20 @@ void readConfigFile() {
             configParser(line);
     }
     fclose(file);
-    loadKeyConfig(&keyConfigs.front());
+    loadKeyConfig();
 }
 
 void writeConfigFile() {
     FILE* file = fopen("/gameyob.ini", "w");
     fprintf(file, "[console]\n");
     consolePrintConfig(file);
+    fprintf(file, "[controls]\n");
+    controlsPrintConfig(file);
     fclose(file);
 }
+
+
+
 
 int loadProgram(char* f)
 {
@@ -748,7 +841,7 @@ int handleEvents()
 
     if (keyJustPressed(keys[KEY_SAVE]))
         saveGame();
-    if (advanceFrame || keyJustPressed(keys[KEY_MENU])) {
+    if (advanceFrame || keyJustPressed(keys[KEY_MENU] | KEY_TOUCH)) {
         advanceFrame = 0;
         return displayConsole();
     }

@@ -22,6 +22,10 @@ extern int GB_KEY_B;
 void initInput();
 char* startFileChooser();
 
+void startKeyConfigChooser();
+void readConfigFile();
+void writeConfigFile();
+
 void readKeys();
 bool keyPressed(int key);
 bool keyPressedAutoRepeat(int key);
@@ -29,8 +33,6 @@ bool keyJustPressed(int key);
 // Consider this key unpressed until released and pressed again
 void forceReleaseKey(int key);
 
-void readConfigFile();
-void writeConfigFile();
 int loadProgram(char* filename);
 void loadRomBank();
 int loadSave();

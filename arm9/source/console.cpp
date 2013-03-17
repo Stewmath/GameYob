@@ -39,6 +39,9 @@ void selectRomFunc(int value) {
     quitConsole = true;
     displayConsoleRetval = 1;
 }
+void keyConfigFunc(int value) {
+    startKeyConfigChooser();
+}
 void setScreenFunc(int value) {
     if (value)
         lcdMainOnBottom();
@@ -203,11 +206,11 @@ ConsoleSubMenu menuList[] = {
     {
         "Settings",
         6,
-        {2,              2,              4,                                 2,              2,              0},
-        {"Game Screen", "A & B Buttons", "Console Output",                  "GBC Bios",     "NiFi",         "Save Settings"},
-        {{"Top","Bottom"},{"A/B", "B/Y"},{"Off","Time","FPS+Time","Debug"},{"Off","On"},    {"Off","On"},   {}},
-        {setScreenFunc, buttonModeFunc, consoleOutputFunc,                  biosEnableFunc, nifiEnableFunc, saveSettingsFunc},
-        {0,             0,               2,                                 1,              0,              0}
+        {0,              2,             4,                                 2,              2,              0},
+        {"Key Config",  "Game Screen", "Console Output",                  "GBC Bios",     "NiFi",         "Save Settings"},
+        {{},            {"Top","Bottom"},{"Off","Time","FPS+Time","Debug"},{"Off","On"},    {"Off","On"},   {}},
+        {keyConfigFunc, setScreenFunc,  consoleOutputFunc,                  biosEnableFunc, nifiEnableFunc, saveSettingsFunc},
+        {0,             0,              2,                                 1,              0,              0}
     },
     {
         "Debug",
