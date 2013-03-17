@@ -48,16 +48,6 @@ void setScreenFunc(int value) {
     else
         lcdMainOnTop();
 }
-void buttonModeFunc(int value) {
-    if (value == 0) {
-        GB_KEY_A = KEY_A;
-        GB_KEY_B = KEY_B;
-    }
-    else {
-        GB_KEY_A = KEY_B;
-        GB_KEY_B = KEY_Y;
-    }
-}
 void consoleOutputFunc(int value) {
     if (value == 0) {
         fpsOutput = false;
@@ -113,6 +103,17 @@ void stateSaveFunc(int value) {
     printConsoleMessage("State saved.");
 }
 void resetFunc(int value) {
+    initializeGameboy();
+    quitConsole = true;
+    displayConsoleRetval = 1;
+}
+void suspendFunc(int value) {
+    printConsoleMessage("Suspending...");
+    saveState(-1);
+    //saveGame();
+    char* filename = startFileChooser();
+    loadProgram(filename);
+    free(filename);
     initializeGameboy();
     quitConsole = true;
     displayConsoleRetval = 1;
@@ -196,12 +197,12 @@ struct ConsoleSubMenu {
 ConsoleSubMenu menuList[] = { 
     {
         "Options",
-        5,
-        {0,         10,                                         0,              0,              0},
-        {"Load ROM","State Slot",                               "Save State",   "Load State",   "Reset"},
-        {{},        {"0","1","2","3","4","5","6","7","8","9"},  {},             {},             {}},
-        {selectRomFunc,stateSelectFunc,                         stateSaveFunc,  stateLoadFunc,   resetFunc},
-        {0,             0,                                      0,              0,              0}
+        6,
+        {0,         10,                                         0,              0,              0,          0},
+        {"Load ROM","State Slot",                               "Save State",   "Load State",   "Reset",    "Suspend"},
+        {{},        {"0","1","2","3","4","5","6","7","8","9"},  {},             {},             {},         {}},
+        {selectRomFunc,stateSelectFunc,                         stateSaveFunc,  stateLoadFunc,   resetFunc, suspendFunc},
+        {0,             0,                                      0,              0,              0,          0}
     },
     {
         "Settings",

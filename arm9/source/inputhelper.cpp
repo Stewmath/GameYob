@@ -35,13 +35,13 @@ int keysForceReleased=0;
 int repeatStartTimer=0;
 int repeatTimer=0;
 
-int GB_KEY_A, GB_KEY_B;
-
 bool advanceFrame;
 
 u8 romBankSlots[MAX_LOADED_ROM_BANKS][0x4000];
 int bankSlotIDs[MAX_ROM_BANKS];
 std::vector<int> lastBanksUsed;
+
+bool suspendStateExists;
 
 void initInput()
 {
@@ -652,6 +652,13 @@ int loadProgram(char* f)
             bios[i] = rom[0][i];
     }
 
+    char statename[100];
+    sprintf(statename, "%s.yss", basename);
+    FILE* stateFile = fopen(statename, "r");
+    suspendStateExists = stateFile;
+    if (stateFile)
+        fclose(stateFile);
+
     loadSave();
 
     return 0;
@@ -915,7 +922,10 @@ void saveState(int num) {
     StateStruct state;
 
     char statename[100];
-    sprintf(statename, "%s.ys%d", basename, num);
+    if (num == -1)
+        sprintf(statename, "%s.yss", basename);
+    else
+        sprintf(statename, "%s.ys%d", basename, num);
     FILE* outFile = fopen(statename, "w");
 
     if (outFile == 0) {
@@ -956,7 +966,10 @@ void saveState(int num) {
 int loadState(int num) {
     StateStruct state;
     char statename[100];
-    sprintf(statename, "%s.ys%d", basename, num);
+    if (num == -1)
+        sprintf(statename, "%s.yss", basename);
+    else
+        sprintf(statename, "%s.ys%d", basename, num);
     FILE* inFile = fopen(statename, "r");
 
     if (inFile == 0) {
@@ -986,7 +999,10 @@ int loadState(int num) {
     for (int i=0; i<numRamBanks; i++)
         fread((char*)externRam[i], 1, 0x2000, inFile);
     fread((char*)&state, 1, sizeof(StateStruct), inFile);
+
     fclose(inFile);
+    if (num == -1)
+        unlink(statename);
 
     gbRegs = state.regs;
     halt = state.halt;

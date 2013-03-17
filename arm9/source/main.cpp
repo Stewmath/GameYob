@@ -21,11 +21,15 @@ extern PrintConsole defaultConsole;
 
 
 void initializeGameboy() {
-    initMMU();
-    initCPU();
-    initLCD();
-    initGFX();
-    initSND();
+    if (suspendStateExists)
+        loadState(-1);
+    else {
+        initMMU();
+        initCPU();
+        initLCD();
+        initGFX();
+        initSND();
+    }
 }
 
 extern bool advanceFrame;

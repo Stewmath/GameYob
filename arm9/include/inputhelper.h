@@ -16,8 +16,7 @@
 extern u8 buttonsPressed;
 extern char filename[100];
 
-extern int GB_KEY_A;
-extern int GB_KEY_B;
+extern bool suspendStateExists;
 
 void initInput();
 char* startFileChooser();
