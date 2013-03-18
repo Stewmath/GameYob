@@ -899,7 +899,7 @@ int handleEvents()
     return 0;
 }
 
-const int STATE_VERSION = 1;
+const int STATE_VERSION = 2;
 
 struct StateStruct {
     // version
@@ -916,6 +916,9 @@ struct StateStruct {
     int memoryModel;
     clockStruct clock;
     int scanlineCounter, timerCounter, phaseCounter, dividerCounter;
+    // v2
+    int serialCounter;
+    int dmaSource,dmaDest,dmaMode,dmaLength;
 };
 
 void saveState(int num) {
@@ -949,6 +952,11 @@ void saveState(int num) {
     state.timerCounter = timerCounter;
     state.phaseCounter = phaseCounter;
     state.dividerCounter = dividerCounter;
+    state.serialCounter = serialCounter;
+    state.dmaSource = dmaSource;
+    state.dmaDest = dmaDest;
+    state.dmaMode = dmaMode;
+    state.dmaLength = dmaLength;
 
     fwrite(&STATE_VERSION, sizeof(int), 1, outFile);
     fwrite((char*)bgPaletteData, 1, sizeof(bgPaletteData), outFile);
@@ -965,6 +973,8 @@ void saveState(int num) {
 
 int loadState(int num) {
     StateStruct state;
+    memset(&state, 0, sizeof(StateStruct));
+
     char statename[100];
     if (num == -1)
         sprintf(statename, "%s.yss", basename);
@@ -1022,17 +1032,21 @@ int loadState(int num) {
     timerCounter = state.timerCounter;
     phaseCounter = state.phaseCounter;
     dividerCounter = state.dividerCounter;
+    serialCounter = state.serialCounter;
+    dmaSource = state.dmaSource;
+    dmaDest = state.dmaDest;
+    dmaMode = state.dmaMode;
+    dmaLength = state.dmaLength;
 
     screenOn = ioRam[0x40] & 0x80;
-
     transferReady = false;
     timerPeriod = periods[ioRam[0x07]&0x3];
     cyclesToEvent = 1;
 
     mapMemory();
+    setDoubleSpeed(doubleSpeed);
     refreshGFX();
     refreshSND();
-    setDoubleSpeed(doubleSpeed);
 
     return 0;
 }

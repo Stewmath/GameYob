@@ -21,14 +21,19 @@ extern PrintConsole defaultConsole;
 
 
 void initializeGameboy() {
-    if (suspendStateExists)
+    initMMU();
+    initCPU();
+    initLCD();
+    initGFX();
+    initSND();
+
+    if (suspendStateExists) {
+        soundDisable();
         loadState(-1);
-    else {
-        initMMU();
-        initCPU();
-        initLCD();
-        initGFX();
-        initSND();
+        if (!soundDisabled)
+            soundEnable();
+        // enter the console on resume
+        advanceFrame = true;
     }
 }
 

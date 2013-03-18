@@ -76,8 +76,6 @@ u16 dmaDest;
 u16 dmaLength;
 int dmaMode;
 
-extern int dmaLine;
-
 void initMMU()
 {
     wramBank = 1;
@@ -85,6 +83,10 @@ void initMMU()
     currentRomBank = 1;
     currentRamBank = 0;
     memoryModel = 0;
+    dmaSource=0;
+    dmaDest=0;
+    dmaLength=0;
+    dmaMode=0;
 
     if (!biosExists)
         biosEnabled = false;
@@ -675,8 +677,6 @@ void writehword(u16 addr, u16 val)
 
 bool updateHblankDMA()
 {
-    static int dmaCycles;
-
     if (dmaLength > 0)
     {
         int i;

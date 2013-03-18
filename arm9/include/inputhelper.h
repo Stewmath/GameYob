@@ -17,6 +17,7 @@ extern u8 buttonsPressed;
 extern char filename[100];
 
 extern bool suspendStateExists;
+extern bool advanceFrame;
 
 void initInput();
 char* startFileChooser();

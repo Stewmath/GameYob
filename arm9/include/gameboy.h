@@ -29,7 +29,7 @@ extern bool timeOutput;
 
 void runEmul();
 void initLCD();
-void updateLCD(int cycles);
+int updateLCD(int cycles);
 void updateTimers(int cycles);
 void handleInterrupts();
 void requestInterrupt(int id);

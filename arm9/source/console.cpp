@@ -20,7 +20,6 @@ char printMessage[33];
 int stateNum=0;
 
 extern int interruptWaitMode;
-extern bool advanceFrame;
 extern bool windowDisabled;
 extern bool hblankDisabled;
 extern int frameskip;
@@ -94,6 +93,7 @@ void stateLoadFunc(int value) {
     printConsoleMessage("Loading state...");
     if (loadState(stateNum) == 0) {
         printMessage[0] = '\0';
+        displayConsoleRetval = 1;
         quitConsole = true;
     }
 }
@@ -110,6 +110,7 @@ void resetFunc(int value) {
 void suspendFunc(int value) {
     printConsoleMessage("Suspending...");
     saveState(-1);
+    printMessage[0] = '\0';
     //saveGame();
     char* filename = startFileChooser();
     loadProgram(filename);
@@ -198,11 +199,11 @@ ConsoleSubMenu menuList[] = {
     {
         "Options",
         6,
-        {0,         10,                                         0,              0,              0,          0},
-        {"Load ROM","State Slot",                               "Save State",   "Load State",   "Reset",    "Suspend"},
-        {{},        {"0","1","2","3","4","5","6","7","8","9"},  {},             {},             {},         {}},
-        {selectRomFunc,stateSelectFunc,                         stateSaveFunc,  stateLoadFunc,   resetFunc, suspendFunc},
-        {0,             0,                                      0,              0,              0,          0}
+        {0,         0,          10,                                         0,              0,              0},
+        {"Load ROM","Suspend",  "State Slot",                               "Save State",   "Load State",   "Reset"},
+        {{},        {},         {"0","1","2","3","4","5","6","7","8","9"},  {},             {},             {}},
+        {selectRomFunc,suspendFunc,stateSelectFunc,                         stateSaveFunc,  stateLoadFunc,  resetFunc},
+        {0,             0,          0,                                      0,              0,              0}
     },
     {
         "Settings",

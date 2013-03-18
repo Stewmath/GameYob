@@ -91,6 +91,8 @@ void runEmul()
 {
     for (;;)
     {
+emuLoopStart:
+
         totalCycles=0;
         int cycles;
         if (halt)
@@ -124,7 +126,10 @@ void runEmul()
         }
         updateTimers(cycles);
         updateSound(cycles);
-        updateLCD(cycles);
+
+        if (updateLCD(cycles))
+            // Emulation is being reset or something
+            goto emuLoopStart;
 
         if (ime || halt)
             handleInterrupts();
@@ -164,9 +169,9 @@ void initLCD()
     timerStop(2);
 }
 
-void updateLCD(int cycles) ITCM_CODE;
+int updateLCD(int cycles) ITCM_CODE;
 
-void updateLCD(int cycles)
+int updateLCD(int cycles)
 {
     if (!(ioRam[0x40] & 0x80))		// If LCD is off
     {
@@ -179,18 +184,18 @@ void updateLCD(int cycles)
         phaseCounter -= cycles;
         if (phaseCounter <= 0) {
             swiIntrWait(interruptWaitMode, 1);
-            updateInput();
             fps++;
             phaseCounter += 456*153*(doubleSpeed?2:1);
             if (screenOn) {
                 disableScreen();
                 screenOn = false;
             }
+            if (updateInput())
+                return 1;
         }
-        return;
+        return 0;
     }
-    u8 stat = ioRam[0x41];
-    int lcdState = stat&3;
+    int lcdState = ioRam[0x41]&3;
 
     scanlineCounter -= cycles;
 
@@ -199,7 +204,7 @@ void updateLCD(int cycles)
         case 2:
             {
                 if (scanlineCounter <= mode2Cycles) {
-                    stat++;
+                    ioRam[0x41]++;
                     setEventCycles(scanlineCounter-mode3Cycles);
                 }
                 else
@@ -209,9 +214,9 @@ void updateLCD(int cycles)
         case 3:
             {
                 if (scanlineCounter <= mode3Cycles) {
-                    stat &= ~3;
+                    ioRam[0x41] &= ~3;
 
-                    if (stat&0x8)
+                    if (ioRam[0x41]&0x8)
                     {
                         requestInterrupt(LCD);
                     }
@@ -240,9 +245,9 @@ void updateLCD(int cycles)
 
                 if (ioRam[0x44] < 144 || ioRam[0x44] >= 153) {
                     setEventCycles(scanlineCounter-mode2Cycles);
-                    stat &= ~3;
-                    stat |= 2;
-                    if (stat&0x20)
+                    ioRam[0x41] &= ~3;
+                    ioRam[0x41] |= 2;
+                    if (ioRam[0x41]&0x20)
                     {
                         requestInterrupt(LCD);
                     }
@@ -254,11 +259,11 @@ void updateLCD(int cycles)
                 }
                 else if (ioRam[0x44] == 144)
                 {
-                    stat &= ~3;
-                    stat |= 1;
+                    ioRam[0x41] &= ~3;
+                    ioRam[0x41] |= 1;
 
                     requestInterrupt(VBLANK);
-                    if (stat&0x10)
+                    if (ioRam[0x41]&0x10)
                     {
                         requestInterrupt(LCD);
                     }
@@ -270,7 +275,7 @@ void updateLCD(int cycles)
                         screenOn = true;
                     }
                     if (updateInput())
-                        return;
+                        return 1;
                 }
                 if (ioRam[0x44] >= 144) {
                     setEventCycles(scanlineCounter);
@@ -279,12 +284,12 @@ void updateLCD(int cycles)
                 // LYC check
                 if (ioRam[0x44] == ioRam[0x45])
                 {
-                    stat |= 4;
-                    if (stat&0x40)
+                    ioRam[0x41] |= 4;
+                    if (ioRam[0x41]&0x40)
                         requestInterrupt(LCD);
                 }
                 else
-                    stat &= ~4;
+                    ioRam[0x41] &= ~4;
 
             }
             else {
@@ -293,9 +298,7 @@ void updateLCD(int cycles)
             break;
     }
 
-
-    ioRam[0x41] = stat;
-    return;
+    return 0;
 }
 
 inline void updateTimers(int cycles)

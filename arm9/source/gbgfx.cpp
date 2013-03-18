@@ -38,7 +38,6 @@ int screenOffsY = 24;
 
 int colors[4];
 int tileSize;
-u16 pixels[256*144];
 
 int tileSigned = 0;
 int tileAddr = 0x8000;
@@ -303,7 +302,7 @@ void refreshGFX() {
     }
     for (int i=0; i<0x400; i++) {
         updateTileMap(0, i, vram[0][0x1800+i]);
-        updateTileMap(1, i, vram[0][0x1c00+i]);
+        updateTileMap(1, i, vram[1][0x1c00+i]);
     }
     for (int i=0; i<8; i++) {
         bgPaletteModified[i] = true;
@@ -313,6 +312,8 @@ void refreshGFX() {
         enableScreen();
     else
         disableScreen();
+    for (int i=0; i<0xa0; i++)
+        spriteData[i] = hram[i];
 }
 
 void disableScreen() {
