@@ -16,7 +16,7 @@ int menu=0;
 int option = -1;
 char printMessage[33];
 
-
+bool suspendOnExit;
 int stateNum=0;
 
 extern int interruptWaitMode;
@@ -27,16 +27,26 @@ extern int halt;
 
 extern bool __dsimode;
 
-void selectRomFunc(int value) {
-    printConsoleMessage("Saving SRAM...");
-    saveGame();
-    printMessage[0] = '\0';
+void selectRomNoSaveFunc(int value) {
     char* filename = startFileChooser();
     loadProgram(filename);
     free(filename);
     initializeGameboy();
     quitConsole = true;
     displayConsoleRetval = 1;
+}
+void selectRomFunc(int value) {
+    if (suspendOnExit) {
+        printConsoleMessage("Suspending...");
+        saveState(-1);
+    }
+    else {
+        printConsoleMessage("Saving...");
+        saveGame();
+        printMessage[0] = '\0';
+    }
+    printMessage[0] = '\0';
+    selectRomNoSaveFunc(value);
 }
 void keyConfigFunc(int value) {
     startKeyConfigChooser();
@@ -81,6 +91,10 @@ void nifiEnableFunc(int value) {
         disableNifi();
 }
 
+void exitModeFunc(int value) {
+    suspendOnExit = value;
+}
+
 void saveSettingsFunc(int value) {
     writeConfigFile();
     printConsoleMessage("Settings saved.");
@@ -103,18 +117,6 @@ void stateSaveFunc(int value) {
     printConsoleMessage("State saved.");
 }
 void resetFunc(int value) {
-    initializeGameboy();
-    quitConsole = true;
-    displayConsoleRetval = 1;
-}
-void suspendFunc(int value) {
-    printConsoleMessage("Suspending...");
-    saveState(-1);
-    printMessage[0] = '\0';
-    //saveGame();
-    char* filename = startFileChooser();
-    loadProgram(filename);
-    free(filename);
     initializeGameboy();
     quitConsole = true;
     displayConsoleRetval = 1;
@@ -199,20 +201,20 @@ ConsoleSubMenu menuList[] = {
     {
         "Options",
         6,
-        {0,         0,          10,                                         0,              0,              0},
-        {"Load ROM","Suspend",  "State Slot",                               "Save State",   "Load State",   "Reset"},
-        {{},        {},         {"0","1","2","3","4","5","6","7","8","9"},  {},             {},             {}},
-        {selectRomFunc,suspendFunc,stateSelectFunc,                         stateSaveFunc,  stateLoadFunc,  resetFunc},
-        {0,             0,          0,                                      0,              0,              0}
+        {0,         10,                                         0,              0,              0,          0},
+        {"Exit",    "State Slot",                               "Save State",   "Load State",   "Reset",    "Exit without saving"},
+        {{},        {"0","1","2","3","4","5","6","7","8","9"},  {},             {},             {},         {}},
+        {selectRomFunc,stateSelectFunc,                         stateSaveFunc,  stateLoadFunc,  resetFunc,  selectRomNoSaveFunc},
+        {0,             0,                                      0,              0,              0,          0}
     },
     {
         "Settings",
-        6,
-        {0,              2,             4,                                 2,              2,              0},
-        {"Key Config",  "Game Screen", "Console Output",                  "GBC Bios",     "NiFi",         "Save Settings"},
-        {{},            {"Top","Bottom"},{"Off","Time","FPS+Time","Debug"},{"Off","On"},    {"Off","On"},   {}},
-        {keyConfigFunc, setScreenFunc,  consoleOutputFunc,                  biosEnableFunc, nifiEnableFunc, saveSettingsFunc},
-        {0,             0,              2,                                 1,              0,              0}
+        7,
+        {0,              2,             4,                                 2,              2,               2,               0},
+        {"Key Config",  "Game Screen", "Console Output",                  "GBC Bios",     "NiFi",        "On Exit:",         "Save Settings"},
+        {{},            {"Top","Bottom"},{"Off","Time","FPS+Time","Debug"},{"Off","On"},    {"Off","On"},{"Save","Suspend"},{}},
+        {keyConfigFunc, setScreenFunc,  consoleOutputFunc,                  biosEnableFunc, nifiEnableFunc,exitModeFunc,    saveSettingsFunc},
+        {0,             0,              2,                                 1,              0,              0,               0}
     },
     {
         "Debug",
