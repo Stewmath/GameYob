@@ -1326,8 +1326,9 @@ int runOpcode(int cycles) {
                 else
                 {
                     halt = 2;
-                    goto end;
+                    cyclesToExecute = 0;
                 }
+                locPC++;    // ignore next byte
                 break;
 
             case 0xF3:		// DI   4
