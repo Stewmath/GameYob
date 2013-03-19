@@ -159,8 +159,6 @@ void initCPU()
     writeIO(0x4a, 0x00);
     writeIO(0x4b, 0x00);
     writeIO(0xff, 0x00);
-    // writeIO shouldn't interfere in this case
-    ioRam[0x4d] = 0;
 
     if (biosOn)
     {

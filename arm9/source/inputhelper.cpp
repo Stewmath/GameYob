@@ -661,6 +661,7 @@ int loadProgram(char* f)
 
     loadSave();
 
+    cyclesToEvent = 1;
     return 0;
 }
 

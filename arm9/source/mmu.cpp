@@ -92,6 +92,7 @@ void initMMU()
         biosEnabled = false;
     biosOn = biosEnabled;
     mapMemory();
+    memset(ioRam, 0, 0x100);
 }
 
 void mapMemory() {
