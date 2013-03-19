@@ -1011,8 +1011,10 @@ int loadState(int num) {
     fread((char*)&state, 1, sizeof(StateStruct), inFile);
 
     fclose(inFile);
-    if (num == -1)
+    if (num == -1) {
         unlink(statename);
+        suspendStateExists = false;
+    }
 
     gbRegs = state.regs;
     halt = state.halt;
