@@ -842,41 +842,50 @@ int handleEvents()
     buttonsPressed = 0xff;
     if (keyPressed(keys[KEY_GB_UP])) {
         buttonsPressed &= (0xFF ^ UP);
-        requestInterrupt(JOYPAD);
+        if (!(ioRam[0x00] & 0x10))
+            requestInterrupt(JOYPAD);
     }
     if (keyPressed(keys[KEY_GB_DOWN])) {
         buttonsPressed &= (0xFF ^ DOWN);
-        requestInterrupt(JOYPAD);
+        if (!(ioRam[0x00] & 0x10))
+            requestInterrupt(JOYPAD);
     }
     if (keyPressed(keys[KEY_GB_LEFT])) {
         buttonsPressed &= (0xFF ^ LEFT);
-        requestInterrupt(JOYPAD);
+        if (!(ioRam[0x00] & 0x10))
+            requestInterrupt(JOYPAD);
     }
     if (keyPressed(keys[KEY_GB_RIGHT])) {
         buttonsPressed &= (0xFF ^ RIGHT);
-        requestInterrupt(JOYPAD);
+        if (!(ioRam[0x00] & 0x10))
+            requestInterrupt(JOYPAD);
     }
     if (keyPressed(keys[KEY_GB_A])) {
         buttonsPressed &= (0xFF ^ BUTTONA);
-        requestInterrupt(JOYPAD);
+        if (!(ioRam[0x00] & 0x20))
+            requestInterrupt(JOYPAD);
     }
     if (keyPressed(keys[KEY_GB_B])) {
         buttonsPressed &= (0xFF ^ BUTTONB);
-        requestInterrupt(JOYPAD);
+        if (!(ioRam[0x00] & 0x20))
+            requestInterrupt(JOYPAD);
     }
     if (keyPressed(keys[KEY_GB_START])) {
         buttonsPressed &= (0xFF ^ START);
-        requestInterrupt(JOYPAD);
+        if (!(ioRam[0x00] & 0x20))
+            requestInterrupt(JOYPAD);
     }
     if (keyPressed(keys[KEY_GB_SELECT])) {
         buttonsPressed &= (0xFF ^ SELECT);
-        requestInterrupt(JOYPAD);
+        if (!(ioRam[0x00] & 0x20))
+            requestInterrupt(JOYPAD);
     }
 
     if (keyPressed(keys[KEY_AUTO_GB_A])) {
         if (autoFireCounterA == 0) {
             buttonsPressed &= (0xFF ^ BUTTONA);
-            requestInterrupt(JOYPAD);
+            if (!(ioRam[0x00] & 0x20))
+                requestInterrupt(JOYPAD);
             autoFireCounterA = 2;
         }
         autoFireCounterA--;
@@ -884,7 +893,8 @@ int handleEvents()
     if (keyPressed(keys[KEY_AUTO_GB_B])) {
         if (autoFireCounterB == 0) {
             buttonsPressed &= (0xFF ^ BUTTONB);
-            requestInterrupt(JOYPAD);
+            if (!(ioRam[0x00] & 0x20))
+                requestInterrupt(JOYPAD);
             autoFireCounterB = 2;
         }
         autoFireCounterB--;

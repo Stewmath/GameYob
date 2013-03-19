@@ -269,10 +269,6 @@ void writeMemory(u16 addr, u8 val) ITCM_CODE;
 
 void writeMemory(u16 addr, u8 val)
 {
-#ifndef DS
-    if (addr == watchAddr)
-        debugMode = 1;
-#endif
     switch (addr >> 12)
     {
         case 0x0:
@@ -475,10 +471,12 @@ void writeIO(u8 ioReg, u8 val)
     switch (ioReg)
     {
         case 0x00:
-            if (val & 0x20)
-                ioRam[0x00] = (val & 0xF0) | ((buttonsPressed & 0xF0)>>4);
+            if (!(val&0x20))
+                ioRam[ioReg] = 0xc0 | (val & 0xF0) | (buttonsPressed & 0xF);
+            else if (!(val&0x10))
+                ioRam[ioReg] = 0xc0 | (val & 0xF0) | ((buttonsPressed & 0xF0)>>4);
             else
-                ioRam[0x00] = (val & 0xF0) | (buttonsPressed & 0xF);
+                ioRam[ioReg] = 0xff;
             return;
         case 0x02:
             {
