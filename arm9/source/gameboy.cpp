@@ -86,22 +86,21 @@ int updateInput() {
     return retval;
 }
 
-int totalCycles;
+int extraCycles;
 void runEmul()
 {
     for (;;)
     {
 emuLoopStart:
-
-        totalCycles=0;
         int cycles;
         if (halt)
             cycles = cyclesToEvent;
         else
             cycles = runOpcode(cyclesToEvent);
-        cycles += totalCycles;
+        cycles += extraCycles;
 
         cyclesToEvent = maxWaitCycles;
+        extraCycles=0;
 
         if (serialCounter > 0) {
             serialCounter -= cycles;
@@ -130,6 +129,11 @@ emuLoopStart:
         if (updateLCD(cycles))
             // Emulation is being reset or something
             goto emuLoopStart;
+
+        // Run another opcode before triggering an interrupt.
+        // Robocop 2 needs this.
+        if (ioRam[0x0f] & ioRam[0xff] && !halt)
+            extraCycles += runOpcode(4);
 
         if (ime || halt)
             handleInterrupts();
@@ -169,9 +173,7 @@ void initLCD()
     timerStop(2);
 }
 
-int updateLCD(int cycles) ITCM_CODE;
-
-int updateLCD(int cycles)
+inline int updateLCD(int cycles)
 {
     if (!(ioRam[0x40] & 0x80))		// If LCD is off
     {

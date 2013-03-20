@@ -705,7 +705,7 @@ void handleVideoRegister(u8 ioReg, u8 val) {
                         spriteData[i] = val;
                 }
 
-                totalCycles += 50;
+                extraCycles += 50;
                 dmaLine = ioRam[0x44];
                 //printLog("dma write %d\n", ioRam[0x44]);
                 return;

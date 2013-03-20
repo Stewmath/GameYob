@@ -562,7 +562,6 @@ void writeIO(u8 ioReg, u8 val)
         case 0x41:
         case 0x42:
         case 0x43:
-        case 0x44:
         case 0x46:
         case 0x47:
         case 0x48:
@@ -572,6 +571,8 @@ void writeIO(u8 ioReg, u8 val)
         case 0x69:
         case 0x6B:
             handleVideoRegister(ioReg, val);
+            return;
+        case 0x44:
             return;
         case 0x68:
             ioRam[0x68] = val;
@@ -634,7 +635,7 @@ void writeIO(u8 ioReg, u8 val)
                         dest += 0x10;
                         source += 0x10;
                     }
-                    totalCycles += dmaLength*8*(doubleSpeed+1);
+                    extraCycles += dmaLength*8*(doubleSpeed+1);
                     dmaLength = 0;
                     ioRam[0x55] = 0xFF;
                 }

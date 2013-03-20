@@ -29,7 +29,7 @@ extern int fps;
 extern int halt;
 extern int ime;
 extern int gbMode;
-extern int totalCycles;
+extern int extraCycles;
 extern int cyclesToExecute;
 
 void initCPU();
