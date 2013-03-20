@@ -604,6 +604,8 @@ void drawScanline(int scanline)
 }
 
 void writeVram(u16 addr, u8 val) {
+    if (vram[vramBank][addr] == val)
+        return;
     vram[vramBank][addr] = val;
 
     if (addr < 0x1800) {
@@ -631,9 +633,17 @@ void writeVram(u16 addr, u8 val) {
     }
 }
 void writeVram16(u16 dest, u16 src) {
+    bool changed=false;
     for (int i=0; i<16; i++) {
-        vram[vramBank][dest++] = readMemory(src++);
+        u8 val = readMemory(src++);
+        if (vram[vramBank][dest] != val) {
+            changed = true;
+            vram[vramBank][dest] = val;
+        }
+        dest++;
     }
+    if (!changed)
+        return;
     dest -= 16;
     src -= 16;
     if (dest < 0x1800) {

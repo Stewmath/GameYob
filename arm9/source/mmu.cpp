@@ -437,14 +437,11 @@ void writeMemory(u16 addr, u8 val)
                 writeIO(addr & 0xFF, val);
             }
             else {
-                if (addr >= 0xfe00 && addr < 0xfea0) {
-                }
                 hram[addr&0x1ff] = val;
             }
             return;
         default:
             return;
-            //memory[addr] = val;
     }
 }
 

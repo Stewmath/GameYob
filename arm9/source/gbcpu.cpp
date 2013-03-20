@@ -56,7 +56,7 @@ const int clockSpeed = 4194304;
 
 int ime;
 
-u8 opCycles[0x100]
+const u8 opCycles[0x100]
 #ifdef DS
 DTCM_DATA
 #endif
@@ -83,7 +83,7 @@ DTCM_DATA
         /* opcodes that have 99 cycles are undefined, but don't hang on them */
 };
 
-u8 CBopCycles[0x100]
+const u8 CBopCycles[0x100]
 #ifdef DS
 DTCM_DATA
 #endif
