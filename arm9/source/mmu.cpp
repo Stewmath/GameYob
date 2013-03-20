@@ -585,7 +585,8 @@ void writeIO(u8 ioReg, u8 val)
             ioRam[0x6B] = sprPaletteData[val&0x3F];
             return;
         case 0x4D:
-            ioRam[ioReg] = (val&1);
+            ioRam[ioReg] &= 0x80;
+            ioRam[ioReg] |= (val&1);
             return;
         case 0x4F: // Vram bank
             if (gbMode == CGB)
