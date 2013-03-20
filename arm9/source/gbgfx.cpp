@@ -366,17 +366,16 @@ void updateTileMap(int m, int i, u8 val) {
 void drawTile(int tileNum, int bank) {
     int x,y;
     int index = (tileNum<<4)+(bank*0x100*16);
-    int signedIndex;
-    if (tileNum < 0x100)
-        signedIndex = (tileNum<<4)+(bank*0x100*16);
-    else
-        signedIndex = ((tileNum-0x100)<<4)+(bank*0x100*16);
+    int signedIndex=index;
+    if (tileNum >= 0x100)
+        signedIndex -= (0x100<<4);
 
     bool unsign = tileNum < 0x100;
     bool sign = tileNum >= 0x80;
+    u8* src = &vram[bank][tileNum<<4];
     for (y=0; y<8; y++) {
-        u8 b1=vram[bank][(tileNum<<4)+(y<<1)];
-        u8 b2=vram[bank][(tileNum<<4)+(y<<1)+1];
+        u8 b1=*(src++);
+        u8 b2=*(src++);
         int bb[] = {0,0};
         int sb[] = {0,0};
         for (x=0; x<8; x++) {

@@ -480,7 +480,7 @@ void writeIO(u8 ioReg, u8 val)
             return;
         case 0x02:
             {
-                ioRam[0x02] = val;
+                ioRam[ioReg] = val;
                 if (!nifiEnabled) {
                     if (val & 0x80 && val & 0x01) {
                         serialCounter = clockSpeed/1024;
@@ -497,7 +497,7 @@ void writeIO(u8 ioReg, u8 val)
                         sendPacketByte(56, ioRam[0x01]);
                         ioRam[0x01] = packetData;
                         requestInterrupt(SERIAL);
-                        ioRam[0x02] &= ~0x80;
+                        ioRam[ioReg] &= ~0x80;
                         transferWaiting = false;
                     }
                     if (val & 1) {
@@ -510,14 +510,14 @@ void writeIO(u8 ioReg, u8 val)
                 return;
             }
         case 0x04:
-            ioRam[0x04] = 0;
+            ioRam[ioReg] = 0;
             return;
         case 0x05:
-            ioRam[0x05] = val;
+            ioRam[ioReg] = val;
             break;
         case 0x07:
             timerPeriod = periods[val&0x3];
-            ioRam[0x07] = val;
+            ioRam[ioReg] = val;
             break;
         case 0x10:
         case 0x11:
@@ -575,16 +575,15 @@ void writeIO(u8 ioReg, u8 val)
         case 0x44:
             return;
         case 0x68:
-            ioRam[0x68] = val;
+            ioRam[ioReg] = val;
             ioRam[0x69] = bgPaletteData[val&0x3F];
             return;
         case 0x6A:
-            ioRam[0x6A] = val;
+            ioRam[ioReg] = val;
             ioRam[0x6B] = sprPaletteData[val&0x3F];
             return;
         case 0x4D:
-            ioRam[0x4D] &= ~1;
-            ioRam[0x4D] |= (val&1);
+            ioRam[ioReg] = (val&1);
             return;
         case 0x4F: // Vram bank
             if (gbMode == CGB)
@@ -592,7 +591,7 @@ void writeIO(u8 ioReg, u8 val)
                 vramBank = val & 1;
                 refreshVramBank();
             }
-            ioRam[0x4F] = val&1;
+            ioRam[ioReg] = val&1;
             return;
             // Special register, used by the gameboy bios
         case 0x50:
@@ -610,7 +609,7 @@ void writeIO(u8 ioReg, u8 val)
                 {
                     if ((val&0x80) == 0)
                     {
-                        ioRam[0x55] |= 0x80;
+                        ioRam[ioReg] |= 0x80;
                         dmaLength = 0;
                     }
                     return;
@@ -625,7 +624,7 @@ void writeIO(u8 ioReg, u8 val)
                 dmaSource = source;
                 dmaDest = dest;
                 dmaMode = val&0x80;
-                ioRam[0x55] = dmaLength-1;
+                ioRam[ioReg] = dmaLength-1;
                 if (dmaMode == 0)
                 {
                     int i;
@@ -637,11 +636,11 @@ void writeIO(u8 ioReg, u8 val)
                     }
                     extraCycles += dmaLength*8*(doubleSpeed+1);
                     dmaLength = 0;
-                    ioRam[0x55] = 0xFF;
+                    ioRam[ioReg] = 0xFF;
                 }
             }
             else
-                ioRam[0x55] = val;
+                ioRam[ioReg] = val;
             return;
         case 0x70:				// WRAM bank, for CGB only
             if (gbMode == CGB)
@@ -651,20 +650,20 @@ void writeIO(u8 ioReg, u8 val)
                     wramBank = 1;
                 refreshWramBank();
             }
-            ioRam[0x70] = val&0x7;
+            ioRam[ioReg] = val&0x7;
             return;
         case 0x0F:
-            ioRam[0x0f] = val;
+            ioRam[ioReg] = val;
             if (val & ioRam[0xff])
                 cyclesToExecute = 0;
             break;
         case 0xFF:
-            ioRam[0xff] = val;
+            ioRam[ioReg] = val;
             if (val & ioRam[0x0f])
                 cyclesToExecute = 0;
             break;
         default:
-            hram[0x100 + ioReg] = val;
+            ioRam[ioReg] = val;
             return;
     }
 }

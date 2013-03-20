@@ -276,16 +276,6 @@ int runOpcode(int cycles) {
 
     while (totalCycles < cyclesToExecute)
     {
-        /*
-        if (locPC == 0x193) {
-            //printLog("pc %x\n", locPC);
-            if (ioRam[0x44] >= 130) {
-                for (int i=0; i<30; i++)
-                    swiWaitForVBlank();
-                printLog("LY = %d\n", ioRam[0x44]);
-            }
-        }
-        */
         u8 opcode = quickRead(locPC++);
         totalCycles += opCycles[opcode];
 
