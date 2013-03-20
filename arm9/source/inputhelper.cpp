@@ -929,7 +929,7 @@ struct StateStruct {
     int scanlineCounter, timerCounter, phaseCounter, dividerCounter;
     // v2
     int serialCounter;
-    int dmaSource,dmaDest,dmaMode,dmaLength;
+    //int dmaSource,dmaDest,dmaMode,dmaLength;
 };
 
 void saveState(int num) {
@@ -964,10 +964,6 @@ void saveState(int num) {
     state.phaseCounter = phaseCounter;
     state.dividerCounter = dividerCounter;
     state.serialCounter = serialCounter;
-    state.dmaSource = dmaSource;
-    state.dmaDest = dmaDest;
-    state.dmaMode = dmaMode;
-    state.dmaLength = dmaLength;
 
     fwrite(&STATE_VERSION, sizeof(int), 1, outFile);
     fwrite((char*)bgPaletteData, 1, sizeof(bgPaletteData), outFile);
@@ -1046,10 +1042,6 @@ int loadState(int num) {
     phaseCounter = state.phaseCounter;
     dividerCounter = state.dividerCounter;
     serialCounter = state.serialCounter;
-    dmaSource = state.dmaSource;
-    dmaDest = state.dmaDest;
-    dmaMode = state.dmaMode;
-    dmaLength = state.dmaLength;
 
     screenOn = ioRam[0x40] & 0x80;
     transferReady = false;

@@ -92,6 +92,7 @@ void runEmul()
     for (;;)
     {
 emuLoopStart:
+        cyclesToEvent -= extraCycles;
         int cycles;
         if (halt)
             cycles = cyclesToEvent;
@@ -225,8 +226,7 @@ inline int updateLCD(int cycles)
 
                     drawScanline(ioRam[0x44]);
                     if (updateHblankDMA()) {
-                        // Extra 50 cycles aren't added when hblank dma is 
-                        // performed. I still need a good way to implement that.
+                        extraCycles += 50;
                     }
 
                     setEventCycles(scanlineCounter);

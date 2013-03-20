@@ -117,6 +117,11 @@ void mapMemory() {
     memory[0xd] = wram[wramBank];
     memory[0xe] = wram[0];
     memory[0xf] = highram;
+
+    dmaSource = (ioRam[0x51]<<8) | (ioRam[0x52]);
+    dmaSource &= 0xFFF0;
+    dmaDest = (ioRam[0x53]<<8) | (ioRam[0x54]);
+    dmaDest &= 0x1FF0;
 }
 
 void latchClock()
@@ -616,27 +621,28 @@ void writeIO(u8 ioReg, u8 val)
                 }
                 int i;
                 dmaLength = ((val & 0x7F)+1);
-                int length = dmaLength*0x10;
-                int source = (ioRam[0x51]<<8) | (ioRam[0x52]);
-                source &= 0xFFF0;
-                int dest = (ioRam[0x53]<<8) | (ioRam[0x54]);
-                dest &= 0x1FF0;
-                dmaSource = source;
-                dmaDest = dest;
-                dmaMode = val&0x80;
+                dmaSource = (ioRam[0x51]<<8) | (ioRam[0x52]);
+                dmaSource &= 0xFFF0;
+                dmaDest = (ioRam[0x53]<<8) | (ioRam[0x54]);
+                dmaDest &= 0x1FF0;
+                dmaMode = val>>7;
                 ioRam[ioReg] = dmaLength-1;
                 if (dmaMode == 0)
                 {
                     int i;
                     for (i=0; i<dmaLength; i++)
                     {
-                        writeVram16(dest, source);
-                        dest += 0x10;
-                        source += 0x10;
+                        writeVram16(dmaDest, dmaSource);
+                        dmaDest += 0x10;
+                        dmaSource += 0x10;
                     }
                     extraCycles += dmaLength*8*(doubleSpeed+1);
                     dmaLength = 0;
                     ioRam[ioReg] = 0xFF;
+                    ioRam[0x51] = dmaSource>>8;
+                    ioRam[0x52] = dmaSource&0xff;
+                    ioRam[0x53] = dmaDest>>8;
+                    ioRam[0x54] = dmaDest&0xff;
                 }
             }
             else
@@ -689,6 +695,10 @@ bool updateHblankDMA()
         }
         else
             ioRam[0x55] = dmaLength-1;
+        ioRam[0x51] = dmaSource>>8;
+        ioRam[0x52] = dmaSource&0xff;
+        ioRam[0x53] = dmaDest>>8;
+        ioRam[0x54] = dmaDest&0xff;
         return true;
     }
     else
