@@ -15,9 +15,11 @@ const int off_map_base = 25;
 int screenOffsX = 48;
 int screenOffsY = 24;
 
+u8* pixels = (u8*)BG_GFX;
 int screenBg;
 //int colors[4];
-u16 pixels[256*144];
+u8 mapImage[2][256*256];
+bool renderingBankA=true;
 
 u16 bgPalettes[8][4];
 u16 sprPalettes[8][4];
@@ -91,7 +93,7 @@ void initGFX()
     bgPaletteData[7] = 0;
 
     videoSetMode(MODE_5_2D | DISPLAY_WIN0_ON | DISPLAY_BG2_ACTIVE);
-    REG_BG2CNT = BG_BMP16_256x256;
+    REG_BG2CNT = BG_BMP8_256x256;
 
     WIN_IN = 1<<2;
     WIN_OUT = 0;
@@ -114,6 +116,52 @@ void initGFX()
 }
 
 void refreshGFX() {
+}
+
+void updateTileMap(int m, int tile, int y) {
+    u8 lcdc = ioRam[0x40];
+    int tileSigned = !(lcdc&0x10);
+    int bgMap = (m ? 0x1c00 : 0x1800);
+    int addr = bgMap+tile;
+    int tileNum;
+    if (tileSigned)
+        tileNum = 0x100+(s8)vram[0][addr];
+    else
+        tileNum = vram[0][addr];
+
+    int paletteid=0, bank=0;
+    if (gbMode == CGB) {
+        u8 flags = vram[1][addr];
+        paletteid = flags&7;
+        bank = (flags>>3)&1;
+    }
+    u8* dest = &mapImage[m][tile/32*8*256+(tile%32)*8];
+    if (y == -1) {
+        for (int y=0; y<8; y++) {
+            u8 b1 = vram[bank][tileNum*0x10+y*2];
+            u8 b2 = vram[bank][tileNum*0x10+y*2+1];
+            for (int x=0; x<8; x++) {
+                u8 color = (b1>>7)&1;
+                b1 <<= 1;
+                color |= (b2>>6)&2;
+                b2 <<= 1;
+                *(dest++) = paletteid*16+color+1;
+            }
+            dest += 256-8;
+        }
+    }
+    else {
+        u8 b1 = vram[bank][tileNum*0x10+y*2];
+        u8 b2 = vram[bank][tileNum*0x10+y*2+1];
+        for (int x=0; x<8; x++) {
+            u8 color = (b1>>7)&1;
+            b1 <<= 1;
+            color |= (b2>>6)&2;
+            b2 <<= 1;
+            *(dest++) = paletteid*16+color+1;
+        }
+        dest += 256-8;
+    }
 }
 
 void setScaleMode(int mode) {
@@ -167,6 +215,21 @@ void enableScreen() {
 
 void drawTile(int bank, int tileNum) {
     tileModified[bank][tileNum] = false;
+    return;
+    u8 lcdc = ioRam[0x40];
+    int tileSigned = !(lcdc&0x10);
+    for (int i=0; i<2; i++) {
+        for (int t=0; t<32*32; t++) {
+            bool cond;
+           if (tileSigned)
+              cond = 0x100+(s8)vram[0][0x1800+i*0x400+t] == tileNum;
+           else
+              cond = vram[0][0x1800+i*0x400+t] == tileNum;
+           if (cond)
+               updateTileMap(i, t, -1);
+        }
+    }
+    /*
     for (int y=0; y<8; y++) {
         u8 b1=vram[bank][(tileNum<<4)+(y<<1)];
         u8 b2=vram[bank][(tileNum<<4)+(y<<1)+1];
@@ -180,21 +243,33 @@ void drawTile(int bank, int tileNum) {
             tileImages[bank][tileNum][y][x] = colorid+1;
         }
     }
+    */
 }
 
 void drawScreen() {
     swiIntrWait(interruptWaitMode, IRQ_VBLANK);
-    u16* src = pixels;
-    u16* dest = BG_GFX;
+    if (renderingBankA) {
+        REG_BG2CNT = BG_BMP8_256x256;
+        pixels = ((u8*)BG_GFX)+0x10000;
+        renderingBankA = false;
+    }
+    else {
+        REG_BG2CNT = BG_BMP8_256x256 | BG_MAP_BASE(4);
+        pixels = ((u8*)BG_GFX);
+        renderingBankA = true;
+    }
+    /*
+    u8* src = pixels;
+    u8* dest = (u8*)BG_GFX;
     for (int i=0; i<144; i++) {
-        dmaCopyAsynch(src, dest, 160*2);
+        dmaCopyAsynch(src, dest, 160);
         src += 256;
         dest += 256;
     }
+    */
 }
 
 void drawScanline(int scanline) {
-    /*
     while (tileModifiedQueueLength != 0) {
         tileModifiedQueueLength--;
         int val = tileModifiedQueue[tileModifiedQueueLength];
@@ -202,11 +277,10 @@ void drawScanline(int scanline) {
         int tileNum = val&0x1ff;
         drawTile(bank, tileNum);
     }
-    */
 
     u8 lcdc = ioRam[0x40];
-    int bgMap = (lcdc&8 ? 0x1c00 : 0x1800);
-    int winMap = (lcdc&0x40 ? 0x1c00 : 0x1800);
+    int bgMap = (lcdc&8 ? 1 : 0);
+    int winMap = (lcdc&0x40 ? 1 : 0);
     int tileSigned = !(lcdc&0x10);
     int tallSprites = lcdc&4;
     int winOn = lcdc&0x20;
@@ -217,42 +291,20 @@ void drawScanline(int scanline) {
     int winY = ioRam[0x4a];
 
     // Background
-    u16 *dest = pixels+scanline*256;
     int realy = (scanline+vofs)%256;
     int ypix = realy%8;
     int tile = (realy/8)*32+hofs/8;
     int x=hofs%8;
     int end = 21;
+
     if (winOn && winY <= scanline)
         end = winX/8+1;
-    for (int t=0; t<end; t++) {
-        int tileNum;
-        if (tileSigned)
-            tileNum = 0x100+(s8)vram[0][bgMap+tile];
-        else
-            tileNum = vram[0][bgMap+tile];
-
-        int paletteid=0, bank=0;
-        if (gbMode == CGB) {
-            u8 flags = vram[1][bgMap+tile];
-            paletteid = flags&7;
-            bank = (flags>>3)&1;
-        }
-        u8 b1 = vram[bank][tileNum*0x10+ypix*2]<<x;
-        u8 b2 = vram[bank][tileNum*0x10+ypix*2+1]<<x;
-        while (x < 8) {
-            u8 color = (b1>>7)&1;
-            b1 <<= 1;
-            color |= (b2>>6)&2;
-            b2 <<= 1;
-            *(dest++) = bgPalettes[paletteid][color];
-            x++;
-        }
-        x = 0;
-        tile++;
-        if (tile%32 == 0) {
-            tile -= 32;
-        }
+    int loopStart = 256-hofs;
+    if (loopStart >= 160)
+        dmaCopy(mapImage[bgMap]+realy*256+hofs, pixels+scanline*256, 160);
+    else {
+        dmaCopy(mapImage[bgMap]+realy*256+hofs, pixels+scanline*256, loopStart+1);
+        dmaCopy(mapImage[bgMap]+realy*256, pixels+scanline*256+loopStart, 160-loopStart+1);
     }
 
     // Window
@@ -289,7 +341,7 @@ void drawScanline(int scanline) {
     */
 
     if (spritesOn) {
-        dest = pixels+scanline*256;
+        u16* dest = (u16*)(pixels+scanline*256);
         for (int s=39; s>=0; s--) {
             int index = s*4;
             int posY = hram[index];
@@ -339,7 +391,14 @@ void drawScanline(int scanline) {
                     color |= (b2>>6)&2;
                     b2 <<= 1;
                     if (dx >= 0 && color != 0) {
-                        dest[dx] = sprPalettes[paletteid][color];
+                        if (dx%2 == 0) {
+                            dest[dx/2] &= 0xff00;
+                            dest[dx/2] |= paletteid*16+color+5;
+                        }
+                        else {
+                            dest[dx/2] &= 0x00ff;
+                            dest[dx/2] |= (paletteid*16+color+5)<<8;
+                        }
                     }
                     //dest[dx] = src[x]+8*4+paletteid*4;
                     dx += dir;
@@ -353,12 +412,12 @@ void updateBgPalette(int paletteid) {
     if (gbMode == GB) {
         for (int i=0; i<4; i++) {
             u8 id = (ioRam[0x47]>>(i*2))&3;
-            bgPalettes[0][i] = bgPaletteData[paletteid*8+id*2] | (bgPaletteData[paletteid*8+id*2+1]<<8) | BIT(15);
+            BG_PALETTE[paletteid*16+i+1] = bgPaletteData[paletteid*8+id*2] | (bgPaletteData[paletteid*8+id*2+1]<<8) | BIT(15);
         }
     }
     else {
         for (int i=0; i<4; i++) {
-            bgPalettes[paletteid][i] = bgPaletteData[paletteid*8+i*2] | (bgPaletteData[paletteid*8+i*2+1]<<8) | BIT(15);
+            BG_PALETTE[paletteid*16+i+1] = bgPaletteData[paletteid*8+i*2] | (bgPaletteData[paletteid*8+i*2+1]<<8) | BIT(15);
         }
     }
 }
@@ -366,12 +425,12 @@ void updateSprPalette(int paletteid) {
     if (gbMode == GB) {
         for (int i=0; i<4; i++) {
             u8 id = (ioRam[0x48+paletteid]>>(i*2))&3;
-            sprPalettes[paletteid][i] = sprPaletteData[paletteid*8+id*2] | (sprPaletteData[paletteid*8+id*2+1]<<8) | BIT(15);
+            BG_PALETTE[paletteid*16+i+5] = sprPaletteData[paletteid*8+id*2] | (sprPaletteData[paletteid*8+id*2+1]<<8) | BIT(15);
         }
     }
     else {
         for (int i=0; i<4; i++) {
-            sprPalettes[paletteid][i] = sprPaletteData[paletteid*8+i*2] | (sprPaletteData[paletteid*8+i*2+1]<<8) | BIT(15);
+            BG_PALETTE[paletteid*16+i+5] = sprPaletteData[paletteid*8+i*2] | (sprPaletteData[paletteid*8+i*2+1]<<8) | BIT(15);
         }
     }
 }
@@ -379,15 +438,19 @@ void updateSprPalette(int paletteid) {
 void writeVram(u16 addr, u8 val) {
     vram[vramBank][addr] = val;
 
-    /*
-    if (addr < 0x1800) {
+    if (addr >= 0x1800) {
+        if (addr < 0x1c00)
+            updateTileMap(0, addr-0x1800, -1);
+        else
+            updateTileMap(1, addr-0x1c00, -1);
+    }
+    else {
         int tileNum = addr/16;
         if (!tileModified[vramBank][tileNum]) {
             tileModified[vramBank][tileNum] = true;
             tileModifiedQueue[tileModifiedQueueLength++] = (vramBank<<9)|tileNum;
         }
     }
-    */
 }
 void writeVram16(u16 dest, u16 src) {
     for (int i=0; i<16; i++) {
@@ -395,12 +458,18 @@ void writeVram16(u16 dest, u16 src) {
     }
     dest -= 16;
     src -= 16;
-    /*
-    if (dest < 0x1800) {
+    if (dest >= 0x1800) {
+        for (int i=dest; i<dest+16; i++) {
+            if (dest < 0x1c00)
+                updateTileMap(0, i-0x1800, -1);
+            else
+                updateTileMap(1, i-0x1c00, -1);
+        }
+    }
+    else {
         int tileNum = dest/16;
         drawTile(vramBank, tileNum);
     }
-    */
 }
 
 
