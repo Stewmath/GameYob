@@ -131,12 +131,12 @@ emuLoopStart:
             // Emulation is being reset or something
             goto emuLoopStart;
 
+        int interruptTriggered = ioRam[0x0F] & ioRam[0xFF];
         // Run another opcode before triggering an interrupt.
         // Robocop 2 needs this.
-        if (ioRam[0x0f] & ioRam[0xff] && !halt)
+        if (interruptTriggered && !halt)
             extraCycles += runOpcode(4);
 
-        int interruptTriggered = ioRam[0x0F] & ioRam[0xFF];
         if (interruptTriggered)
             handleInterrupts(interruptTriggered);
     }

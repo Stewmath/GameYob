@@ -210,10 +210,29 @@ int cyclesToExecute;
 int runOpcode(int cycles) ITCM_CODE;
 #endif
 
+#define setPC(pc) { locPC = (pc); pcAddr = &memory[(locPC)>>12][(locPC)&0xfff]; } 
+#define readPC() *(pcAddr++); locPC++
+#define readPC_noinc() (*pcAddr)
+#define readPC16() ((*pcAddr) | ((*(pcAddr+1))<<8)); pcAddr += 2; locPC += 2
+#define readPC16_noinc() ((*pcAddr) | ((*(pcAddr+1))<<8))
+
+#define OP_JR(cond)  \
+                if (cond) { \
+                    setPC(locPC+(s8)readPC_noinc()+1); \
+                    totalCycles += 12; \
+                } \
+                else { \
+                    locPC++; pcAddr++; \
+                    totalCycles += 8; \
+                }
+
 int runOpcode(int cycles) {
     cyclesToExecute = cycles;
     // Having these commonly-used registers in local variables should improve speed
-    int locPC=gbRegs.pc.w;
+    u8* pcPage;
+    u8* pcAddr;
+    int locPC;
+    setPC(gbRegs.pc.w);
     int locSP=gbRegs.sp.w;
     u8  locA =gbRegs.af.b.h;
     int  locF =gbRegs.af.b.l;
@@ -222,7 +241,8 @@ int runOpcode(int cycles) {
 
     while (totalCycles < cyclesToExecute)
     {
-        u8 opcode = quickRead(locPC++);
+        u8 opcode = *pcAddr;
+        pcAddr++; locPC++;
         //totalCycles += opCycles[opcode];
 
         switch(opcode)
@@ -234,11 +254,11 @@ int runOpcode(int cycles) {
             case 0x1E:		// LD E, n		8
             case 0x26:		// LD H, n		8
             case 0x2E:		// LD L, n		8
-                (*numberedGbReg(opcode>>3)) = quickRead(locPC++);
+                (*numberedGbReg(opcode>>3)) = readPC();
                 totalCycles += 8;
                 break;
             case 0x3E:		// LD A, n		8
-                locA = quickRead(locPC++);
+                locA = readPC();
                 totalCycles += 8;
                 break;
                 /* These are equivalent to NOPs. */
@@ -359,7 +379,8 @@ int runOpcode(int cycles) {
                 totalCycles += 8;
                 break;
             case 0x36:		// LD (hl), n	12
-                writeMemory(gbRegs.hl.w, quickRead(locPC++));
+                writeMemory(gbRegs.hl.w, readPC_noinc());
+                locPC++; pcAddr++;
                 totalCycles += 12;
                 break;
             case 0x0A:		// LD A, (BC)	8
@@ -371,8 +392,8 @@ int runOpcode(int cycles) {
                 totalCycles += 8;
                 break;
             case 0xFA:		// LD A, (nn)	16
-                locA = readMemory(quickRead(locPC) | (quickRead(locPC+1) << 8));
-                locPC += 2;
+                locA = readMemory(readPC16_noinc());
+                locPC += 2; pcAddr += 2;
                 totalCycles += 16;
                 break;
             case 0x02:		// LD (BC), A	8
@@ -384,8 +405,8 @@ int runOpcode(int cycles) {
                 totalCycles += 8;
                 break;
             case 0xEA:		// LD (nn), A	16
-                writeMemory(quickRead(locPC) | (quickRead(locPC+1) << 8), locA);
-                locPC += 2;
+                writeMemory(readPC16_noinc(), locA);
+                locPC += 2; pcAddr += 2;
                 totalCycles += 16;
                 break;
             case 0xF2:		// LD A, (C)	8
@@ -412,34 +433,35 @@ int runOpcode(int cycles) {
                 totalCycles += 8;
                 break;
             case 0xE0:		// LDH (n), A   12
-                writeIO(quickRead(locPC++), locA);
+                writeIO(readPC_noinc(), locA);
+                locPC++; pcAddr++;
                 totalCycles += 12;
                 break;
             case 0xF0:		// LDH A, (n)   12
-                locA = readIO(quickRead(locPC++));
+                locA = readIO(readPC_noinc());
+                locPC++; pcAddr++;
                 totalCycles += 12;
                 break;
 
                 // 16-bit loads
 
             case 0x01:		// LD BC, nn	12
-                gbRegs.bc.b.l = quickRead(locPC++);
-                gbRegs.bc.b.h = quickRead(locPC++);
+                gbRegs.bc.b.l = readPC();
+                gbRegs.bc.b.h = readPC();
                 totalCycles += 12;
                 break;
             case 0x11:		// LD de, nn	12
-                gbRegs.de.b.l = quickRead(locPC++);
-                gbRegs.de.b.h = quickRead(locPC++);
+                gbRegs.de.b.l = readPC();
+                gbRegs.de.b.h = readPC();
                 totalCycles += 12;
                 break;
             case 0x21:		// LD hl, nn	12
-                gbRegs.hl.b.l = quickRead(locPC++);
-                gbRegs.hl.b.h = quickRead(locPC++);
+                gbRegs.hl.b.l = readPC();
+                gbRegs.hl.b.h = readPC();
                 totalCycles += 12;
                 break;
             case 0x31:		// LD SP, nn	12
-                locSP = quickRead(locPC) | (quickRead(locPC+1) << 8);
-                locPC += 2;
+                locSP = readPC16();
                 totalCycles += 12;
                 break;
             case 0xF9:		// LD SP, hl	8
@@ -448,7 +470,7 @@ int runOpcode(int cycles) {
                 break;
             case 0xF8:		// LDHL SP, n   12
                 {
-                    int val = quickRead(locPC++);
+                    int val = readPC();
                     if (((locSP&0xFF)+val) > 0xFF)
                         setCFlag();
                     else
@@ -465,8 +487,7 @@ int runOpcode(int cycles) {
                 }
             case 0x08:		// LD (nn), SP	20
                 {
-                    int val = quickRead(locPC) | (quickRead(locPC+1) << 8);
-                    locPC += 2;
+                    int val = readPC16();
                     writeMemory(val, locSP & 0xFF);
                     writeMemory(val+1, (locSP) >> 8);
                     totalCycles += 20;
@@ -581,7 +602,7 @@ int runOpcode(int cycles) {
                 }
             case 0xC6:		// ADD A, n			8
                 {
-                    int val = quickRead(locPC++);
+                    int val = readPC();
                     if (locA + val > 0xFF)
                         setCFlag();
                     else
@@ -671,7 +692,7 @@ int runOpcode(int cycles) {
                 }
             case 0xCE:		// ADC A, n			8
                 {
-                    int val = quickRead(locPC++);
+                    int val = readPC();
                     int val2 = carrySet();
                     if (locA + val + val2 > 0xFF)
                         setCFlag();
@@ -748,7 +769,7 @@ int runOpcode(int cycles) {
                 }
             case 0xD6:		// SUB A, n			8
                 {
-                    int val = quickRead(locPC++);
+                    int val = readPC();
                     if (locA < val)
                         setCFlag();
                     else
@@ -837,7 +858,7 @@ int runOpcode(int cycles) {
                 }
             case 0xde:		// SBC A, n			4
                 {
-                    int val = quickRead(locPC++);
+                    int val = readPC();
                     int val2 = carrySet();
                     if (locA <val + val2)
                         setCFlag();
@@ -895,7 +916,7 @@ int runOpcode(int cycles) {
                 totalCycles += 8;
                 break;
             case 0xE6:		// AND A, n			8
-                locA &= quickRead(locPC++);
+                locA &= readPC();
                 if (locA == 0)
                     setZFlag();
                 else
@@ -944,7 +965,7 @@ int runOpcode(int cycles) {
                 totalCycles += 8;
                 break;
             case 0xF6:		// OR A, n			4
-                locA |= quickRead(locPC++);
+                locA |= readPC();
                 if (locA == 0)
                     setZFlag();
                 else
@@ -991,7 +1012,7 @@ int runOpcode(int cycles) {
                 totalCycles += 8;
                 break;
             case 0xEE:		// XOR A, n			8
-                locA ^= quickRead(locPC++);
+                locA ^= readPC();
                 if (locA == 0)
                     setZFlag();
                 else
@@ -1056,7 +1077,7 @@ int runOpcode(int cycles) {
                 }
             case 0xFE:		// CP n					8
                 {
-                    int val = quickRead(locPC++);
+                    int val = readPC();
                     if (locA < val)
                         setCFlag();
                     else
@@ -1240,7 +1261,7 @@ int runOpcode(int cycles) {
 
             case 0xE8:		// ADD SP, n		16
                 {
-                    int val = quickRead(locPC++);
+                    int val = readPC();
                     if (((locSP&0xFF)+val) > 0xFF)
                         setCFlag();
                     else
@@ -1381,6 +1402,7 @@ int runOpcode(int cycles) {
                     cyclesToExecute = 0;
                 }
                 locPC++;    // ignore next byte
+                pcAddr++;
                 totalCycles += 4;
                 break;
 
@@ -1463,119 +1485,87 @@ int runOpcode(int cycles) {
                 }
 
             case 0xC3:		// JP				16
-                locPC = quickRead(locPC) | (quickRead(locPC+1) << 8);
+                setPC(readPC16_noinc());
                 totalCycles += 16;
                 break;
             case 0xC2:		// JP NZ, nn	16/12
                 if (!zeroSet())
                 {
-                    locPC = quickRead(locPC) | (quickRead(locPC+1) << 8);
+                    setPC(readPC16_noinc());
                     totalCycles += 16;
                     break;
                 }
                 else {
                     locPC += 2;
+                    pcAddr += 2;
                     totalCycles += 12;
                     break;
                 }
             case 0xCA:		// JP Z, nn		16/12
                 if (zeroSet())
                 {
-                    locPC = quickRead(locPC) | (quickRead(locPC+1) << 8);
+                    setPC(readPC16_noinc());
                     totalCycles += 16;
                     break;
                 }
                 else {
                     locPC += 2;
+                    pcAddr += 2;
                     totalCycles += 12;
                     break;
                 }
             case 0xD2:		// JP NC, nn	16/12
                 if (!carrySet())
                 {
-                    locPC = quickRead(locPC) | (quickRead(locPC+1) << 8);
+                    setPC(readPC16_noinc());
                     totalCycles += 16;
                     break;
                 }
                 else {
                     locPC += 2;
+                    pcAddr += 2;
                     totalCycles += 12;
                     break;
                 }
             case 0xDA:		// JP C, nn	12
                 if (carrySet())
                 {
-                    locPC = quickRead(locPC) | (quickRead(locPC+1) << 8);
+                    setPC(readPC16_noinc());
                     totalCycles += 16;
                     break;
                 }
                 else {
                     locPC += 2;
+                    pcAddr += 2;
                     totalCycles += 12;
                     break;
                 }
             case 0xE9:		// JP (hl)	4
-                locPC = gbRegs.hl.w;
+                setPC(gbRegs.hl.w);
                 totalCycles += 4;
                 break;
             case 0x18:		// JR n 12
-                locPC += (s8)quickRead(locPC++);
-                totalCycles += 12;
+                OP_JR(true);
                 break;
             case 0x20:		// JR NZ n  8/12
-                if (!zeroSet()) {
-                    locPC += (s8)quickRead(locPC++);
-                    totalCycles += 12;
-                    break;
-                }
-                else {
-                    locPC ++;
-                    totalCycles += 8;
-                    break;
-                }
+                OP_JR(!zeroSet());
+                break;
             case 0x28:		// JR Z, n  8/12
-                if (zeroSet())
-                {
-                    locPC += (s8)quickRead(locPC++);
-                    totalCycles += 12;
-                    break;
-                }
-                else {
-                    locPC ++;
-                    totalCycles += 8;
-                    break;
-                }
+                OP_JR(zeroSet());
+                break;
             case 0x30:		// JR NC, n 8/12
-                if (!carrySet())
-                {
-                    locPC += (s8)quickRead(locPC++);
-                    totalCycles += 12;
-                    break;
-                }
-                else {
-                    locPC ++;
-                    totalCycles += 8;
-                    break;
-                }
+                OP_JR(!carrySet());
+                break;
             case 0x38:		// JR C, n  8/12
-                if (carrySet())
-                {
-                    locPC += (s8)quickRead(locPC++);
-                    totalCycles += 12;
-                    break;
-                }
-                else {
-                    locPC ++;
-                    totalCycles += 8;
-                    break;
-                }
+                OP_JR(carrySet());
+                break;
 
             case 0xCD:		// CALL nn			24
                 {
                     int val = locPC + 2;
                     quickWrite(--locSP, (val) >> 8);
                     quickWrite(--locSP, (val & 0xFF));
-                    locPC = quickRead(locPC) | (quickRead(locPC+1) << 8);
+                    setPC(readPC16_noinc());
                     totalCycles += 24;
                     break;
                 }
@@ -1585,12 +1575,13 @@ int runOpcode(int cycles) {
                     int val = locPC + 2;
                     quickWrite(--locSP, (val) >> 8);
                     quickWrite(--locSP, (val & 0xFF));
-                    locPC = quickRead(locPC) | (quickRead(locPC+1) << 8);
+                    setPC(readPC16_noinc());
                     totalCycles += 24;
                     break;
                 }
                 else {
                     locPC += 2;
+                    pcAddr += 2;
                     totalCycles += 12;
                     break;
                 }
@@ -1600,12 +1591,13 @@ int runOpcode(int cycles) {
                     int val = locPC + 2;
                     quickWrite(--locSP, (val) >> 8);
                     quickWrite(--locSP, (val & 0xFF));
-                    locPC = quickRead(locPC) | (quickRead(locPC+1) << 8);
+                    setPC(readPC16_noinc());
                     totalCycles += 24;
                     break;
                 }
                 else {
                     locPC += 2;
+                    pcAddr += 2;
                     totalCycles += 12;
                     break;
                 }
@@ -1615,12 +1607,13 @@ int runOpcode(int cycles) {
                     int val = locPC + 2;
                     quickWrite(--locSP, (val) >> 8);
                     quickWrite(--locSP, (val & 0xFF));
-                    locPC = quickRead(locPC) | (quickRead(locPC+1) << 8);
+                    setPC(readPC16_noinc());
                     totalCycles += 24;
                     break;
                 }
                 else {
                     locPC += 2;
+                    pcAddr += 2;
                     totalCycles += 12;
                     break;
                 }
@@ -1630,12 +1623,13 @@ int runOpcode(int cycles) {
                     int val = locPC + 2;
                     quickWrite(--locSP, (val) >> 8);
                     quickWrite(--locSP, (val & 0xFF));
-                    locPC = quickRead(locPC) | (quickRead(locPC+1) << 8);
+                    setPC(readPC16_noinc());
                     totalCycles += 24;
                     break;
                 }
                 else {
                     locPC += 2;
+                    pcAddr += 2;
                     totalCycles += 12;
                     break;
                 }
@@ -1643,61 +1637,61 @@ int runOpcode(int cycles) {
             case 0xC7:		// RST 00H			16
                 quickWrite(--locSP, (locPC) >> 8);
                 quickWrite(--locSP, (locPC & 0xFF));
-                locPC = 0x0;
+                setPC(0x0);
                 totalCycles += 16;
                 break;
             case 0xCF:		// RST 08H			16
                 quickWrite(--locSP, (locPC) >> 8);
                 quickWrite(--locSP, (locPC & 0xFF));
-                locPC = 0x8;
+                setPC(0x8);
                 totalCycles += 16;
                 break;
             case 0xD7:		// RST 10H			16
                 quickWrite(--locSP, (locPC) >> 8);
                 quickWrite(--locSP, (locPC & 0xFF));
-                locPC = 0x10;
+                setPC(0x10);
                 totalCycles += 16;
                 break;
             case 0xDF:		// RST 18H			16
                 quickWrite(--locSP, (locPC) >> 8);
                 quickWrite(--locSP, (locPC & 0xFF));
-                locPC = 0x18;
+                setPC(0x18);
                 totalCycles += 16;
                 break;
             case 0xE7:		// RST 20H			16
                 quickWrite(--locSP, (locPC) >> 8);
                 quickWrite(--locSP, (locPC & 0xFF));
-                locPC = 0x20;
+                setPC(0x20);
                 totalCycles += 16;
                 break;
             case 0xEF:		// RST 28H			16
                 quickWrite(--locSP, (locPC) >> 8);
                 quickWrite(--locSP, (locPC & 0xFF));
-                locPC = 0x28;
+                setPC(0x28);
                 totalCycles += 16;
                 break;
             case 0xF7:		// RST 30H			16
                 quickWrite(--locSP, (locPC) >> 8);
                 quickWrite(--locSP, (locPC & 0xFF));
-                locPC = 0x30;
+                setPC(0x30);
                 totalCycles += 16;
                 break;
             case 0xFF:		// RST 38H			16
                 quickWrite(--locSP, (locPC) >> 8);
                 quickWrite(--locSP, (locPC & 0xFF));
-                locPC = 0x38;
+                setPC(0x38);
                 totalCycles += 16;
                 break;
 
             case 0xC9:		// RET					16
-                locPC = quickRead(locSP) + (quickRead(locSP+1) << 8);
+                setPC(quickRead(locSP) + (quickRead(locSP+1) << 8));
                 locSP += 2;
                 totalCycles += 16;
                 break;
             case 0xC0:		// RET NZ				8/20
                 if (!zeroSet())
                 {
-                    locPC = quickRead(locSP) + (quickRead(locSP+1) << 8);
+                    setPC(quickRead(locSP) + (quickRead(locSP+1) << 8));
                     locSP += 2;
                     totalCycles += 20;
                     break;
@@ -1709,7 +1703,7 @@ int runOpcode(int cycles) {
             case 0xC8:		// RET Z				8/20
                 if (zeroSet())
                 {
-                    locPC = quickRead(locSP) + (quickRead(locSP+1) << 8);
+                    setPC(quickRead(locSP) + (quickRead(locSP+1) << 8));
                     locSP += 2;
                     totalCycles += 20;
                     break;
@@ -1721,7 +1715,7 @@ int runOpcode(int cycles) {
             case 0xD0:		// RET NC				8/20
                 if (!carrySet())
                 {
-                    locPC = quickRead(locSP) + (quickRead(locSP+1) << 8);
+                    setPC(quickRead(locSP) + (quickRead(locSP+1) << 8));
                     locSP += 2;
                     totalCycles += 20;
                     break;
@@ -1733,7 +1727,7 @@ int runOpcode(int cycles) {
             case 0xD8:		// RET C				8/20
                 if (carrySet())
                 {
-                    locPC = quickRead(locSP) + (quickRead(locSP+1) << 8);
+                    setPC(quickRead(locSP) + (quickRead(locSP+1) << 8));
                     locSP += 2;
                     totalCycles += 20;
                     break;
@@ -1743,14 +1737,14 @@ int runOpcode(int cycles) {
                     break;
                 }
             case 0xD9:		// RETI					16
-                locPC = quickRead(locSP) + (quickRead(locSP+1) << 8);
+                setPC(quickRead(locSP) + (quickRead(locSP+1) << 8));
                 locSP += 2;
                 enableInterrupts();
                 totalCycles += 16;
                 break;
 
             case 0xCB:
-                opcode = quickRead(locPC++);
+                opcode = readPC();
                 //totalCycles += CBopCycles[opcode];
                 switch(opcode)
                 {
@@ -2283,7 +2277,7 @@ int runOpcode(int cycles) {
                             break;
                         }
 
-                    case 0x47:		// BIT 0, A     8
+                    case 0x47:		// BIT 0, A
                     case 0x4F:		// BIT 1, A
                     case 0x57:		// BIT 2, A
                     case 0x5F:		// BIT 3, A
@@ -2307,58 +2301,112 @@ int runOpcode(int cycles) {
                     case 0x43:		// BIT 0, E     8
                     case 0x44:		// BIT 0, H     8
                     case 0x45:		// BIT 0, L     8
-                    case 0x48:		// BIT 1, B     8
+                        if (((*numberedGbReg(opcode&7)) & 1) == 0)
+                            setZFlag();
+                        else
+                            clearZFlag();
+                        clearNFlag();
+                        setHFlag();
+                        totalCycles += 8;
+                        break;
+                    case 0x48:		// BIT 1, B
                     case 0x49:		// BIT 1, C
                     case 0x4A:		// BIT 1, D
                     case 0x4B:		// BIT 1, E
                     case 0x4C:		// BIT 1, H
                     case 0x4D:		// BIT 1, L
+                        if (((*numberedGbReg(opcode&7)) & 2) == 0)
+                            setZFlag();
+                        else
+                            clearZFlag();
+                        clearNFlag();
+                        setHFlag();
+                        totalCycles += 8;
+                        break;
                     case 0x50:		// BIT 2, B
                     case 0x51:		// BIT 2, C
                     case 0x52:		// BIT 2, D
                     case 0x53:		// BIT 2, E
                     case 0x54:		// BIT 2, H
                     case 0x55:		// BIT 2, L
+                        if (((*numberedGbReg(opcode&7)) & 4) == 0)
+                            setZFlag();
+                        else
+                            clearZFlag();
+                        clearNFlag();
+                        setHFlag();
+                        totalCycles += 8;
+                        break;
                     case 0x58:		// BIT 3, B
                     case 0x59:		// BIT 3, C
                     case 0x5A:		// BIT 3, D
                     case 0x5B:		// BIT 3, E
                     case 0x5C:		// BIT 3, H
                     case 0x5D:		// BIT 3, L
+                        if (((*numberedGbReg(opcode&7)) & 8) == 0)
+                            setZFlag();
+                        else
+                            clearZFlag();
+                        clearNFlag();
+                        setHFlag();
+                        totalCycles += 8;
+                        break;
                     case 0x60:		// BIT 4, B
                     case 0x61:		// BIT 4, C
                     case 0x62:		// BIT 4, D
                     case 0x63:		// BIT 4, E
                     case 0x64:		// BIT 4, H
                     case 0x65:		// BIT 4, L
+                        if (((*numberedGbReg(opcode&7)) & 0x10) == 0)
+                            setZFlag();
+                        else
+                            clearZFlag();
+                        clearNFlag();
+                        setHFlag();
+                        totalCycles += 8;
+                        break;
                     case 0x68:		// BIT 5, B
                     case 0x69:		// BIT 5, C
                     case 0x6A:		// BIT 5, D
                     case 0x6B:		// BIT 5, E
                     case 0x6C:		// BIT 5, H
                     case 0x6D:		// BIT 5, L
+                        if (((*numberedGbReg(opcode&7)) & 0x20) == 0)
+                            setZFlag();
+                        else
+                            clearZFlag();
+                        clearNFlag();
+                        setHFlag();
+                        totalCycles += 8;
+                        break;
                     case 0x70:		// BIT 6, B
                     case 0x71:		// BIT 6, C
                     case 0x72:		// BIT 6, D
                     case 0x73:		// BIT 6, E
                     case 0x74:		// BIT 6, H
                     case 0x75:		// BIT 6, L
+                        if (((*numberedGbReg(opcode&7)) & 0x40) == 0)
+                            setZFlag();
+                        else
+                            clearZFlag();
+                        clearNFlag();
+                        setHFlag();
+                        totalCycles += 8;
+                        break;
                     case 0x78:		// BIT 7, B
                     case 0x79:		// BIT 7, C
                     case 0x7A:		// BIT 7, D
                     case 0x7B:		// BIT 7, E
                     case 0x7C:		// BIT 7, H
                     case 0x7D:		// BIT 7, L
-                        {
-                            if (((*numberedGbReg(opcode&7)) & (1<<((opcode>>3)&7))) == 0)
-                                setZFlag();
-                            else
-                                clearZFlag();
-                            clearNFlag();
-                            setHFlag();
-                            totalCycles += 8;
-                            break;
-                        }
+                        if (((*numberedGbReg(opcode&7)) & 0x80) == 0)
+                            setZFlag();
+                        else
+                            clearZFlag();
+                        clearNFlag();
+                        setHFlag();
+                        totalCycles += 8;
+                        break;
                     case 0x46:		// BIT 0, (hl)      12
                         if ((readMemory(gbRegs.hl.w) & 0x1) == 0)
                             setZFlag();
