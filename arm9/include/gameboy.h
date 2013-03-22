@@ -15,9 +15,6 @@ extern long periods[4];
 
 extern bool screenOn;
 
-extern int mode2Cycles;
-extern int mode3Cycles;
-
 extern int doubleSpeed;
 extern int cyclesToEvent;
 

@@ -136,8 +136,9 @@ emuLoopStart:
         if (ioRam[0x0f] & ioRam[0xff] && !halt)
             extraCycles += runOpcode(4);
 
-        if (ime || halt)
-            handleInterrupts();
+        int interruptTriggered = ioRam[0x0F] & ioRam[0xFF];
+        if (interruptTriggered)
+            handleInterrupts(interruptTriggered);
     }
 }
 
@@ -152,7 +153,7 @@ void initLCD()
        maxWaitCycles = 100;
     else
     */
-    maxWaitCycles = 400;
+    maxWaitCycles = 800;
 
     setDoubleSpeed(0);
 
@@ -198,11 +199,10 @@ inline int updateLCD(int cycles)
         }
         return 0;
     }
-    int lcdState = ioRam[0x41]&3;
 
     scanlineCounter -= cycles;
 
-    switch(lcdState)
+    switch(ioRam[0x41]&3)
     {
         case 2:
             {
