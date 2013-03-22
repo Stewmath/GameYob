@@ -218,7 +218,7 @@ int runOpcode(int cycles) ITCM_CODE;
 
 #define OP_JR(cond)  \
                 if (cond) { \
-                    setPC(locPC+(s8)readPC_noinc()+1); \
+                    setPC((locPC+(s8)readPC_noinc()+1)&0xffff); \
                     totalCycles += 12; \
                 } \
                 else { \
