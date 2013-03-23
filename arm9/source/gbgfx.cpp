@@ -82,6 +82,7 @@ void drawSprites();
 void drawTile(int tile, int bank);
 void updateTiles();
 void updateTileMap(int map, int i, u8 val);
+void updateBgPalette(int paletteid, u8* data);
 
 typedef struct {
     bool modified;
@@ -100,6 +101,8 @@ typedef struct {
     bool spritesOn;
     bool map0;
     bool tileSigned;
+    u8 bgPaletteData[0x40];
+    bool bgPaletteModified[8];
 } ScanlineStruct;
 
 ScanlineStruct scanlineBuffers[2][144];
@@ -181,6 +184,10 @@ inline void drawLine(int gbLine) {
             REG_BG2VOFS = wvofs;
             REG_BG2CNT = state->winOverlayCnt;
         }
+    }
+    for (int i=0; i<8; i++) {
+        if (state->bgPaletteModified[i] || (gbLine != 0 && drawingState[gbLine-1].bgPaletteModified[i]))
+            updateBgPalette(i, state->bgPaletteData);
     }
 }
 
@@ -482,16 +489,8 @@ void drawScreen()
             }
         }
         if (bgPaletteModified[paletteid]) {
-            bgPaletteModified[paletteid] = false;
-            for (int i=0; i<4; i++) {
-                int id;
-                if (gbMode == GB)
-                    id = (ioRam[0x47]>>(i*2))&3;
-                else
-                    id = i;
-
-				BG_PALETTE[((paletteid)*16)+i+1] = bgPaletteData[(paletteid*8)+(id*2)] | bgPaletteData[(paletteid*8)+(id*2)+1]<<8;
-            }
+            //bgPaletteModified[paletteid] = false;
+            //updateBgPalette(paletteid, bgPaletteData);
         }
     }
 
@@ -554,12 +553,21 @@ void drawScanline(int scanline)
         winPosY = ioRam[0x44]-ioRam[0x4a];
     else if (winX < 167 && ioRam[0x4a] <= scanline)
         winPosY++;
+    for (int i=0; i<8; i++) {
+        renderingState[scanline].bgPaletteModified[i] = bgPaletteModified[i];
+        if (bgPaletteModified[i]) {
+            lineModified = true;
+            bgPaletteModified[i] = false;
+        }
+    }
     if (scanline == 0 || (scanline == 1 || (renderingState[scanline-1].modified && !renderingState[scanline-2].modified)) || scanline == ioRam[0x4a])
         lineModified = true;
     if (!lineModified) {
         renderingState[scanline].modified = false;
         return;
     } 
+    for (int i=0; i<0x40; i++)
+        renderingState[scanline].bgPaletteData[i] = bgPaletteData[i];
     bool winOn = (ioRam[0x40] & 0x20) && winX < 167 && ioRam[0x4a] < 144 && ioRam[0x4a] <= scanline;
     renderingState[scanline].modified = true;
     lineModified = false;
@@ -699,6 +707,18 @@ void updateTiles() {
         changedTileInFrame[bank][tile] = false;
         changedTile[bank][tile] = true;
         changedTileQueue[changedTileQueueLength++] = val;
+    }
+}
+
+void updateBgPalette(int paletteid, u8* data) {
+    for (int i=0; i<4; i++) {
+        int id;
+        if (gbMode == GB)
+            id = (ioRam[0x47]>>(i*2))&3;
+        else
+            id = i;
+
+        BG_PALETTE[((paletteid)*16)+i+1] = data[(paletteid*8)+(id*2)] | data[(paletteid*8)+(id*2)+1]<<8;
     }
 }
 
