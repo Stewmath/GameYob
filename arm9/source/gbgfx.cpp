@@ -10,9 +10,9 @@
 const int spr_priority = 2;
 const int spr_priority_low = 3;
 
-const int map_base[] = {28, 29};
-const int blank_map_base[] = {30, 31};
-const int overlay_map_base[] = {26,27};
+const int map_base[] = {26, 27};
+const int blank_map_base[] = {28, 29};
+const int overlay_map_base[] = {30, 31};
 const int off_map_base = 25;
 
 const int win_blank_priority = 3;
@@ -100,7 +100,6 @@ typedef struct {
     bool spritesOn;
     bool map0;
     bool tileSigned;
-    int spriteMaps[40];
 } ScanlineStruct;
 
 ScanlineStruct scanlineBuffers[2][144];
@@ -286,7 +285,7 @@ void initGFX()
     REG_DISPSTAT &= 0xFF;
     REG_DISPSTAT |= (144+screenOffsY)<<8;
 
-    irqEnable(IRQ_VCOUNT);
+    //irqEnable(IRQ_VCOUNT);
     irqEnable(IRQ_HBLANK);
     irqEnable(IRQ_VBLANK);
     irqSet(IRQ_VBLANK, &vblankHandler);
@@ -364,7 +363,6 @@ void updateTileMap(int m, int i, u8 val) {
 }
 
 void drawTile(int tileNum, int bank) {
-    int x,y;
     int index = (tileNum<<4)+(bank*0x100*16);
     int signedIndex=index;
     if (tileNum >= 0x100)
@@ -373,35 +371,47 @@ void drawTile(int tileNum, int bank) {
     bool unsign = tileNum < 0x100;
     bool sign = tileNum >= 0x80;
     u8* src = &vram[bank][tileNum<<4];
-    for (y=0; y<8; y++) {
-        u8 b1=*(src++);
-        u8 b2=*(src++);
-        int bb[] = {0,0};
-        int sb[] = {0,0};
-        for (x=0; x<8; x++) {
-            int colorid;
-            colorid = !!(b1&0x80);
-            colorid |= !!(b2&0x80)<<1;
-            b1 <<= 1;
-            b2 <<= 1;
+    for (int y=0; y<8; y++) {
+        int b1=*(src++);
+        int b2=*(src++)<<1;
+        int bb0=0, bb1=0;
+        int sb0=0, sb1=0;
+        int shift=12;
+        for (int x=0; x<4; x++) {
+            int colorid = b1&1;
+            b1 >>= 1;
+            colorid |= b2&2;
+            b2 >>= 1;
 
             if (colorid != 0)
-                bb[x/4] |= ((colorid+1)<<((x%4)*4));
+                bb1 |= ((colorid+1)<<shift);
             if (unsign)
-                sb[x/4] |= (colorid<<((x%4)*4));
+                sb1 |= (colorid<<shift);
+            shift -= 4;
+        }
+        shift = 12;
+        for (int x=0; x<4; x++) {
+            int colorid = b1&1;
+            b1 >>= 1;
+            colorid |= b2&2;
+            b2 >>= 1;
+
+            if (colorid != 0)
+                bb0 |= ((colorid+1)<<shift);
+            if (unsign)
+                sb0 |= (colorid<<shift);
+            shift -= 4;
         }
         if (unsign) {
-            BG_GFX[0x8000+index] = bb[0];
-            BG_GFX[0x8000+index+1] = bb[1];
-            SPRITE_GFX[index] = sb[0];
-            SPRITE_GFX[index+1] = sb[1];
+            BG_GFX[0x8000+index] = bb0;
+            BG_GFX[0x8000+index+1] = bb1;
+            SPRITE_GFX[index++] = sb0;
+            SPRITE_GFX[index++] = sb1;
         }
         if (sign) {
-            BG_GFX[0x10000+signedIndex] = bb[0];
-            BG_GFX[0x10000+signedIndex+1] = bb[1];
+            BG_GFX[0x10000+signedIndex++] = bb0;
+            BG_GFX[0x10000+signedIndex++] = bb1;
         }
-        index += 2;
-        signedIndex += 2;
     }
 }
 

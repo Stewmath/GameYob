@@ -263,11 +263,6 @@ u8 readIO(u8 ioReg)
     }
 }
 
-u16 readhword(u16 addr)
-{
-    return (readMemory(addr))|(readMemory(addr+1)<<8);
-}
-
 #ifdef DS
 void writeMemory(u16 addr, u8 val) ITCM_CODE;
 #endif
@@ -672,11 +667,6 @@ void writeIO(u8 ioReg, u8 val)
     }
 }
 
-void writehword(u16 addr, u16 val)
-{
-    writeMemory(addr, val&0xFF);
-    writeMemory(addr+1, val>>8);
-}
 
 bool updateHblankDMA()
 {

@@ -229,7 +229,6 @@ int runOpcode(int cycles) ITCM_CODE;
 int runOpcode(int cycles) {
     cyclesToExecute = cycles;
     // Having these commonly-used registers in local variables should improve speed
-    u8* pcPage;
     u8* pcAddr;
     int locPC;
     setPC(gbRegs.pc.w);

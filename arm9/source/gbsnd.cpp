@@ -6,6 +6,11 @@
 #include "gameboy.h"
 #include "gbsnd.h"
 
+#define CHAN_1 1
+#define CHAN_2 2
+#define CHAN_3 4
+#define CHAN_4 8
+
 inline void setChan1() {ioRam[0x26] |= 1;}
 inline void clearChan1() {ioRam[0x26] &= ~1;}
 inline void setChan2() {ioRam[0x26] |= 2;}
@@ -33,7 +38,7 @@ int chanUseLen[4];
 u32 chanFreq[4];
 // Frequency converted
 u32 chanRealFreq[4];
-int chanOn[4];
+int chanOn;
 int chanVol[4];
 int chanEnvDir[4];
 int chanEnvCounter[4];
@@ -130,7 +135,7 @@ void initSND()
     }
     for (i=0; i<4; i++) {
         soundKill(sound[i]);
-        chanOn[i] = 0;
+        chanOn = 0;
         chanVol[i] = 0;
         chanFreq[i] = 0;
         setSoundVolume(i);
@@ -155,7 +160,7 @@ void disableChannel(int i) {
 
 void setSoundVolume(int i)
 {
-    if (!chanOn[i] || !chanEnabled[i])
+    if (!(chanOn & (1<<i)) || !chanEnabled[i])
     {
         soundSetVolume(sound[i], 0);
         return;
@@ -207,9 +212,10 @@ void updateSound(int cycles)
 {
     if (soundDisabled)
         return;
-    int i;
+    bool changedVol[4];
+    memset(changedVol, 0, sizeof(changedVol));
     if (doubleSpeed)
-        cycles /= 2;
+        cycles >>= 1;
     if (chan1SweepTime != 0)
     {
         chan1SweepCounter -= cycles;
@@ -222,13 +228,13 @@ void updateSound(int cycles)
 
             if (chanFreq[0] > 0x7FF)
             {
-                chanOn[0] = 0;
+                chanOn &= ~CHAN_1;
                 clearChan1();
-                setSoundVolume(0);
+                changedVol[0] = true;
             }
         }
     }
-    if (chanOn[3] && chanEnvSweep[3] != 0) {
+    if ((chanOn & CHAN_4) && chanEnvSweep[3] != 0) {
         chanEnvCounter[3] -= cycles;
         if (chanEnvCounter[3] <= 0)
         {
@@ -238,12 +244,12 @@ void updateSound(int cycles)
                 chanVol[3] = 0;
             if (chanVol[3] > 0xF)
                 chanVol[3] = 0xF;
-            setSoundVolume(3);
+            changedVol[3] = true;
         }
     }
-    for (i=0; i<2; i++)
+    for (int i=0; i<2; i++)
     {
-        if (chanOn[i])
+        if (chanOn & (1<<i))
         {
             if (chanEnvSweep[i] != 0)
             {
@@ -256,20 +262,20 @@ void updateSound(int cycles)
                         chanVol[i] = 0;
                     if (chanVol[i] > 0xF)
                         chanVol[i] = 0xF;
-                    setSoundVolume(i);
+                    changedVol[i] = true;
                 }
             }
         }
     }
-    for (i=0; i<4; i++)
+    for (int i=0; i<4; i++)
     {
-        if (chanOn[i] && chanUseLen[i])
+        if ((chanOn & (1<<i)) && chanUseLen[i])
         {
             chanLenCounter[i] -= cycles;
             if (chanLenCounter[i] <= 0)
             {
-                chanOn[i] = 0;
-                setSoundVolume(i);
+                chanOn &= ~(1<<i);
+                changedVol[i] = true;
                 if (i==0)
                     clearChan1();
                 else if (i == 1)
@@ -280,6 +286,8 @@ void updateSound(int cycles)
                     clearChan4();
             }
         }
+        if (changedVol[i])
+            setSoundVolume(i);
     }
 }
 
@@ -338,7 +346,7 @@ void handleSoundRegister(u8 ioReg, u8 val)
             if (val & 0x80)
             {
                 chanLenCounter[0] = (64-chanLen[0])*clockSpeed/256;
-                chanOn[0] = 1;
+                chanOn |= CHAN_1;
                 chanVol[0] = ioRam[0x12]>>4;
                 chanRealFreq[0] = 131072/(2048-chanFreq[0])*8;
                 if (chan1SweepTime != 0)
@@ -390,7 +398,7 @@ void handleSoundRegister(u8 ioReg, u8 val)
             if (val & 0x80)
             {
                 chanLenCounter[1] = (64-chanLen[1])*clockSpeed/256;
-                chanOn[1] = 1;
+                chanOn |= CHAN_2;
                 chanVol[1] = ioRam[0x17]>>4;
                 chanRealFreq[1] = 131072/(2048-chanFreq[1])*8;
                 setChan2();
@@ -409,12 +417,12 @@ void handleSoundRegister(u8 ioReg, u8 val)
         case 0x1A:
             if ((val & 0x80) == 0)
             {
-                chanOn[2] = 0;
+                chanOn &= ~CHAN_3;
                 clearChan3();
                 //buf.clear();
             }
             else {
-                chanOn[2] = 1;
+                chanOn |= CHAN_3;
                 setChan3();
             }
             setSoundVolume(2);
@@ -463,7 +471,7 @@ void handleSoundRegister(u8 ioReg, u8 val)
             chanFreq[2] |= (val&7)<<8;
             if ((val & 0x80) && (ioRam[0x1A] & 0x80))
             {
-                chanOn[2] = 1;
+                chanOn |= CHAN_3;
                 chanLenCounter[2] = (256-chanLen[2])*clockSpeed/256;
                 setChan3();
             }
@@ -514,7 +522,7 @@ void handleSoundRegister(u8 ioReg, u8 val)
             if (val&0x80)
             {
                 chanLenCounter[3] = (64-chanLen[3])*clockSpeed/256;
-                chanOn[3] = 1;
+                chanOn |= CHAN_4;
                 setChan4();
                 refreshSoundFreq(3);
             }
@@ -559,10 +567,7 @@ void handleSoundRegister(u8 ioReg, u8 val)
             ioRam[0x26] |= val&0x80;
             if (!(val&0x80))
             {
-                chanOn[0] = 0;
-                chanOn[1] = 0;
-                chanOn[2] = 0;
-                chanOn[3] = 0;
+                chanOn = 0;
                 clearChan1();
                 clearChan2();
                 clearChan3();

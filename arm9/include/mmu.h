@@ -26,8 +26,7 @@ u8 readMemory(u16 addr);
 u8 readIO(u8 ioReg);
 void writeMemory(u16 addr, u8 val);
 void writeIO(u8 ioReg, u8 val);
-void writehword(u16 addr, u16 val);
-u16 readhword(u16 addr);
+
 bool updateHblankDMA();
 void latchClock();
 

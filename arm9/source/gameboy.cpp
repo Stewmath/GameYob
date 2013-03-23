@@ -134,11 +134,11 @@ emuLoopStart:
         int interruptTriggered = ioRam[0x0F] & ioRam[0xFF];
         // Run another opcode before triggering an interrupt.
         // Robocop 2 needs this.
-        if (interruptTriggered && !halt)
-            extraCycles += runOpcode(4);
-
-        if (interruptTriggered)
+        if (interruptTriggered) {
+            if (!halt)
+                extraCycles += runOpcode(4);
             handleInterrupts(interruptTriggered);
+        }
     }
 }
 
