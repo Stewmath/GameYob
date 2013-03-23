@@ -22,7 +22,12 @@
 #define refreshVramBank() { \
     memory[0x8] = vram[vramBank]; \
     memory[0x9] = vram[vramBank]+0x1000; }
-#define refreshRamBank() { \
+#define refreshRamBank() \
+    if (numRamBanks == 0) { \
+        memory[0xa] = nullSpace; \
+        memory[0xb] = nullSpace; \
+    } \
+    else { \
     memory[0xa] = externRam[currentRamBank]; \
     memory[0xb] = externRam[currentRamBank]+0x1000; }
 #define refreshWramBank() { \
@@ -62,6 +67,11 @@ u8 spriteData[0xA0]
 DTCM_BSS
 #endif
 ;
+// This is space used for reading and writing to out-of-bounds areas.
+// I don't want to waste time checking for bad memory access in the 
+// quickRead/quickWrite functions.
+u8 nullSpace[0x1000];
+
 int wramBank;
 int vramBank;
 
@@ -96,8 +106,6 @@ void initMMU()
 }
 
 void mapMemory() {
-    loadRomBank();
-
     if (biosOn)
         memory[0x0] = bios;
     else
@@ -105,16 +113,11 @@ void mapMemory() {
     memory[0x1] = rom[0]+0x1000;
     memory[0x2] = rom[0]+0x2000;
     memory[0x3] = rom[0]+0x3000;
-    memory[0x4] = rom[currentRomBank];
-    memory[0x5] = rom[currentRomBank]+0x1000;
-    memory[0x6] = rom[currentRomBank]+0x2000;
-    memory[0x7] = rom[currentRomBank]+0x3000;
-    memory[0x8] = vram[vramBank];
-    memory[0x9] = vram[vramBank]+0x1000;
-    memory[0xa] = externRam[currentRamBank];
-    memory[0xb] = externRam[currentRamBank]+0x1000;
+    refreshRomBank();
+    refreshVramBank();
+    refreshRamBank();
     memory[0xc] = wram[0];
-    memory[0xd] = wram[wramBank];
+    refreshWramBank();
     memory[0xe] = wram[0];
     memory[0xf] = highram;
 
