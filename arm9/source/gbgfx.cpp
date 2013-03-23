@@ -38,14 +38,23 @@ int interruptWaitMode=0;
 bool windowDisabled = false;
 bool hblankDisabled = false;
 
+bool bgPaletteModified[8];
+u8 scanline_bgPalettes[144][0x40];
+
 void drawTile(int bank, int tile);
 void updateTiles();
 void updateTileMap(int map, int i, u8 val);
 void drawScanline(int scanline) ITCM_CODE;
 void setScaleMode(int m);
+void updateBgPalette(int paletteid, u8* data);
 
 void hblankHandler()
 {
+    int gbLine = REG_VCOUNT+1-screenOffsY;
+    if (gbLine >= 0 && gbLine < 144) {
+        for (int i=0; i<8; i++)
+            updateBgPalette(i, scanline_bgPalettes[gbLine]);
+    }
 }
 
 void vblankHandler()
@@ -103,10 +112,10 @@ void initGFX()
     REG_DISPSTAT |= (144+screenOffsY)<<8;
 
     irqEnable(IRQ_VCOUNT);
-    //irqEnable(IRQ_HBLANK);
+    irqEnable(IRQ_HBLANK);
     irqEnable(IRQ_VBLANK);
     irqSet(IRQ_VBLANK, &vblankHandler);
-    //irqSet(IRQ_HBLANK, &hblankHandler);
+    irqSet(IRQ_HBLANK, &hblankHandler);
 
     for (int i=0; i<0x180; i++)
     {
@@ -119,8 +128,7 @@ void refreshGFX() {
 }
 
 void updateTileMap(int m, int tile, int y) {
-    u8 lcdc = ioRam[0x40];
-    int tileSigned = !(lcdc&0x10);
+    int tileSigned = !(ioRam[0x40]&0x10);
     int bgMap = (m ? 0x1c00 : 0x1800);
     int addr = bgMap+tile;
     int tileNum;
@@ -130,24 +138,42 @@ void updateTileMap(int m, int tile, int y) {
         tileNum = vram[0][addr];
 
     int paletteid=0, bank=0;
+    int flipX=0, flipY=0;
     if (gbMode == CGB) {
         u8 flags = vram[1][addr];
         paletteid = flags&7;
         bank = (flags>>3)&1;
+        flipX = flags&0x20;
+        flipY = flags&0x40;
     }
     u8* dest = &mapImage[m][tile/32*8*256+(tile%32)*8];
     if (y == -1) {
         for (int y=0; y<8; y++) {
-            u8 b1 = vram[bank][tileNum*0x10+y*2];
-            u8 b2 = vram[bank][tileNum*0x10+y*2+1];
+            u8* ind;
+            if (flipY) {
+                ind = &vram[bank][tileNum*0x10+(7-y)*2];
+            }
+            else {
+                ind = &vram[bank][tileNum*0x10+y*2];
+            }
+            u8 b1=*(ind++);
+            u8 b2=*(ind);
+            int dir=1;
+            if (flipX) {
+                dir = -1;
+                dest += 7;
+            }
             for (int x=0; x<8; x++) {
                 u8 color = (b1>>7)&1;
                 b1 <<= 1;
                 color |= (b2>>6)&2;
                 b2 <<= 1;
-                *(dest++) = paletteid*16+color+1;
+                *dest = paletteid*16+color+1;
+                dest += dir;
             }
-            dest += 256-8;
+            dest += 257;
+            if (!flipX)
+                dest -= 9;
         }
     }
     else {
@@ -278,6 +304,10 @@ void drawScanline(int scanline) {
         drawTile(bank, tileNum);
     }
 
+    for (int i=0; i<0x40; i++) {
+        scanline_bgPalettes[scanline][i] = bgPaletteData[i];
+    }
+
     u8 lcdc = ioRam[0x40];
     int bgMap = (lcdc&8 ? 1 : 0);
     int winMap = (lcdc&0x40 ? 1 : 0);
@@ -304,7 +334,12 @@ void drawScanline(int scanline) {
         dmaCopy(mapImage[bgMap]+realy*256+hofs, pixels+scanline*256, 160);
     else {
         dmaCopy(mapImage[bgMap]+realy*256+hofs, pixels+scanline*256, loopStart+1);
-        dmaCopy(mapImage[bgMap]+realy*256, pixels+scanline*256+loopStart, 160-loopStart+1);
+        if (loopStart%2 == 0)
+            dmaCopy(mapImage[bgMap]+realy*256, pixels+scanline*256+loopStart, 160-loopStart);
+        else {
+            pixels[scanline*256+loopStart] = mapImage[bgMap][realy*256];
+            dmaCopy(mapImage[bgMap]+realy*256+1, pixels+scanline*256+loopStart+1, 160-loopStart+1);
+        }
     }
 
     // Window
@@ -408,16 +443,16 @@ void drawScanline(int scanline) {
     }
 }
 
-void updateBgPalette(int paletteid) {
+void updateBgPalette(int paletteid, u8* data) {
     if (gbMode == GB) {
         for (int i=0; i<4; i++) {
             u8 id = (ioRam[0x47]>>(i*2))&3;
-            BG_PALETTE[paletteid*16+i+1] = bgPaletteData[paletteid*8+id*2] | (bgPaletteData[paletteid*8+id*2+1]<<8) | BIT(15);
+            BG_PALETTE[paletteid*16+i+1] = data[paletteid*8+id*2] | (data[paletteid*8+id*2+1]<<8) | BIT(15);
         }
     }
     else {
         for (int i=0; i<4; i++) {
-            BG_PALETTE[paletteid*16+i+1] = bgPaletteData[paletteid*8+i*2] | (bgPaletteData[paletteid*8+i*2+1]<<8) | BIT(15);
+            BG_PALETTE[paletteid*16+i+1] = data[paletteid*8+i*2] | (data[paletteid*8+i*2+1]<<8) | BIT(15);
         }
     }
 }
@@ -436,6 +471,8 @@ void updateSprPalette(int paletteid) {
 }
 
 void writeVram(u16 addr, u8 val) {
+    if (vram[vramBank][addr] == val)
+        return;
     vram[vramBank][addr] = val;
 
     if (addr >= 0x1800) {
@@ -453,9 +490,17 @@ void writeVram(u16 addr, u8 val) {
     }
 }
 void writeVram16(u16 dest, u16 src) {
+    bool changed=false;
     for (int i=0; i<16; i++) {
-        vram[vramBank][dest++] = readMemory(src++);
+        u8 val = readMemory(src++);
+        if (vram[vramBank][dest] != val) {
+            changed = true;
+            vram[vramBank][dest] = val;
+        }
+        dest++;
     }
+    if (!changed)
+        return;
     dest -= 16;
     src -= 16;
     if (dest >= 0x1800) {
@@ -511,7 +556,7 @@ void handleVideoRegister(u8 ioReg, u8 val) {
             return;
         case 0x47:				// BG Palette (GB classic only)
             ioRam[0x47] = val;
-            updateBgPalette(0);
+            updateBgPalette(0, bgPaletteData);
             return;
         case 0x48:				// Spr Palette (GB classic only)
             ioRam[0x48] = val;
@@ -528,8 +573,7 @@ void handleVideoRegister(u8 ioReg, u8 val) {
             {
                 int index = ioRam[0x68] & 0x3F;
                 bgPaletteData[index] = val;
-                if (index%8 == 7)
-                    updateBgPalette(index/8);
+                bgPaletteModified[index/8] = true;
 
                 if (ioRam[0x68] & 0x80)
                     ioRam[0x68]++;
