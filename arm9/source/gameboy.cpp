@@ -308,7 +308,7 @@ inline void updateTimers(int cycles)
     if (ioRam[0x07] & 0x4)
     {
         timerCounter -= cycles;
-        if (timerCounter <= 0)
+        while (timerCounter <= 0)
         {
             timerCounter = timerPeriod + timerCounter;
             if ((++ioRam[0x05]) == 0)
@@ -317,7 +317,7 @@ inline void updateTimers(int cycles)
                 ioRam[0x05] = ioRam[0x06];
             }
         }
-        setEventCycles(timerCounter);
+        setEventCycles(timerCounter+timerPeriod*(255-ioRam[0x05]));
     }
     dividerCounter -= cycles;
     if (dividerCounter <= 0)
