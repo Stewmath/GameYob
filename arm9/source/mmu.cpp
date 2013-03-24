@@ -387,6 +387,8 @@ void writeMemory(u16 addr, u8 val)
             return;
         case 0xA:
         case 0xB:
+            if (numRamBanks == 0)
+                return;
             if (MBC == 3)
             {
                 switch (currentRamBank)
