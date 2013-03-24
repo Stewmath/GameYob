@@ -190,7 +190,7 @@ inline void drawLine(int gbLine) {
             REG_BG2CNT = state->winOverlayCnt;
         }
     }
-    if (state->palettesModified || (gbLine != 0 || drawingState[gbLine-1].palettesModified)) {
+    if (state->palettesModified || (gbLine != 0 && drawingState[gbLine-1].palettesModified)) {
         if (gbMode == GB) {
             updateBgPalette(0, state->bgPaletteData, state->bgPal);
             updateSprPalette(0, state->sprPaletteData, state->sprPal[0]);
