@@ -470,7 +470,10 @@ void startKeyConfigChooser() {
             else
                 printf("  %s | %s  \n", dsKeyNames[i], gbKeyNames[config->gbKeys[i]]);
         }
-        printf("\n\n\n\n\n\nPress X to make a new config.\n");
+        printf("\n\n\n\nPress X to make a new config.");
+        if (selectedKeyConfig != 0) /* can't erase the default */ {
+            printf("\n\nPress Y to delete this config.");
+        }
 
         while (true) {
             swiWaitForVBlank();
@@ -487,6 +490,14 @@ void startKeyConfigChooser() {
                 strcpy(keyConfigs.back().name, name);
                 option = -1;
                 break;
+            }
+            else if (keyJustPressed(KEY_Y)) {
+                if (selectedKeyConfig != 0) /* can't erase the default */ {
+                    keyConfigs.erase(keyConfigs.begin() + selectedKeyConfig);
+                    if (selectedKeyConfig >= keyConfigs.size())
+                        selectedKeyConfig = keyConfigs.size() - 1;
+                    break;
+                }
             }
             else if (keyPressedAutoRepeat(KEY_DOWN)) {
                 if (option < 11)
