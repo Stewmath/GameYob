@@ -575,9 +575,11 @@ void drawScanline(int scanline)
         renderingState[scanline].modified = false;
         return;
     } 
-    for (int i=0; i<0x40; i++) {
-        renderingState[scanline].bgPaletteData[i] = bgPaletteData[i];
-        renderingState[scanline].sprPaletteData[i] = sprPaletteData[i];
+    if (renderingState[scanline].palettesModified || (scanline != 0 && renderingState[scanline-1].palettesModified)) {
+        for (int i=0; i<0x40; i++) {
+            renderingState[scanline].bgPaletteData[i] = bgPaletteData[i];
+            renderingState[scanline].sprPaletteData[i] = sprPaletteData[i];
+        }
     }
     renderingState[scanline].bgPal = ioRam[0x47];
     renderingState[scanline].sprPal[0] = ioRam[0x48];
