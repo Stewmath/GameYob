@@ -22,6 +22,8 @@ int frameskip;
 int frameskipCounter;
 bool fpsOutput=true;
 bool timeOutput=true;
+bool fastForwardMode = false; // controlled by the menu
+bool fastForwardKey = false;  // only while its hotkey is pressed
 
 // ...what is phase? I think I made that up. Used for timing when the gameboy 
 // screen is off.

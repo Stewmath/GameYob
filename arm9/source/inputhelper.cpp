@@ -361,11 +361,11 @@ end:
 enum {
     KEY_NONE,
     KEY_GB_A, KEY_GB_B, KEY_GB_LEFT, KEY_GB_RIGHT, KEY_GB_UP, KEY_GB_DOWN, KEY_GB_START, KEY_GB_SELECT,
-    KEY_MENU, KEY_SAVE, KEY_AUTO_GB_A, KEY_AUTO_GB_B
+    KEY_MENU, KEY_SAVE, KEY_AUTO_GB_A, KEY_AUTO_GB_B, KEY_FAST_FORWARD
 };
-const int NUM_GB_KEYS = 13;
+const int NUM_GB_KEYS = 14;
 const char* gbKeyNames[] = {"-","A","B","Left","Right","Up","Down","Start","Select",
-    "Menu","Save","Autofire A","Autofire B"};
+    "Menu","Save","Autofire A","Autofire B", "Fast Forward"};
 const char* dsKeyNames[] = {"A","B","Select","Start","Right","Left","Up","Down",
     "R","L","X","Y"};
 int keys[NUM_GB_KEYS];
@@ -377,7 +377,7 @@ struct KeyConfig {
 KeyConfig defaultKeyConfig = {
     "Default",
     {KEY_GB_A,KEY_GB_B,KEY_GB_SELECT,KEY_GB_START,KEY_GB_RIGHT,KEY_GB_LEFT,KEY_GB_UP,KEY_GB_DOWN,
-        KEY_MENU,KEY_NONE,KEY_SAVE,KEY_NONE}
+        KEY_MENU,KEY_FAST_FORWARD,KEY_SAVE,KEY_NONE}
 };
 
 std::vector<KeyConfig> keyConfigs;
@@ -917,6 +917,7 @@ int handleEvents()
         advanceFrame = 0;
         return displayConsole();
     }
+    fastForwardKey = keyPressed(keys[KEY_FAST_FORWARD]);
 
     return 0;
 }

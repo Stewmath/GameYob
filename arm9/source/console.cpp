@@ -51,6 +51,9 @@ void selectRomFunc(int value) {
 void keyConfigFunc(int value) {
     startKeyConfigChooser();
 }
+void fastForwardFunc(int value) {
+    fastForwardMode = (value == 1);
+}
 void setScreenFunc(int value) {
     if (value)
         lcdMainOnBottom();
@@ -209,12 +212,12 @@ ConsoleSubMenu menuList[] = {
     },
     {
         "Settings",
-        7,
-        {0,              2,             4,                                 2,              2,               2,               0},
-        {"Key Config",  "Game Screen", "Console Output",                  "GBC Bios",     "NiFi",        "On Exit:",         "Save Settings"},
-        {{},            {"Top","Bottom"},{"Off","Time","FPS+Time","Debug"},{"Off","On"},    {"Off","On"},{"Save","Suspend"},{}},
-        {keyConfigFunc, setScreenFunc,  consoleOutputFunc,                  biosEnableFunc, nifiEnableFunc,exitModeFunc,    saveSettingsFunc},
-        {0,             0,              2,                                 1,              0,              0,               0}
+        8,
+        {0,             2,               2,             4,                                 2,              2,               2,               0},
+        {"Key Config",  "Fast Forward",  "Game Screen", "Console Output",                  "GBC Bios",     "NiFi",        "On Exit:",         "Save Settings"},
+        {{},            {"Off","On"},    {"Top","Bottom"},{"Off","Time","FPS+Time","Debug"},{"Off","On"},    {"Off","On"},{"Save","Suspend"},{}},
+        {keyConfigFunc, fastForwardFunc, setScreenFunc,  consoleOutputFunc,                  biosEnableFunc, nifiEnableFunc,exitModeFunc,    saveSettingsFunc},
+        {0,             0,                0,              2,                                 1,              0,              0,               0}
     },
     {
         "Debug",
