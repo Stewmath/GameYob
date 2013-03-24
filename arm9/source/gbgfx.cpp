@@ -804,21 +804,21 @@ void handleVideoRegister(u8 ioReg, u8 val) {
             ioRam[0x47] = val;
             if (gbMode == GB)
             {
-                bgPaletteModified[0] = true;
+                palettesModified = true;
             }
             return;
         case 0x48:				// Spr Palette (GB classic only)
             ioRam[0x48] = val;
             if (gbMode == GB)
             {
-                spritePaletteModified[0] = true;
+                palettesModified = true;
             }
             return;
         case 0x49:				// Spr Palette (GB classic only)
             ioRam[0x49] = val;
             if (gbMode == GB)
             {
-                spritePaletteModified[1] = true;
+                palettesModified = true;
             }
             return;
         case 0x69:				// BG Palette Data (GBC only)
