@@ -62,6 +62,7 @@ u16 changedTileInFrameQueue[0x300];
 
 bool bgPaletteModified[8];
 bool spritePaletteModified[8];
+bool palettesModified;
 
 u8 bgPaletteData[0x40];
 u8 sprPaletteData[0x40];
@@ -82,7 +83,8 @@ void drawSprites();
 void drawTile(int tile, int bank);
 void updateTiles();
 void updateTileMap(int map, int i, u8 val);
-void updateBgPalette(int paletteid, u8* data);
+void updateBgPalette(int paletteid, u8* data, u8 dmgPal);
+void updateSprPalette(int paletteid, u8* data, u8 dmgPal);
 
 typedef struct {
     bool modified;
@@ -102,7 +104,10 @@ typedef struct {
     bool map0;
     bool tileSigned;
     u8 bgPaletteData[0x40];
-    bool bgPaletteModified[8];
+    u8 sprPaletteData[0x40];
+    u8 bgPal;
+    u8 sprPal[2];
+    bool palettesModified;
 } ScanlineStruct;
 
 ScanlineStruct scanlineBuffers[2][144];
@@ -185,9 +190,18 @@ inline void drawLine(int gbLine) {
             REG_BG2CNT = state->winOverlayCnt;
         }
     }
-    for (int i=0; i<8; i++) {
-        if (state->bgPaletteModified[i] || (gbLine != 0 && drawingState[gbLine-1].bgPaletteModified[i]))
-            updateBgPalette(i, state->bgPaletteData);
+    if (state->palettesModified || (gbLine != 0 || drawingState[gbLine-1].palettesModified)) {
+        if (gbMode == GB) {
+            updateBgPalette(0, state->bgPaletteData, state->bgPal);
+            updateSprPalette(0, state->sprPaletteData, state->sprPal[0]);
+            updateSprPalette(1, state->sprPaletteData, state->sprPal[1]);
+        }
+        else {
+            for (int i=0; i<8; i++) {
+                updateBgPalette(i, state->bgPaletteData, 0);
+                updateSprPalette(i, state->sprPaletteData, 0);
+            }
+        }
     }
 }
 
@@ -314,6 +328,7 @@ void refreshGFX() {
         bgPaletteModified[i] = true;
         spritePaletteModified[i] = true;
     }
+    palettesModified = true;
     if (screenOn)
         enableScreen();
     else
@@ -475,24 +490,16 @@ void drawScreen()
     }
 
     // Palettes
-    for (int paletteid=0; paletteid<8; paletteid++) {
-        if (spritePaletteModified[paletteid]) {
-            spritePaletteModified[paletteid] = false;
-            for (int i=0; i<4; i++) {
-                int id;
-                if (gbMode == GB)
-                    id = (ioRam[0x48+paletteid]>>(i*2))&3;
-                else
-                    id = i;
-
-                SPRITE_PALETTE[((paletteid)*16)+i] = sprPaletteData[(paletteid*8)+(id*2)] | sprPaletteData[(paletteid*8)+(id*2)+1]<<8;
-            }
-        }
-        if (bgPaletteModified[paletteid]) {
-            //bgPaletteModified[paletteid] = false;
-            //updateBgPalette(paletteid, bgPaletteData);
+    /*
+    if (palettesModified) {
+        palettesModified = false;
+        for (int paletteid=0; paletteid<8; paletteid++) {
+            if (gbMode == CGB || paletteid <= 1)
+                updateSprPalette(paletteid, sprPaletteData, ioRam[0x48+paletteid]);
+            updateBgPalette(paletteid, bgPaletteData, ioRam[0x47]);
         }
     }
+    */
 
     updateTiles();
     drawSprites();
@@ -553,11 +560,13 @@ void drawScanline(int scanline)
         winPosY = ioRam[0x44]-ioRam[0x4a];
     else if (winX < 167 && ioRam[0x4a] <= scanline)
         winPosY++;
-    for (int i=0; i<8; i++) {
-        renderingState[scanline].bgPaletteModified[i] = bgPaletteModified[i];
-        if (bgPaletteModified[i]) {
+    if (scanline == 0)
+        renderingState[scanline].palettesModified = true;
+    else {
+        renderingState[scanline].palettesModified = palettesModified;
+        if (palettesModified) {
+            palettesModified = false;
             lineModified = true;
-            bgPaletteModified[i] = false;
         }
     }
     if (scanline == 0 || (scanline == 1 || (renderingState[scanline-1].modified && !renderingState[scanline-2].modified)) || scanline == ioRam[0x4a])
@@ -566,8 +575,13 @@ void drawScanline(int scanline)
         renderingState[scanline].modified = false;
         return;
     } 
-    for (int i=0; i<0x40; i++)
+    for (int i=0; i<0x40; i++) {
         renderingState[scanline].bgPaletteData[i] = bgPaletteData[i];
+        renderingState[scanline].sprPaletteData[i] = sprPaletteData[i];
+    }
+    renderingState[scanline].bgPal = ioRam[0x47];
+    renderingState[scanline].sprPal[0] = ioRam[0x48];
+    renderingState[scanline].sprPal[1] = ioRam[0x49];
     bool winOn = (ioRam[0x40] & 0x20) && winX < 167 && ioRam[0x4a] < 144 && ioRam[0x4a] <= scanline;
     renderingState[scanline].modified = true;
     lineModified = false;
@@ -710,15 +724,26 @@ void updateTiles() {
     }
 }
 
-void updateBgPalette(int paletteid, u8* data) {
+void updateBgPalette(int paletteid, u8* data, u8 dmgPal) {
     for (int i=0; i<4; i++) {
         int id;
         if (gbMode == GB)
-            id = (ioRam[0x47]>>(i*2))&3;
+            id = (dmgPal>>(i*2))&3;
         else
             id = i;
 
         BG_PALETTE[((paletteid)*16)+i+1] = data[(paletteid*8)+(id*2)] | data[(paletteid*8)+(id*2)+1]<<8;
+    }
+}
+void updateSprPalette(int paletteid, u8* data, u8 dmgPal) {
+    for (int i=0; i<4; i++) {
+        int id;
+        if (gbMode == GB)
+            id = (dmgPal>>(i*2))&3;
+        else
+            id = i;
+
+        SPRITE_PALETTE[((paletteid)*16)+i] = sprPaletteData[(paletteid*8)+(id*2)] | sprPaletteData[(paletteid*8)+(id*2)+1]<<8;
     }
 }
 
@@ -797,9 +822,10 @@ void handleVideoRegister(u8 ioReg, u8 val) {
         case 0x69:				// BG Palette Data (GBC only)
             {
                 int index = ioRam[0x68] & 0x3F;
-                bgPaletteData[index] = val;
-                if (index%8 == 7)
-                    bgPaletteModified[index/8] = true;
+                if (bgPaletteData[index] != val) {
+                    bgPaletteData[index] = val;
+                    palettesModified = true;
+                }
 
                 if (ioRam[0x68] & 0x80)
                     ioRam[0x68]++;
@@ -809,9 +835,10 @@ void handleVideoRegister(u8 ioReg, u8 val) {
         case 0x6B:				// Sprite Palette Data (GBC only)
             {
                 int index = ioRam[0x6A] & 0x3F;
-                sprPaletteData[index] = val;
-                if (index%8 == 7)
-                    spritePaletteModified[index/8] = true;
+                if (sprPaletteData[index] != val) {
+                    sprPaletteData[index] = val;
+                    palettesModified = true;
+                }
 
                 if (ioRam[0x6A] & 0x80)
                     ioRam[0x6A]++;
