@@ -1,6 +1,7 @@
 #include <nds.h>
 #include <stdio.h>
 #include <math.h>
+#include <set>
 #include "gbgfx.h"
 #include "mmu.h"
 #include "gbcpu.h"
@@ -24,10 +25,11 @@ bool renderingBankA=true;
 u16 bgPalettes[8][4];
 u16 sprPalettes[8][4];
 
-bool tileModified[2][0x180];
-int tileModifiedQueue[0x300];
-int tileModifiedQueueLength=0;
-u8 tileImages[2][0x180][8][8];
+bool tileModified[2][32*32];
+
+std::set<int> mapTiles[0x300];
+
+bool lastTileSigned[144];
 
 // Frame counter. Incremented each vblank.
 u8 frame=0;
@@ -39,21 +41,35 @@ bool windowDisabled = false;
 bool hblankDisabled = false;
 
 bool bgPaletteModified[8];
-u8 scanline_bgPalettes[144][0x40];
 
-void drawTile(int bank, int tile);
+void drawTile(int tile);
 void updateTiles();
 void updateTileMap(int map, int i, u8 val);
 void drawScanline(int scanline) ITCM_CODE;
 void setScaleMode(int m);
 void updateBgPalette(int paletteid, u8* data);
 
+struct ScanlineStruct {
+    bool modified;
+    u8 bgPalettes[0x40];
+    bool bgPaletteModified[8];
+};
+
+ScanlineStruct scanlineState[144];
+
 void hblankHandler()
 {
     int gbLine = REG_VCOUNT+1-screenOffsY;
     if (gbLine >= 0 && gbLine < 144) {
-        for (int i=0; i<8; i++)
-            updateBgPalette(i, scanline_bgPalettes[gbLine]);
+        ScanlineStruct* state = &scanlineState[gbLine];
+        if (state->modified || (gbLine != 0 && scanlineState[gbLine-1].modified)) {
+            for (int i=0; i<8; i++) {
+                if (state->bgPaletteModified[i])
+                    updateBgPalette(i, state->bgPalettes);
+                else if (gbLine != 0 && scanlineState[gbLine-1].bgPaletteModified[i])
+                    updateBgPalette(i, scanlineState[gbLine-1].bgPalettes);
+            }
+        }
     }
 }
 
@@ -117,14 +133,16 @@ void initGFX()
     irqSet(IRQ_VBLANK, &vblankHandler);
     irqSet(IRQ_HBLANK, &hblankHandler);
 
-    for (int i=0; i<0x180; i++)
-    {
-        drawTile(0, i);
-        drawTile(1, i);
-    }
+    refreshGFX();
 }
 
 void refreshGFX() {
+    for (int i=0; i<32*32; i++) {
+        tileModified[0][i] = true;
+        tileModified[1][i] = true;
+    }
+    for (int i=0; i<144; i++)
+        lastTileSigned[i] = -1;
 }
 
 void updateTileMap(int m, int tile, int y) {
@@ -239,20 +257,19 @@ void disableScreen() {
 void enableScreen() {
 }
 
-void drawTile(int bank, int tileNum) {
-    tileModified[bank][tileNum] = false;
+void drawTile(int tileNum) {
     return;
     u8 lcdc = ioRam[0x40];
     int tileSigned = !(lcdc&0x10);
     for (int i=0; i<2; i++) {
         for (int t=0; t<32*32; t++) {
             bool cond;
-           if (tileSigned)
-              cond = 0x100+(s8)vram[0][0x1800+i*0x400+t] == tileNum;
-           else
-              cond = vram[0][0x1800+i*0x400+t] == tileNum;
-           if (cond)
-               updateTileMap(i, t, -1);
+            if (tileSigned)
+                cond = 0x100+(s8)vram[0][0x1800+i*0x400+t] == tileNum;
+            else
+                cond = vram[0][0x1800+i*0x400+t] == tileNum;
+            if (cond)
+                updateTileMap(i, t, -1);
         }
     }
     /*
@@ -296,16 +313,16 @@ void drawScreen() {
 }
 
 void drawScanline(int scanline) {
-    while (tileModifiedQueueLength != 0) {
-        tileModifiedQueueLength--;
-        int val = tileModifiedQueue[tileModifiedQueueLength];
-        int bank = val>>9;
-        int tileNum = val&0x1ff;
-        drawTile(bank, tileNum);
-    }
-
-    for (int i=0; i<0x40; i++) {
-        scanline_bgPalettes[scanline][i] = bgPaletteData[i];
+    scanlineState[scanline].modified = false;
+    for (int i=0; i<8; i++) {
+        scanlineState[scanline].bgPaletteModified[i] = bgPaletteModified[i];
+        if (bgPaletteModified[i]) {
+            scanlineState[scanline].modified = true;
+            bgPaletteModified[i] = false;
+            for (int j=i*8; j<i*8+8; j++) {
+                scanlineState[scanline].bgPalettes[j] = bgPaletteData[j];
+            }
+        }
     }
 
     u8 lcdc = ioRam[0x40];
@@ -320,60 +337,76 @@ void drawScanline(int scanline) {
     int winX = ioRam[0x4b]-7;
     int winY = ioRam[0x4a];
 
-    // Background
     int realy = (scanline+vofs)%256;
     int ypix = realy%8;
-    int tile = (realy/8)*32+hofs/8;
-    int x=hofs%8;
-    int end = 21;
 
-    if (winOn && winY <= scanline)
-        end = winX/8+1;
-    int loopStart = 256-hofs;
-    if (loopStart >= 160)
-        dmaCopy(mapImage[bgMap]+realy*256+hofs, pixels+scanline*256, 160);
-    else {
-        dmaCopy(mapImage[bgMap]+realy*256+hofs, pixels+scanline*256, loopStart+1);
-        if (loopStart%2 == 0)
-            dmaCopy(mapImage[bgMap]+realy*256, pixels+scanline*256+loopStart, 160-loopStart);
-        else {
-            pixels[scanline*256+loopStart] = mapImage[bgMap][realy*256];
-            dmaCopy(mapImage[bgMap]+realy*256+1, pixels+scanline*256+loopStart+1, 160-loopStart+1);
+    int tile = (realy/8)*32;
+    if (tileSigned != lastTileSigned[scanline]) {
+        for (int i=ypix; i<8; i++) {
+            if (scanline+i-ypix < 144)
+                lastTileSigned[scanline+i-ypix] = tileSigned;
         }
-    }
-
-    // Window
-    /*
-    if (winOn && winY <= scanline) {
-        dest = pixels+scanline*256+winX;
-        u16 *destStart=dest;
-        if (winX < 0)
-            destStart = dest-winX;
-        realy = (scanline-winY)%256;
-        ypix = realy%8;
-        tile = (realy/8)*32-winX/8;
-        int x=7-winX%8;
-        end = 20-winX/8+1;
-        for (int t=0; t<end; t++) {
-            int tileNum;
-            if (tileSigned)
-                tileNum = 0x100+(s8)vram[0][winMap+tile];
-            else
-                tileNum = vram[0][winMap+tile];
-            u8 *src = tileImages[0][tileNum][ypix];
-
-            while (x < 8) {
-                if (dest >= destStart) {
-                    *dest = src[x];
-                }
-                dest++;
-                x++;
-            }
-            x = 0;
+        for (int i=0; i<32; i++) {
+            tileModified[0][tile] = false;
+            updateTileMap(0, tile, -1);
+            tileModified[1][tile] = false;
+            updateTileMap(1, tile, -1);
             tile++;
         }
     }
-    */
+
+    tile = realy/8*32;
+    for (int i=0; i<32; i++) {
+        if (tileModified[0][tile]) {
+            tileModified[0][tile] = false;
+            updateTileMap(0, tile, -1);
+        }
+        if (tileModified[1][tile]) {
+            tileModified[1][tile] = false;
+            updateTileMap(1, tile, -1);
+        }
+        tile++;
+    }
+
+    int end = 160;
+    if (winOn && winY <= scanline)
+        end = winX;
+    if (end > 160)
+        end = 160;
+    if (end > 0) {
+        int loopStart = 256-hofs;
+        if (loopStart >= end)
+            dmaCopy(mapImage[bgMap]+realy*256+hofs, pixels+scanline*256, end+1);
+        else {
+            dmaCopy(mapImage[bgMap]+realy*256+hofs, pixels+scanline*256, loopStart+1);
+            if (loopStart%2 == 0)
+                dmaCopy(mapImage[bgMap]+realy*256, pixels+scanline*256+loopStart, end+1-loopStart);
+            else {
+                pixels[scanline*256+loopStart] = mapImage[bgMap][realy*256];
+                dmaCopy(mapImage[bgMap]+realy*256+1, pixels+scanline*256+loopStart+1, end-loopStart+1);
+            }
+        }
+    }
+
+    if (winOn && winY <= scanline && winX < 160) {
+        int len,dest;
+        if (winX < 0) {
+            len = 160;
+            dest = scanline*256;
+        }
+        else {
+            len=160-winX;
+            dest=scanline*256+winX;
+        }
+        if (winX%2 == 0) {
+            dmaCopy(mapImage[winMap]+(scanline-winY)*256, pixels+dest, len);
+        }
+        else {
+            pixels[scanline*256+winX] = mapImage[winMap][0];
+            if (len > 2)
+                dmaCopy(mapImage[winMap]+(scanline-winY)*256+1, pixels+dest+1, len);
+        }
+    }
 
     if (spritesOn) {
         u16* dest = (u16*)(pixels+scanline*256);
@@ -420,7 +453,7 @@ void drawScanline(int scanline) {
                     b1 = vram[bank][ind];
                     b2 = vram[bank][ind+1];
                 }
-                for (x=0; x<8; x++) {
+                for (int x=0; x<8; x++) {
                     u8 color = (b1>>7)&1;
                     b1 <<= 1;
                     color |= (b2>>6)&2;
@@ -471,49 +504,66 @@ void updateSprPalette(int paletteid) {
 }
 
 void writeVram(u16 addr, u8 val) {
-    if (vram[vramBank][addr] == val)
+    u8 old = vram[vramBank][addr];
+    if (old == val)
         return;
     vram[vramBank][addr] = val;
 
     if (addr >= 0x1800) {
-        if (addr < 0x1c00)
-            updateTileMap(0, addr-0x1800, -1);
+        int map = (addr-0x1800)/0x400;
+        int tile = addr-0x1800;
+
+        tileModified[map][tile&0x3ff] = true;
+        int oldVal = old+(vramBank?0x180:0);
+        std::set<int>::iterator it = mapTiles[oldVal].find(tile);
+        if (it != mapTiles[oldVal].end())
+            mapTiles[oldVal].erase(it);
+        oldVal = (s8)old+0x100+(vramBank?0x180:0);
+        it = mapTiles[oldVal].find(tile);
+        if (it != mapTiles[oldVal].end())
+            mapTiles[oldVal].erase(it);
+
+        int newVal;
+        if (ioRam[0x40]&0x10)
+            newVal = val+(vramBank?0x180:0);
         else
-            updateTileMap(1, addr-0x1c00, -1);
+            newVal = (s8)val+0x100+(vramBank?0x180:0);
+        mapTiles[newVal].insert(tile);
     }
     else {
-        int tileNum = addr/16;
-        if (!tileModified[vramBank][tileNum]) {
-            tileModified[vramBank][tileNum] = true;
-            tileModifiedQueue[tileModifiedQueueLength++] = (vramBank<<9)|tileNum;
+        int tile = addr/16;
+        for (std::set<int>::iterator it=mapTiles[tile].begin(); it!=mapTiles[tile].end(); it++) {
+            int map = (*it)/0x400;
+            tileModified[map][*it&0x3ff] = true;
         }
     }
 }
 void writeVram16(u16 dest, u16 src) {
-    bool changed=false;
-    for (int i=0; i<16; i++) {
-        u8 val = readMemory(src++);
-        if (vram[vramBank][dest] != val) {
-            changed = true;
-            vram[vramBank][dest] = val;
-        }
-        dest++;
-    }
-    if (!changed)
-        return;
-    dest -= 16;
-    src -= 16;
     if (dest >= 0x1800) {
         for (int i=dest; i<dest+16; i++) {
-            if (dest < 0x1c00)
-                updateTileMap(0, i-0x1800, -1);
-            else
-                updateTileMap(1, i-0x1c00, -1);
+            writeVram(i, readMemory(src++));
         }
     }
     else {
-        int tileNum = dest/16;
-        drawTile(vramBank, tileNum);
+        bool changed=false;
+        for (int i=0; i<16; i++) {
+            u8 val = readMemory(src++);
+            if (vram[vramBank][dest] != val) {
+                changed = true;
+                vram[vramBank][dest] = val;
+            }
+            dest++;
+        }
+        if (!changed)
+            return;
+        dest -= 16;
+        src -= 16;
+
+        int tile = dest/16;
+        for (std::set<int>::iterator it=mapTiles[tile].begin(); it!=mapTiles[tile].end(); it++) {
+            int map = *it/0x400;
+            tileModified[map][*it&0x3ff] = true;
+        }
     }
 }
 
