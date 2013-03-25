@@ -90,6 +90,7 @@ void updateSprPalette(int paletteid, u8* data, u8 dmgPal);
 
 typedef struct {
     bool modified;
+    bool completed;
     u8 hofs;
     u8 vofs;
     u8 winX;
@@ -195,7 +196,7 @@ inline void drawLine(int gbLine) {
             REG_BG2CNT = state->winOverlayCnt;
         }
     }
-    if (state->palettesModified || (gbLine != 0 && drawingState[gbLine-1].palettesModified)) {
+    if (state->palettesModified) {
         if (gbMode == GB) {
             updateBgPalette(0, state->bgPaletteData, state->bgPal);
             updateSprPalette(0, state->sprPaletteData, state->sprPal[0]);
@@ -226,6 +227,12 @@ void hblankHandler()
 
     if (!(gbLine >= 0 && gbLine < 144))
         return;
+
+    if (gbLine != 0 && !drawingState[gbLine-1].completed && drawingState[gbLine-1].modified) {
+        drawLine(gbLine-1);
+    }
+    drawingState[gbLine-1].completed = false;
+    drawingState[gbLine].completed = true;
 
     if (!drawingState[gbLine].modified)
         return;
@@ -626,13 +633,13 @@ void drawScanline(int scanline)
         lineModified = true;
         spritesModified = false;
     }
-    if (scanline == 0 || (scanline != 1 && (renderingState[scanline-1].modified && !renderingState[scanline-2].modified)) || scanline == ioRam[0x4a])
+    if (scanline == 0 || /*(scanline != 1 && (renderingState[scanline-1].modified && !renderingState[scanline-2].modified)) ||*/ scanline == ioRam[0x4a])
         lineModified = true;
     if (!lineModified) {
         renderingState[scanline].modified = false;
         return;
     } 
-    if (renderingState[scanline].palettesModified || (scanline != 0 && renderingState[scanline-1].palettesModified)) {
+    if (renderingState[scanline].palettesModified) {
         for (int i=0; i<0x40; i++) {
             renderingState[scanline].bgPaletteData[i] = bgPaletteData[i];
             renderingState[scanline].sprPaletteData[i] = sprPaletteData[i];
