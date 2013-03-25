@@ -739,7 +739,8 @@ void writeVram16(u16 dest, u16 src) {
     src -= 16;
     if (dest < 0x1800) {
         int tileNum = dest/16;
-        if (ioRam[0x44] < 144) {
+        int scanline = ioRam[0x44];
+        if (scanline >= 128 && scanline < 144) {
             if (!changedTileInFrame[vramBank][tileNum]) {
                 changedTileInFrame[vramBank][tileNum] = true;
                 changedTileInFrameQueue[changedTileInFrameQueueLength++] = tileNum|(vramBank<<9);
