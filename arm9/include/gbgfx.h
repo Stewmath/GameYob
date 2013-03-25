@@ -16,4 +16,5 @@ void enableScreen();
 
 void writeVram(u16 addr, u8 val);
 void writeVram16(u16 addr, u16 src);
+void writeHram(u16 addr, u8 val);
 void handleVideoRegister(u8 ioReg, u8 val);

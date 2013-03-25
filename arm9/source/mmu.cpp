@@ -437,7 +437,7 @@ void writeMemory(u16 addr, u8 val)
                 writeIO(addr & 0xFF, val);
             }
             else {
-                hram[addr&0x1ff] = val;
+                writeHram(addr&0x1ff, val);
             }
             return;
         default:

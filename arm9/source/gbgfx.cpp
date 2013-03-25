@@ -63,6 +63,7 @@ u16 changedTileInFrameQueue[0x300];
 bool bgPaletteModified[8];
 bool spritePaletteModified[8];
 bool palettesModified;
+bool spritesModified;
 
 u8 bgPaletteData[0x40];
 u8 sprPaletteData[0x40];
@@ -79,7 +80,8 @@ bool hblankDisabled = false;
 int dmaLine;
 
 
-void drawSprites();
+void drawSprite(u8* data);
+void drawSprites(u8* data, int tallSprites);
 void drawTile(int tile, int bank);
 void updateTiles();
 void updateTileMap(int map, int i, u8 val);
@@ -108,6 +110,9 @@ typedef struct {
     u8 bgPal;
     u8 sprPal[2];
     bool palettesModified;
+    bool spritesModified;
+    u8 spriteData[0xa0];
+    int tallSprites;
 } ScanlineStruct;
 
 ScanlineStruct scanlineBuffers[2][144];
@@ -203,6 +208,8 @@ inline void drawLine(int gbLine) {
             }
         }
     }
+    if (state->spritesModified)
+        drawSprites(state->spriteData, state->tallSprites);
 }
 
 void hblankHandler() ITCM_CODE;
@@ -210,7 +217,13 @@ void hblankHandler() ITCM_CODE;
 void hblankHandler()
 {
     int line = REG_VCOUNT+1;
+    if (screenOffsY == line)
+        return;
+    // The first line needs to do more, so start early
     int gbLine = line-screenOffsY;
+    if (gbLine == -3 || gbLine == -1)
+        gbLine = 0;
+
     if (!(gbLine >= 0 && gbLine < 144))
         return;
 
@@ -333,8 +346,10 @@ void refreshGFX() {
         enableScreen();
     else
         disableScreen();
+    /*
     for (int i=0; i<0xa0; i++)
         spriteData[i] = hram[i];
+    */
 }
 
 void disableScreen() {
@@ -503,40 +518,38 @@ void drawScreen()
     */
 
     updateTiles();
-    drawSprites();
+    //drawSprites();
 
     if (interruptWaitMode == 1 && !(currentFrame+1 == frame && REG_VCOUNT >= 192) && (currentFrame != frame || REG_VCOUNT < 144+screenOffsY))
         printLog("badv %d-%d, %d\n", currentFrame, frame, REG_VCOUNT);
 }
 
-void drawSprites() {
-    for (int i=0; i<40; i++)
-    {
+void drawSprites(u8* data, int tall) {
+    for (int i=0; i<40; i++) {
         int spriteNum = i*4;
-        if (spriteData[spriteNum] == 0)
+        if (data[spriteNum] == 0)
             sprites[i].attr0 = ATTR0_DISABLED;
         else
         {
-            int y = spriteData[spriteNum]-16;
-            int tall = !!(ioRam[0x40]&0x4);
-            int tileNum = spriteData[spriteNum+2];
+            int y = data[spriteNum]-16;
+            int tileNum = data[spriteNum+2];
             if (tall)
                 tileNum &= ~1;
-            int x = (spriteData[spriteNum+1]-8)&0x1FF;
+            int x = (data[spriteNum+1]-8)&0x1FF;
             int bank = 0;
-            int flipX = !!(spriteData[spriteNum+3] & 0x20);
-            int flipY = !!(spriteData[spriteNum+3] & 0x40);
-            int priority = !!(spriteData[spriteNum+3] & 0x80);
+            int flipX = !!(data[spriteNum+3] & 0x20);
+            int flipY = !!(data[spriteNum+3] & 0x40);
+            int priority = !!(data[spriteNum+3] & 0x80);
             int paletteid;
 
             if (gbMode == CGB)
             {
-                bank = !!(spriteData[spriteNum+3]&0x8);
-                paletteid = spriteData[spriteNum+3] & 0x7;
+                bank = !!(data[spriteNum+3]&0x8);
+                paletteid = data[spriteNum+3] & 0x7;
             }
             else
             {
-                paletteid = !!(spriteData[spriteNum+3] & 0x10);
+                paletteid = !!(data[spriteNum+3] & 0x10);
             }
 
             int priorityVal = (priority ? spr_priority_low : spr_priority);
@@ -545,10 +558,43 @@ void drawSprites() {
             sprites[i].attr2 = (tileNum+(bank*0x100)) | (priorityVal<<10) | (paletteid<<12);
         }
     }
-
-    for (int i=0; i<0xa0; i++)
-        spriteData[i] = hram[i];
 }
+/*
+void drawSprite(int i) {
+    int spriteNum = i*4;
+    if (spriteData[spriteNum] == 0)
+        sprites[i].attr0 = ATTR0_DISABLED;
+    else
+    {
+        int y = spriteData[spriteNum]-16;
+        int tall = !!(ioRam[0x40]&0x4);
+        int tileNum = spriteData[spriteNum+2];
+        if (tall)
+            tileNum &= ~1;
+        int x = (spriteData[spriteNum+1]-8)&0x1FF;
+        int bank = 0;
+        int flipX = !!(spriteData[spriteNum+3] & 0x20);
+        int flipY = !!(spriteData[spriteNum+3] & 0x40);
+        int priority = !!(spriteData[spriteNum+3] & 0x80);
+        int paletteid;
+
+        if (gbMode == CGB)
+        {
+            bank = !!(spriteData[spriteNum+3]&0x8);
+            paletteid = spriteData[spriteNum+3] & 0x7;
+        }
+        else
+        {
+            paletteid = !!(spriteData[spriteNum+3] & 0x10);
+        }
+
+        int priorityVal = (priority ? spr_priority_low : spr_priority);
+        sprites[i].attr0 = (y+screenOffsY) | (tall<<15);
+        sprites[i].attr1 = (x+screenOffsX) | (flipX<<12) | (flipY<<13);
+        sprites[i].attr2 = (tileNum+(bank*0x100)) | (priorityVal<<10) | (paletteid<<12);
+    }
+}
+*/
 
 void drawScanline(int scanline) ITCM_CODE;
 
@@ -570,7 +616,17 @@ void drawScanline(int scanline)
             lineModified = true;
         }
     }
-    if (scanline == 0 || (scanline == 1 || (renderingState[scanline-1].modified && !renderingState[scanline-2].modified)) || scanline == ioRam[0x4a])
+    if (scanline == 0)
+        spritesModified = true;
+    renderingState[scanline].spritesModified = spritesModified;
+    if (spritesModified) {
+        for (int i=0; i<0xa0; i++)
+            renderingState[scanline].spriteData[i] = hram[i];
+        renderingState[scanline].tallSprites = !!(ioRam[0x40]&4);
+        lineModified = true;
+        spritesModified = false;
+    }
+    if (scanline == 0 || (scanline != 1 && (renderingState[scanline-1].modified && !renderingState[scanline-2].modified)) || scanline == ioRam[0x4a])
         lineModified = true;
     if (!lineModified) {
         renderingState[scanline].modified = false;
@@ -755,6 +811,8 @@ void handleVideoRegister(u8 ioReg, u8 val) {
         case 0x40:    // LCDC
             if ((val & 0x7F) != (ioRam[0x40] & 0x7F))
                 lineModified = true;
+            if ((val&4) != (ioRam[0x40]&4))
+                spritesModified = true;
             ioRam[0x40] = val;
             return;
         case 0x41:
@@ -768,9 +826,12 @@ void handleVideoRegister(u8 ioReg, u8 val) {
                 for (i=0; i<0xA0; i++) {
                     u8 val = readMemory(src+i);
                     hram[i] = val;
+                    /*
                     if (ioRam[0x44] >= 144 || ioRam[0x44] <= 1)
                         spriteData[i] = val;
+                    */
                 }
+                spritesModified = true;
 
                 dmaLine = ioRam[0x44];
                 //printLog("dma write %d\n", ioRam[0x44]);
@@ -850,4 +911,9 @@ void handleVideoRegister(u8 ioReg, u8 val) {
         default:
             ioRam[ioReg] = val;
     }
+}
+
+void writeHram(u16 addr, u8 val) {
+    hram[addr&0x1ff] = val;
+    spritesModified = true;
 }
