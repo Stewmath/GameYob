@@ -746,7 +746,7 @@ void updateSprPalette(int paletteid, u8* data, u8 dmgPal) {
         else
             id = i;
 
-        SPRITE_PALETTE[((paletteid)*16)+i] = sprPaletteData[(paletteid*8)+(id*2)] | sprPaletteData[(paletteid*8)+(id*2)+1]<<8;
+        SPRITE_PALETTE[((paletteid)*16)+i] = data[(paletteid*8)+(id*2)] | data[(paletteid*8)+(id*2)+1]<<8;
     }
 }
 
