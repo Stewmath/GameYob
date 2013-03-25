@@ -218,17 +218,13 @@ void hblankHandler() ITCM_CODE;
 void hblankHandler()
 {
     int line = REG_VCOUNT+1;
-    if (screenOffsY == line)
-        return;
-    // The first line needs to do more, so start early
     int gbLine = line-screenOffsY;
-    if (gbLine == -3 || gbLine == -1)
-        gbLine = 0;
 
-    if (!(gbLine >= 0 && gbLine < 144))
+    // Do line 0 at vblank, it usually has more to do than usual.
+    if (!(gbLine > 0 && gbLine < 144))
         return;
 
-    if (gbLine != 0 && !drawingState[gbLine-1].completed && drawingState[gbLine-1].modified) {
+    if (!drawingState[gbLine-1].completed && drawingState[gbLine-1].modified) {
         drawLine(gbLine-1);
     }
     drawingState[gbLine-1].completed = false;
@@ -243,6 +239,7 @@ void hblankHandler()
 void vblankHandler()
 {
     frame++;
+    drawLine(0);
 }
 
 void initGFX()
@@ -366,6 +363,7 @@ void disableScreen() {
     videoBgDisable(3);
     REG_DISPCNT &= ~(DISPLAY_SPR_ACTIVE | DISPLAY_WIN0_ON);
     irqClear(IRQ_HBLANK);
+    irqSet(IRQ_VBLANK, 0);
 }
 void enableScreen() {
     videoBgEnable(0);
@@ -377,6 +375,7 @@ void enableScreen() {
         irqEnable(IRQ_HBLANK);
     }
     irqSet(IRQ_HBLANK, hblankHandler);
+    irqSet(IRQ_VBLANK, vblankHandler);
 }
 
 // Possibly doing twice the work necessary in gbc games, when writing to bank 0, then bank 1.
