@@ -54,7 +54,7 @@ void packetHandler(int packetID, int readlength)
         lastSendid = sendid;
 
         if (command == 55 || command == 56) {
-            printLog("%d: Received %x\n", ioRam[0x02]&1, val);
+            //printLog("%d: Received %x\n", ioRam[0x02]&1, val);
             packetData = val;
         }
 
@@ -130,7 +130,7 @@ void sendPacketByte(u8 command, u8 data)
     buffer[2] = command;
     buffer[3] = data;
     *((int*)(buffer+4)) = nifiSendid;
-    printLog("%d: Sent %x\n", ioRam[0x02]&1, data);
+    //printLog("%d: Sent %x\n", ioRam[0x02]&1, data);
     if (Wifi_RawTxFrame(8, 0x0014, (unsigned short *)buffer) != 0)
         printLog("Nifi send error\n");
 }

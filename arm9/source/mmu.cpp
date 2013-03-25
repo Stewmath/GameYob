@@ -457,6 +457,7 @@ void nifiTimeoutFunc() {
     }
     else {
         // There was no response from nifi, assume no connection.
+        printLog("No nifi response received\n");
         ioRam[0x01] = 0xff;
         requestInterrupt(SERIAL);
         ioRam[0x02] &= ~0x80;
