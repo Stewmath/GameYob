@@ -372,11 +372,11 @@ void enableScreen() {
     videoBgEnable(1);
     videoBgEnable(2);
     videoBgEnable(3);
-    REG_DISPCNT |= DISPLAY_SPR_ACTIVE;
     if (!hblankDisabled) {
         irqEnable(IRQ_HBLANK);
     }
     irqSet(IRQ_HBLANK, hblankHandler);
+
 }
 
 // Possibly doing twice the work necessary in gbc games, when writing to bank 0, then bank 1.
@@ -485,7 +485,7 @@ void drawScreen()
     DC_FlushRange(overlayMapBuf[1], 0x400*2);
 
     if (!(fastForwardMode || fastForwardKey))
-        swiIntrWait(interruptWaitMode, 1);
+        swiIntrWait(interruptWaitMode, IRQ_VBLANK);
 
     dmaCopy(mapBuf[0], map[0], 0x400*2);
     dmaCopy(mapBuf[1], map[1], 0x400*2);

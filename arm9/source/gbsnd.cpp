@@ -56,7 +56,7 @@ int SO2Vol=0;
 
 void setSoundVolume(int i);
 void refreshSoundFreq(int i);
-void updateSoundSample();
+void updateSoundSample(int byte);
 
 void playPSG(int channel, DutyCycle cycle, u32 freq, u8 volume, u8 pan){
     if (freq > 0xffff) {
@@ -188,22 +188,10 @@ void refreshSoundFreq(int i) {
     }
 }
 
-void updateSoundSample() {
-    int i;
-    for (i=0; i<0x20; i++)
-    {
-        u8 sample = ioRam[0x30+(i/2)];
-        if ((i%2) == 1)
-        {
-            sample &= 0x0F;
-        }
-        else
-        {
-            sample >>= 4;
-        }
-        sampleData[i] = pcmVals[sample];
-    }
-    setSoundVolume(2);
+void updateSoundSample(int byte) {
+    u8 sample = ioRam[0x30+byte];
+    sampleData[byte*2] = pcmVals[sample>>4];
+    sampleData[byte*2+1] = pcmVals[sample&0xf];
 }
 
 void updateSound(int cycles) ITCM_CODE;
@@ -578,7 +566,6 @@ void handleSoundRegister(u8 ioReg, u8 val)
                     setSoundVolume(i);
             }
             break;
-            /*
         case 0x30:
         case 0x31:
         case 0x32:
@@ -594,10 +581,9 @@ void handleSoundRegister(u8 ioReg, u8 val)
         case 0x3C:
         case 0x3D:
         case 0x3E:
-        */
         case 0x3F:
             ioRam[ioReg] = val;
-            updateSoundSample();
+            updateSoundSample(ioReg-0x30);
             break;
         default:
             ioRam[ioReg] = val;
