@@ -658,7 +658,7 @@ int loadProgram(char* f)
     }
 
     // Little hack to preserve "quickread" from gbcpu.cpp.
-    if (biosEnabled) {
+    if (biosExists) {
         for (int i=0x100; i<0x150; i++)
             bios[i] = rom[0][i];
     }

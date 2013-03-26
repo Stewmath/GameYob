@@ -28,10 +28,7 @@ void initializeGameboy() {
     initSND();
 
     if (suspendStateExists) {
-        soundDisable();
         loadState(-1);
-        if (!soundDisabled)
-            soundEnable();
         // enter the console on resume
         advanceFrame = true;
     }

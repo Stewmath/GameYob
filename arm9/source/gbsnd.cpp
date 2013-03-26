@@ -129,27 +129,50 @@ void initSND()
 {
     for (int i=0x27; i<=0x2f; i++)
         ioRam[i] = 0xff;
+
+    ioRam[0x26] = 0xf1;
+
+    ioRam[0x10] = 0x80;
+    ioRam[0x11] = 0xBF;
+    ioRam[0x12] = 0xF3;
+    ioRam[0x14] = 0xBF;
+    ioRam[0x16] = 0x3F;
+    ioRam[0x17] = 0x00;
+    ioRam[0x19] = 0xbf;
+    ioRam[0x1a] = 0x7f;
+    ioRam[0x1b] = 0xff;
+    ioRam[0x1c] = 0x9f;
+    ioRam[0x1e] = 0xbf;
+    ioRam[0x20] = 0xff;
+    ioRam[0x21] = 0x00;
+    ioRam[0x22] = 0x00;
+    ioRam[0x23] = 0xbf;
+    ioRam[0x24] = 0x77;
+    ioRam[0x25] = 0xf3;
+
     static double analog[] = { -1, -0.8667, -0.7334, -0.6, -0.4668, -0.3335, -0.2, -0.067, 0.0664, 0.2, 0.333, 0.4668, 0.6, 0.7334, 0.8667, 1  } ;
     int i;
     for (i=0; i<16; i++)
     {
         pcmVals[i] = analog[i]*0x70;
     }
-    for (i=0; i<4; i++) {
-        soundKill(sound[i]);
-        chanOn = 0;
-        chanVol[i] = 0;
-        chanFreq[i] = 0;
-        setSoundVolume(i);
-    }
-    srand(time(NULL));
-    if (!soundDisabled)
-        soundEnable();
+    refreshSND();
 }
 
 void refreshSND() {
+    soundEnable();
+    chanOn = 0;
+
+    // Ordering note: Writing a byte to FF26 with bit 7 set enables writes to
+    // the other registers. With bit 7 unset, writes are ignored.
+    handleSoundRegister(0x26, ioRam[0x26]);
+
     for (int i=0x10; i<=0x3F; i++) {
-        handleSoundRegister(i, ioRam[i]);
+        if (i == 0x14 || i == 0x19 || i == 0x1e || i == 0x23)
+            // Don't restart the sound channels.
+            handleSoundRegister(i, ioRam[i]&~0x80);
+        else
+            handleSoundRegister(i, ioRam[i]);
     }
 }
 
