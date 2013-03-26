@@ -189,7 +189,8 @@ inline int updateLCD(int cycles)
         // ds should check for input and whatnot.
         phaseCounter -= cycles;
         if (phaseCounter <= 0) {
-            swiIntrWait(interruptWaitMode, 1);
+            if (!(fastForwardMode || fastForwardKey))
+                swiIntrWait(interruptWaitMode, 1);
             fps++;
             phaseCounter += 456*153*(doubleSpeed?2:1);
             if (screenOn) {

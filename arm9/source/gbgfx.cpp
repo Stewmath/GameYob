@@ -88,9 +88,9 @@ void updateTileMap(int map, int i, u8 val);
 void updateBgPalette(int paletteid, u8* data, u8 dmgPal);
 void updateSprPalette(int paletteid, u8* data, u8 dmgPal);
 
+bool lineCompleted[144];
 typedef struct {
     bool modified;
-    bool completed;
     u8 hofs;
     u8 vofs;
     u8 winX;
@@ -220,15 +220,18 @@ void hblankHandler()
     int line = REG_VCOUNT+1;
     int gbLine = line-screenOffsY;
 
-    // Do line 0 at vblank, it usually has more to do than usual.
-    if (!(gbLine > 0 && gbLine < 144))
+    if (!(gbLine < 144))
         return;
-
-    if (!drawingState[gbLine-1].completed && drawingState[gbLine-1].modified) {
-        drawLine(gbLine-1);
+    if (gbLine <= 0) {
+        gbLine = 0;
+        if (lineCompleted[0])
+            return;
     }
-    drawingState[gbLine-1].completed = false;
-    drawingState[gbLine].completed = true;
+
+    if (gbLine != 0 && !lineCompleted[gbLine-1] && drawingState[gbLine-1].modified)
+        drawLine(gbLine-1);
+
+    lineCompleted[gbLine] = true;
 
     if (!drawingState[gbLine].modified)
         return;
@@ -238,8 +241,8 @@ void hblankHandler()
 
 void vblankHandler()
 {
+    memset(lineCompleted, 0, sizeof(lineCompleted));
     frame++;
-    drawLine(0);
 }
 
 void initGFX()
@@ -363,7 +366,6 @@ void disableScreen() {
     videoBgDisable(3);
     REG_DISPCNT &= ~(DISPLAY_SPR_ACTIVE | DISPLAY_WIN0_ON);
     irqClear(IRQ_HBLANK);
-    irqSet(IRQ_VBLANK, 0);
 }
 void enableScreen() {
     videoBgEnable(0);
@@ -375,7 +377,6 @@ void enableScreen() {
         irqEnable(IRQ_HBLANK);
     }
     irqSet(IRQ_HBLANK, hblankHandler);
-    irqSet(IRQ_VBLANK, vblankHandler);
 }
 
 // Possibly doing twice the work necessary in gbc games, when writing to bank 0, then bank 1.
