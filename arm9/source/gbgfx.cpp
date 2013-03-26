@@ -290,7 +290,8 @@ void drawTile(int tileNum) {
 }
 
 void drawScreen() {
-    swiIntrWait(interruptWaitMode, IRQ_VBLANK);
+    if (!(fastForwardMode || fastForwardKey))
+        swiIntrWait(interruptWaitMode, IRQ_VBLANK);
     if (renderingBankA) {
         REG_BG2CNT = BG_BMP8_256x256;
         pixels = ((u8*)BG_GFX)+0x10000;
@@ -565,6 +566,10 @@ void writeVram16(u16 dest, u16 src) {
             tileModified[map][*it&0x3ff] = true;
         }
     }
+}
+
+void writeHram(u16 addr, u8 val) {
+    hram[addr] = val;
 }
 
 
