@@ -127,6 +127,8 @@ void playNoise(int channel, u32 freq, u8 volume, u8 pan){
 
 void initSND()
 {
+    for (int i=0x27; i<=0x2f; i++)
+        ioRam[i] = 0xff;
     static double analog[] = { -1, -0.8667, -0.7334, -0.6, -0.4668, -0.3335, -0.2, -0.067, 0.0664, 0.2, 0.333, 0.4668, 0.6, 0.7334, 0.8667, 1  } ;
     int i;
     for (i=0; i<16; i++)
@@ -298,7 +300,7 @@ void handleSoundRegister(u8 ioReg, u8 val)
                 chan1SweepCounter = clockSpeed/(128/chan1SweepTime);
             chan1SweepDir = (val&0x8) ? -1 : 1;
             chan1SweepAmount = (val&0x7);
-            ioRam[0x10] = val;
+            ioRam[0x10] = val | 0x80;
             break;
             // Length / Duty
         case 0x11:
@@ -414,7 +416,7 @@ void handleSoundRegister(u8 ioReg, u8 val)
                 setChan3();
             }
             setSoundVolume(2);
-            ioRam[0x1a] = val;
+            ioRam[0x1a] = val | 0x7f;
             //playChan3();
             break;
             // Length
@@ -442,7 +444,7 @@ void handleSoundRegister(u8 ioReg, u8 val)
                         break;
                 }
                 setSoundVolume(2);
-                ioRam[0x1c] = val;
+                ioRam[0x1c] = val | 0x9f;
                 break;
             }
             // Frequency (low)
@@ -517,7 +519,7 @@ void handleSoundRegister(u8 ioReg, u8 val)
             playNoise(sound[3], chanRealFreq[3], 0, 64);
             setSoundVolume(3);
             chanUseLen[3] = !!(val&0x40);
-            ioRam[0x23] = val;
+            ioRam[0x23] = val | 0x3f;
             break;
             // GENERAL REGISTERS
         case 0x24:

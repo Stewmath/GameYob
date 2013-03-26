@@ -28,6 +28,7 @@ void writeMemory(u16 addr, u8 val);
 void writeIO(u8 ioReg, u8 val);
 
 bool updateHblankDMA();
+void refreshClock();
 void latchClock();
 
 extern int numRomBanks;

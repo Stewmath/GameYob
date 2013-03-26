@@ -607,7 +607,7 @@ void drawScanline(int scanline) ITCM_CODE;
 
 void drawScanline(int scanline)
 {
-    if (hblankDisabled || scanline >= 144)
+    if (hblankDisabled)
         return;
     int winX = ioRam[0x4b];
     if (winPosY == -2)
@@ -639,6 +639,10 @@ void drawScanline(int scanline)
         renderingState[scanline].modified = false;
         return;
     } 
+
+    renderingState[scanline].modified = true;
+    lineModified = false;
+
     if (renderingState[scanline].palettesModified) {
         for (int i=0; i<0x40; i++) {
             renderingState[scanline].bgPaletteData[i] = bgPaletteData[i];
@@ -649,8 +653,6 @@ void drawScanline(int scanline)
     renderingState[scanline].sprPal[0] = ioRam[0x48];
     renderingState[scanline].sprPal[1] = ioRam[0x49];
     bool winOn = (ioRam[0x40] & 0x20) && winX < 167 && ioRam[0x4a] < 144 && ioRam[0x4a] <= scanline;
-    renderingState[scanline].modified = true;
-    lineModified = false;
     renderingState[scanline].hofs = ioRam[0x43];
     renderingState[scanline].vofs = ioRam[0x42];
     renderingState[scanline].winX = winX;
