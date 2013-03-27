@@ -138,8 +138,10 @@ void vblankWaitFunc(int value) {
 }
 void hblankEnableFunc(int value) {
     hblankDisabled = !value;
-    if (value) {
-    }
+    if (value)
+        irqEnable(IRQ_HBLANK);
+    else
+        irqDisable(IRQ_HBLANK);
 }
 void windowEnableFunc(int value) {
     windowDisabled = !value;

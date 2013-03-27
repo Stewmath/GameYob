@@ -23,12 +23,10 @@
     memory[0x8] = vram[vramBank]; \
     memory[0x9] = vram[vramBank]+0x1000; }
 #define refreshRamBank() \
-    if (numRamBanks == 0) { \
+    if (currentRamBank >= numRamBanks) { \
         memory[0xa] = nullSpace; \
         memory[0xb] = nullSpace; \
     } \
-    else if (MBC == 3 && currentRamBank >= 4) \
-        refreshClock(); \
     else { \
     memory[0xa] = externRam[currentRamBank]; \
     memory[0xb] = externRam[currentRamBank]+0x1000; }
@@ -72,7 +70,6 @@ DTCM_BSS
 // This is space used for reading and writing to out-of-bounds areas.
 // I don't want to waste time checking for bad memory access in the 
 // quickRead/quickWrite functions.
-// Also used for the clock in MBC3 games.
 u8 nullSpace[0x1000];
 
 int wramBank;
@@ -130,39 +127,6 @@ void mapMemory() {
     dmaDest &= 0x1FF0;
 }
 
-// This whole function is just a workaround to avoid the need for readMemory().
-void refreshClock() {
-    if (currentRamBank < 4)
-        return;
-    u8 val;
-    memory[0xa] = nullSpace;
-    memory[0xb] = nullSpace;
-    switch (currentRamBank)
-    {
-        case 0x8:
-            val = gbClock.clockSecondsL;
-            break;
-        case 0x9:
-            val = gbClock.clockMinutesL;
-            break;
-        case 0xA:
-            val = gbClock.clockHoursL;
-            break;
-        case 0xB:
-            val = gbClock.clockDaysL&0xFF;
-            break;
-        case 0xC:
-            val = gbClock.clockControlL;
-            break;
-        case 0:
-        case 1:
-        case 2:
-        case 3:
-            return;
-    }
-    memset(nullSpace, val, 0x1000);
-}
-
 void latchClock()
 {
     // +2h, the same as lameboy
@@ -210,27 +174,45 @@ void latchClock()
     gbClock.clockHoursL = gbClock.clockHours;
     gbClock.clockDaysL = gbClock.clockDays;
     gbClock.clockControlL = gbClock.clockControl;
-
-    refreshClock();
 }
 
 #ifdef DS
 u8 readMemory(u16 addr) ITCM_CODE;
 #endif
 
-// This is basically replaced by quickRead.
 u8 readMemory(u16 addr)
 {
+    if (MBC == 3 && (addr&0xe000) == 0xa000) {
+        switch (currentRamBank)
+        {
+            case 0x8:
+                return gbClock.clockSecondsL;
+            case 0x9:
+                return gbClock.clockMinutesL;
+            case 0xA:
+                return gbClock.clockHoursL;
+            case 0xB:
+                return gbClock.clockDaysL&0xFF;
+            case 0xC:
+                return gbClock.clockControlL;
+            case 0:
+            case 1:
+            case 2:
+            case 3:
+                break;
+            default:
+                return 0;
+        }
+    }
+    if (addr >= 0xff00)
+        return readIO(addr&0xff);
     return memory[addr>>12][addr&0xfff];
 }
 
-/*
 #ifdef DS
 u8 readIO(u8 ioReg) ITCM_CODE;
 #endif
-*/
 
-// readIO currently is unused. Some of this can be handled in writeIO().
 u8 readIO(u8 ioReg)
 {
     switch (ioReg)
