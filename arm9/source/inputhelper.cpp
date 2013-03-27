@@ -375,7 +375,7 @@ struct KeyConfig {
     int gbKeys[12];
 };
 KeyConfig defaultKeyConfig = {
-    "Default",
+    "Main",
     {KEY_GB_A,KEY_GB_B,KEY_GB_SELECT,KEY_GB_START,KEY_GB_RIGHT,KEY_GB_LEFT,KEY_GB_UP,KEY_GB_DOWN,
         KEY_MENU,KEY_FAST_FORWARD,KEY_SAVE,KEY_NONE}
 };
@@ -415,28 +415,35 @@ void controlsParseConfig(const char* line2) {
     char* equalsPos;
     if ((equalsPos = strrchr(line, '=')) != 0 && equalsPos != line+strlen(line)-1) {
         *equalsPos = '\0';
-        int dsKey = -1;
-        for (int i=0; i<12; i++) {
-            if (strcmpi(line, dsKeyNames[i]) == 0) {
-                dsKey = i;
-                break;
-            }
-        }
-        int gbKey = -1;
-        for (int i=0; i<NUM_GB_KEYS; i++) {
-            if (strcmpi(equalsPos+1, gbKeyNames[i]) == 0) {
-                gbKey = i;
-                break;
-            }
-        }
 
-        if (gbKey != -1 || dsKey != -1) {
-            KeyConfig* config = &keyConfigs.back();
-            config->gbKeys[dsKey] = gbKey;
+        if (strcmpi(line, "config") == 0) {
+            selectedKeyConfig = atoi(equalsPos+1);
+        }
+        else {
+            int dsKey = -1;
+            for (int i=0; i<12; i++) {
+                if (strcmpi(line, dsKeyNames[i]) == 0) {
+                    dsKey = i;
+                    break;
+                }
+            }
+            int gbKey = -1;
+            for (int i=0; i<NUM_GB_KEYS; i++) {
+                if (strcmpi(equalsPos+1, gbKeyNames[i]) == 0) {
+                    gbKey = i;
+                    break;
+                }
+            }
+
+            if (gbKey != -1 && dsKey != -1) {
+                KeyConfig* config = &keyConfigs.back();
+                config->gbKeys[dsKey] = gbKey;
+            }
         }
     }
 }
 void controlsPrintConfig(FILE* file) {
+    fprintf(file, "config=%d\n", selectedKeyConfig);
     for (int i=0; i<keyConfigs.size(); i++) {
         fprintf(file, "(%s)\n", keyConfigs[i].name);
         for (int j=0; j<12; j++) {
