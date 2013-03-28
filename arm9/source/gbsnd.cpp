@@ -313,6 +313,8 @@ void handleSoundRegister(u8 ioReg, u8 val)
         // ignore register writes to between FF10 and FF25 inclusive.
      && ioReg >= 0x10 && ioReg <= 0x25)
             return;
+    if (ioReg >= 0x10 && ioReg <= 0x14)
+        printLog("Wrote %x to %x\n", val, ioReg);
     switch (ioReg)
     {
         // CHANNEL 1
@@ -342,6 +344,7 @@ void handleSoundRegister(u8 ioReg, u8 val)
             else
                 chanEnvDir[0] = -1;
             chanEnvSweep[0] = val&0x7;
+            setSoundVolume(0);
             ioRam[0x12] = val;
             break;
             // Frequency (low)
@@ -394,6 +397,7 @@ void handleSoundRegister(u8 ioReg, u8 val)
             else
                 chanEnvDir[1] = -1;
             chanEnvSweep[1] = val&0x7;
+            setSoundVolume(1);
             ioRam[0x17] = val;
             break;
             // Frequency (low)
