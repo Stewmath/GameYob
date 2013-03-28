@@ -62,7 +62,8 @@ u16 changedTileInFrameQueue[0x300];
 
 bool bgPaletteModified[8];
 bool spritePaletteModified[8];
-bool palettesModified;
+bool bgPalettesModified;
+bool sprPalettesModified;
 bool spritesModified;
 
 u8 bgPaletteData[0x40];
@@ -110,7 +111,8 @@ typedef struct {
     u8 sprPaletteData[0x40];
     u8 bgPal;
     u8 sprPal[2];
-    bool palettesModified;
+    bool bgPalettesModified;
+    bool sprPalettesModified;
     bool spritesModified;
     u8 spriteData[0xa0];
     int tallSprites;
@@ -196,15 +198,23 @@ inline void drawLine(int gbLine) {
             REG_BG2CNT = state->winOverlayCnt;
         }
     }
-    if (state->palettesModified) {
+    if (state->bgPalettesModified) {
         if (gbMode == GB) {
             updateBgPalette(0, state->bgPaletteData, state->bgPal);
+        }
+        else {
+            for (int i=0; i<8; i++) {
+                updateBgPalette(i, state->bgPaletteData, 0);
+            }
+        }
+    }
+    if (state->sprPalettesModified) {
+        if (gbMode == GB) {
             updateSprPalette(0, state->sprPaletteData, state->sprPal[0]);
             updateSprPalette(1, state->sprPaletteData, state->sprPal[1]);
         }
         else {
             for (int i=0; i<8; i++) {
-                updateBgPalette(i, state->bgPaletteData, 0);
                 updateSprPalette(i, state->sprPaletteData, 0);
             }
         }
@@ -348,7 +358,8 @@ void refreshGFX() {
         bgPaletteModified[i] = true;
         spritePaletteModified[i] = true;
     }
-    palettesModified = true;
+    bgPalettesModified = true;
+    sprPalettesModified = true;
     if (screenOn)
         enableScreen();
     else
@@ -614,12 +625,19 @@ void drawScanline(int scanline)
         winPosY = ioRam[0x44]-ioRam[0x4a];
     else if (winX < 167 && ioRam[0x4a] <= scanline)
         winPosY++;
-    if (scanline == 0)
-        renderingState[scanline].palettesModified = true;
+    if (scanline == 0) {
+        renderingState[scanline].bgPalettesModified = true;
+        renderingState[scanline].sprPalettesModified = true;
+    }
     else {
-        renderingState[scanline].palettesModified = palettesModified;
-        if (palettesModified) {
-            palettesModified = false;
+        renderingState[scanline].bgPalettesModified = bgPalettesModified;
+        renderingState[scanline].sprPalettesModified = sprPalettesModified;
+        if (bgPalettesModified) {
+            bgPalettesModified = false;
+            lineModified = true;
+        }
+        if (sprPalettesModified) {
+            sprPalettesModified = false;
             lineModified = true;
         }
     }
@@ -643,9 +661,13 @@ void drawScanline(int scanline)
     renderingState[scanline].modified = true;
     lineModified = false;
 
-    if (renderingState[scanline].palettesModified) {
+    if (renderingState[scanline].bgPalettesModified) {
         for (int i=0; i<0x40; i++) {
             renderingState[scanline].bgPaletteData[i] = bgPaletteData[i];
+        }
+    }
+    if (renderingState[scanline].sprPalettesModified) {
+        for (int i=0; i<0x40; i++) {
             renderingState[scanline].sprPaletteData[i] = sprPaletteData[i];
         }
     }
@@ -874,21 +896,21 @@ void handleVideoRegister(u8 ioReg, u8 val) {
             ioRam[0x47] = val;
             if (gbMode == GB)
             {
-                palettesModified = true;
+                bgPalettesModified = true;
             }
             return;
         case 0x48:				// Spr Palette (GB classic only)
             ioRam[0x48] = val;
             if (gbMode == GB)
             {
-                palettesModified = true;
+                sprPalettesModified = true;
             }
             return;
         case 0x49:				// Spr Palette (GB classic only)
             ioRam[0x49] = val;
             if (gbMode == GB)
             {
-                palettesModified = true;
+                sprPalettesModified = true;
             }
             return;
         case 0x69:				// BG Palette Data (GBC only)
@@ -896,7 +918,7 @@ void handleVideoRegister(u8 ioReg, u8 val) {
                 int index = ioRam[0x68] & 0x3F;
                 if (bgPaletteData[index] != val) {
                     bgPaletteData[index] = val;
-                    palettesModified = true;
+                    bgPalettesModified = true;
                 }
 
                 if (ioRam[0x68] & 0x80)
@@ -909,7 +931,7 @@ void handleVideoRegister(u8 ioReg, u8 val) {
                 int index = ioRam[0x6A] & 0x3F;
                 if (sprPaletteData[index] != val) {
                     sprPaletteData[index] = val;
-                    palettesModified = true;
+                    sprPalettesModified = true;
                 }
 
                 if (ioRam[0x6A] & 0x80)

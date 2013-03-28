@@ -683,10 +683,8 @@ int loadProgram(char* f)
     return 0;
 }
 
-// POTENTIAL CAVEAT: This may not work for MBC5 games which load bank 0 into 
-// 4000-7FFF.
 void loadRomBank() {
-    if (numRomBanks <= MAX_LOADED_ROM_BANKS || bankSlotIDs[currentRomBank] != -1)
+    if (numRomBanks <= MAX_LOADED_ROM_BANKS || currentRomBank == 0 || bankSlotIDs[currentRomBank] != -1)
         return;
     int bankToUnload = lastBanksUsed.back();
     lastBanksUsed.pop_back();
