@@ -242,26 +242,28 @@ int cyclesToExecute;
 int runOpcode(int cycles) ITCM_CODE;
 #endif
 
-#define setPC(pc) { locPC = (pc); pcAddr = &memory[(locPC)>>12][(locPC)&0xfff]; } 
-#define readPC() *(pcAddr++); locPC++
+#define setPC(val) { gbRegs.pc.w = (val); pcAddr = &memory[(gbRegs.pc.w)>>12][(gbRegs.pc.w)&0xfff]; firstPcAddr=pcAddr;} 
+#define getPC() (gbRegs.pc.w+(pcAddr-firstPcAddr))
+#define readPC() *(pcAddr++)
 #define readPC_noinc() (*pcAddr)
-#define readPC16() ((*pcAddr) | ((*(pcAddr+1))<<8)); pcAddr += 2; locPC += 2
+#define readPC16() ((*pcAddr) | ((*(pcAddr+1))<<8)); pcAddr += 2
 #define readPC16_noinc() ((*pcAddr) | ((*(pcAddr+1))<<8))
 
 #define OP_JR(cond)  \
                 if (cond) { \
-                    setPC((locPC+(s8)readPC_noinc()+1)&0xffff); \
+                    setPC((getPC()+(s8)readPC_noinc()+1)&0xffff); \
                 } \
                 else { \
-                    locPC++; pcAddr++; \
+                    pcAddr++; \
                 }
 
+u8* firstPcAddr;
 int runOpcode(int cycles) {
     cyclesToExecute = cycles;
     // Having these commonly-used registers in local variables should improve speed
     u8* pcAddr;
-    int locPC;
-    setPC(gbRegs.pc.w);
+    pcAddr = &memory[gbRegs.pc.w>>12][gbRegs.pc.w&0xfff];
+    firstPcAddr = pcAddr;
     int locSP=gbRegs.sp.w;
     u8  locA =gbRegs.af.b.h;
     int  locF =gbRegs.af.b.l;
@@ -271,7 +273,7 @@ int runOpcode(int cycles) {
     while (totalCycles < cyclesToExecute)
     {
         u8 opcode = *pcAddr;
-        pcAddr++; locPC++;
+        pcAddr++;
         totalCycles += opCycles[opcode];
 
         switch(opcode)
@@ -389,7 +391,7 @@ int runOpcode(int cycles) {
                 break;
             case 0x36:		// LD (hl), n	12
                 writeMemory(gbRegs.hl.w, readPC_noinc());
-                locPC++; pcAddr++;
+                pcAddr++;
                 break;
             case 0x0A:		// LD A, (BC)	8
                 locA = readMemory(gbRegs.bc.w);
@@ -399,7 +401,7 @@ int runOpcode(int cycles) {
                 break;
             case 0xFA:		// LD A, (nn)	16
                 locA = readMemory(readPC16_noinc());
-                locPC += 2; pcAddr += 2;
+                pcAddr += 2;
                 break;
             case 0x02:		// LD (BC), A	8
                 writeMemory(gbRegs.bc.w, locA);
@@ -409,7 +411,7 @@ int runOpcode(int cycles) {
                 break;
             case 0xEA:		// LD (nn), A	16
                 writeMemory(readPC16_noinc(), locA);
-                locPC += 2; pcAddr += 2;
+                pcAddr += 2;
                 break;
             case 0xF2:		// LD A, (C)	8
                 locA = readIO(gbRegs.bc.b.l);
@@ -431,11 +433,11 @@ int runOpcode(int cycles) {
                 break;
             case 0xE0:		// LDH (n), A   12
                 writeIO(readPC_noinc(), locA);
-                locPC++; pcAddr++;
+                pcAddr++;
                 break;
             case 0xF0:		// LDH A, (n)   12
                 locA = readIO(readPC_noinc());
-                locPC++; pcAddr++;
+                pcAddr++;
                 break;
 
                 // 16-bit loads
@@ -1322,7 +1324,6 @@ int runOpcode(int cycles) {
                     halt = 2;
                     cyclesToExecute = 0;
                 }
-                locPC++;    // ignore next byte
                 pcAddr++;
                 break;
 
@@ -1408,7 +1409,6 @@ int runOpcode(int cycles) {
                     break;
                 }
                 else {
-                    locPC += 2;
                     pcAddr += 2;
                     break;
                 }
@@ -1419,7 +1419,6 @@ int runOpcode(int cycles) {
                     break;
                 }
                 else {
-                    locPC += 2;
                     pcAddr += 2;
                     break;
                 }
@@ -1430,7 +1429,6 @@ int runOpcode(int cycles) {
                     break;
                 }
                 else {
-                    locPC += 2;
                     pcAddr += 2;
                     break;
                 }
@@ -1441,7 +1439,6 @@ int runOpcode(int cycles) {
                     break;
                 }
                 else {
-                    locPC += 2;
                     pcAddr += 2;
                     break;
                 }
@@ -1466,7 +1463,7 @@ int runOpcode(int cycles) {
 
             case 0xCD:		// CALL nn			24
                 {
-                    int val = locPC + 2;
+                    int val = getPC() + 2;
                     quickWrite(--locSP, (val) >> 8);
                     quickWrite(--locSP, (val & 0xFF));
                     setPC(readPC16_noinc());
@@ -1475,99 +1472,119 @@ int runOpcode(int cycles) {
             case 0xC4:		// CALL NZ, nn	12/24
                 if (!zeroSet())
                 {
-                    int val = locPC + 2;
+                    int val = getPC() + 2;
                     quickWrite(--locSP, (val) >> 8);
                     quickWrite(--locSP, (val & 0xFF));
                     setPC(readPC16_noinc());
                     break;
                 }
                 else {
-                    locPC += 2;
                     pcAddr += 2;
                     break;
                 }
             case 0xCC:		// CALL Z, nn		12/24
                 if (zeroSet())
                 {
-                    int val = locPC + 2;
+                    int val = getPC() + 2;
                     quickWrite(--locSP, (val) >> 8);
                     quickWrite(--locSP, (val & 0xFF));
                     setPC(readPC16_noinc());
                     break;
                 }
                 else {
-                    locPC += 2;
                     pcAddr += 2;
                     break;
                 }
             case 0xD4:		// CALL NC, nn	12/24
                 if (!carrySet())
                 {
-                    int val = locPC + 2;
+                    int val = getPC() + 2;
                     quickWrite(--locSP, (val) >> 8);
                     quickWrite(--locSP, (val & 0xFF));
                     setPC(readPC16_noinc());
                     break;
                 }
                 else {
-                    locPC += 2;
                     pcAddr += 2;
                     break;
                 }
             case 0xDC:		// CALL C, nn	12/24
                 if (carrySet())
                 {
-                    int val = locPC + 2;
+                    int val = getPC() + 2;
                     quickWrite(--locSP, (val) >> 8);
                     quickWrite(--locSP, (val & 0xFF));
                     setPC(readPC16_noinc());
                     break;
                 }
                 else {
-                    locPC += 2;
                     pcAddr += 2;
                     break;
                 }
 
             case 0xC7:		// RST 00H			16
-                quickWrite(--locSP, (locPC) >> 8);
-                quickWrite(--locSP, (locPC & 0xFF));
-                setPC(0x0);
+                {
+                    u16 val = getPC();
+                    quickWrite(--locSP, (val) >> 8);
+                    quickWrite(--locSP, (val & 0xFF));
+                    setPC(0x0);
+                }
                 break;
             case 0xCF:		// RST 08H			16
-                quickWrite(--locSP, (locPC) >> 8);
-                quickWrite(--locSP, (locPC & 0xFF));
-                setPC(0x8);
-                break;
+                {
+                    u16 val = getPC();
+                    quickWrite(--locSP, (val) >> 8);
+                    quickWrite(--locSP, (val & 0xFF));
+                    setPC(0x8);
+                    break;
+                }
             case 0xD7:		// RST 10H			16
-                quickWrite(--locSP, (locPC) >> 8);
-                quickWrite(--locSP, (locPC & 0xFF));
-                setPC(0x10);
+                {
+                    u16 val = getPC();
+                    quickWrite(--locSP, (val) >> 8);
+                    quickWrite(--locSP, (val & 0xFF));
+                    setPC(0x10);
+                }
                 break;
             case 0xDF:		// RST 18H			16
-                quickWrite(--locSP, (locPC) >> 8);
-                quickWrite(--locSP, (locPC & 0xFF));
-                setPC(0x18);
+                {
+                    u16 val = getPC();
+                    quickWrite(--locSP, (val) >> 8);
+                    quickWrite(--locSP, (val & 0xFF));
+                    setPC(0x18);
+                }
                 break;
             case 0xE7:		// RST 20H			16
-                quickWrite(--locSP, (locPC) >> 8);
-                quickWrite(--locSP, (locPC & 0xFF));
-                setPC(0x20);
+                {
+                    u16 val = getPC();
+                    quickWrite(--locSP, (val) >> 8);
+                    quickWrite(--locSP, (val & 0xFF));
+                    setPC(0x20);
+                }
                 break;
             case 0xEF:		// RST 28H			16
-                quickWrite(--locSP, (locPC) >> 8);
-                quickWrite(--locSP, (locPC & 0xFF));
-                setPC(0x28);
+                {
+                    u16 val = getPC();
+                    quickWrite(--locSP, (val) >> 8);
+                    quickWrite(--locSP, (val & 0xFF));
+                    setPC(0x28);
+                }
                 break;
             case 0xF7:		// RST 30H			16
-                quickWrite(--locSP, (locPC) >> 8);
-                quickWrite(--locSP, (locPC & 0xFF));
-                setPC(0x30);
+                {
+                    u16 val = getPC();
+                    quickWrite(--locSP, (val) >> 8);
+                    quickWrite(--locSP, (val & 0xFF));
+                    setPC(0x30);
+                }
                 break;
             case 0xFF:		// RST 38H			16
-                quickWrite(--locSP, (locPC) >> 8);
-                quickWrite(--locSP, (locPC & 0xFF));
-                setPC(0x38);
+                {
+                    u16 val = getPC();
+                    quickWrite(--locSP, (val) >> 8);
+                    quickWrite(--locSP, (val & 0xFF));
+                    setPC(0x38);
+                }
                 break;
 
             case 0xC9:		// RET					16
@@ -2776,7 +2793,7 @@ int runOpcode(int cycles) {
 end:
     gbRegs.af.b.h = locA;
     gbRegs.af.b.l = locF;
-    gbRegs.pc.w = locPC;
+    gbRegs.pc.w += (pcAddr-firstPcAddr);
     gbRegs.sp.w = locSP;
     return totalCycles;
 }
