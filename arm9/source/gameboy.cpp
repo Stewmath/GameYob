@@ -88,6 +88,7 @@ int updateInput() {
     return retval;
 }
 
+int soundCycles=0;
 int extraCycles;
 void runEmul()
 {
@@ -127,7 +128,11 @@ emuLoopStart:
             transferReady = false;
         }
         updateTimers(cycles);
-        updateSound(cycles);
+        soundCycles += cycles;
+        if (soundCycles >= 66666) {
+            updateSound(soundCycles);
+            soundCycles = 0;
+        }
 
         if (updateLCD(cycles))
             // Emulation is being reset or something
