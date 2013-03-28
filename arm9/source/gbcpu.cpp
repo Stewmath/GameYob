@@ -58,7 +58,7 @@ DTCM_DATA
 = {
     /* Low nybble -> */
     /* High nybble v */
-    /*  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, A, B, C, D, E, F  */
+    /*         0, 1, 2, 3, 4, 5, 6, 7, 8, 9, A, B, C, D, E, F  */
     /* 0X */   4,12, 8, 8, 4, 4, 8, 4,20, 8, 8, 8, 4, 4, 8, 4,
     /* 1X */   4,12, 8, 8, 4, 4, 8, 4,12, 8, 8, 8, 4, 4, 8, 4,
     /* 2X */  12,12, 8, 8, 4, 4, 8, 4,12, 8, 8, 8, 4, 4, 8, 4,
@@ -71,8 +71,8 @@ DTCM_DATA
     /* 9X */   4, 4, 4, 4, 4, 4, 8, 4, 4, 4, 4, 4, 4, 4, 8, 4,
     /* AX */   4, 4, 4, 4, 4, 4, 8, 4, 4, 4, 4, 4, 4, 4, 8, 4,
     /* BX */   4, 4, 4, 4, 4, 4, 8, 4, 4, 4, 4, 4, 4, 4, 8, 4,
-    /* CX */  16,12,16,16,24,16, 8,16,16,16,16, 0,24,24, 8,16,
-    /* DX */  16,12,16,99,24,16, 8,16,16,16,16,99,24,99, 8,16,
+    /* CX */  20,12,16,16,24,16, 8,16,20,16,16, 0,24,24, 8,16,
+    /* DX */  20,12,16,99,24,16, 8,16,20,16,16,99,24,99, 8,16,
     /* EX */  12,12, 8,99,99,16, 8,16,16, 4,16,99,99,99, 8,16,
     /* FX */  12,12, 8, 4,99,16, 8,16,12, 8,16, 4,99,99, 8,16
         /* opcodes that have 99 cycles are undefined, but don't hang on them */
@@ -112,7 +112,6 @@ int ime;
 
 void initCPU()
 {
-    int i;
     gbRegs.sp.w = 0xFFFE;
     ime = 1;			// Correct default value?
 
@@ -255,6 +254,7 @@ int runOpcode(int cycles) ITCM_CODE;
                 } \
                 else { \
                     pcAddr++; \
+                    totalCycles -= 4; \
                 }
 
 u8* firstPcAddr;
@@ -1410,6 +1410,7 @@ int runOpcode(int cycles) {
                 }
                 else {
                     pcAddr += 2;
+                    totalCycles -= 4;
                     break;
                 }
             case 0xCA:		// JP Z, nn		16/12
@@ -1420,6 +1421,7 @@ int runOpcode(int cycles) {
                 }
                 else {
                     pcAddr += 2;
+                    totalCycles -= 4;
                     break;
                 }
             case 0xD2:		// JP NC, nn	16/12
@@ -1430,6 +1432,7 @@ int runOpcode(int cycles) {
                 }
                 else {
                     pcAddr += 2;
+                    totalCycles -= 4;
                     break;
                 }
             case 0xDA:		// JP C, nn	12
@@ -1439,6 +1442,7 @@ int runOpcode(int cycles) {
                     break;
                 }
                 else {
+                    totalCycles -= 4;
                     pcAddr += 2;
                     break;
                 }
@@ -1480,6 +1484,7 @@ int runOpcode(int cycles) {
                 }
                 else {
                     pcAddr += 2;
+                    totalCycles -= 12;
                     break;
                 }
             case 0xCC:		// CALL Z, nn		12/24
@@ -1493,6 +1498,7 @@ int runOpcode(int cycles) {
                 }
                 else {
                     pcAddr += 2;
+                    totalCycles -= 12;
                     break;
                 }
             case 0xD4:		// CALL NC, nn	12/24
@@ -1506,6 +1512,7 @@ int runOpcode(int cycles) {
                 }
                 else {
                     pcAddr += 2;
+                    totalCycles -= 12;
                     break;
                 }
             case 0xDC:		// CALL C, nn	12/24
@@ -1519,6 +1526,7 @@ int runOpcode(int cycles) {
                 }
                 else {
                     pcAddr += 2;
+                    totalCycles -= 12;
                     break;
                 }
 
@@ -1599,6 +1607,7 @@ int runOpcode(int cycles) {
                     break;
                 }
                 else {
+                    totalCycles -= 12;
                     break;
                 }
             case 0xC8:		// RET Z				8/20
@@ -1609,6 +1618,7 @@ int runOpcode(int cycles) {
                     break;
                 }
                 else {
+                    totalCycles -= 16;
                     break;
                 }
             case 0xD0:		// RET NC				8/20
@@ -1619,6 +1629,7 @@ int runOpcode(int cycles) {
                     break;
                 }
                 else {
+                    totalCycles -= 16;
                     break;
                 }
             case 0xD8:		// RET C				8/20
@@ -1629,6 +1640,7 @@ int runOpcode(int cycles) {
                     break;
                 }
                 else {
+                    totalCycles -= 16;
                     break;
                 }
             case 0xD9:		// RETI					16
