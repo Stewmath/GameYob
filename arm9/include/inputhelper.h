@@ -11,7 +11,7 @@
 #define UP			0x40
 #define DOWN		0x80
 
-#define MAX_LOADED_ROM_BANKS	128 /* 64 = 1 MiB */
+#define MAX_LOADED_ROM_BANKS	126 /* 64 = 1 MiB */
 
 extern u8 buttonsPressed;
 extern char filename[100];
