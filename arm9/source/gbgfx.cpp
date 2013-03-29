@@ -691,32 +691,40 @@ void drawScanline(int scanline)
     renderingState[scanline].winOn = winOn;
     renderingState[scanline].spritesOn = ioRam[0x40] & 0x2;
 
-    int winMapBase = map_base[winMapAddr];
-    int bgMapBase = map_base[BGMapAddr];
-
-    renderingState[scanline].map0 = !BGMapAddr;
-    renderingState[scanline].tileSigned = tileSigned;
-
-    if (tileSigned) {
-        renderingState[scanline].winBlankCnt = (BG_MAP_BASE(blank_map_base[winMapAddr]) | BG_TILE_BASE(0) | win_blank_priority);
-        renderingState[scanline].winCnt = (BG_MAP_BASE(winMapBase) | BG_TILE_BASE(8) | win_priority);
-        renderingState[scanline].winOverlayCnt = (BG_MAP_BASE(overlay_map_base[winMapAddr]) | BG_TILE_BASE(8) | win_overlay_priority);
-
-        renderingState[scanline].bgBlankCnt = (BG_MAP_BASE(blank_map_base[BGMapAddr]) | BG_TILE_BASE(0) | bg_blank_priority);
-        renderingState[scanline].bgCnt = (BG_MAP_BASE(bgMapBase) | BG_TILE_BASE(8) | bg_priority);
-        renderingState[scanline].bgOverlayCnt = (BG_MAP_BASE(overlay_map_base[BGMapAddr]) | BG_TILE_BASE(8) | bg_overlay_priority);
+    if (gbMode != CGB && !(ioRam[0x40] & 1)) {
+        renderingState[scanline].winBlankCnt = BG_MAP_BASE(off_map_base) | 3;
+        renderingState[scanline].winCnt = BG_MAP_BASE(off_map_base) | 3;
+        renderingState[scanline].winOverlayCnt = BG_MAP_BASE(off_map_base) | 3;
+        renderingState[scanline].bgBlankCnt = BG_MAP_BASE(off_map_base) | 3;
+        renderingState[scanline].bgCnt = BG_MAP_BASE(off_map_base) | 3;
+        renderingState[scanline].bgOverlayCnt = BG_MAP_BASE(off_map_base) | 3;
     }
     else {
+        bool priorityOn = gbMode == CGB && ioRam[0x40] & 1;
+
+        int winMapBase = map_base[winMapAddr];
+        int bgMapBase = map_base[BGMapAddr];
+
+        renderingState[scanline].map0 = !BGMapAddr;
+        renderingState[scanline].tileSigned = tileSigned;
+
+        int tileBase = (tileSigned ? 8 : 4);
+
         renderingState[scanline].winBlankCnt = (BG_MAP_BASE(blank_map_base[winMapAddr]) | BG_TILE_BASE(0) | win_blank_priority);
-        renderingState[scanline].winCnt = (BG_MAP_BASE(winMapBase) | BG_TILE_BASE(4) | win_priority);
-        renderingState[scanline].winOverlayCnt = (BG_MAP_BASE(overlay_map_base[winMapAddr]) | BG_TILE_BASE(4) | win_overlay_priority);
-
+        renderingState[scanline].winCnt = (BG_MAP_BASE(winMapBase) | BG_TILE_BASE(tileBase) | win_priority);
         renderingState[scanline].bgBlankCnt = (BG_MAP_BASE(blank_map_base[BGMapAddr]) | BG_TILE_BASE(0) | bg_blank_priority);
-        renderingState[scanline].bgCnt = (BG_MAP_BASE(bgMapBase) | BG_TILE_BASE(4) | bg_priority);
-        renderingState[scanline].bgOverlayCnt = (BG_MAP_BASE(overlay_map_base[BGMapAddr]) | BG_TILE_BASE(4) | bg_overlay_priority);
-    }
+        renderingState[scanline].bgCnt = (BG_MAP_BASE(bgMapBase) | BG_TILE_BASE(tileBase) | bg_priority);
 
-    return;
+        if (priorityOn) {
+            renderingState[scanline].winOverlayCnt = (BG_MAP_BASE(overlay_map_base[winMapAddr]) | BG_TILE_BASE(tileBase) | win_overlay_priority);
+            renderingState[scanline].bgOverlayCnt = (BG_MAP_BASE(overlay_map_base[BGMapAddr]) | BG_TILE_BASE(tileBase) | bg_overlay_priority);
+        }
+        else {
+            // Priority of 3; displayed beneath everything, so it's not visible.
+            renderingState[scanline].winOverlayCnt = 3;
+            renderingState[scanline].bgOverlayCnt = 3;
+        }
+    }
 }
 
 void writeVram(u16 addr, u8 val) {

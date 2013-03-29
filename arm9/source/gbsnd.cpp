@@ -203,7 +203,7 @@ void setSoundVolume(int i)
     if (chanToOut2[i])
         volume += chanVol[i]*SO2Vol;
     if (sound[i] != -1) {
-        soundSetVolume(sound[i], volume/4);
+        soundSetVolume(sound[i], volume/2);
     }
 }
 
