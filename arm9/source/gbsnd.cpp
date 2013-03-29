@@ -61,9 +61,7 @@ void updateSoundSample(int byte);
 void playPSG(int channel, DutyCycle cycle, u32 freq, u8 volume, u8 pan){
     if (freq > 0xffff) {
         printLog("Bad PSG frequency %x\n", freq);
-        // Some games seem to give better results by ignoring very high 
-        // frequencies in the first 2 channels.
-        return;
+        freq = 0xffff;
     }
     FifoMessage msg;
 
@@ -244,44 +242,34 @@ void updateSound(int cycles)
     if (chan1SweepTime != 0)
     {
         chan1SweepCounter -= cycles;
-        if (chan1SweepCounter <= 0)
+        while (chan1SweepCounter <= 0)
         {
-            chan1SweepCounter = (clockSpeed/(128/chan1SweepTime))+chan1SweepCounter;
+            chan1SweepCounter += (clockSpeed/(128/chan1SweepTime))+chan1SweepCounter;
             chanFreq[0] += (chanFreq[0]>>chan1SweepAmount)*chan1SweepDir;
-            chanRealFreq[0] = 131072/(2048-chanFreq[0])*8;
-            soundSetFreq(sound[0], chanRealFreq[0]);
-
             if (chanFreq[0] > 0x7FF)
             {
                 chanOn &= ~CHAN_1;
                 clearChan1();
                 changedVol[0] = true;
+                chanFreq[0] = 0x7ff;
             }
+            else {
+                chanRealFreq[0] = 131072/(2048-chanFreq[0])*8;
+                soundSetFreq(sound[0], chanRealFreq[0]);
+            }
+
         }
     }
-    if ((chanOn & CHAN_4) && chanEnvSweep[3] != 0) {
-        chanEnvCounter[3] -= cycles;
-        if (chanEnvCounter[3] <= 0)
-        {
-            chanEnvCounter[3] = chanEnvSweep[3]*clockSpeed/64;
-            chanVol[3] += chanEnvDir[3];
-            if (chanVol[3] < 0)
-                chanVol[3] = 0;
-            if (chanVol[3] > 0xF)
-                chanVol[3] = 0xF;
-            changedVol[3] = true;
-        }
-    }
-    for (int i=0; i<2; i++)
+    for (int i=0; i<4; i++)
     {
-        if (chanOn & (1<<i))
+        if (i != 2 && chanOn & (1<<i))
         {
             if (chanEnvSweep[i] != 0)
             {
                 chanEnvCounter[i] -= cycles;
-                if (chanEnvCounter[i] <= 0)
+                while (chanEnvCounter[i] <= 0)
                 {
-                    chanEnvCounter[i] = chanEnvSweep[i]*clockSpeed/64;
+                    chanEnvCounter[i] += chanEnvSweep[i]*clockSpeed/64;
                     chanVol[i] += chanEnvDir[i];
                     if (chanVol[i] < 0)
                         chanVol[i] = 0;
@@ -339,13 +327,15 @@ void handleSoundRegister(u8 ioReg, u8 val)
             break;
             // Length / Duty
         case 0x11:
-            chanLen[0] = val&0x3F;
-            chanLenCounter[0] = (64-chanLen[0])*clockSpeed/256;
-            chanDuty[0] = val>>6;
-            playPSG(sound[0], dutyIndex[chanDuty[0]], chanRealFreq[0], 0, 64);
-            setSoundVolume(0);
-            ioRam[0x11] = val;
-            break;
+            {
+                chanLen[0] = val&0x3F;
+                chanLenCounter[0] = (64-chanLen[0])*clockSpeed/256;
+                chanDuty[0] = val>>6;
+                playPSG(sound[0], dutyIndex[chanDuty[0]], chanRealFreq[0], 0, 64);
+                setSoundVolume(0);
+                ioRam[0x11] = val;
+                break;
+            }
             // Envelope
         case 0x12:
             chanVol[0] = val>>4;
@@ -367,24 +357,25 @@ void handleSoundRegister(u8 ioReg, u8 val)
             break;
             // Frequency (high)
         case 0x14:
-            chanFreq[0] &= 0xFF;
-            chanFreq[0] |= (val&0x7)<<8;
             if (val & 0x80)
             {
                 chanLenCounter[0] = (64-chanLen[0])*clockSpeed/256;
                 chanOn |= CHAN_1;
                 chanVol[0] = ioRam[0x12]>>4;
-                chanRealFreq[0] = 131072/(2048-chanFreq[0])*8;
                 if (chan1SweepTime != 0)
                     chan1SweepCounter = clockSpeed/(128/chan1SweepTime);
+                playPSG(sound[0], dutyIndex[chanDuty[0]], 0, 0, 64);
                 setChan1();
             }
             if (val & 0x40)
                 chanUseLen[0] = 1;
             else
                 chanUseLen[0] = 0;
+            chanFreq[0] &= 0xFF;
+            chanFreq[0] |= (val&0x7)<<8;
+            chanRealFreq[0] = 131072/(2048-chanFreq[0])*8;
+            soundSetFreq(sound[0], chanRealFreq[0]);
 
-            playPSG(sound[0], dutyIndex[chanDuty[0]], chanRealFreq[0], 0, 64);
             setSoundVolume(0);
 
             ioRam[0x14] = val;
@@ -420,22 +411,23 @@ void handleSoundRegister(u8 ioReg, u8 val)
             break;
             // Frequency (high)
         case 0x19:
-            chanFreq[1] &= 0xFF;
-            chanFreq[1] |= (val&0x7)<<8;
             if (val & 0x80)
             {
                 chanLenCounter[1] = (64-chanLen[1])*clockSpeed/256;
                 chanOn |= CHAN_2;
                 chanVol[1] = ioRam[0x17]>>4;
-                chanRealFreq[1] = 131072/(2048-chanFreq[1])*8;
+                playPSG(sound[1], dutyIndex[chanDuty[1]], 0, 0, 64);
                 setChan2();
             }
             if (val & 0x40)
                 chanUseLen[1] = 1;
             else
                 chanUseLen[1] = 0;
+            chanFreq[1] &= 0xFF;
+            chanFreq[1] |= (val&0x7)<<8;
+            chanRealFreq[1] = 131072/(2048-chanFreq[1])*8;
+            soundSetFreq(sound[1], chanRealFreq[1]);
 
-            playPSG(sound[1], dutyIndex[chanDuty[1]], chanRealFreq[1], 0, 64);
             setSoundVolume(1);
             ioRam[0x19] = val;
             break;
