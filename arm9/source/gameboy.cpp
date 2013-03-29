@@ -131,7 +131,7 @@ emuLoopStart:
         }
         updateTimers(cycles);
         soundCycles += cycles;
-        if (soundCycles >= 66666) {
+        if (soundCycles >= 6666) {
             updateSound(soundCycles);
             soundCycles = 0;
         }
