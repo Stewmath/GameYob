@@ -61,7 +61,9 @@ void updateSoundSample(int byte);
 void playPSG(int channel, DutyCycle cycle, u32 freq, u8 volume, u8 pan){
     if (freq > 0xffff) {
         printLog("Bad PSG frequency %x\n", freq);
-        freq = 0xffff;
+        // Some games seem to give better results by ignoring very high 
+        // frequencies in the first 2 channels.
+        return;
     }
     FifoMessage msg;
 
@@ -174,6 +176,11 @@ void refreshSND() {
         else
             handleSoundRegister(i, ioRam[i]);
     }
+    // Call these only once, from the start.
+    // This prevents crackling when calling them over and over again.
+    // This makes some of my libnds re-implementations redundant.
+    playSample(sound[2], sampleData, SoundFormat_8Bit, 0x20, 0, 0, 64, true, 0);
+    playNoise(sound[3], 0, 0, 64);
 }
 
 void enableChannel(int i) {
@@ -203,14 +210,19 @@ void setSoundVolume(int i)
 void refreshSoundFreq(int i) {
     if (i == 2) {
         chanRealFreq[2] = 65536/(2048-chanFreq[2])*32;
+        if (chanRealFreq[2] > 0xffff) {
+            //printLog("Bad sample frequency %x\n", chanRealFreq[2]);
+            chanRealFreq[2] = 0xffff;
+        }
     }
     else if (i == 3) {
         chanRealFreq[3] = (int)(524288 / chan4FreqRatio) >> (chanFreq[3]+1);
-        /*
-           if (chanRealFreq[3] >= 0xffff)
-           printLog("bad sound %x\n", chanRealFreq[3]);
-           */
+        if (chanRealFreq[3] > 0xffff) {
+            //printLog("Bad noise frequency %x\n", chanRealFreq[3]);
+            chanRealFreq[3] = 0xffff;
+        }
     }
+    soundSetFreq(sound[i], chanRealFreq[i]);
 }
 
 void updateSoundSample(int byte) {
@@ -477,7 +489,6 @@ void handleSoundRegister(u8 ioReg, u8 val)
             chanFreq[2] &= 0xFF00;
             chanFreq[2] |= val;
             refreshSoundFreq(2);
-            soundSetFreq(sound[2], chanRealFreq[2]);
             ioRam[0x1d] = val;
             break;
             // Frequency (high)
@@ -500,7 +511,6 @@ void handleSoundRegister(u8 ioReg, u8 val)
             }
             ioRam[0x1e] = val;
             refreshSoundFreq(2);
-            playSample(sound[2], sampleData, SoundFormat_8Bit, 0x20, chanRealFreq[2], 0, 64, true, 0);
             setSoundVolume(2);
             break;
             // CHANNEL 4
@@ -529,7 +539,6 @@ void handleSoundRegister(u8 ioReg, u8 val)
                 chan4FreqRatio = 0.5;
             chan4Width = !!(val&0x8);
             refreshSoundFreq(3);
-            soundSetFreq(sound[3], chanRealFreq[3]);
             ioRam[0x22] = val;
             break;
             // Start
@@ -541,7 +550,6 @@ void handleSoundRegister(u8 ioReg, u8 val)
                 setChan4();
                 refreshSoundFreq(3);
             }
-            playNoise(sound[3], chanRealFreq[3], 0, 64);
             setSoundVolume(3);
             chanUseLen[3] = !!(val&0x40);
             ioRam[0x23] = val | 0x3f;
