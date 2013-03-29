@@ -104,7 +104,6 @@ typedef struct {
     u16 winCnt;
     u16 winOverlayCnt;
     bool spritesOn;
-    bool map0;
     bool tileSigned;
     u8 bgPaletteData[0x40];
     u8 sprPaletteData[0x40];
@@ -705,7 +704,6 @@ void drawScanline(int scanline)
         int winMapBase = map_base[winMapAddr];
         int bgMapBase = map_base[BGMapAddr];
 
-        renderingState[scanline].map0 = !BGMapAddr;
         renderingState[scanline].tileSigned = tileSigned;
 
         int tileBase = (tileSigned ? 8 : 4);
@@ -720,9 +718,9 @@ void drawScanline(int scanline)
             renderingState[scanline].bgOverlayCnt = (BG_MAP_BASE(overlay_map_base[BGMapAddr]) | BG_TILE_BASE(tileBase) | bg_overlay_priority);
         }
         else {
-            // Priority of 3; displayed beneath everything, so it's not visible.
-            renderingState[scanline].winOverlayCnt = 3;
-            renderingState[scanline].bgOverlayCnt = 3;
+            // Give these layers the same priority as the regular layers.
+            renderingState[scanline].winOverlayCnt = (BG_MAP_BASE(overlay_map_base[winMapAddr]) | BG_TILE_BASE(tileBase) | win_priority);
+            renderingState[scanline].bgOverlayCnt = (BG_MAP_BASE(overlay_map_base[BGMapAddr]) | BG_TILE_BASE(tileBase) | bg_priority);
         }
     }
 }
