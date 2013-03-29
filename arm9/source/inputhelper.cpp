@@ -924,6 +924,13 @@ int handleEvents()
     }
     fastForwardKey = keyPressed(keys[KEY_FAST_FORWARD]);
 
+    if (yellowHack) {
+        if (fastForwardKey || fastForwardMode)
+            maxWaitCycles = 800;
+        else
+            maxWaitCycles = 50;
+    }
+
     return 0;
 }
 

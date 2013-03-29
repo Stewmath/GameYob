@@ -25,6 +25,8 @@ bool timeOutput=true;
 bool fastForwardMode = false; // controlled by the menu
 bool fastForwardKey = false;  // only while its hotkey is pressed
 
+bool yellowHack;
+
 // ...what is phase? I think I made that up. Used for timing when the gameboy 
 // screen is off.
 int phaseCounter;
@@ -155,12 +157,11 @@ void initLCD()
     // Pikachu's pitch to sound right...
     // The exact value of this will vary, so I'm going to leave it commented for 
     // now.
-    /*
-    if (strcmp(getRomTitle(), "POKEMON YELLOW") == 0)
-       maxWaitCycles = 100;
+    yellowHack = strcmp(getRomTitle(), "POKEMON YELLOW") == 0;
+    if (yellowHack && !(fastForwardMode || fastForwardKey))
+        maxWaitCycles = 50;
     else
-    */
-    maxWaitCycles = 800;
+        maxWaitCycles = 800;
 
     setDoubleSpeed(0);
 

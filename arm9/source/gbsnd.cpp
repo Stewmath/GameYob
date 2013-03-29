@@ -313,8 +313,6 @@ void handleSoundRegister(u8 ioReg, u8 val)
         // ignore register writes to between FF10 and FF25 inclusive.
      && ioReg >= 0x10 && ioReg <= 0x25)
             return;
-    if (ioReg >= 0x10 && ioReg <= 0x14)
-        printLog("Wrote %x to %x\n", val, ioReg);
     switch (ioReg)
     {
         // CHANNEL 1

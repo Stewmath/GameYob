@@ -17,9 +17,12 @@ extern bool screenOn;
 
 extern int doubleSpeed;
 extern int cyclesToEvent;
+extern int maxWaitCycles;
 
 extern bool fastForwardMode;
 extern bool fastForwardKey;
+
+extern bool yellowHack;
 
 extern int turbo;
 extern bool fpsOutput;

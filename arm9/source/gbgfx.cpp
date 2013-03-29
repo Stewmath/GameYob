@@ -897,6 +897,7 @@ void handleVideoRegister(u8 ioReg, u8 val) {
             if (gbMode == GB)
             {
                 bgPalettesModified = true;
+                printLog("BG write %x at %x\n", val, ioRam[0x44]);
             }
             return;
         case 0x48:				// Spr Palette (GB classic only)
