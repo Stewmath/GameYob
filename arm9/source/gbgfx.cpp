@@ -36,7 +36,6 @@ u16 overlayMapBuf[2][0x400];
 int screenOffsX = 48;
 int screenOffsY = 24;
 
-int colors[4];
 int tileSize;
 
 int tileSigned = 0;
@@ -288,11 +287,6 @@ void initGFX()
 
     for (int i=40; i<128; i++)
         sprites[i].attr0 = ATTR0_DISABLED;
-
-    colors[0] = 255;
-    colors[1] = 192;
-    colors[2] =  94;
-    colors[3] = 0;
 
 
     sprPaletteData[0] = 0xff;

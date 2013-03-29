@@ -16,7 +16,6 @@ int menu=0;
 int option = -1;
 char printMessage[33];
 
-bool suspendOnExit;
 int stateNum=0;
 
 extern int interruptWaitMode;
@@ -27,7 +26,7 @@ extern int halt;
 
 extern bool __dsimode;
 
-void selectRomNoSaveFunc(int value) {
+void selectRomFunc() {
     char* filename = startFileChooser();
     loadProgram(filename);
     free(filename);
@@ -35,18 +34,19 @@ void selectRomNoSaveFunc(int value) {
     quitConsole = true;
     displayConsoleRetval = 1;
 }
-void selectRomFunc(int value) {
-    if (suspendOnExit) {
-        printConsoleMessage("Suspending...");
-        saveState(-1);
-    }
-    else {
-        printConsoleMessage("Saving...");
-        saveGame();
-        printMessage[0] = '\0';
-    }
+
+void suspendFunc(int value) {
+    printConsoleMessage("Suspending...");
+    saveGame();
+    saveState(-1);
     printMessage[0] = '\0';
-    selectRomNoSaveFunc(value);
+    selectRomFunc();
+}
+void exitFunc(int value) {
+    printConsoleMessage("Saving...");
+    saveGame();
+    printMessage[0] = '\0';
+    selectRomFunc();
 }
 void keyConfigFunc(int value) {
     startKeyConfigChooser();
@@ -92,10 +92,6 @@ void nifiEnableFunc(int value) {
         enableNifi();
     else
         disableNifi();
-}
-
-void exitModeFunc(int value) {
-    suspendOnExit = value;
 }
 
 void saveSettingsFunc(int value) {
@@ -204,19 +200,19 @@ ConsoleSubMenu menuList[] = {
         "Options",
         6,
         {0,         10,                                         0,              0,              0,          0},
-        {"Exit",    "State Slot",                               "Save State",   "Load State",   "Reset",    "Exit without saving"},
+        {"Suspend", "State Slot",                               "Save State",   "Load State",   "Reset",    "Save & Exit"},
         {{},        {"0","1","2","3","4","5","6","7","8","9"},  {},             {},             {},         {}},
-        {selectRomFunc,stateSelectFunc,                         stateSaveFunc,  stateLoadFunc,  resetFunc,  selectRomNoSaveFunc},
+        {suspendFunc,stateSelectFunc,                         stateSaveFunc,  stateLoadFunc,  resetFunc,    exitFunc},
         {0,             0,                                      0,              0,              0,          0}
     },
     {
         "Settings",
-        8,
-        {0,             2,               2,             4,                                 2,              2,               2,               0},
-        {"Key Config",  "Fast Forward",  "Game Screen", "Console Output",                  "GBC Bios",     "NiFi",        "On Exit:",         "Save Settings"},
-        {{},            {"Off","On"},    {"Top","Bottom"},{"Off","Time","FPS+Time","Debug"},{"Off","On"},    {"Off","On"},{"Save","Suspend"},{}},
-        {keyConfigFunc, fastForwardFunc, setScreenFunc,  consoleOutputFunc,                  biosEnableFunc, nifiEnableFunc,exitModeFunc,    saveSettingsFunc},
-        {0,             0,                0,              2,                                 1,              0,              0,               0}
+        7,
+        {0,             2,               2,             4,                                 2,              2,               0},
+        {"Key Config",  "Fast Forward",  "Game Screen", "Console Output",                  "GBC Bios",     "NiFi",          "Save Settings"},
+        {{},            {"Off","On"},    {"Top","Bottom"},{"Off","Time","FPS+Time","Debug"},{"Off","On"},    {"Off","On"},  {}},
+        {keyConfigFunc, fastForwardFunc, setScreenFunc,  consoleOutputFunc,                  biosEnableFunc, nifiEnableFunc,saveSettingsFunc},
+        {0,             0,                0,              2,                                 1,              0,             0}
     },
     {
         "Debug",
