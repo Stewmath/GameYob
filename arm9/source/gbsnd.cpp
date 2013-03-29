@@ -174,11 +174,6 @@ void refreshSND() {
         else
             handleSoundRegister(i, ioRam[i]);
     }
-    // Call these only once, from the start.
-    // This prevents crackling when calling them over and over again.
-    // This makes some of my libnds re-implementations redundant.
-    playSample(sound[2], sampleData, SoundFormat_8Bit, 0x20, 0, 0, 64, true, 0);
-    playNoise(sound[3], 0, 0, 64);
 }
 
 void enableChannel(int i) {
@@ -491,6 +486,7 @@ void handleSoundRegister(u8 ioReg, u8 val)
             {
                 chanOn |= CHAN_3;
                 chanLenCounter[2] = (256-chanLen[2])*clockSpeed/256;
+                playSample(sound[2], sampleData, SoundFormat_8Bit, 0x20, 0, 0, 64, true, 0);
                 setChan3();
             }
             if (val & 0x40)
@@ -540,6 +536,7 @@ void handleSoundRegister(u8 ioReg, u8 val)
                 chanLenCounter[3] = (64-chanLen[3])*clockSpeed/256;
                 chanOn |= CHAN_4;
                 setChan4();
+                playNoise(sound[3], 0, 0, 64);
                 refreshSoundFreq(3);
             }
             setSoundVolume(3);
