@@ -6,6 +6,7 @@
 #include "gameboy.h"
 #include "mmu.h"
 #include "nifi.h"
+#include "gbgfx.h"
 
 const int screenTileWidth = 32;
 bool consoleDebugOutput = false;
@@ -207,12 +208,12 @@ ConsoleSubMenu menuList[] = {
     },
     {
         "Settings",
-        7,
-        {0,             2,               2,             4,                                 2,              2,               0},
-        {"Key Config",  "Fast Forward",  "Game Screen", "Console Output",                  "GBC Bios",     "NiFi",          "Save Settings"},
-        {{},            {"Off","On"},    {"Top","Bottom"},{"Off","Time","FPS+Time","Debug"},{"Off","On"},    {"Off","On"},  {}},
-        {keyConfigFunc, fastForwardFunc, setScreenFunc,  consoleOutputFunc,                  biosEnableFunc, nifiEnableFunc,saveSettingsFunc},
-        {0,             0,                0,              2,                                 1,              0,             0}
+        8,
+        {0,             2,               2,             4,                                 2,              2,               3,                      0},
+        {"Key Config",  "Fast Forward",  "Game Screen", "Console Output",                  "GBC Bios",     "NiFi",          "Scaling",              "Save Settings"},
+        {{},            {"Off","On"},    {"Top","Bottom"},{"Off","Time","FPS+Time","Debug"},{"Off","On"},    {"Off","On"},  {"Off","Aspect","Full",},{}},
+        {keyConfigFunc, fastForwardFunc, setScreenFunc,  consoleOutputFunc,                  biosEnableFunc, nifiEnableFunc,setScaleMode,           saveSettingsFunc},
+        {0,             0,                0,              2,                                 1,              0,             0,                      0}
     },
     {
         "Debug",

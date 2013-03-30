@@ -9,6 +9,8 @@ extern u8 sprPaletteData[0x40];
 void drawScanline(int scanline);
 void drawScreen();
 
+void setScaleMode(int mode);
+
 void initGFX();
 void refreshGFX();
 void disableScreen();
