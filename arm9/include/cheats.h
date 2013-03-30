@@ -1,4 +1,5 @@
 #pragma once
+#include <vector>
 
 typedef struct patch_t {
     u8  data;
@@ -7,6 +8,8 @@ typedef struct patch_t {
         u8 compare; /* For GameGenie codes */
         u8 bank;/* For Gameshark codes */
     };
+    std::vector<int> patchedBanks; /* For GameGenie codes */
+    std::vector<int> patchedValues; /* For GameGenie codes */
 } patch_t;
 
 #define MAX_CHEATS      14 
@@ -26,5 +29,7 @@ bool addCheat(const char *str);
 void removeCheat(int i);
 void toggleCheat(int i, bool enabled);
 
-u8 hookGGRead(u16 address);
+void unapplyGGCheat(int cheat);
+void applyGGCheats(int romBank);
+
 void applyGSCheats(void);

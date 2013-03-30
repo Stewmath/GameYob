@@ -35,6 +35,7 @@ void forceReleaseKey(int key);
 
 int loadProgram(char* filename);
 void loadRomBank();
+bool bankLoaded(int bank);
 int loadSave();
 int saveGame();
 char* getRomTitle();

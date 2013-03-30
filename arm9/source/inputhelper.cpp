@@ -17,6 +17,7 @@
 #include "nifi.h"
 #include "gbgfx.h"
 #include "gbsnd.h"
+#include "cheats.h"
 
 FILE* romFile=NULL;
 char filename[100];
@@ -395,7 +396,7 @@ void loadKeyConfig() {
 void controlsParseConfig(const char* line2) {
     char line[100];
     strncpy(line, line2, 100);
-    while (strlen(line) > 0 && line[strlen(line)-1] == '\n' || line[strlen(line)-1] == ' ')
+    while (strlen(line) > 0 && (line[strlen(line)-1] == '\n' || line[strlen(line)-1] == ' '))
             line[strlen(line)-1] = '\0';
     if (line[0] == '(') {
         char* bracketEnd;
@@ -629,6 +630,7 @@ int loadProgram(char* f)
         fread(rom[i], 1, 0x4000, romFile);
         if (i != 0)
             lastBanksUsed.push_back(i);
+        applyGGCheats(i);
     }
 
     strcpy(basename, filename);
@@ -697,6 +699,12 @@ void loadRomBank() {
     fread(rom[currentRomBank], 1, 0x4000, romFile);
 
     lastBanksUsed.insert(lastBanksUsed.begin(), currentRomBank);
+
+    applyGGCheats(currentRomBank);
+}
+
+bool bankLoaded(int bank) {
+    return bankSlotIDs[bank] != -1;
 }
 
 int loadSave()

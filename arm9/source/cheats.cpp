@@ -1,8 +1,10 @@
 #include <string.h>
+#include <algorithm>
 #include <nds.h>
 #include "mmu.h"
 #include "main.h"
 #include "cheats.h"
+#include "inputhelper.h"
 
 bool     cheatsEnabled = true;
 patch_t  patches[MAX_CHEATS];
@@ -79,40 +81,56 @@ bool addCheat (const char *str)
 void removeCheat (int i)
 {
     slots[i] &= ~(SLOT_ENABLED | SLOT_USED);
+    unapplyGGCheat(i);
 }
 
 void toggleCheat (int i, bool enabled) 
 {
-    if (enabled)
+    if (enabled) {
         slots[i] |= SLOT_ENABLED;
-    else
-        slots[i] &= ~SLOT_ENABLED;
-}
-
-u8 hookGGRead (u16 addr) 
-{
-    u8 mem;
-    int i;
-
-    mem = memory[addr>>12][addr&0xfff];
-
-    if (!cheatsEnabled || addr > 0x7fff)
-        return mem;
-
-    for (i = 0; i < MAX_CHEATS; i++) {
-        if (slots[i] & SLOT_ENABLED && patches[i].address == addr) {
-            switch (slots[i] & SLOT_TYPE_MASK) {
-                case SLOT_GAMEGENIE:
-                    if (mem == patches[i].compare)
-                        printLog("Applied cheat\n");
-                    return (mem == patches[i].compare) ? patches[i].data : mem;
-                case SLOT_GAMEGENIE1:
-                    return patches[i].data;
+        if (slots[i] & (SLOT_GAMEGENIE | SLOT_GAMEGENIE1)) {
+            for (int j=0; j<numRomBanks; j++) {
+                if (bankLoaded(j))
+                    applyGGCheats(j);
             }
         }
     }
+    else {
+        unapplyGGCheat(i);
+        slots[i] &= ~SLOT_ENABLED;
+    }
+}
 
-    return mem;
+void unapplyGGCheat(int cheat) {
+    if (slots[cheat] & (SLOT_GAMEGENIE | SLOT_GAMEGENIE1)) {
+        for (int i=0; i<patches[cheat].patchedBanks.size(); i++) {
+            int bank = patches[cheat].patchedBanks[i];
+            if (bankLoaded(bank)) {
+                rom[bank][patches[cheat].address&0x3fff] = patches[cheat].patchedValues[i];
+            }
+        }
+        patches[cheat].patchedBanks = std::vector<int>();
+        patches[cheat].patchedValues = std::vector<int>();
+    }
+}
+
+void applyGGCheats(int romBank) {
+    for (int i=0; i<MAX_CHEATS; i++) {
+        if (slots[i] & SLOT_ENABLED && (slots[i] & SLOT_GAMEGENIE || slots[i] & SLOT_GAMEGENIE1)) {
+
+            int bankSlot = patches[i].address/0x4000;
+            if ((bankSlot == 0 && romBank == 0) || (bankSlot == 1 && romBank != 0)) {
+                int address = patches[i].address&0x3fff;
+                if (rom[romBank][address] == patches[i].compare && 
+                        find(patches[i].patchedBanks.begin(), patches[i].patchedBanks.end(), romBank) == patches[i].patchedBanks.end()) {
+
+                    patches[i].patchedBanks.push_back(romBank);
+                    patches[i].patchedValues.push_back(rom[romBank][address]);
+                    rom[romBank][address] = patches[i].data;
+                }
+            }
+        }
+    }
 }
 
 void applyGSCheats (void) ITCM_CODE;

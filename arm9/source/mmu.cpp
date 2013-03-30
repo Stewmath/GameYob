@@ -9,7 +9,6 @@
 #include "inputhelper.h"
 #include "main.h"
 #include "nifi.h"
-#include "cheats.h"
 #ifdef DS
 #include <nds.h>
 #endif
@@ -208,7 +207,7 @@ u8 readMemory(u16 addr)
     if (addr >= 0xff00)
         return readIO(addr&0xff);
     
-    return hookGGRead(addr);
+    return memory[addr>>12][addr&0xfff];
 }
 
 #ifdef DS
