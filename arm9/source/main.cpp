@@ -15,6 +15,7 @@
 #include "main.h"
 #include "console.h"
 #include "nifi.h"
+#include "cheats.h"
 
 // defaultConsole is defined within libnds
 extern PrintConsole defaultConsole;
@@ -91,6 +92,7 @@ int main(int argc, char* argv[])
     loadProgram(filename);
     if (filenameAllocated)
         free(filename);
+
 
     initializeGameboy();
     startTimer();

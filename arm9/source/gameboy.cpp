@@ -11,6 +11,7 @@
 #include "inputhelper.h"
 #include "nifi.h"
 #include "console.h"
+#include "cheats.h"
 
 int mode2Cycles, mode3Cycles;
 int scanlineCounter;
@@ -53,7 +54,11 @@ inline void setEventCycles(int cycles) {
     }
 }
 
+// Called once every gameboy vblank
 int updateInput() {
+    if (cheatsEnabled)
+        applyGSCheats();
+
     readKeys();
     int retval = handleEvents();		// Input mostly
     if (!consoleDebugOutput && getTimerTicks() >= 1000)
