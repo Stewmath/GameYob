@@ -9,6 +9,7 @@
 #include "inputhelper.h"
 #include "main.h"
 #include "nifi.h"
+#include "cheats.h"
 #ifdef DS
 #include <nds.h>
 #endif
@@ -206,7 +207,8 @@ u8 readMemory(u16 addr)
     }
     if (addr >= 0xff00)
         return readIO(addr&0xff);
-    return memory[addr>>12][addr&0xfff];
+    
+    return hookGGRead(addr);
 }
 
 #ifdef DS
@@ -618,7 +620,6 @@ void writeIO(u8 ioReg, u8 val)
                     }
                     return;
                 }
-                int i;
                 dmaLength = ((val & 0x7F)+1);
                 dmaSource = (ioRam[0x51]<<8) | (ioRam[0x52]);
                 dmaSource &= 0xFFF0;
@@ -678,7 +679,6 @@ bool updateHblankDMA()
 {
     if (dmaLength > 0)
     {
-        int i;
         writeVram16(dmaDest, dmaSource);
         dmaDest += 16;
         dmaSource += 16;
