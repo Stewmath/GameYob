@@ -6,7 +6,7 @@
 
 bool     cheatsEnabled = true;
 patch_t  patches[MAX_CHEATS];
-u8       slots[MAX_CHEATS] = {SLOT_FREE,};
+u8       slots[MAX_CHEATS] = {0};
 
 #define IS_HEX(a) (((a) >= '0' && (a) <= '9') || ((a) >= 'A' && (a) <= 'F'))
 #define TO_INT(a) ( (a) >= 'A' ? (a) - 'A' + 10 : (a) - '0')
@@ -22,14 +22,15 @@ bool addCheat (const char *str)
     int i;
 
     for (i = 0; i < MAX_CHEATS; i++)
-        if (slots[i] & SLOT_FREE)
+        if (!(slots[i] & SLOT_USED))
             break;
 
     /* ENOFREESLOT */
     if (i == MAX_CHEATS)
         return false;
     /* Mark as used and clear it */
-    slots[i] &= ~(SLOT_FREE | SLOT_ENABLED | SLOT_TYPE_MASK);
+    slots[i] &= ~(SLOT_ENABLED | SLOT_TYPE_MASK);
+    slots[i] |= SLOT_USED;
 
     len = strlen(str);
 
@@ -43,7 +44,7 @@ bool addCheat (const char *str)
         patches[i].compare = TO_INT(str[8]) << 4 | TO_INT(str[10]);
 
         patches[i].address ^= 0xf000;
-        patches[i].compare = (patches[i].compare >> 2) | (patches[i].compare&0x3) << 14;
+        patches[i].compare = (patches[i].compare >> 2) | (patches[i].compare&0x3) << 6;
         patches[i].compare ^= 0xba;
 
         printLog("GG %04x / %02x -> %02x\n", patches[i].address, patches[i].data, patches[i].compare);
@@ -77,8 +78,7 @@ bool addCheat (const char *str)
 
 void removeCheat (int i)
 {
-    slots[i] |= SLOT_FREE;
-    slots[i] &= ~SLOT_ENABLED;
+    slots[i] &= ~(SLOT_ENABLED | SLOT_USED);
 }
 
 void toggleCheat (int i, bool enabled) 
@@ -103,6 +103,8 @@ u8 hookGGRead (u16 addr)
         if (slots[i] & SLOT_ENABLED && patches[i].address == addr) {
             switch (slots[i] & SLOT_TYPE_MASK) {
                 case SLOT_GAMEGENIE:
+                    if (mem == patches[i].compare)
+                        printLog("Applied cheat\n");
                     return (mem == patches[i].compare) ? patches[i].data : mem;
                 case SLOT_GAMEGENIE1:
                     return patches[i].data;

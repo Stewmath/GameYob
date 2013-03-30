@@ -11,7 +11,7 @@ typedef struct patch_t {
 
 #define MAX_CHEATS      14 
 #define SLOT_ENABLED    (1<<0)
-#define SLOT_FREE       (1<<1)
+#define SLOT_USED       (1<<1)
 #define SLOT_TYPE_MASK  (3<<2)
 #define SLOT_GAMEGENIE  (1<<2)
 #define SLOT_GAMEGENIE1 (2<<2)
