@@ -6,6 +6,7 @@
 #include "gbcpu.h"
 #include "main.h"
 #include "gameboy.h"
+#include "cheat.h"
 
 const int spr_priority = 2;
 const int spr_priority_low = 3;
@@ -249,6 +250,8 @@ void hblankHandler()
 
 void vblankHandler()
 {
+    if (cheatsEnabled)
+        applyGSCheats();
     memset(lineCompleted, 0, sizeof(lineCompleted));
     frame++;
 }
