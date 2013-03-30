@@ -1,3 +1,18 @@
+Version 0.3:
+
+- Surpasses Lameboy in speed by about 10 FPS, thanks to optimizations by Nebuleon and myself
+- Added fast forward mode (courtesy of Nebuleon)
+- Added support for many exotic graphical effects & fixed screen-change graphical bugs
+- Added MBC2 support (for Kid Icarus, Final Fantasy Adventure)
+- Added save states and suspending (temporary states)
+- Added option to save settings to gameyob.ini
+- Added HIGHLY EXPERIMENTAL NiFi link cable emulation (works with Tetris, Dr. Mario, and Pokemon if you're lucky)
+- Fixed various emulation bugs, increasing compatibility
+- Fixed many causes of crashes (DSi mode works now)
+- Soft resetting works (L+R+Start+Select)
+- 100% remappable controls
+- Sound bugfixes
+
 Version 0.2:
 
 - Fixed some sound emulation bugs
