@@ -6,6 +6,7 @@
 #include "gameboy.h"
 #include "mmu.h"
 #include "nifi.h"
+#include "cheats.h"
 
 const int screenTileWidth = 32;
 bool consoleDebugOutput = false;
@@ -48,9 +49,6 @@ void exitFunc(int value) {
     printMessage[0] = '\0';
     selectRomFunc();
 }
-void keyConfigFunc(int value) {
-    startKeyConfigChooser();
-}
 void fastForwardFunc(int value) {
     fastForwardMode = (value == 1);
 }
@@ -92,6 +90,13 @@ void nifiEnableFunc(int value) {
         enableNifi();
     else
         disableNifi();
+}
+
+void cheatFunc(int value) {
+    startCheatMenu();
+}
+void keyConfigFunc(int value) {
+    startKeyConfigChooser();
 }
 
 void saveSettingsFunc(int value) {
@@ -207,12 +212,12 @@ ConsoleSubMenu menuList[] = {
     },
     {
         "Settings",
-        7,
-        {0,             2,               2,             4,                                 2,              2,               0},
-        {"Key Config",  "Fast Forward",  "Game Screen", "Console Output",                  "GBC Bios",     "NiFi",          "Save Settings"},
-        {{},            {"Off","On"},    {"Top","Bottom"},{"Off","Time","FPS+Time","Debug"},{"Off","On"},    {"Off","On"},  {}},
-        {keyConfigFunc, fastForwardFunc, setScreenFunc,  consoleOutputFunc,                  biosEnableFunc, nifiEnableFunc,saveSettingsFunc},
-        {0,             0,                0,              2,                                 1,              0,             0}
+        8,
+        {0,             0,                  2,               2,                 4,                               2,             2,              0},
+        {"Key Config",   "Manage Cheats",   "Fast Forward",  "Game Screen", "Console Output",                  "GBC Bios",     "NiFi",         "Save Settings"},
+        {{},            {},                 {"Off","On"},    {"Top","Bottom"},{"Off","Time","FPS+Time","Debug"},{"Off","On"},  {"Off","On"},    {}},
+        {keyConfigFunc, cheatFunc,          fastForwardFunc, setScreenFunc,  consoleOutputFunc,                biosEnableFunc, nifiEnableFunc,saveSettingsFunc},
+        {0,             0,                  0,                0,              2,                               1,              0,             0}
     },
     {
         "Debug",
@@ -427,7 +432,7 @@ void consoleParseConfig(const char* line) {
     int val = atoi(value);
     for (int i=0; i<numMenus; i++) {
         for (int j=0; j<menuList[i].numOptions; j++) {
-            if (strcmpi(menuList[i].options[j], option) == 0) {
+            if (strcmpi(menuList[i].options[j], option) == 0 && menuList[i].numSelections[j] != 0) {
                 menuList[i].optionSelections[j] = val;
                 menuList[i].optionFunctions[j](val);
             }

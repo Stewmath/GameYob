@@ -1,7 +1,11 @@
 #pragma once
 #include <vector>
 
-typedef struct patch_t {
+#define MAX_CHEAT_NAME_LEN  24
+
+typedef struct cheat_t {
+    char name[MAX_CHEAT_NAME_LEN+1];
+    char cheatString[12];
     u8  data;
     u16 address;
     union {
@@ -10,7 +14,8 @@ typedef struct patch_t {
     };
     std::vector<int> patchedBanks; /* For GameGenie codes */
     std::vector<int> patchedValues; /* For GameGenie codes */
-} patch_t;
+} cheat_t;
+
 
 #define MAX_CHEATS      14 
 #define SLOT_ENABLED    (1<<0)
@@ -21,8 +26,9 @@ typedef struct patch_t {
 #define SLOT_GAMESHARK  (3<<2)
 
 extern bool cheatsEnabled;
-extern patch_t patches[MAX_CHEATS];
+extern cheat_t cheats[MAX_CHEATS];
 extern u8   slots[MAX_CHEATS];
+extern int numCheats;
 
 void enableCheats(bool enable);
 bool addCheat(const char *str);
@@ -33,3 +39,7 @@ void unapplyGGCheat(int cheat);
 void applyGGCheats(int romBank);
 
 void applyGSCheats(void);
+
+void startCheatMenu();
+void loadCheats(const char* filename);
+void saveCheats(const char* filename);

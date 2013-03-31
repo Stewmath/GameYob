@@ -590,6 +590,10 @@ void writeConfigFile() {
     fprintf(file, "[controls]\n");
     controlsPrintConfig(file);
     fclose(file);
+
+    char nameBuf[100];
+    sprintf(nameBuf, "%s.cht", basename);
+    saveCheats(nameBuf);
 }
 
 
@@ -672,14 +676,17 @@ int loadProgram(char* f)
             bios[i] = rom[0][i];
     }
 
-    char statename[100];
-    sprintf(statename, "%s.yss", basename);
-    FILE* stateFile = fopen(statename, "r");
+    char nameBuf[100];
+    sprintf(nameBuf, "%s.yss", basename);
+    FILE* stateFile = fopen(nameBuf, "r");
     suspendStateExists = stateFile;
     if (stateFile)
         fclose(stateFile);
 
     loadSave();
+
+    sprintf(nameBuf, "%s.cht", basename);
+    loadCheats(nameBuf);
 
     cyclesToEvent = 1;
     return 0;

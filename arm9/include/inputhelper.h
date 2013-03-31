@@ -14,7 +14,6 @@
 #define MAX_LOADED_ROM_BANKS	126 /* 64 = 1 MiB */
 
 extern u8 buttonsPressed;
-extern char filename[100];
 
 extern bool suspendStateExists;
 extern bool advanceFrame;
