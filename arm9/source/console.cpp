@@ -80,6 +80,9 @@ void consoleOutputFunc(int value) {
         consoleDebugOutput = true;
     }
 }
+void returnToLauncherFunc(void) {
+    exit(0);
+}
 
 void biosEnableFunc(int value) {
     biosEnabled = value;
@@ -204,11 +207,11 @@ ConsoleSubMenu menuList[] = {
     {
         "Options",
         6,
-        {0,         10,                                         0,              0,              0,          0},
-        {"Suspend", "State Slot",                               "Save State",   "Load State",   "Reset",    "Save & Exit"},
-        {{},        {"0","1","2","3","4","5","6","7","8","9"},  {},             {},             {},         {}},
-        {suspendFunc,stateSelectFunc,                         stateSaveFunc,  stateLoadFunc,  resetFunc,    exitFunc},
-        {0,             0,                                      0,              0,              0,          0}
+        {0,         10,                                         0,              0,              0,          0,     			0},
+        {"Suspend", "State Slot",                               "Save State",   "Load State",   "Reset",    "Save & Exit", 	"Quit to launcher"},
+        {{},        {"0","1","2","3","4","5","6","7","8","9"},  {},             {},             {},         {}, 			{}},
+        {suspendFunc,stateSelectFunc,                         stateSaveFunc,  stateLoadFunc,  resetFunc,    exitFunc, 		returnToLauncherFunc},
+        {0,             0,                                      0,              0,              0,          0, 				0}
     },
     {
         "Settings",
