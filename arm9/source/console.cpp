@@ -80,7 +80,7 @@ void consoleOutputFunc(int value) {
         consoleDebugOutput = true;
     }
 }
-void returnToLauncherFunc(void) {
+void returnToLauncherFunc(int value) {
     exit(0);
 }
 
@@ -206,7 +206,7 @@ struct ConsoleSubMenu {
 ConsoleSubMenu menuList[] = { 
     {
         "Options",
-        6,
+        7,
         {0,         10,                                         0,              0,              0,          0,     			0},
         {"Suspend", "State Slot",                               "Save State",   "Load State",   "Reset",    "Save & Exit", 	"Quit to launcher"},
         {{},        {"0","1","2","3","4","5","6","7","8","9"},  {},             {},             {},         {}, 			{}},
