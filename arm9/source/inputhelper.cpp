@@ -29,6 +29,7 @@ u8 ramSize;
 u8 mapperNumber;
 u8 cgbFlag;
 u8 romSize;
+bool hasRumble;
 
 int keysPressed=0;
 int lastKeysPressed=0;
@@ -669,6 +670,11 @@ int loadProgram(char* f)
         printLog("Unknown MBC: %.2x\nDefaulting to MBC5\n", mapperNumber);
         MBC = 5;
     }
+
+    hasRumble = false;
+
+    if (mapperNumber >= 0x1C && mapperNumber <= 0x1E)
+        hasRumble = true;
 
     // Little hack to preserve "quickread" from gbcpu.cpp.
     if (biosExists) {
