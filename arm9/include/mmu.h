@@ -32,6 +32,7 @@ void latchClock();
 
 extern int numRomBanks;
 extern int numRamBanks;
+extern bool hasRumble;
 
 // whether the bios exists and has been loaded
 extern bool biosExists;

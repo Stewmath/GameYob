@@ -352,7 +352,20 @@ void writeMemory(u16 addr, u8 val)
                     }
                     break;
                 case 3:
+                    currentRamBank = val;
+                    refreshRamBank();
+                    break;
                 case 5:
+                    val &= 0xf;
+
+                    /* MBC5 might have a rumble motor, which is triggered by the
+                     * 4th bit of the value written */
+                    if (hasRumble) {
+                        if (isRumbleInserted())
+                            setRumble(val&0x8);
+                        val &= 0x07;
+                    }
+                        
                     currentRamBank = val;
                     refreshRamBank();
                     break;
@@ -364,7 +377,7 @@ void writeMemory(u16 addr, u8 val)
                 if (numRamBanks == 0)
                     currentRamBank = 0;
                 else {
-                    printLog("Game tried to access more ram than it has (%x)\n", currentRamBank);
+                    printLog("Game tried to access more ram than it has (%x) @ %04x\n", currentRamBank, gbRegs.pc);
                     currentRamBank = numRamBanks-1;
                     refreshRamBank();
                 }
