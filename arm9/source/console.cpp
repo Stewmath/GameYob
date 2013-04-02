@@ -20,7 +20,6 @@ char printMessage[33];
 int stateNum=0;
 
 extern int interruptWaitMode;
-extern bool windowDisabled;
 extern bool hblankDisabled;
 extern int frameskip;
 extern int halt;
@@ -140,13 +139,6 @@ void hblankEnableFunc(int value) {
     else
         irqDisable(IRQ_HBLANK);
 }
-void windowEnableFunc(int value) {
-    windowDisabled = !value;
-    if (windowDisabled)
-        REG_DISPCNT &= ~DISPLAY_WIN0_ON;
-    else
-        REG_DISPCNT |= DISPLAY_WIN0_ON;
-}
 void soundEnableFunc(int value) {
     soundDisabled = !value;
     soundDisable();
@@ -208,21 +200,21 @@ ConsoleSubMenu menuList[] = {
     },
     {
         "Settings",
-        8,
-        {0,             2,               2,             4,                                 2,              2,               3,                      0},
-        {"Key Config",  "Fast Forward",  "Game Screen", "Console Output",                  "GBC Bios",     "NiFi",          "Scaling",              "Save Settings"},
-        {{},            {"Off","On"},    {"Top","Bottom"},{"Off","Time","FPS+Time","Debug"},{"Off","On"},    {"Off","On"},  {"Off","Aspect","Full",},{}},
-        {keyConfigFunc, fastForwardFunc, setScreenFunc,  consoleOutputFunc,                  biosEnableFunc, nifiEnableFunc,setScaleMode,           saveSettingsFunc},
-        {0,             0,                0,              2,                                 1,              0,             0,                      0}
+        9,
+        {0,             2,               2,             4,                                 2,              2,               3,                      2,                  0},
+        {"Key Config",  "Fast Forward",  "Game Screen", "Console Output",                  "GBC Bios",     "NiFi",          "Scaling",              "Scaling Filter",   "Save Settings"},
+        {{},            {"Off","On"},    {"Top","Bottom"},{"Off","Time","FPS+Time","Debug"},{"Off","On"},    {"Off","On"},  {"Off","Aspect","Full",},{"Off","On"},      {}},
+        {keyConfigFunc, fastForwardFunc, setScreenFunc,  consoleOutputFunc,                  biosEnableFunc, nifiEnableFunc,setScaleMode,           enableScaleFilter,  saveSettingsFunc},
+        {0,             0,                0,              2,                                 1,              0,             0,                      1,                  0}
     },
     {
         "Debug",
-        6,
-        {2,2,2,2,0,0},
-        {"Wait for Vblank", "Hblank", "Window", "Sound", "Advance Frame", "ROM Info" },
-        {{"Off", "On"}, {"Off", "On"}, {"Off", "On"}, {"Off", "On"}, {}, {}},
-        {vblankWaitFunc, hblankEnableFunc, windowEnableFunc, soundEnableFunc, advanceFrameFunc, romInfoFunc},
-        {0,1,1,1,0,0}
+        8,
+        {2,                 2,              2,              2,              2,          2,                  0,              0},
+        {"Wait for Vblank", "Hblank",       "Background",   "Window",       "Sprites",  "Sound",            "Advance Frame","ROM Info" },
+        {{"Off", "On"},     {"Off", "On"},  {"Off", "On"},  {"Off", "On"},  {"Off","On"},{"Off","On"},       {},             {}},
+        {vblankWaitFunc,    hblankEnableFunc,enableBackground,enableWindow, enableSprites,soundEnableFunc,  advanceFrameFunc,romInfoFunc},
+        {0,                 1,              1,              1,              1,          1,                  0,              0}
     },
     {
         "Sound Channels",

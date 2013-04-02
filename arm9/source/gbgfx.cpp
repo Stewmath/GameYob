@@ -22,9 +22,6 @@ int screenBg;
 u8 mapImage[2][256*256];
 bool renderingBankA=true;
 
-u16 bgPalettes[8][4];
-u16 sprPalettes[8][4];
-
 bool tileModified[2][32*32];
 
 std::set<int> mapTiles[0x300];
@@ -37,7 +34,12 @@ u8 frame=0;
 // Whether to wait for vblank if emulation is running behind schedule
 int interruptWaitMode=0;
 
-bool windowDisabled = false;
+bool filterOn;
+
+bool windowEnabled = true;
+bool bgEnabled = true;
+bool spritesEnabled = true;
+
 bool hblankDisabled = false;
 
 bool bgPaletteModified[8];
@@ -117,15 +119,19 @@ void initGFX()
     bgPaletteData[6] = 0;
     bgPaletteData[7] = 0;
 
-    videoSetMode(MODE_5_2D | DISPLAY_WIN0_ON | DISPLAY_BG2_ACTIVE);
-    REG_BG2CNT = BG_BMP8_256x256;
+    videoSetMode(MODE_5_2D | DISPLAY_BG2_ACTIVE);
+    enableScaleFilter(filterOn);
 
-    WIN_IN = 1<<2;
+    REG_BG2CNT = BG_BMP8_256x256;
+    REG_BG3CNT = BG_BMP8_256x256;
+
     WIN_OUT = 0;
-    setScaleMode(0);
 
     REG_DISPSTAT &= 0xFF;
     REG_DISPSTAT |= (144+screenOffsY)<<8;
+
+    REG_BLDCNT = 1<<2 | 1<<11 | 1<<6;
+    REG_BLDALPHA = 8 | 8<<8;
 
     irqEnable(IRQ_VCOUNT);
     irqEnable(IRQ_HBLANK);
@@ -209,48 +215,68 @@ void updateTileMap(int m, int tile, int y) {
 }
 
 void setScaleMode(int mode) {
+    int BG2X, BG2Y, BG2PA,BG2PB,BG2PC,BG2PD;
     switch(mode) {
         case 0:
-            WIN0_X0 = screenOffsX;
-            WIN0_Y0 = screenOffsY;
-            WIN0_X1 = screenOffsX+160;
-            WIN0_Y1 = screenOffsY+144;
-
-            REG_BG2PA = 1<<8;
-            REG_BG2PB = 0;
-            REG_BG2PC = 0;
-            REG_BG2PD = 1<<8;
-            REG_BG2X = -screenOffsX<<8;
-            REG_BG2Y = -screenOffsY<<8;
+            BG2PA = 1<<8;
+            BG2PB = 0;
+            BG2PC = 0;
+            BG2PD = 1<<8;
+            BG2X = -screenOffsX<<8;
+            BG2Y = -screenOffsY<<8;
             break;
         case 1:
-            {
-                WIN0_X0 = 0;
-                WIN0_Y0 = 0;
-                WIN0_X1 = 255;
-                WIN0_Y1 = 191;
-                REG_BG2PA = (1<<8)/((double)192/144);
-                REG_BG2PB = 0;
-                REG_BG2PC = 0;
-                REG_BG2PD = (1<<8)/((double)192/144);
-                REG_BG2X = -((256-((double)192/144)*160)/2)*256;
-                REG_BG2Y = 0;
-                break;
-            }
-        case 2:
-            WIN0_X0 = 0;
-            WIN0_Y0 = 0;
-            WIN0_X1 = 255;
-            WIN0_Y1 = 191;
-            REG_BG2PA = (1<<8)/((double)256/160);
-            REG_BG2PB = 0;
-            REG_BG2PC = 0;
-            REG_BG2PD = (1<<8)/((double)192/144);
-            REG_BG2X = 0;
-            REG_BG2Y = 0;
+            BG2PA = (1<<8)/((double)191/144);
+            BG2PB = 0;
+            BG2PC = 0;
+            BG2PD = (1<<8)/((double)191/144);
+            BG2X = -(256/2-((((double)191)/144)*160)/2)*256;
+            BG2Y = 0;
             break;
+        case 2:
+            BG2PA = (1<<8)/((double)255/160);
+            BG2PB = 0;
+            BG2PC = 0;
+            BG2PD = (1<<8)/((double)191/144);
+            BG2X = 0;
+            BG2Y = 0;
+            break;
+        default:
+            return;
     }
+
+    REG_BG2X = BG2X;
+    REG_BG2Y = BG2Y;
+    REG_BG2PA = BG2PA;
+    REG_BG2PB = BG2PB;
+    REG_BG2PC = BG2PC;
+    REG_BG2PD = BG2PD;
+
+    REG_BG3X = BG2X + (1<<8) / 4;
+    REG_BG3Y = BG2Y + (1<<8) / 4;
+    REG_BG3PA = BG2PA;
+    REG_BG3PB = BG2PB;
+    REG_BG3PC = BG2PC;
+    REG_BG3PD = BG2PD;
 }
+
+void enableScaleFilter(int enabled) {
+    filterOn = enabled;
+    if (enabled)
+        videoBgEnable(3);
+    else
+        videoBgDisable(3);
+}
+void enableBackground(int enabled) {
+    bgEnabled = enabled;
+}
+void enableSprites(int enabled) {
+    spritesEnabled = enabled;
+}
+void enableWindow(int enabled) {
+    windowEnabled = enabled;
+}
+
 
 void disableScreen() {
 }
@@ -259,6 +285,7 @@ void enableScreen() {
 
 void drawTile(int tileNum) {
     return;
+    /*
     u8 lcdc = ioRam[0x40];
     int tileSigned = !(lcdc&0x10);
     for (int i=0; i<2; i++) {
@@ -272,6 +299,7 @@ void drawTile(int tileNum) {
                 updateTileMap(i, t, -1);
         }
     }
+    */
     /*
     for (int y=0; y<8; y++) {
         u8 b1=vram[bank][(tileNum<<4)+(y<<1)];
@@ -294,11 +322,13 @@ void drawScreen() {
         swiIntrWait(interruptWaitMode, IRQ_VBLANK);
     if (renderingBankA) {
         REG_BG2CNT = BG_BMP8_256x256;
+        REG_BG3CNT = BG_BMP8_256x256;
         pixels = ((u8*)BG_GFX)+0x10000;
         renderingBankA = false;
     }
     else {
         REG_BG2CNT = BG_BMP8_256x256 | BG_MAP_BASE(4);
+        REG_BG3CNT = BG_BMP8_256x256 | BG_MAP_BASE(4);
         pixels = ((u8*)BG_GFX);
         renderingBankA = true;
     }
@@ -369,47 +399,51 @@ void drawScanline(int scanline) {
         tile++;
     }
 
-    int end = 160;
-    if (winOn && winY <= scanline)
-        end = winX;
-    if (end > 160)
-        end = 160;
-    if (end > 0) {
-        int loopStart = 256-hofs;
-        if (loopStart >= end)
-            dmaCopy(mapImage[bgMap]+realy*256+hofs, pixels+scanline*256, end+1);
-        else {
-            dmaCopy(mapImage[bgMap]+realy*256+hofs, pixels+scanline*256, loopStart+1);
-            if (loopStart%2 == 0)
-                dmaCopy(mapImage[bgMap]+realy*256, pixels+scanline*256+loopStart, end+1-loopStart);
+    if (bgEnabled) {
+        int end = 160;
+        if (winOn && winY <= scanline)
+            end = winX;
+        if (end > 160)
+            end = 160;
+        if (end > 0) {
+            int loopStart = 256-hofs;
+            if (loopStart >= end)
+                dmaCopy(mapImage[bgMap]+realy*256+hofs, pixels+scanline*256, end+1);
             else {
-                pixels[scanline*256+loopStart] = mapImage[bgMap][realy*256];
-                dmaCopy(mapImage[bgMap]+realy*256+1, pixels+scanline*256+loopStart+1, end-loopStart+1);
+                dmaCopy(mapImage[bgMap]+realy*256+hofs, pixels+scanline*256, loopStart+1);
+                if (loopStart%2 == 0)
+                    dmaCopy(mapImage[bgMap]+realy*256, pixels+scanline*256+loopStart, end+1-loopStart);
+                else {
+                    pixels[scanline*256+loopStart] = mapImage[bgMap][realy*256];
+                    dmaCopy(mapImage[bgMap]+realy*256+1, pixels+scanline*256+loopStart+1, end-loopStart+1);
+                }
             }
         }
     }
 
-    if (winOn && winY <= scanline && winX < 160) {
-        int len,dest;
-        if (winX < 0) {
-            len = 160;
-            dest = scanline*256;
-        }
-        else {
-            len=160-winX;
-            dest=scanline*256+winX;
-        }
-        if (winX%2 == 0) {
-            dmaCopy(mapImage[winMap]+(scanline-winY)*256, pixels+dest, len);
-        }
-        else {
-            pixels[scanline*256+winX] = mapImage[winMap][0];
-            if (len > 2)
-                dmaCopy(mapImage[winMap]+(scanline-winY)*256+1, pixels+dest+1, len);
+    if (windowEnabled) {
+        if (winOn && winY <= scanline && winX < 160) {
+            int len,dest;
+            if (winX < 0) {
+                len = 160;
+                dest = scanline*256;
+            }
+            else {
+                len=160-winX;
+                dest=scanline*256+winX;
+            }
+            if (winX%2 == 0) {
+                dmaCopy(mapImage[winMap]+(scanline-winY)*256, pixels+dest, len);
+            }
+            else {
+                pixels[scanline*256+winX] = mapImage[winMap][0];
+                if (len > 2)
+                    dmaCopy(mapImage[winMap]+(scanline-winY)*256+1, pixels+dest+1, len);
+            }
         }
     }
 
-    if (spritesOn) {
+    if (spritesOn && spritesEnabled) {
         u16* dest = (u16*)(pixels+scanline*256);
         for (int s=39; s>=0; s--) {
             int index = s*4;
@@ -459,7 +493,7 @@ void drawScanline(int scanline) {
                     b1 <<= 1;
                     color |= (b2>>6)&2;
                     b2 <<= 1;
-                    if (dx >= 0 && color != 0) {
+                    if (color != 0 && dx >= 0 && dx < 160) {
                         if (dx%2 == 0) {
                             dest[dx/2] &= 0xff00;
                             dest[dx/2] |= paletteid*16+color+5;

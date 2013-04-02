@@ -11,6 +11,11 @@ void drawScreen();
 
 void setScaleMode(int mode);
 
+void enableScaleFilter(int enabled);
+void enableBackground(int enabled);
+void enableSprites(int enabled);
+void enableWindow(int enabled);
+
 void initGFX();
 void refreshGFX();
 void disableScreen();
