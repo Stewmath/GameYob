@@ -208,7 +208,7 @@ ConsoleSubMenu menuList[] = {
         "Options",
         7,
         {0,         10,                                         0,              0,              0,          0,     			0},
-        {"Suspend", "State Slot",                               "Save State",   "Load State",   "Reset",    "Save & Exit", 	"Quit to launcher"},
+        {"Suspend", "State Slot",                               "Save State",   "Load State",   "Reset",    "Save & Exit", 	"Quit to Launcher/Reboot"},
         {{},        {"0","1","2","3","4","5","6","7","8","9"},  {},             {},             {},         {}, 			{}},
         {suspendFunc,stateSelectFunc,                         stateSaveFunc,  stateLoadFunc,  resetFunc,    exitFunc, 		returnToLauncherFunc},
         {0,             0,                                      0,              0,              0,          0, 				0}
