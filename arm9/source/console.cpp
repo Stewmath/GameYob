@@ -188,6 +188,23 @@ void serialFunc(int value) {
     ioRam[0x02] &= ~0x80;
 }
 
+void setRumbleFunc(int value) {
+    rumbleEnabled = (bool)value;
+
+    /* This code is used to put the  EZ3in1 in rumble mode,
+     * there's no documentation in the wild, I hope the values are alright.
+     * Writing 0xf0 enables the rumble mode, 0x08 disables it. After this 
+     * it should work as a regular rumble pack. */
+    sysSetCartOwner(BUS_OWNER_ARM9);
+
+    GBA_BUS[0x1FE0000/2] = 0xd200;
+    GBA_BUS[0x0000000/2] = 0x1500;
+    GBA_BUS[0x0020000/2] = 0xd200;
+    GBA_BUS[0x0040000/2] = 0x1500;
+    GBA_BUS[0x1E20000/2] = (rumbleEnabled) ? 0xF0 : 0x08;
+    GBA_BUS[0x1FC0000/2] = 0x1500;
+}
+
 
 struct ConsoleSubMenu {
     char *name;
@@ -212,12 +229,12 @@ ConsoleSubMenu menuList[] = {
     },
     {
         "Settings",
-        8,
-        {0,             0,                  2,               2,                 4,                               2,             2,              0},
-        {"Key Config",   "Manage Cheats",   "Fast Forward",  "Game Screen", "Console Output",                  "GBC Bios",     "NiFi",         "Save Settings"},
-        {{},            {},                 {"Off","On"},    {"Top","Bottom"},{"Off","Time","FPS+Time","Debug"},{"Off","On"},  {"Off","On"},    {}},
-        {keyConfigFunc, cheatFunc,          fastForwardFunc, setScreenFunc,  consoleOutputFunc,                biosEnableFunc, nifiEnableFunc,saveSettingsFunc},
-        {0,             0,                  0,                0,              2,                               1,              0,             0}
+        9,
+        {0,             0,                  2,               2,                 4,                                  2,              2,              2,                      0},
+        {"Key Config",   "Manage Cheats",   "Fast Forward",  "Game Screen",     "Console Output",                   "GBC Bios",     "NiFi",         "Rumble Pak",           "Save Settings"},
+        {{},            {},                 {"Off","On"},    {"Top","Bottom"},  {"Off","Time","FPS+Time","Debug"},  {"Off","On"},   {"Off","On"},   {"Enabled","Disabled"}, {}},
+        {keyConfigFunc, cheatFunc,          fastForwardFunc, setScreenFunc,     consoleOutputFunc,                  biosEnableFunc, nifiEnableFunc, setRumbleFunc,          saveSettingsFunc},
+        {0,             0,                  0,                0,                2,                                  1,              0,              0,                      0}
     },
     {
         "Debug",
