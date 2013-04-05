@@ -33,6 +33,7 @@
 #define refreshWramBank() { \
     memory[0xd] = wram[wramBank]; }
 
+bool rumbleEnabled;
 
 int watchAddr=-1;
 int readWatchAddr=-1;
@@ -361,8 +362,8 @@ void writeMemory(u16 addr, u8 val)
                     /* MBC5 might have a rumble motor, which is triggered by the
                      * 4th bit of the value written */
                     if (hasRumble) {
-                        if (isRumbleInserted())
-                            setRumble(val&0x8);
+                        if (rumbleEnabled)
+                            RUMBLE_PAK = (val&0x8) ? 0x02 : 0x00;
                         val &= 0x07;
                     }
                         
