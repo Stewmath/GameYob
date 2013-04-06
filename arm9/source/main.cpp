@@ -64,6 +64,14 @@ int main(int argc, char* argv[])
 
     defaultExceptionHandler();
 
+    /* Reset the EZ3in1 if present */
+    {
+        sysSetCartOwner(BUS_OWNER_ARM9);
+
+        GBA_BUS[0x0000] = 0xF0;
+        GBA_BUS[0x1000] = 0xF0;
+    }
+
     initConsole();
     initInput();
     readConfigFile();
