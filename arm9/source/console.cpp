@@ -16,6 +16,7 @@ int displayConsoleRetval=0;
 int menu=0;
 int option = -1;
 char printMessage[33];
+int consoleScreenBacklight;
 
 int stateNum=0;
 
@@ -53,10 +54,14 @@ void fastForwardFunc(int value) {
     fastForwardMode = (value == 1);
 }
 void setScreenFunc(int value) {
-    if (value)
+    if (value) {
         lcdMainOnBottom();
-    else
+        consoleScreenBacklight = PM_BACKLIGHT_TOP;
+    }
+    else {
         lcdMainOnTop();
+        consoleScreenBacklight = PM_BACKLIGHT_BOTTOM;
+    }
 }
 void consoleOutputFunc(int value) {
     if (value == 0) {
@@ -298,6 +303,8 @@ bool isConsoleEnabled() {
 }
 
 int displayConsole() {
+    powerOn(consoleScreenBacklight);
+
     advanceFrame = 0;
     displayConsoleRetval=0;
     consoleOn = true;
@@ -440,6 +447,10 @@ end:
         soundEnable();
     consoleClear();
     consoleOn = false;
+
+    if (!(fpsOutput || timeOutput || consoleDebugOutput))
+        powerOff(consoleScreenBacklight);
+
     return displayConsoleRetval;
 }
 
