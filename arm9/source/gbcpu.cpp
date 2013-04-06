@@ -47,8 +47,6 @@ DTCM_BSS
 ;
 int halt;
 
-u8 buttonsPressed = 0xff;
-int fps;
 int gbMode;
 
 u8 opCycles[0x100]
@@ -116,7 +114,7 @@ void initCPU()
     ime = 1;			// Correct default value?
 
     halt = 0;
-    doubleSpeed = 0;
+    setDoubleSpeed(0);
 
     gbRegs.af.w = 0x11B0;
     gbRegs.bc.w = 0x0013;
@@ -165,7 +163,7 @@ void disableInterrupts()
     ime = 0;
 }
 
-void handleInterrupts(int interruptTriggered)
+int handleInterrupts(int interruptTriggered)
 {
     if (interruptTriggered & VBLANK)
     {
@@ -222,6 +220,9 @@ void handleInterrupts(int interruptTriggered)
             ime = 0;
         }
     }
+
+    /* The interrupt prologue takes 20 cycles, take it into account */
+    return (ime) ? (20 << doubleSpeed) : 0;
 }
 
 const u8 reg8Offsets[] = {

@@ -35,5 +35,5 @@ extern int cyclesToExecute;
 void initCPU();
 void enableInterrupts();
 void disableInterrupts();
-void handleInterrupts(int interruptTriggered);
+int handleInterrupts(int interruptTriggered);
 int runOpcode(int cycles);

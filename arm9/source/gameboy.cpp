@@ -17,6 +17,7 @@ int mode2Cycles, mode3Cycles;
 int scanlineCounter;
 int doubleSpeed;
 
+int fps;
 int turbo;
 int turboFrameSkip;
 int frameskip;
@@ -146,13 +147,8 @@ emuLoopStart:
             goto emuLoopStart;
 
         int interruptTriggered = ioRam[0x0F] & ioRam[0xFF];
-        // Run another opcode before triggering an interrupt.
-        // Robocop 2 needs this.
-        if (interruptTriggered) {
-            if (!halt)
-                extraCycles += runOpcode(4);
-            handleInterrupts(interruptTriggered);
-        }
+        if (interruptTriggered)
+            extraCycles += handleInterrupts(interruptTriggered);
     }
 }
 
@@ -324,7 +320,7 @@ inline void updateTimers(int cycles)
         timerCounter -= cycles;
         while (timerCounter <= 0)
         {
-            timerCounter = timerPeriod + timerCounter;
+            timerCounter += timerPeriod;
             if ((++ioRam[0x05]) == 0)
             {
                 requestInterrupt(TIMER);
@@ -334,9 +330,9 @@ inline void updateTimers(int cycles)
         setEventCycles(timerCounter+timerPeriod*(255-ioRam[0x05]));
     }
     dividerCounter -= cycles;
-    if (dividerCounter <= 0)
+    while (dividerCounter <= 0)
     {
-        dividerCounter = 256+dividerCounter;
+        dividerCounter += 256;
         ioRam[0x04]++;
     }
     //setEventCycles(dividerCounter);
