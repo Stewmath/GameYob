@@ -10,8 +10,8 @@ void drawScanline(int scanline);
 void drawScreen();
 
 void setScaleMode(int mode);
+void setScaleFilter(int filter);
 
-void enableScaleFilter(int enabled);
 void enableBackground(int enabled);
 void enableSprites(int enabled);
 void enableWindow(int enabled);

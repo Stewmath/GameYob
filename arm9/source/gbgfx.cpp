@@ -41,8 +41,8 @@ u8 frame=0;
 // Whether to wait for vblank if emulation is running behind schedule
 int interruptWaitMode=0;
 
-int scaleMode=9;
-bool filterOn=true;
+int scaleMode=0;
+int scaleFilter;
 
 bool windowEnabled = true;
 bool bgEnabled = true;
@@ -89,8 +89,8 @@ void vblankHandler()
     frame++;
     static bool vShift=true;
 
-    if (scaleMode != 0) {
-        if (!filterOn || vShift) {
+    if (scaleMode != 0 && scaleFilter == 2) {
+        if (vShift) {
             REG_BG2Y = 1<<7;
             REG_BG3Y = 1<<7;
         }
@@ -142,7 +142,6 @@ void initGFX()
     bgPaletteData[7] = 0;
 
     videoSetMode(MODE_5_2D | DISPLAY_BG2_ACTIVE);
-    enableScaleFilter(filterOn);
 
     REG_BG2CNT = BG_BMP8_256x256;
     REG_BG3CNT = BG_BMP8_256x256;
@@ -160,6 +159,8 @@ void initGFX()
     irqEnable(IRQ_VBLANK);
     irqSet(IRQ_VBLANK, &vblankHandler);
     irqSet(IRQ_HBLANK, &hblankHandler);
+
+    setScaleFilter(scaleFilter);
 
     refreshGFX();
 }
@@ -281,21 +282,32 @@ void setScaleMode(int mode) {
     REG_BG2PC = BG2PC;
     REG_BG2PD = BG2PD;
 
-    REG_BG3X = BG2X + (1<<6);
-    REG_BG3Y = BG2Y;
+    if (scaleFilter == 1) {
+        REG_BG3X = BG2X + (1<<6);
+        REG_BG3Y = BG2Y + (1<<6);
+    }
+    else if (scaleFilter == 2) {
+        REG_BG3X = BG2X + (1<<6);
+        REG_BG3Y = BG2Y;
+    }
+    else {
+        REG_BG3X = BG2X;
+        REG_BG3Y = BG2Y;
+    }
     REG_BG3PA = BG2PA;
     REG_BG3PB = BG2PB;
     REG_BG3PC = BG2PC;
     REG_BG3PD = BG2PD;
 }
-
-void enableScaleFilter(int enabled) {
-    filterOn = enabled;
-    if (enabled)
+void setScaleFilter(int filter) {
+    scaleFilter = filter;
+    if (scaleFilter != 0)
         videoBgEnable(3);
     else
         videoBgDisable(3);
+    setScaleMode(scaleMode);
 }
+
 void enableBackground(int enabled) {
     bgEnabled = enabled;
 }
@@ -417,75 +429,84 @@ void drawScanline(int scanline) {
         rowDrawn[bgMap][realy/8] = true;
     }
 
-    tile = realy/8*32;
-    if (!rowDrawn[bgMap][realy/8]) {
-        rowDrawn[bgMap][realy/8] = true;
-        for (int i=0; i<32; i++) {
-            if (tileModified[bgMap][tile]) {
-                tileModified[bgMap][tile] = false;
-                updateTileMap(bgMap, tile, -1);
-            }
-            /*
-            if (tileModified[1][tile]) {
-                tileModified[1][tile] = false;
-                updateTileMap(1, tile, -1);
-            }
-            */
-            tile++;
-        }
-    }
-
     if (bgEnabled) {
-        int end = 160;
-        if (winOn && winY <= scanline)
-            end = winX;
-        if (end > 160)
-            end = 160;
-        if (end > 0) {
-            int loopStart = 256-hofs;
-            if (loopStart >= end) {
-                if (hofs%2 == 0)
-                    dmaCopy(&mapImage[bgMap*0x10000+realy*256+hofs], pixels+scanline*256, end+1);
-                else
-                    dmaCopy(&mapImageShift[bgMap*0x10000+realy*256+hofs+1], pixels+scanline*256, end+1);
-            }
-            else {
-                if (loopStart%2)
-                    pixels[scanline*256] = mapImage[bgMap*0x10000+realy*256+hofs];
-                if (loopStart > 1) {
-                    if (hofs%2 == 0)
-                        dmaCopy(&mapImage[bgMap*0x10000+realy*256+hofs+loopStart%2], pixels+scanline*256, loopStart);
-                    else
-                        dmaCopy(&mapImageShift[bgMap*0x10000+realy*256+hofs+1+loopStart%2], pixels+scanline*256, loopStart);
+        if (lcdc&1) {
+            tile = realy/8*32;
+            if (!rowDrawn[bgMap][realy/8]) {
+                rowDrawn[bgMap][realy/8] = true;
+                for (int i=0; i<32; i++) {
+                    if (tileModified[bgMap][tile]) {
+                        tileModified[bgMap][tile] = false;
+                        updateTileMap(bgMap, tile, -1);
+                    }
+                    tile++;
                 }
-                if (loopStart%2 == 0)
-                    dmaCopy(&mapImage[bgMap*0x10000+realy*256], pixels+scanline*256+loopStart, end-loopStart+1);
+            }
+            int end = 160;
+            if (winOn && winY <= scanline)
+                end = winX;
+            if (end > 160)
+                end = 160;
+            if (end > 0) {
+                int loopStart = 256-hofs;
+                if (loopStart >= end) {
+                    if (hofs%2 == 0)
+                        dmaCopy(&mapImage[bgMap*0x10000+realy*256+hofs], pixels+scanline*256, end+1);
+                    else
+                        dmaCopy(&mapImageShift[bgMap*0x10000+realy*256+hofs+1], pixels+scanline*256, end+1);
+                }
                 else {
-                    dmaCopy(&mapImageShift[bgMap*0x10000+realy*256+1], pixels+scanline*256+loopStart, end-loopStart+1);
+                    if (loopStart%2)
+                        pixels[scanline*256] = mapImage[bgMap*0x10000+realy*256+hofs];
+                    if (loopStart > 1) {
+                        if (hofs%2 == 0)
+                            dmaCopy(&mapImage[bgMap*0x10000+realy*256+hofs+loopStart%2], pixels+scanline*256, loopStart);
+                        else
+                            dmaCopy(&mapImageShift[bgMap*0x10000+realy*256+hofs+1+loopStart%2], pixels+scanline*256, loopStart);
+                    }
+                    if (loopStart%2 == 0)
+                        dmaCopy(&mapImage[bgMap*0x10000+realy*256], pixels+scanline*256+loopStart, end-loopStart+1);
+                    else {
+                        dmaCopy(&mapImageShift[bgMap*0x10000+realy*256+1], pixels+scanline*256+loopStart, end-loopStart+1);
+                    }
                 }
             }
         }
+        else {
+            for (int i=0; i<160/2; i++)
+                ((u16*)pixels)[scanline*128+i] = 0;
+        }
     }
 
-    if (windowEnabled) {
-        if (winOn && winY <= scanline && winX < 160) {
-            int len,dest;
-            if (winX < 0) {
-                len = 160;
-                dest = scanline*256;
+    if (windowEnabled && winOn && winY <= scanline && winX < 160) {
+        tile = (scanline-winY)/8*32;
+        if (!rowDrawn[winMap][(scanline-winY)/8]) {
+            rowDrawn[bgMap][(scanline-winY)/8] = true;
+            for (int i=0; i<32; i++) {
+                if (tileModified[winMap][tile]) {
+                    tileModified[winMap][tile] = false;
+                    updateTileMap(winMap, tile, -1);
+                }
+                tile++;
             }
-            else {
-                len=160-winX;
-                dest=scanline*256+winX;
-            }
-            if (winX%2 == 0) {
-                dmaCopy(&mapImage[winMap*0x10000+(scanline-winY)*256], pixels+dest, len);
-            }
-            else {
-                pixels[scanline*256+winX] = mapImage[winMap*0x10000];
-                if (len > 2)
-                    dmaCopy(&mapImage[winMap*0x10000+(scanline-winY)*256+1], pixels+dest+1, len);
-            }
+        }
+
+        int len,dest;
+        if (winX < 0) {
+            len = 160;
+            dest = scanline*256;
+        }
+        else {
+            len=160-winX;
+            dest=scanline*256+winX;
+        }
+        if (winX%2 == 0) {
+            dmaCopy(&mapImage[winMap*0x10000+(scanline-winY)*256], pixels+dest, len);
+        }
+        else {
+            pixels[scanline*256+winX] = mapImage[winMap*0x10000];
+            if (len > 2)
+                dmaCopy(&mapImage[winMap*0x10000+(scanline-winY)*256+1], pixels+dest+1, len);
         }
     }
 
