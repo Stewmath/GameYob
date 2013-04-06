@@ -1,6 +1,7 @@
 #include <nds.h>
 #include <stdio.h>
 #include <math.h>
+#include <algorithm>
 #include <set>
 #include "gbgfx.h"
 #include "mmu.h"
@@ -19,14 +20,20 @@ int screenOffsY = 24;
 u8* pixels = (u8*)BG_GFX;
 int screenBg;
 //int colors[4];
-u8 mapImage[2][256*256];
+u8 mapImageBuf[2][256*256];
+u8 mapImageShiftBuf[2][256*256+1];
+u8* mapImage = (u8*)memUncached(mapImageBuf);
+u8* mapImageShift = (u8*)memUncached(mapImageShiftBuf);
+
 bool renderingBankA=true;
 
 bool tileModified[2][32*32];
 
 std::set<int> mapTiles[0x300];
+std::set<int> usedSprites;
 
 bool lastTileSigned[144];
+bool rowDrawn[2][32];
 
 // Frame counter. Incremented each vblank.
 u8 frame=0;
@@ -34,7 +41,8 @@ u8 frame=0;
 // Whether to wait for vblank if emulation is running behind schedule
 int interruptWaitMode=0;
 
-bool filterOn;
+int scaleMode=9;
+bool filterOn=true;
 
 bool windowEnabled = true;
 bool bgEnabled = true;
@@ -50,6 +58,7 @@ void updateTileMap(int map, int i, u8 val);
 void drawScanline(int scanline) ITCM_CODE;
 void setScaleMode(int m);
 void updateBgPalette(int paletteid, u8* data);
+void drawSprites();
 
 struct ScanlineStruct {
     bool modified;
@@ -78,6 +87,19 @@ void hblankHandler()
 void vblankHandler()
 {
     frame++;
+    static bool vShift=true;
+
+    if (scaleMode != 0) {
+        if (!filterOn || vShift) {
+            REG_BG2Y = 1<<7;
+            REG_BG3Y = 1<<7;
+        }
+        else {
+            REG_BG2Y = 0;
+            REG_BG3Y = 0;
+        }
+        vShift = !vShift;
+    }
 }
 
 void initGFX()
@@ -149,6 +171,8 @@ void refreshGFX() {
     }
     for (int i=0; i<144; i++)
         lastTileSigned[i] = -1;
+    for (int i=0; i<0x300; i++)
+        mapTiles[i] = std::set<int>();
 }
 
 void updateTileMap(int m, int tile, int y) {
@@ -170,7 +194,8 @@ void updateTileMap(int m, int tile, int y) {
         flipX = flags&0x20;
         flipY = flags&0x40;
     }
-    u8* dest = &mapImage[m][tile/32*8*256+(tile%32)*8];
+    int offset = tile/32*8*256+(tile%32)*8;
+    u8* dest = &mapImage[m*0x10000+offset];
     if (y == -1) {
         for (int y=0; y<8; y++) {
             u8* ind;
@@ -198,6 +223,7 @@ void updateTileMap(int m, int tile, int y) {
             dest += 257;
             if (!flipX)
                 dest -= 9;
+            memcpy(&mapImageShift[m*0x10000+offset+y*256+1], &mapImage[m*0x10000+offset+y*256], 8);
         }
     }
     else {
@@ -216,6 +242,9 @@ void updateTileMap(int m, int tile, int y) {
 
 void setScaleMode(int mode) {
     int BG2X, BG2Y, BG2PA,BG2PB,BG2PC,BG2PD;
+
+    scaleMode = mode;
+
     switch(mode) {
         case 0:
             BG2PA = 1<<8;
@@ -226,18 +255,18 @@ void setScaleMode(int mode) {
             BG2Y = -screenOffsY<<8;
             break;
         case 1:
-            BG2PA = (1<<8)/((double)191/144);
+            BG2PA = (1<<8)/((double)192/144);
             BG2PB = 0;
             BG2PC = 0;
-            BG2PD = (1<<8)/((double)191/144);
-            BG2X = -(256/2-((((double)191)/144)*160)/2)*256;
+            BG2PD = (1<<8)/((double)192/144);
+            BG2X = -(256/2-((((double)192)/144)*160)/2)*256;
             BG2Y = 0;
             break;
         case 2:
             BG2PA = (1<<8)/((double)255/160);
             BG2PB = 0;
             BG2PC = 0;
-            BG2PD = (1<<8)/((double)191/144);
+            BG2PD = (1<<8)/((double)192/144);
             BG2X = 0;
             BG2Y = 0;
             break;
@@ -252,8 +281,8 @@ void setScaleMode(int mode) {
     REG_BG2PC = BG2PC;
     REG_BG2PD = BG2PD;
 
-    REG_BG3X = BG2X + (1<<8) / 4;
-    REG_BG3Y = BG2Y + (1<<8) / 4;
+    REG_BG3X = BG2X + (1<<6);
+    REG_BG3Y = BG2Y;
     REG_BG3PA = BG2PA;
     REG_BG3PB = BG2PB;
     REG_BG3PC = BG2PC;
@@ -318,6 +347,7 @@ void drawTile(int tileNum) {
 }
 
 void drawScreen() {
+
     if (!(fastForwardMode || fastForwardKey))
         swiIntrWait(interruptWaitMode, IRQ_VBLANK);
     if (renderingBankA) {
@@ -384,19 +414,25 @@ void drawScanline(int scanline) {
             updateTileMap(1, tile, -1);
             tile++;
         }
+        rowDrawn[bgMap][realy/8] = true;
     }
 
     tile = realy/8*32;
-    for (int i=0; i<32; i++) {
-        if (tileModified[0][tile]) {
-            tileModified[0][tile] = false;
-            updateTileMap(0, tile, -1);
+    if (!rowDrawn[bgMap][realy/8]) {
+        rowDrawn[bgMap][realy/8] = true;
+        for (int i=0; i<32; i++) {
+            if (tileModified[bgMap][tile]) {
+                tileModified[bgMap][tile] = false;
+                updateTileMap(bgMap, tile, -1);
+            }
+            /*
+            if (tileModified[1][tile]) {
+                tileModified[1][tile] = false;
+                updateTileMap(1, tile, -1);
+            }
+            */
+            tile++;
         }
-        if (tileModified[1][tile]) {
-            tileModified[1][tile] = false;
-            updateTileMap(1, tile, -1);
-        }
-        tile++;
     }
 
     if (bgEnabled) {
@@ -407,15 +443,25 @@ void drawScanline(int scanline) {
             end = 160;
         if (end > 0) {
             int loopStart = 256-hofs;
-            if (loopStart >= end)
-                dmaCopy(mapImage[bgMap]+realy*256+hofs, pixels+scanline*256, end+1);
+            if (loopStart >= end) {
+                if (hofs%2 == 0)
+                    dmaCopy(&mapImage[bgMap*0x10000+realy*256+hofs], pixels+scanline*256, end+1);
+                else
+                    dmaCopy(&mapImageShift[bgMap*0x10000+realy*256+hofs+1], pixels+scanline*256, end+1);
+            }
             else {
-                dmaCopy(mapImage[bgMap]+realy*256+hofs, pixels+scanline*256, loopStart+1);
+                if (loopStart%2)
+                    pixels[scanline*256] = mapImage[bgMap*0x10000+realy*256+hofs];
+                if (loopStart > 1) {
+                    if (hofs%2 == 0)
+                        dmaCopy(&mapImage[bgMap*0x10000+realy*256+hofs+loopStart%2], pixels+scanline*256, loopStart);
+                    else
+                        dmaCopy(&mapImageShift[bgMap*0x10000+realy*256+hofs+1+loopStart%2], pixels+scanline*256, loopStart);
+                }
                 if (loopStart%2 == 0)
-                    dmaCopy(mapImage[bgMap]+realy*256, pixels+scanline*256+loopStart, end+1-loopStart);
+                    dmaCopy(&mapImage[bgMap*0x10000+realy*256], pixels+scanline*256+loopStart, end-loopStart+1);
                 else {
-                    pixels[scanline*256+loopStart] = mapImage[bgMap][realy*256];
-                    dmaCopy(mapImage[bgMap]+realy*256+1, pixels+scanline*256+loopStart+1, end-loopStart+1);
+                    dmaCopy(&mapImageShift[bgMap*0x10000+realy*256+1], pixels+scanline*256+loopStart, end-loopStart+1);
                 }
             }
         }
@@ -433,19 +479,23 @@ void drawScanline(int scanline) {
                 dest=scanline*256+winX;
             }
             if (winX%2 == 0) {
-                dmaCopy(mapImage[winMap]+(scanline-winY)*256, pixels+dest, len);
+                dmaCopy(&mapImage[winMap*0x10000+(scanline-winY)*256], pixels+dest, len);
             }
             else {
-                pixels[scanline*256+winX] = mapImage[winMap][0];
+                pixels[scanline*256+winX] = mapImage[winMap*0x10000];
                 if (len > 2)
-                    dmaCopy(mapImage[winMap]+(scanline-winY)*256+1, pixels+dest+1, len);
+                    dmaCopy(&mapImage[winMap*0x10000+(scanline-winY)*256+1], pixels+dest+1, len);
             }
         }
     }
 
-    if (spritesOn && spritesEnabled) {
+    if (spritesOn && spritesEnabled && !usedSprites.empty()) {
         u16* dest = (u16*)(pixels+scanline*256);
-        for (int s=39; s>=0; s--) {
+        std::set<int>::iterator it=usedSprites.end();
+        do {
+            it--;
+            int s = *it;
+
             int index = s*4;
             int posY = hram[index];
             bool cond;
@@ -508,6 +558,83 @@ void drawScanline(int scanline) {
                 }
             }
         }
+        while (it != usedSprites.begin());
+    }
+}
+
+void drawSprites() {
+    int spritesOn = ioRam[0x40]&2;
+    int tallSprites = ioRam[0x40]&4;
+    if (spritesOn && spritesEnabled && !usedSprites.empty()) {
+        std::set<int>::iterator it=usedSprites.end();
+        do {
+            it--;
+            int s = *it;
+
+            int index = s*4;
+            int posY = hram[index]-16;
+            if (posY > -16 && posY < 144) {
+                u16* dest = (u16*)(pixels+posY*256);
+                bool cond;
+                int tileNum = hram[index+2];
+                if (tallSprites)
+                    tileNum &= ~1;
+                int posX = hram[index+1]-8;
+                u8 flags = hram[index+3];
+                int flipX = flags&0x20;
+                int flipY = flags&0x40;
+                int paletteid, bank;
+                if (gbMode == CGB) {
+                    paletteid = flags&7;
+                    bank = (flags>>3)&1;
+                }
+                else {
+                    paletteid = (flags>>4)&1;
+                    bank = 0;
+                }
+                int dir=1;
+                int yPixels = (tallSprites?16:8);
+                for (int y=0; y<yPixels; y++) {
+                    if (posY+y >= 144)
+                        break;
+                    int dx = posX;
+                    if (flipX) {
+                        dir = -1;
+                        dx += 7;
+                    }
+                    u8 b1,b2;
+                    if (flipY) {
+                        int ind = tileNum*0x10+((tallSprites?15:7)-y)*2;
+                        b1 = vram[bank][ind];
+                        b2 = vram[bank][ind+1];
+                    }
+                    else {
+                        int ind = tileNum*0x10+y*2;
+                        b1 = vram[bank][ind];
+                        b2 = vram[bank][ind+1];
+                    }
+                    for (int x=0; x<8; x++) {
+                        u8 color = (b1>>7)&1;
+                        b1 <<= 1;
+                        color |= (b2>>6)&2;
+                        b2 <<= 1;
+                        if (color != 0 && dx >= 0 && dx < 160) {
+                            if (dx%2 == 0) {
+                                dest[dx/2+y*128] &= 0xff00;
+                                dest[dx/2+y*128] |= paletteid*16+color+5;
+                            }
+                            else {
+                                dest[dx/2+y*128] &= 0x00ff;
+                                dest[dx/2+y*128] |= (paletteid*16+color+5)<<8;
+                            }
+                        }
+                        //dest[dx] = src[x]+8*4+paletteid*4;
+                        dx += dir;
+                    }
+                }
+            }
+        }
+        while (it != usedSprites.begin());
     }
 }
 
@@ -549,6 +676,7 @@ void writeVram(u16 addr, u8 val) {
         int tile = addr-0x1800;
 
         tileModified[map][tile&0x3ff] = true;
+        rowDrawn[map][(tile&0x3ff)/32] = false;
         int oldVal = old+(vramBank?0x180:0);
         std::set<int>::iterator it = mapTiles[oldVal].find(tile);
         if (it != mapTiles[oldVal].end())
@@ -570,6 +698,7 @@ void writeVram(u16 addr, u8 val) {
         for (std::set<int>::iterator it=mapTiles[tile].begin(); it!=mapTiles[tile].end(); it++) {
             int map = (*it)/0x400;
             tileModified[map][*it&0x3ff] = true;
+            rowDrawn[map][(*it&0x3ff)/32] = false;
         }
     }
 }
@@ -598,12 +727,22 @@ void writeVram16(u16 dest, u16 src) {
         for (std::set<int>::iterator it=mapTiles[tile].begin(); it!=mapTiles[tile].end(); it++) {
             int map = *it/0x400;
             tileModified[map][*it&0x3ff] = true;
+            rowDrawn[map][(*it&0x3ff)/32] = false;
         }
     }
 }
 
 void writeHram(u16 addr, u8 val) {
     hram[addr] = val;
+
+    int sprAddr = addr-addr%4;
+    if (hram[sprAddr] != 0 && hram[sprAddr] < 144+16 && hram[sprAddr+1] != 0 && hram[sprAddr+1] < 160+8)
+        usedSprites.insert(sprAddr/4);
+    else {
+        std::set<int>::iterator it = find(usedSprites.begin(), usedSprites.end(), sprAddr/4);
+        if (it != usedSprites.end())
+            usedSprites.erase(it);
+    }
 }
 
 
@@ -618,13 +757,18 @@ void handleVideoRegister(u8 ioReg, u8 val) {
             return;
         case 0x46:				// DMA
             {
+                usedSprites = std::set<int>();
+                std::set<int>::iterator endIt = usedSprites.begin();
                 u16 src = val << 8;
-                int i;
-                for (i=0; i<0xA0; i++) {
-                    u8 val = readMemory(src+i);
-                    hram[i] = val;
-                    if (ioRam[0x44] >= 144 || ioRam[0x44] <= 1)
-                        spriteData[i] = val;
+                u8 dest = 0;
+                for (int i=0; i<40; i++) {
+                    for (int j=0; j<4; j++) {
+                        u8 val = readMemory(src++);
+                        hram[dest++] = val;
+                    }
+                    int sprAddr = dest-4;
+                    if (hram[sprAddr] != 0 && hram[sprAddr] < 144+16 && hram[sprAddr+1] != 0 && hram[sprAddr+1] < 160+8)
+                        endIt = usedSprites.insert(endIt, sprAddr/4);
                 }
 
                 extraCycles += 50;
