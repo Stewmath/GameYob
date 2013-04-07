@@ -42,7 +42,7 @@ void fifoValue32Handler(u32 value, void* user_data) {
     if (value == 1) {
         wasInConsole = isConsoleEnabled();
         oldSoundDisabled = soundDisabled;
-        enterConsole();
+        advanceFrame = true;
         soundDisabled = true;
     }
     else {
@@ -104,6 +104,8 @@ int main(int argc, char* argv[])
 
     initializeGameboy();
     startTimer();
+
+    updateConsoleScreen();
 
     runEmul();
 

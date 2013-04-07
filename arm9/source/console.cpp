@@ -477,10 +477,14 @@ end:
     consoleClear();
     consoleOn = false;
 
-    if (!(fpsOutput || timeOutput || consoleDebugOutput))
-        powerOff(consoleScreenBacklight);
+    updateConsoleScreen();
 
     return displayConsoleRetval;
+}
+
+void updateConsoleScreen() {
+    if (!(fpsOutput || timeOutput || consoleDebugOutput))
+        powerOff(consoleScreenBacklight);
 }
 
 void consoleParseConfig(const char* line) {
