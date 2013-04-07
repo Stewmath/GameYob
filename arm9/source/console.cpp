@@ -17,8 +17,9 @@ int menu=0;
 int option = -1;
 char printMessage[33];
 int consoleScreenBacklight;
-
 int stateNum=0;
+
+int selectedGameboyMode=0;
 
 extern int interruptWaitMode;
 extern bool windowDisabled;
@@ -89,10 +90,6 @@ void returnToLauncherFunc(int value) {
     exit(0);
 }
 
-void biosEnableFunc(int value) {
-    biosEnabled = value;
-}
-
 void nifiEnableFunc(int value) {
     if (value)
         enableNifi();
@@ -135,6 +132,14 @@ void resetFunc(int value) {
 }
 void returnFunc(int value) {
     quitConsole = true;
+}
+
+void gameboyModeFunc(int value) {
+    selectedGameboyMode = value;
+}
+
+void biosEnableFunc(int value) {
+    biosEnabled = value;
 }
 
 
@@ -216,54 +221,77 @@ void setRumbleFunc(int value) {
     RUMBLE_PAK = 0x02;
 }
 
-
+struct MenuOption {
+    const char* name;
+    void (*function)(int);
+    int numValues;
+    const char* values[10];
+    int defaultSelection;
+    int selection;
+};
 struct ConsoleSubMenu {
     char *name;
     int numOptions;
-    int numSelections[10];
-    const char *options[10];
-    const char *optionValues[10][10];
-    void (*optionFunctions[10])(int);
-    int defaultOptionSelections[10];
-    int optionSelections[10];
+    MenuOption options[10];
 };
 
-ConsoleSubMenu menuList[] = { 
+ConsoleSubMenu menuList[] = {
     {
         "Options",
         7,
-        {0,         10,                                         0,              0,              0,          0,     			0},
-        {"Suspend", "State Slot",                               "Save State",   "Load State",   "Reset",    "Save & Exit", 	"Quit to Launcher/Reboot"},
-        {{},        {"0","1","2","3","4","5","6","7","8","9"},  {},             {},             {},         {}, 			{}},
-        {suspendFunc,stateSelectFunc,                         stateSaveFunc,  stateLoadFunc,  resetFunc,    exitFunc, 		returnToLauncherFunc},
-        {0,             0,                                      0,              0,              0,          0, 				0}
+        {
+            {"Suspend", suspendFunc, 0, {}, 0},
+            {"State Slot", stateSelectFunc, 10, {"0","1","2","3","4","5","6","7","8","9"}, 0},
+            {"Save State", stateSaveFunc, 0, {}, 0},
+            {"Load State", stateLoadFunc, 0, {}, 0},
+            {"Reset", resetFunc, 0, {}, 0},
+            {"Save & Exit", exitFunc, 0, {}, 0},
+            {"Quit to Launcher/Reboot", returnToLauncherFunc, 0, {}, 0}
+        }
     },
     {
         "Settings",
-        9,
-        {0,             0,                  2,               2,                 4,                                  2,              2,              4,                          0},
-        {"Key Config",   "Manage Cheats",   "Fast Forward",  "Game Screen",     "Console Output",                   "GBC Bios",     "NiFi",         "Rumble Pak",               "Save Settings"},
-        {{},            {},                 {"Off","On"},    {"Top","Bottom"},  {"Off","Time","FPS+Time","Debug"},  {"Off","On"},   {"Off","On"},   {"Low","Mid","High","Off"}, {}},
-        {keyConfigFunc, cheatFunc,          fastForwardFunc, setScreenFunc,     consoleOutputFunc,                  biosEnableFunc, nifiEnableFunc, setRumbleFunc,              saveSettingsFunc},
-        {0,             0,                  0,                0,                2,                                  1,              0,              1,                          0}
+        8,
+        {
+            {"Key Config", keyConfigFunc, 0, {}, 0},
+            {"Manage Cheats", cheatFunc, 0, {}, 0},
+            {"Fast Forward", fastForwardFunc, 2, {"Off","On"}, 0},
+            {"Game Screen", setScreenFunc, 2, {"Top","Bottom"}, 0},
+            {"Console Output", consoleOutputFunc, 4, {"Off","Time","FPS+Time","Debug"}, 0},
+            {"NiFi", nifiEnableFunc, 2, {"Off","On"}, 0},
+            {"Rumble Pak", setRumbleFunc, 4, {"Low","Mid","High","Off"}, 1},
+            {"Save Settings", saveSettingsFunc, 0, {}, 0}
+        }
+    },
+    {
+        "GB Mode",
+        2,
+        {
+            {"GBC", gameboyModeFunc, 4, {"Off","If Needed","On","On GBA"}, 2},
+            {"GBC Bios", biosEnableFunc, 2, {"Off","On"}, 1}
+        }
     },
     {
         "Debug",
         6,
-        {2,2,2,2,0,0},
-        {"Wait for Vblank", "Hblank", "Window", "Sound", "Advance Frame", "ROM Info" },
-        {{"Off", "On"}, {"Off", "On"}, {"Off", "On"}, {"Off", "On"}, {}, {}},
-        {vblankWaitFunc, hblankEnableFunc, windowEnableFunc, soundEnableFunc, advanceFrameFunc, romInfoFunc},
-        {0,1,1,1,0,0}
+        {
+            {"Wait for Vblank", vblankWaitFunc, 2, {"Off","On"}, 0},
+            {"Hblank", hblankEnableFunc, 2, {"Off","On"}, 1},
+            {"Window", windowEnableFunc, 2, {"Off","On"}, 1},
+            {"Sound", soundEnableFunc, 2, {"Off","On"}, 1},
+            {"Advance Frame", advanceFrameFunc, 0, {}, 0},
+            {"ROM Info", romInfoFunc, 0, {}, 0}
+        }
     },
     {
         "Sound Channels",
         4,
-        {2,2,2,2},
-        {"Channel 1", "Channel 2", "Channel 3", "Channel 4"},
-        {{"Off", "On"}, {"Off", "On"}, {"Off", "On"}, {"Off", "On"}},
-        {chan1Func, chan2Func, chan3Func, chan4Func},
-        {1,1,1,1}
+        {
+            {"Channel 1", chan1Func, 2, {"Off","On"}, 1},
+            {"Channel 2", chan2Func, 2, {"Off","On"}, 1},
+            {"Channel 3", chan3Func, 2, {"Off","On"}, 1},
+            {"Channel 4", chan4Func, 2, {"Off","On"}, 1}
+        }
     }
 };
 const int numMenus = sizeof(menuList)/sizeof(ConsoleSubMenu);
@@ -271,9 +299,9 @@ const int numMenus = sizeof(menuList)/sizeof(ConsoleSubMenu);
 void initConsole() {
     for (int i=0; i<numMenus; i++) {
         for (int j=0; j<menuList[i].numOptions; j++) {
-            menuList[i].optionSelections[j] = menuList[i].defaultOptionSelections[j];
-            if (menuList[i].numSelections[j] != 0) {
-                menuList[i].optionFunctions[j](menuList[i].defaultOptionSelections[j]);
+            menuList[i].options[j].selection = menuList[i].options[j].defaultSelection;
+            if (menuList[i].options[j].numValues != 0) {
+                menuList[i].options[j].function(menuList[i].options[j].defaultSelection);
             }
         }
     }
@@ -331,23 +359,23 @@ int displayConsole() {
         printf("\n\n");
 
         for (int i=0; i<menuList[menu].numOptions; i++) {
-            if (menuList[menu].numSelections[i] == 0) {
-                for (int j=0; j<(32-strlen(menuList[menu].options[i]))/2-2; j++)
+            if (menuList[menu].options[i].numValues == 0) {
+                for (int j=0; j<(32-strlen(menuList[menu].options[i].name))/2-2; j++)
                     printf(" ");
                 if (i == option)
-                    printf("* %s *\n\n", menuList[menu].options[i]);
+                    printf("* %s *\n\n", menuList[menu].options[i].name);
                 else
-                    printf("  %s  \n\n", menuList[menu].options[i]);
+                    printf("  %s  \n\n", menuList[menu].options[i].name);
             }
             else {
-                for (int j=0; j<18-strlen(menuList[menu].options[i]); j++)
+                for (int j=0; j<17-strlen(menuList[menu].options[i].name); j++)
                     printf(" ");
-                printf("%s ", menuList[menu].options[i]);
+                printf("%s ", menuList[menu].options[i].name);
                 if (i == option)
                     printf("* ");
                 else
                     printf("  ");
-                printf("%s", menuList[menu].optionValues[i][menuList[menu].optionSelections[i]]);
+                printf("%s", menuList[menu].options[i].values[menuList[menu].options[i].selection]);
                 if (i == option)
                     printf(" *");
                 printf("\n\n");
@@ -390,12 +418,12 @@ int displayConsole() {
                         menu = numMenus-1;
                     break;
                 }
-                else if (menuList[menu].optionValues[option][0] != 0) {
-                    int selection = menuList[menu].optionSelections[option]-1;
+                else if (menuList[menu].options[option].numValues != 0) {
+                    int selection = menuList[menu].options[option].selection-1;
                     if (selection < 0)
-                        selection = menuList[menu].numSelections[option]-1;
-                    menuList[menu].optionSelections[option] = selection;
-                    menuList[menu].optionFunctions[option](selection);
+                        selection = menuList[menu].options[option].numValues-1;
+                    menuList[menu].options[option].selection = selection;
+                    menuList[menu].options[option].function(selection);
                     break;
                 }
             }
@@ -406,19 +434,18 @@ int displayConsole() {
                         menu = 0;
                     break;
                 }
-                else if (menuList[menu].optionValues[option][0] != 0) {
-                    int selection = menuList[menu].optionSelections[option]+1;
-                    if (selection >= menuList[menu].numSelections[option])
+                else if (menuList[menu].options[option].numValues != 0) {
+                    int selection = menuList[menu].options[option].selection+1;
+                    if (selection >= menuList[menu].options[option].numValues)
                         selection = 0;
-                    menuList[menu].optionSelections[option] = selection;
-                    menuList[menu].optionFunctions[option](selection);
+                    menuList[menu].options[option].selection = selection;
+                    menuList[menu].options[option].function(selection);
                     break;
                 }
             }
             else if (keyJustPressed(KEY_A)) {
-                if (option >= 0 && menuList[menu].numSelections[option] == 0) {
-                    menuList[menu].optionFunctions[option](menuList[menu].optionSelections[option]);
-                    forceReleaseKey(KEY_A);
+                if (option >= 0 && menuList[menu].options[option].numValues == 0) {
+                    menuList[menu].options[option].function(menuList[menu].options[option].selection);
                     break;
                 }
             }
@@ -466,9 +493,9 @@ void consoleParseConfig(const char* line) {
     int val = atoi(value);
     for (int i=0; i<numMenus; i++) {
         for (int j=0; j<menuList[i].numOptions; j++) {
-            if (strcmpi(menuList[i].options[j], option) == 0 && menuList[i].numSelections[j] != 0) {
-                menuList[i].optionSelections[j] = val;
-                menuList[i].optionFunctions[j](val);
+            if (strcmpi(menuList[i].options[j].name, option) == 0 && menuList[i].options[j].numValues != 0) {
+                menuList[i].options[j].selection = val;
+                menuList[i].options[j].function(val);
             }
         }
     }
@@ -477,8 +504,8 @@ void consoleParseConfig(const char* line) {
 void consolePrintConfig(FILE* file) {
     for (int i=0; i<numMenus; i++) {
         for (int j=0; j<menuList[i].numOptions; j++) {
-            if (menuList[i].numSelections[j] != 0)
-                fprintf(file, "%s=%d\n", menuList[i].options[j], menuList[i].optionSelections[j]);
+            if (menuList[i].options[j].numValues != 0)
+                fprintf(file, "%s=%d\n", menuList[i].options[j].name, menuList[i].options[j].selection);
         }
     }
 }

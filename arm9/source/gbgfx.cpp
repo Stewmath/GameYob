@@ -287,7 +287,37 @@ void initGFX()
     for (int i=40; i<128; i++)
         sprites[i].attr0 = ATTR0_DISABLED;
 
+    initGFXPalette();
 
+    WIN_IN = (0x7) | (1<<4) | (0xc<<8) | (1<<12); // enable backgrounds and sprites
+    WIN_OUT = 0;
+    WIN1_X0 = screenOffsX;
+    WIN1_X1 = screenOffsX+160;
+    WIN1_Y0 = screenOffsY;
+    WIN1_Y1 = screenOffsY+144;
+    WIN0_X0 = screenOffsX;
+    WIN0_Y0 = screenOffsY;
+    WIN0_X1 = screenOffsX+160;
+    WIN0_Y1 = screenOffsY+144;
+
+    videoSetMode(MODE_0_2D | DISPLAY_BG0_ACTIVE | DISPLAY_BG1_ACTIVE | DISPLAY_BG2_ACTIVE | DISPLAY_BG3_ACTIVE | DISPLAY_WIN0_ON | DISPLAY_WIN1_ON | DISPLAY_SPR_ACTIVE | DISPLAY_SPR_1D);
+
+    REG_DISPSTAT &= 0xFF;
+    REG_DISPSTAT |= (144+screenOffsY)<<8;
+
+    //irqEnable(IRQ_VCOUNT);
+    irqEnable(IRQ_HBLANK);
+    irqEnable(IRQ_VBLANK);
+    irqSet(IRQ_VBLANK, &vblankHandler);
+    irqSet(IRQ_HBLANK, &hblankHandler);
+
+    memset(vram[0], 0, 0x2000);
+    memset(vram[1], 0, 0x2000);
+
+    refreshGFX();
+}
+
+void initGFXPalette() {
     sprPaletteData[0] = 0xff;
     sprPaletteData[1] = 0xff;
     sprPaletteData[2] = 0x15|((0x15&7)<<5);
@@ -312,30 +342,6 @@ void initGFX()
     bgPaletteData[5] = (0xa>>3)|(0xa<<2);
     bgPaletteData[6] = 0;
     bgPaletteData[7] = 0;
-
-    WIN_IN = (0x7) | (1<<4) | (0xc<<8) | (1<<12); // enable backgrounds and sprites
-    WIN_OUT = 0;
-    WIN1_X0 = screenOffsX;
-    WIN1_X1 = screenOffsX+160;
-    WIN1_Y0 = screenOffsY;
-    WIN1_Y1 = screenOffsY+144;
-    WIN0_X0 = screenOffsX;
-    WIN0_Y0 = screenOffsY;
-    WIN0_X1 = screenOffsX+160;
-    WIN0_Y1 = screenOffsY+144;
-
-    videoSetMode(MODE_0_2D | DISPLAY_BG0_ACTIVE | DISPLAY_BG1_ACTIVE | DISPLAY_BG2_ACTIVE | DISPLAY_BG3_ACTIVE | DISPLAY_WIN0_ON | DISPLAY_WIN1_ON | DISPLAY_SPR_ACTIVE | DISPLAY_SPR_1D);
-
-    REG_DISPSTAT &= 0xFF;
-    REG_DISPSTAT |= (144+screenOffsY)<<8;
-
-    //irqEnable(IRQ_VCOUNT);
-    irqEnable(IRQ_HBLANK);
-    irqEnable(IRQ_VBLANK);
-    irqSet(IRQ_VBLANK, &vblankHandler);
-    irqSet(IRQ_HBLANK, &hblankHandler);
-
-    refreshGFX();
 }
 
 void refreshGFX() {

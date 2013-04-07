@@ -188,6 +188,60 @@ void initLCD()
     timerStop(2);
 }
 
+// Called either from startup, or when the BIOS writes to FF50.
+void initGameboyMode() {
+    gbRegs.af.b.l = 0xB0;
+    gbRegs.bc.w = 0x0013;
+    gbRegs.de.w = 0x00D8;
+    gbRegs.hl.w = 0x014D;
+    switch(selectedGameboyMode) {
+        case 0: // GB
+            gbRegs.af.b.h = 0x01;
+            gbMode = GB;
+            if (rom[0][0x143] == 0x80 || rom[0][0x143] == 0xC0)
+                // Init the palette in case the bios overwrote it, since it 
+                // assumed it was starting in GBC mode.
+                initGFXPalette();
+            return;
+        case 1: // GBC if needed
+            if (rom[0][0x143] == 0xC0) {
+                gbRegs.af.b.h = 0x11;
+                gbMode = CGB;
+            }
+            else {
+                gbRegs.af.b.h = 0x01;
+                gbMode = GB;
+                if (rom[0][0x143] == 0x80 || rom[0][0x143] == 0xC0)
+                    initGFXPalette();
+            }
+            return;
+        case 2: // GBC
+            if (rom[0][0x143] == 0x80 || rom[0][0x143] == 0xC0) {
+                gbRegs.af.b.h = 0x11;
+                gbMode = CGB;
+            }
+            else {
+                gbRegs.af.b.h = 0x01;
+                gbMode = GB;
+            }
+            return;
+        case 3: // GBA
+            gbRegs.af.b.h = 0x11;
+            gbRegs.bc.b.h |= 1;
+            if (rom[0][0x143] == 0x80 || rom[0][0x143] == 0xC0)
+                gbMode = CGB;
+            else
+                gbMode = GB;
+            return;
+    }
+    if (rom[0][0x143] == 0x80 || rom[0][0x143] == 0xC0)
+        gbMode = CGB;
+    else
+        gbMode = GB;
+
+}
+
+
 inline int updateLCD(int cycles)
 {
     if (!(ioRam[0x40] & 0x80))		// If LCD is off

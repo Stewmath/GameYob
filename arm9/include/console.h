@@ -2,6 +2,7 @@
 #include <stdio.h>
 
 extern bool consoleDebugOutput;
+extern int selectedGameboyMode;
 
 void initConsole();
 void printConsoleMessage(char* s);

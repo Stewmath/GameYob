@@ -24,12 +24,12 @@ extern bool fastForwardKey;
 
 extern bool yellowHack;
 
-extern int turbo;
 extern bool fpsOutput;
 extern bool timeOutput;
 
 void runEmul();
 void initLCD();
+void initGameboyMode();
 int updateLCD(int cycles);
 void updateTimers(int cycles);
 void handleInterrupts();

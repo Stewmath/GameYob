@@ -616,10 +616,7 @@ void writeIO(u8 ioReg, u8 val)
         case 0x50:
             biosOn = 0;
             memory[0x0] = rom[0];
-            if (rom[0][0x143] == 0x80 || rom[0][0x143] == 0xC0)
-                gbMode = CGB;
-            else
-                gbMode = GB;
+            initGameboyMode();
             return;
         case 0x55: // CGB DMA
             if (gbMode == CGB)
