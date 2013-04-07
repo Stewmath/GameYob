@@ -267,7 +267,7 @@ ConsoleSubMenu menuList[] = {
         "GB Mode",
         2,
         {
-            {"GBC", gameboyModeFunc, 4, {"Off","If Needed","On","On GBA"}, 2},
+            {"GBC Mode", gameboyModeFunc, 4, {"Off","If Needed","On GBC","On GBA"}, 2},
             {"GBC Bios", biosEnableFunc, 2, {"Off","On"}, 1}
         }
     },
