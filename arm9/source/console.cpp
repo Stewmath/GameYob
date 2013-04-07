@@ -51,6 +51,9 @@ void exitFunc(int value) {
     printMessage[0] = '\0';
     selectRomFunc();
 }
+void exitNoSaveFunc(int value) {
+    selectRomFunc();
+}
 void fastForwardFunc(int value) {
     fastForwardMode = (value == 1);
 }
@@ -238,15 +241,16 @@ struct ConsoleSubMenu {
 ConsoleSubMenu menuList[] = {
     {
         "Options",
-        7,
+        8,
         {
             {"Suspend", suspendFunc, 0, {}, 0},
             {"State Slot", stateSelectFunc, 10, {"0","1","2","3","4","5","6","7","8","9"}, 0},
             {"Save State", stateSaveFunc, 0, {}, 0},
             {"Load State", stateLoadFunc, 0, {}, 0},
             {"Reset", resetFunc, 0, {}, 0},
+            {"Quit to Launcher/Reboot", returnToLauncherFunc, 0, {}, 0},
+            {"Exit without saving", exitNoSaveFunc, 0, {}, 0},
             {"Save & Exit", exitFunc, 0, {}, 0},
-            {"Quit to Launcher/Reboot", returnToLauncherFunc, 0, {}, 0}
         }
     },
     {
