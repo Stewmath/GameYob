@@ -363,7 +363,7 @@ void writeMemory(u16 addr, u8 val)
                      * 4th bit of the value written */
                     if (hasRumble) {
                         if (rumbleEnabled)
-                            RUMBLE_PAK = (val&0x8) ? 0x02 : 0x00;
+                            RUMBLE_PAK = (val&0x8) ? 0x00 : 0x02;
                         val &= 0x07;
                     }
                         

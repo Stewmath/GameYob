@@ -212,6 +212,8 @@ void setRumbleFunc(int value) {
     GBA_BUS[0x0040000/2] = 0x1500;
     GBA_BUS[0x1E20000/2] = (rumbleEnabled) ? (0xF0 + value) : 0x08;
     GBA_BUS[0x1FC0000/2] = 0x1500;
+
+    RUMBLE_PAK = 0x02;
 }
 
 
