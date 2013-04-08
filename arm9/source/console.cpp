@@ -1,6 +1,7 @@
 #include <nds.h>
 #include "console.h"
 #include "inputhelper.h"
+#include "filechooser.h"
 #include "gbsnd.h"
 #include "main.h"
 #include "gameboy.h"

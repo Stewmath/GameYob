@@ -19,7 +19,6 @@ extern bool suspendStateExists;
 extern bool advanceFrame;
 
 void initInput();
-char* startFileChooser();
 
 void startKeyConfigChooser();
 void readConfigFile();
@@ -32,6 +31,7 @@ bool keyJustPressed(int key);
 // Consider this key unpressed until released and pressed again
 void forceReleaseKey(int key);
 
+void loadBios(const char* filename);
 int loadProgram(char* filename);
 void loadRomBank();
 bool bankLoaded(int bank);

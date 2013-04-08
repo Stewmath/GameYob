@@ -8,6 +8,7 @@
 #include "gbgfx.h"
 #include "gbcpu.h"
 #include "inputhelper.h"
+#include "filechooser.h"
 #include "timer.h"
 #include "gbsnd.h"
 #include "gameboy.h"
@@ -64,6 +65,8 @@ int main(int argc, char* argv[])
 
     defaultExceptionHandler();
 
+    fifoSetValue32Handler(FIFO_USER_02, fifoValue32Handler, NULL);
+
     /* Reset the EZ3in1 if present */
     {
         sysSetCartOwner(BUS_OWNER_ARM9);
@@ -76,26 +79,25 @@ int main(int argc, char* argv[])
     initInput();
     readConfigFile();
 
-    fifoSetValue32Handler(FIFO_USER_02, fifoValue32Handler, NULL);
-
     char *filename;
     bool filenameAllocated = false;
     if (argc >= 2) {
         filename = argv[1];
     }
     else {
-        chdir("/lameboy");
         filename = startFileChooser();
         filenameAllocated = true;
     }
 
-    FILE* file;
-    file = fopen("gbc_bios.bin", "rb");
-    biosExists = file != NULL;
-    if (biosExists)
-        fread(bios, 1, 0x900, file);
-    else
-        biosEnabled = false;
+    if (!biosExists) {
+        FILE* file;
+        file = fopen("gbc_bios.bin", "rb");
+        biosExists = file != NULL;
+        if (biosExists)
+            fread(bios, 1, 0x900, file);
+        else
+            biosEnabled = false;
+    }
 
     loadProgram(filename);
     if (filenameAllocated)
