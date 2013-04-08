@@ -163,66 +163,29 @@ void disableInterrupts()
     ime = 0;
 }
 
-int handleInterrupts(int interruptTriggered)
+int handleInterrupts(unsigned int interruptTriggered)
 {
-    if (interruptTriggered & VBLANK)
-    {
-        halt = 0;
-        if (ime) {
-            quickWrite(--gbRegs.sp.w, gbRegs.pc.b.h);
-            quickWrite(--gbRegs.sp.w, gbRegs.pc.b.l);
-            gbRegs.pc.w = 0x40;
-            ioRam[0x0F] &= ~VBLANK;
-            ime = 0;
-        }
-    }
-    else if (interruptTriggered & LCD)
-    {
-        halt = 0;
-        if (ime) {
-            quickWrite(--gbRegs.sp.w, gbRegs.pc.b.h);
-            quickWrite(--gbRegs.sp.w, gbRegs.pc.b.l);
-            gbRegs.pc.w = 0x48;
-            ioRam[0x0F] &= ~LCD;
-            ime = 0;
-        }
-    }
-    else if (interruptTriggered & TIMER)
-    {
-        halt = 0;
-        if (ime) {
-            quickWrite(--gbRegs.sp.w, gbRegs.pc.b.h);
-            quickWrite(--gbRegs.sp.w, gbRegs.pc.b.l);
-            gbRegs.pc.w = 0x50;
-            ioRam[0x0F] &= ~TIMER;
-            ime = 0;
-        }
-    }
-    else if (interruptTriggered & SERIAL)
-    {
-        halt = 0;
-        if (ime) {
-            quickWrite(--gbRegs.sp.w, gbRegs.pc.b.h);
-            quickWrite(--gbRegs.sp.w, gbRegs.pc.b.l);
-            gbRegs.pc.w = 0x58;
-            ioRam[0x0F] &= ~SERIAL;
-            ime = 0;
-        }
-    }
-    else if (interruptTriggered & JOYPAD)
-    {
-        halt = 0;
-        if (ime) {
-            quickWrite(--gbRegs.sp.w, gbRegs.pc.b.h);
-            quickWrite(--gbRegs.sp.w, gbRegs.pc.b.l);
-            gbRegs.pc.w = 0x60;
-            ioRam[0x0F] &= ~JOYPAD;
-            ime = 0;
-        }
-    }
+    const u16 isrVectors[] = { 0x40, 0x48, 0x50, 0x58, 0x60 };
+    /* Halt state is always reset */
+    halt = 0;
+    /* Avoid processing irqs */
+    if (!ime)
+        return 0;
+
+    ime = 0;
+
+    quickWrite(--gbRegs.sp.w, gbRegs.pc.b.h);
+    quickWrite(--gbRegs.sp.w, gbRegs.pc.b.l);
+
+    /* __builtin_ffs returns the first bit set plus one */
+    int irqNo = __builtin_ffs(interruptTriggered) - 1;
+    /* Jump to the vector */
+    gbRegs.pc.w = isrVectors[irqNo];
+    /* Clear the IF bit */
+    ioRam[0x0F] &= ~(1<<irqNo);
 
     /* The interrupt prologue takes 20 cycles, take it into account */
-    return (ime) ? (20 << doubleSpeed) : 0;
+    return (20 << doubleSpeed);
 }
 
 const u8 reg8Offsets[] = {
