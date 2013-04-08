@@ -215,9 +215,10 @@ void startKeyConfigChooser() {
             }
             else if (keyPressedAutoRepeat(KEY_LEFT)) {
                 if (option == -1) {
-                    selectedKeyConfig--;
-                    if (selectedKeyConfig < 0)
+                    if (selectedKeyConfig == 0)
                         selectedKeyConfig = keyConfigs.size()-1;
+                    else
+                        selectedKeyConfig--;
                 }
                 else {
                     config->gbKeys[option]--;
