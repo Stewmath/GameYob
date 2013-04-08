@@ -261,7 +261,7 @@ ConsoleSubMenu menuList[] = {
             {"Manage Cheats", cheatFunc, 0, {}, 0},
             {"Fast Forward", fastForwardFunc, 2, {"Off","On"}, 0},
             {"Game Screen", setScreenFunc, 2, {"Top","Bottom"}, 0},
-            {"Console Output", consoleOutputFunc, 4, {"Off","Time","FPS+Time","Debug"}, 0},
+            {"Console Output", consoleOutputFunc, 4, {"Off","Time","FPS+Time","Debug"}, 3},
             {"NiFi", nifiEnableFunc, 2, {"Off","On"}, 0},
             {"Rumble Pak", setRumbleFunc, 4, {"Low","Mid","High","Off"}, 1},
             {"Save Settings", saveSettingsFunc, 0, {}, 0}

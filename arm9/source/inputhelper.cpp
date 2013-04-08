@@ -597,9 +597,6 @@ void writeConfigFile() {
     saveCheats(nameBuf);
 }
 
-
-
-
 int loadProgram(char* f)
 {
     if (romFile != NULL)
@@ -657,18 +654,22 @@ int loadProgram(char* f)
     romTitle[nameLength] = '\0';
 
     if (mapperNumber == 0)
-        MBC = 0;
+        MBC = MBC0;
     else if (mapperNumber <= 3)
-        MBC = 1;
+        MBC = MBC1;
     else if (mapperNumber >= 5 && mapperNumber <= 6)
-        MBC = 2;
+        MBC = MBC2;
     else if (mapperNumber == 0x10 || mapperNumber == 0x12 || mapperNumber == 0x13)
-        MBC = 3;
+        MBC = MBC3;
     else if (mapperNumber >= 0x19 && mapperNumber <= 0x1E)
-        MBC = 5;
+        MBC = MBC5;
+    else if (mapperNumber == 0xFE)
+        MBC = HUC3;
+    else if (mapperNumber == 0xFF)
+        MBC = HUC1;
     else {
         printLog("Unknown MBC: %.2x\nDefaulting to MBC5\n", mapperNumber);
-        MBC = 5;
+        MBC = MBC5;
     }
 
     hasRumble = false;
@@ -752,7 +753,7 @@ int loadSave()
             numRamBanks = 4;
             break;
     }
-    if (MBC == 2)
+    if (MBC == MBC2)
         numRamBanks = 1;
 
     if (numRamBanks == 0)
@@ -772,7 +773,7 @@ int loadSave()
     {
         for (i=0; i<numRamBanks; i++)
             fread(externRam[i], 1, 0x2000, file);
-        if (MBC == 3)
+        if (MBC == MBC3)
         {
             fread(&gbClock.clockSeconds, 1, sizeof(int)*10+sizeof(time_t), file);
         }
@@ -797,7 +798,7 @@ int saveGame()
         int i;
         for (i=0; i<numRamBanks; i++)
             fwrite(externRam[i], 1, 0x2000, file);
-        if (MBC == 3)
+        if (MBC == MBC3)
         {
             fwrite(&gbClock.clockSeconds, 1, sizeof(int)*10+sizeof(time_t), file);
         }
@@ -856,13 +857,12 @@ char* getRomTitle() {
     return romTitle;
 }
 
+const char *mbcName[] = {"ROM","MBC1","MBC2","MBC3","MBC5","HUC3","HUC1"};
+
 void printRomInfo() {
     consoleClear();
     printf("ROM Title: \"%s\"\n", romTitle);
-    if (mapperNumber == 0)
-        printf("Cartridge type: %.2x (No MBC)\n", mapperNumber);
-    else
-        printf("Cartridge type: %.2x (MBC%d)\n", mapperNumber, MBC);
+    printf("Cartridge type: %.2x (%s)\n", mapperNumber, mbcName[MBC]);
     printf("ROM Size: %.2x (%d banks)\n", romSize, numRomBanks);
     printf("RAM Size: %.2x (%d banks)\n", ramSize, numRamBanks);
     while (true) {
