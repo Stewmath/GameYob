@@ -49,6 +49,8 @@ bool biosExists = false;
 bool biosEnabled = false;
 bool biosOn = false;
 
+u8 buttonsPressed = 0xff;
+
 u8* memory[0x10]
 #ifdef DS
 DTCM_BSS
