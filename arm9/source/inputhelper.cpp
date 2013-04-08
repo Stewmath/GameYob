@@ -113,7 +113,7 @@ template <class Data> bool isSorted(std::vector<Data>& data, int (*sortFunction)
         return true;
 
     Data* prev = &data[from];
-    for (int i = from + 1; i < to; i++)
+    for (unsigned int i = from + 1; i < to; i++)
     {
         if ((*sortFunction)(*prev, data[i]) > 0)
             return false;
@@ -383,7 +383,7 @@ KeyConfig defaultKeyConfig = {
 };
 
 std::vector<KeyConfig> keyConfigs;
-int selectedKeyConfig=0;
+unsigned int selectedKeyConfig=0;
 
 void loadKeyConfig() {
     KeyConfig* keyConfig = &keyConfigs[selectedKeyConfig];
@@ -446,7 +446,7 @@ void controlsParseConfig(const char* line2) {
 }
 void controlsPrintConfig(FILE* file) {
     fprintf(file, "config=%d\n", selectedKeyConfig);
-    for (int i=0; i<keyConfigs.size(); i++) {
+    for (unsigned int i=0; i<keyConfigs.size(); i++) {
         fprintf(file, "(%s)\n", keyConfigs[i].name);
         for (int j=0; j<12; j++) {
             fprintf(file, "%s=%s\n", dsKeyNames[j], gbKeyNames[keyConfigs[i].gbKeys[j]]);
