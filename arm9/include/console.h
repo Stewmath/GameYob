@@ -6,7 +6,10 @@ extern int selectedGameboyMode;
 
 void initConsole();
 void printConsoleMessage(char* s);
+
+void enterConsole(); // May be called from an interrupt
 void exitConsole();
+
 bool isConsoleEnabled();
 int displayConsole();
 void updateConsoleScreen(); // Disables console screen if necessary

@@ -42,7 +42,7 @@ void fifoValue32Handler(u32 value, void* user_data) {
     if (value == 1) {
         wasInConsole = isConsoleEnabled();
         oldSoundDisabled = soundDisabled;
-        advanceFrame = true;
+        enterConsole();
         soundDisabled = true;
     }
     else {
