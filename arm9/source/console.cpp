@@ -29,6 +29,9 @@ extern bool hblankDisabled;
 extern int frameskip;
 extern int halt;
 
+extern int rumbleInserted;
+extern int rumbleStrength;
+
 extern bool __dsimode;
 
 void selectRomFunc() {
@@ -211,11 +214,24 @@ void serialFunc(int value) {
 }
 
 void setRumbleFunc(int value) {
-	if (value != 3)
-	    rumbleEnabled = value+1;
-	else
-		rumbleEnabled = 0;
+    if (value > 0)
+        rumbleStrength = value;
+    else
+        rumbleStrength = 0;
+
     sysSetCartOwner(BUS_OWNER_ARM9);
+
+    OpenNorWrite();
+    uint32 rumbleID = ReadNorFlashID();
+    CloseNorWrite();
+
+
+    if (isRumbleInserted())
+        rumbleInserted = 1; //Warioware / Official rumble found.
+    else if (rumbleID != 0)
+        rumbleInserted = 2; //3in1 found
+    else
+        rumbleInserted = 0; //No rumble found
 }
 
 struct MenuOption {
@@ -258,7 +274,7 @@ ConsoleSubMenu menuList[] = {
             {"Game Screen", setScreenFunc, 2, {"Top","Bottom"}, 0},
             {"Console Output", consoleOutputFunc, 4, {"Off","Time","FPS+Time","Debug"}, 0},
             {"NiFi", nifiEnableFunc, 2, {"Off","On"}, 0},
-            {"Rumble Pak", setRumbleFunc, 4, {"Low","Mid","High","Off"}, 1},
+            {"Rumble Pak", setRumbleFunc, 4, {"Off","Low","Mid","High"}, 2},
             {"Save Settings", saveSettingsFunc, 0, {}, 0}
         }
     },
@@ -517,4 +533,96 @@ void consolePrintConfig(FILE* file) {
 void addToLog(const char* format, va_list args) {
     if (consoleDebugOutput)
         vprintf(format, args);
+}
+
+
+
+
+//3in1 stuff, find better place for it.
+//I tried including the files these functions came from, but I got compile errors and didn't feel like fixing them.
+#define FlashBase		0x08000000
+void		OpenNorWrite()
+{
+    *(vuint16 *)0x9fe0000 = 0xd200;
+    *(vuint16 *)0x8000000 = 0x1500;
+    *(vuint16 *)0x8020000 = 0xd200;
+    *(vuint16 *)0x8040000 = 0x1500;
+    *(vuint16 *)0x9C40000 = 0x1500;
+    *(vuint16 *)0x9fc0000 = 0x1500;
+}
+
+
+void		CloseNorWrite()
+{
+    *(vuint16 *)0x9fe0000 = 0xd200;
+    *(vuint16 *)0x8000000 = 0x1500;
+    *(vuint16 *)0x8020000 = 0xd200;
+    *(vuint16 *)0x8040000 = 0x1500;
+    *(vuint16 *)0x9C40000 = 0xd200;
+    *(vuint16 *)0x9fc0000 = 0x1500;
+}
+uint32   ReadNorFlashID()
+{
+        vuint16 id1,id2,id3,id4;
+        uint32 ID = 0;
+        //check intel 512M 3in1 card
+        *((vuint16 *)(FlashBase+0)) = 0xFF ;
+        *((vuint16 *)(FlashBase+0x1000*2)) = 0xFF ;
+        *((vuint16 *)(FlashBase+0)) = 0x90 ;
+        *((vuint16 *)(FlashBase+0x1000*2)) = 0x90 ;
+        id1 = *((vuint16 *)(FlashBase+0)) ;
+        id2 = *((vuint16 *)(FlashBase+0x1000*2)) ;
+        id3 = *((vuint16 *)(FlashBase+1*2)) ;
+        id4 = *((vuint16 *)(FlashBase+0x1001*2)) ;
+        if(id3==0x8810)
+            id3=0x8816;
+        if(id4==0x8810)
+            id4=0x8816;
+        //_consolePrintf("id1=%x\,id2=%x,id3=%x,id4=%xn",id1,id2,id3,id4);
+        if( (id1==0x89)&& (id2==0x89) &&(id3==0x8816) && (id4==0x8816))
+        {
+            ID = 0x89168916;
+            return 0x89168916;
+        }
+        //¼ì²â256M¿¨
+        *((vuint16 *)(FlashBase+0x555*2)) = 0xAA ;
+        *((vuint16 *)(FlashBase+0x2AA*2)) = 0x55 ;
+        *((vuint16 *)(FlashBase+0x555*2)) = 0x90 ;
+
+        *((vuint16 *)(FlashBase+0x1555*2)) = 0xAA ;
+        *((vuint16 *)(FlashBase+0x12AA*2)) = 0x55 ;
+        *((vuint16 *)(FlashBase+0x1555*2)) = 0x90 ;
+
+        id1 = *((vuint16 *)(FlashBase+0x2)) ;
+        id2 = *((vuint16 *)(FlashBase+0x2002)) ;
+        if( (id1!=0x227E)|| (id2!=0x227E))
+            return 0;
+        
+        id1 = *((vuint16 *)(FlashBase+0xE*2)) ;
+        id2 = *((vuint16 *)(FlashBase+0x100e*2)) ;
+        if(id1==0x2218 && id2==0x2218)			//H6H6
+        {
+            ID = 0x227E2218;
+            return 0x227E2218;
+        }
+            
+        if(id1==0x2202 && id2==0x2202)			//VZ064
+        {
+            ID = 0x227E2202;
+            return 0x227E2202;
+        }
+        if(id1==0x2202 && id2==0x2220)			//VZ064
+        {
+            ID = 0x227E2202;
+            return 0x227E2202;
+        }
+        if(id1==0x2202 && id2==0x2215)			//VZ064
+        {
+            ID = 0x227E2202;
+            return 0x227E2202;
+        }
+        
+            
+        return 0;
+            
 }
