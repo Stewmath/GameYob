@@ -199,7 +199,7 @@ void loadCheats(const char* filename) {
     fclose(file);
 }
 
-void startCheatMenu() {
+bool startCheatMenu() {
     const int cheatsPerPage=14;
 
     bool quit=false;
@@ -207,7 +207,7 @@ void startCheatMenu() {
     static int firstCheat=0;
 
     if (numCheats == 0)
-        return;
+        return false;
     if (selection >= numCheats) {
         selection = 0;
         firstCheat = selection;
@@ -264,13 +264,17 @@ void startCheatMenu() {
                 break;
             }
             else if (keyJustPressed(KEY_B)) {
-                return;
+                return true;
             }
         }
     }
+
+    return true;
 }
 
 void saveCheats(const char* filename) {
+    if (numCheats == 0)
+        return;
     FILE* file = fopen(filename, "w");
     for (int i=0; i<numCheats; i++) {
         fprintf(file, "%s %d%s\n", cheats[i].cheatString, !!(slots[i] & SLOT_ENABLED), cheats[i].name);

@@ -40,6 +40,6 @@ void applyGGCheats(int romBank);
 
 void applyGSCheats(void);
 
-void startCheatMenu();
+bool startCheatMenu();
 void loadCheats(const char* filename);
 void saveCheats(const char* filename);

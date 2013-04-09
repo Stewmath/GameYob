@@ -103,7 +103,8 @@ void nifiEnableFunc(int value) {
 }
 
 void cheatFunc(int value) {
-    startCheatMenu();
+    if (!startCheatMenu())
+        printConsoleMessage("No cheats found!");
 }
 void keyConfigFunc(int value) {
     startKeyConfigChooser();
