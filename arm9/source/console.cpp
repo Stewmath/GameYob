@@ -465,6 +465,7 @@ int displayConsole() {
                 }
             }
             else if (keyJustPressed(KEY_A)) {
+                forceReleaseKey(KEY_A);
                 if (option >= 0 && menuList[menu].options[option].numValues == 0) {
                     menuList[menu].options[option].function(menuList[menu].options[option].selection);
                     break;
