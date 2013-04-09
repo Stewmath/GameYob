@@ -202,6 +202,8 @@ void initGameboyMode() {
         case 1: // GBC if needed
             if (rom[0][0x143] == 0xC0) {
                 gbRegs.af.b.h = 0x11;
+                if (gbaMode)
+                    gbRegs.bc.b.h |= 1;
                 gbMode = CGB;
             }
             else {
@@ -214,20 +216,14 @@ void initGameboyMode() {
         case 2: // GBC
             if (rom[0][0x143] == 0x80 || rom[0][0x143] == 0xC0) {
                 gbRegs.af.b.h = 0x11;
+                if (gbaMode)
+                    gbRegs.bc.b.h |= 1;
                 gbMode = CGB;
             }
             else {
                 gbRegs.af.b.h = 0x01;
                 gbMode = GB;
             }
-            return;
-        case 3: // GBA
-            gbRegs.af.b.h = 0x11;
-            gbRegs.bc.b.h |= 1;
-            if (rom[0][0x143] == 0x80 || rom[0][0x143] == 0xC0)
-                gbMode = CGB;
-            else
-                gbMode = GB;
             return;
     }
     if (rom[0][0x143] == 0x80 || rom[0][0x143] == 0xC0)
