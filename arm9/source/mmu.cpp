@@ -543,21 +543,21 @@ void writeMemory(u16 addr, u8 val)
         case 0x8:
         case 0x9:
             writeVram(addr&0x1fff, val);
-            break;
+            return;
         case 0xC:
             wram[0][addr&0xFFF] = val;
-            break;
+            return;
         case 0xD:
             wram[wramBank][addr&0xFFF] = val;
-            break;
+            return;
         case 0xE:
-            break;
+            return;
         case 0xF:
             if (addr >= 0xFF00) 
                 writeIO(addr & 0xFF, val);
             else
                 writeHram(addr&0x1ff, val);
-            break;
+            return;
     }
 
     if (mbcWrites[MBC])
