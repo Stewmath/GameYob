@@ -34,9 +34,10 @@
     memory[0xd] = wram[wramBank]; }
 
 bool hasRumble;
-int rumbleEnabled;
-int rumble = 0;
-int lastRumble = 0xFF;
+int rumbleStrength;
+int rumbleInserted;
+bool rumbleValue = 0;
+bool lastRumbleValue = 0;
 
 int watchAddr=-1;
 int readWatchAddr=-1;
@@ -367,19 +368,19 @@ void writeMemory(u16 addr, u8 val)
                     /* MBC5 might have a rumble motor, which is triggered by the
                      * 4th bit of the value written */
                     if (hasRumble) {
-                        if (rumbleEnabled) {
-                            rumble = (val & 0x8) ? (0xF0 + rumbleEnabled) : 0x08;
-                            if (rumble != lastRumble)
+                        if (rumbleStrength)
+                        {
+                            if (rumbleInserted)
                             {
-                                GBA_BUS[0x1FE0000/2] = 0xd200;
-                                GBA_BUS[0x0000000/2] = 0x1500;
-                                GBA_BUS[0x0020000/2] = 0xd200;
-                                GBA_BUS[0x0040000/2] = 0x1500;
-                                GBA_BUS[0x1E20000/2] = rumble;
-                                GBA_BUS[0x1FC0000/2] = 0x1500;
-                                lastRumble = rumble;
+                                rumbleValue = (val & 0x8) ? 1 : 0;
+                                if (rumbleValue != lastRumbleValue)
+                                {
+                                    doRumble(rumbleValue);
+                                    lastRumbleValue = rumbleValue;
+                                }
                             }
                         }
+
                         val &= 0x07;
                     }
 
@@ -723,4 +724,22 @@ bool updateHblankDMA()
     }
     else
         return false;
+}
+
+
+void doRumble(bool rumbleVal)
+{
+    if (rumbleInserted == 1)
+    {
+        setRumble(rumbleVal);
+    }
+    else if (rumbleInserted == 2)
+    {
+        GBA_BUS[0x1FE0000/2] = 0xd200;
+        GBA_BUS[0x0000000/2] = 0x1500;
+        GBA_BUS[0x0020000/2] = 0xd200;
+        GBA_BUS[0x0040000/2] = 0x1500;
+        GBA_BUS[0x1E20000/2] = rumbleVal ? (0xF0 + rumbleStrength) : 0x08;
+        GBA_BUS[0x1FC0000/2] = 0x1500;
+    }
 }

@@ -33,7 +33,10 @@ void latchClock();
 extern int numRomBanks;
 extern int numRamBanks;
 extern bool hasRumble;
-extern int rumbleEnabled;
+extern int rumbleStrength;
+extern int rumbleInserted;
+
+void doRumble(bool rumbleVal);
 
 // whether the bios exists and has been loaded
 extern bool biosExists;
