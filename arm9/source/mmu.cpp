@@ -36,8 +36,8 @@
 bool hasRumble;
 int rumbleStrength;
 int rumbleInserted;
-int rumbleValue = 0;
-int lastRumbleValue = 0;
+bool rumbleValue = 0;
+bool lastRumbleValue = 0;
 
 int watchAddr=-1;
 int readWatchAddr=-1;
@@ -727,11 +727,11 @@ bool updateHblankDMA()
 }
 
 
-void doRumble(int rumbleVal)
+void doRumble(bool rumbleVal)
 {
     if (rumbleInserted == 1)
     {
-        setRumble(rumbleVal ? 1 : 0);
+        setRumble(rumbleVal);
     }
     else if (rumbleInserted == 2)
     {

@@ -19,7 +19,6 @@ void consoleParseConfig(const char* line);
 void consolePrintConfig(FILE* file);
 void addToLog(const char* format, va_list args);
 
-
 void OpenNorWrite();
 void CloseNorWrite();
 uint32 ReadNorFlashID();
