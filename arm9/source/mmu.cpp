@@ -35,7 +35,7 @@
 
 bool hasRumble;
 int rumbleStrength;
-int rumbleInserted;
+int rumbleInserted = 0;
 bool rumbleValue = 0;
 bool lastRumbleValue = 0;
 

@@ -220,6 +220,9 @@ void setRumbleFunc(int value) {
     else
         rumbleStrength = 0;
 
+    if (__dsimode)
+        return;
+
     sysSetCartOwner(BUS_OWNER_ARM9);
 
     OpenNorWrite();
@@ -350,6 +353,7 @@ bool isConsoleEnabled() {
 }
 
 int displayConsole() {
+    doRumble(0);
     powerOn(consoleScreenBacklight);
 
     advanceFrame = 0;

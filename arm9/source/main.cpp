@@ -18,9 +18,7 @@
 #include "nifi.h"
 #include "cheats.h"
 
-// defaultConsole is defined within libnds
-extern PrintConsole defaultConsole;
-
+extern bool __dsimode;
 
 void initializeGameboy() {
     initMMU();
@@ -56,11 +54,8 @@ void fifoValue32Handler(u32 value, void* user_data) {
 
 int main(int argc, char* argv[])
 {
-    videoSetModeSub(MODE_0_2D);
-    vramSetBankH(VRAM_H_SUB_BG);
     REG_POWERCNT = POWER_ALL & ~(POWER_MATRIX | POWER_3D_CORE); // don't need 3D
-    PrintConsole console;
-    consoleInit(NULL, defaultConsole.bgLayer, BgType_Text4bpp, BgSize_T_256x256, defaultConsole.mapBase, defaultConsole.gfxBase, false, true);
+    consoleDemoInit();
     consoleDebugInit(DebugDevice_CONSOLE);
 
     defaultExceptionHandler();
@@ -68,7 +63,7 @@ int main(int argc, char* argv[])
     fifoSetValue32Handler(FIFO_USER_02, fifoValue32Handler, NULL);
 
     /* Reset the EZ3in1 if present */
-    {
+    if (!__dsimode) {
         sysSetCartOwner(BUS_OWNER_ARM9);
 
         GBA_BUS[0x0000] = 0xF0;
