@@ -33,7 +33,6 @@ u8 ramSize;
 u8 mapperNumber;
 u8 cgbFlag;
 u8 romSize;
-bool hasRumble;
 
 int keysPressed=0;
 int lastKeysPressed=0;

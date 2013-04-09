@@ -206,23 +206,11 @@ void serialFunc(int value) {
 }
 
 void setRumbleFunc(int value) {
-    /* The strenght settings are "low","mid","hi","off" */
-    rumbleEnabled = (bool)(value < 3);
-
-    /* This code is used to put the  EZ3in1 in rumble mode,
-     * writing 0x8 disables it, while the rumble strength
-     * is set by writing (0xF0 + setting).
-     * It should work as a regular rumble pack. */
+	if (value != 3)
+	    rumbleEnabled = value+1;
+	else
+		rumbleEnabled = 0;
     sysSetCartOwner(BUS_OWNER_ARM9);
-
-    GBA_BUS[0x1FE0000/2] = 0xd200;
-    GBA_BUS[0x0000000/2] = 0x1500;
-    GBA_BUS[0x0020000/2] = 0xd200;
-    GBA_BUS[0x0040000/2] = 0x1500;
-    GBA_BUS[0x1E20000/2] = (rumbleEnabled) ? (0xF0 + value) : 0x08;
-    GBA_BUS[0x1FC0000/2] = 0x1500;
-
-    RUMBLE_PAK = 0x02;
 }
 
 struct MenuOption {

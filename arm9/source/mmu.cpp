@@ -33,7 +33,10 @@
 #define refreshWramBank() { \
     memory[0xd] = wram[wramBank]; }
 
-bool rumbleEnabled;
+bool hasRumble;
+int rumbleEnabled;
+int rumble = 0;
+int lastRumble = 0xFF;
 
 int watchAddr=-1;
 int readWatchAddr=-1;
@@ -365,10 +368,20 @@ void writeMemory(u16 addr, u8 val)
                      * 4th bit of the value written */
                     if (hasRumble) {
                         if (rumbleEnabled)
-                            RUMBLE_PAK = (val&0x8) ? 0x00 : 0x02;
+                            rumble = (val & 0x8) ? (0xF0 + rumbleEnabled) : 0x08;
+                        if (rumble != lastRumble)
+                        {
+                            GBA_BUS[0x1FE0000/2] = 0xd200;
+                            GBA_BUS[0x0000000/2] = 0x1500;
+                            GBA_BUS[0x0020000/2] = 0xd200;
+                            GBA_BUS[0x0040000/2] = 0x1500;
+                            GBA_BUS[0x1E20000/2] = rumble;
+                            GBA_BUS[0x1FC0000/2] = 0x1500;
+                            lastRumble = RUMBLE_PAK;
+                        }
                         val &= 0x07;
                     }
-                        
+
                     currentRamBank = val;
                     refreshRamBank();
                     break;
