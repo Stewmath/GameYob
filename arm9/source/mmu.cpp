@@ -142,53 +142,48 @@ void mapMemory() {
     dmaDest &= 0x1FF0;
 }
 
+#define OVERFLOW(x,val,y) do { \
+            if (x >= val) { \
+                x -= val; \
+                y++; \
+            } \
+        } while (0) 
+
 void latchClock()
 {
     // +2h, the same as lameboy
     time_t now = time(NULL)-120*60;
     time_t difference = now - gbClock.clockLastTime;
+    struct tm* lt = gmtime((const time_t *)&difference);
 
-    int seconds = difference%60;
-    gbClock.clockSeconds += seconds;
-    if (gbClock.clockSeconds >= 60)
-    {
-        gbClock.clockMinutes++;
-        gbClock.clockSeconds -= 60;
+    switch (MBC) {
+        case MBC3:
+            gbClock.mbc3.clockSeconds += lt->tm_sec;
+            OVERFLOW(gbClock.mbc3.clockSeconds, 60, gbClock.mbc3.clockMinutes);
+            gbClock.mbc3.clockMinutes += lt->tm_min;
+            OVERFLOW(gbClock.mbc3.clockMinutes, 60, gbClock.mbc3.clockHours);
+            gbClock.mbc3.clockHours   += lt->tm_hour;
+            OVERFLOW(gbClock.mbc3.clockHours, 24, gbClock.mbc3.clockDays);
+            gbClock.mbc3.clockDays    += lt->tm_yday;
+            /* Overflow! */
+            if (gbClock.mbc3.clockDays > 0x1FF)
+            {
+                /* Set the carry bit */
+                gbClock.mbc3.clockControl |= 0x80;
+                gbClock.mbc3.clockDays -= 0x200;
+            }
+            /* The 9th bit of the day register is in the control register */ 
+            gbClock.mbc3.clockControl &= ~1;
+            gbClock.mbc3.clockControl |= (gbClock.mbc3.clockDays > 0xff);
+            break;
+        case HUC3:
+            gbClock.huc3.clockMinutes += lt->tm_min;
+            gbClock.huc3.clockDays    += lt->tm_yday;
+            gbClock.huc3.clockYears   += lt->tm_year;
+            break;
     }
 
-    difference /= 60;
-    int minutes = difference%60;
-    gbClock.clockMinutes += minutes;
-    if (gbClock.clockMinutes >= 60)
-    {
-        gbClock.clockHours++;
-        gbClock.clockMinutes -= 60;
-    }
-
-    difference /= 60;
-    gbClock.clockHours += difference%24;
-    if (gbClock.clockHours >= 24)
-    {
-        gbClock.clockDays++;
-        gbClock.clockHours -= 24;
-    }
-
-    difference /= 24;
-    gbClock.clockDays += difference;
-    if (gbClock.clockDays > 0x1FF)
-    {
-        gbClock.clockControl |= 0x80;
-        gbClock.clockDays -= 0x200;
-    }
-    gbClock.clockControl &= ~1;
-    gbClock.clockControl |= gbClock.clockDays>>8;
     gbClock.clockLastTime = now;
-
-    gbClock.clockSecondsL = gbClock.clockSeconds;
-    gbClock.clockMinutesL = gbClock.clockMinutes;
-    gbClock.clockHoursL = gbClock.clockHours;
-    gbClock.clockDaysL = gbClock.clockDays;
-    gbClock.clockControlL = gbClock.clockControl;
 }
 
 void handleHuC3Command (u8 cmd) 
@@ -226,15 +221,15 @@ u8 h3r (u16 addr) {
 u8 m3r (u16 addr) {
     switch (currentRamBank) {
         case 0x8:
-            return gbClock.clockSecondsL;
+            return gbClock.mbc3.clockSeconds;
         case 0x9:
-            return gbClock.clockMinutesL;
+            return gbClock.mbc3.clockMinutes;
         case 0xA:
-            return gbClock.clockHoursL;
+            return gbClock.mbc3.clockHours;
         case 0xB:
-            return gbClock.clockDaysL&0xFF;
+            return gbClock.mbc3.clockDays&0xff;
         case 0xC:
-            return gbClock.clockControlL;
+            return gbClock.mbc3.clockControl;
     }
     return (ramEnabled) ? memory[addr>>12][addr&0xfff] : 0xff;
 }
@@ -381,22 +376,22 @@ void m3w(u16 addr, u8 val)
         case 0xa000: /* a000 - bfff */
             switch (currentRamBank) {
                 case 0x8:
-                    gbClock.clockSeconds = val%60;
+                    gbClock.mbc3.clockSeconds = val%60;
                     return;
                 case 0x9:
-                    gbClock.clockMinutes = val%60;
+                    gbClock.mbc3.clockMinutes = val%60;
                     return;
                 case 0xA:
-                    gbClock.clockHours = val%24;
+                    gbClock.mbc3.clockHours = val%24;
                     return;
                 case 0xB:
-                    gbClock.clockDays &= 0x100;
-                    gbClock.clockDays |= val;
+                    gbClock.mbc3.clockDays &= 0x100;
+                    gbClock.mbc3.clockDays |= val;
                     return;
                 case 0xC:
-                    gbClock.clockDays &= 0xFF;
-                    gbClock.clockDays |= (val&1)<<8;
-                    gbClock.clockControl = val;
+                    gbClock.mbc3.clockDays &= 0xFF;
+                    gbClock.mbc3.clockDays |= (val&1)<<8;
+                    gbClock.mbc3.clockControl = val;
                     return;
             }
             if (ramEnabled)

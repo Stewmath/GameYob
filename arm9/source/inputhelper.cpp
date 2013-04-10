@@ -723,11 +723,12 @@ bool bankLoaded(int bank) {
 
 int loadSave()
 {
+    FILE* file;
+    int i;
     // unload previous save
     if (externRam != NULL) {
-        for (int i=0; i<numRamBanks; i++) {
+        for (int i=0; i<numRamBanks; i++) 
             free(externRam[i]);
-        }
         free(externRam);
     }
     externRam = NULL;
@@ -760,55 +761,58 @@ int loadSave()
         return 0;
 
     externRam = (u8**)malloc(numRamBanks*sizeof(u8*));
-    int i;
     for (i=0; i<numRamBanks; i++)
-    {
         externRam[i] = (u8*)malloc(0x2000*sizeof(u8));
-    }
 
     // Now load the data.
-    FILE* file;
     file = fopen(savename, "r");
-    if (file != NULL)
-    {
-        for (i=0; i<numRamBanks; i++)
-            fread(externRam[i], 1, 0x2000, file);
-        if (MBC == MBC3)
-        {
-            fread(&gbClock.clockSeconds, 1, sizeof(int)*10+sizeof(time_t), file);
-        }
-        fclose(file);
-    }
-    else
-    {
+    if (!file) {
         printLog("Couldn't open file \"%s\".\n", savename);
         return 1;
     }
+
+    for (i=0; i<numRamBanks; i++)
+        fread(externRam[i], 1, 0x2000, file);
+
+    switch (MBC) {
+        case MBC3:
+        case HUC3:
+            fread(&gbClock, 1, sizeof(gbClock), file);
+            break;
+    }
+
+    fclose(file);
+
     return 0;
 }
 
 int saveGame()
 {
+    FILE* file;
+    int i;
+
     if (numRamBanks == 0)
         return 0;
-    FILE* file;
+
     file = fopen(savename, "w");
-    if (file != NULL)
-    {
-        int i;
-        for (i=0; i<numRamBanks; i++)
-            fwrite(externRam[i], 1, 0x2000, file);
-        if (MBC == MBC3)
-        {
-            fwrite(&gbClock.clockSeconds, 1, sizeof(int)*10+sizeof(time_t), file);
-        }
-        fclose(file);
-    }
-    else
-    {
+
+    if (!file) {
         printLog("There was an error while saving.\n");
         return 1;
     }
+
+    for (i=0; i<numRamBanks; i++)
+        fwrite(externRam[i], 1, 0x2000, file);
+
+    switch (MBC) {
+        case MBC3:
+        case HUC3:
+            fwrite(&gbClock, 1, sizeof(gbClock), file);
+            break;
+    }
+
+    fclose(file);
+
     return 0;
 }
 
@@ -955,7 +959,7 @@ int handleEvents()
     return 0;
 }
 
-const int STATE_VERSION = 2;
+const int STATE_VERSION = 3;
 
 struct StateStruct {
     // version
@@ -974,18 +978,21 @@ struct StateStruct {
     int scanlineCounter, timerCounter, phaseCounter, dividerCounter;
     // v2
     int serialCounter;
-    //int dmaSource,dmaDest,dmaMode,dmaLength;
+    // v3
+    bool ramEnabled;
+    // MBC-specific stuff
 };
 
 void saveState(int num) {
+    FILE* outFile;
     StateStruct state;
-
     char statename[100];
+
     if (num == -1)
         sprintf(statename, "%s.yss", basename);
     else
         sprintf(statename, "%s.ys%d", basename, num);
-    FILE* outFile = fopen(statename, "w");
+    outFile = fopen(statename, "w");
 
     if (outFile == 0) {
         printConsoleMessage("Error opening file for writing.");
@@ -1009,6 +1016,7 @@ void saveState(int num) {
     state.phaseCounter = phaseCounter;
     state.dividerCounter = dividerCounter;
     state.serialCounter = serialCounter;
+    state.ramEnabled = ramEnabled;
 
     fwrite(&STATE_VERSION, sizeof(int), 1, outFile);
     fwrite((char*)bgPaletteData, 1, sizeof(bgPaletteData), outFile);
@@ -1020,36 +1028,41 @@ void saveState(int num) {
         fwrite((char*)externRam[i], 1, 0x2000, outFile);
     fwrite((char*)&state, 1, sizeof(StateStruct), outFile);
 
+    switch (MBC) {
+        case HUC3:
+            fwrite(&HuC3Mode,  1, sizeof(u8), outFile);
+            fwrite(&HuC3Value, 1, sizeof(u8), outFile);
+            fwrite(&HuC3Shift, 1, sizeof(u8), outFile);
+            break;
+    }
+
+
     fclose(outFile);
 }
 
 int loadState(int num) {
+    FILE *inFile;
     StateStruct state;
+    char statename[100];
+    int version;
+
     memset(&state, 0, sizeof(StateStruct));
 
-    char statename[100];
     if (num == -1)
         sprintf(statename, "%s.yss", basename);
     else
         sprintf(statename, "%s.ys%d", basename, num);
-    FILE* inFile = fopen(statename, "r");
+    inFile = fopen(statename, "r");
 
     if (inFile == 0) {
         printConsoleMessage("Error opening state file.");
         return 1;
     }
 
-    int version;
     fread(&version, sizeof(int), 1, inFile);
 
-    /*
-    if (state.version > STATE_VERSION) {
-        printConsoleMessage("State is from a newer GameYob.");
-        return 1;
-    }
-    */
-    if (version == 0) {
-        printConsoleMessage("State is incompatible.");
+    if (version == 0 || version > STATE_VERSION) {
+        printConsoleMessage("State is from an incompatible version.");
         return 1;
     }
 
@@ -1061,6 +1074,17 @@ int loadState(int num) {
     for (int i=0; i<numRamBanks; i++)
         fread((char*)externRam[i], 1, 0x2000, inFile);
     fread((char*)&state, 1, sizeof(StateStruct), inFile);
+
+    /* MBC-specific values have been introduced in v3 */
+    if (version >= 3) {
+        switch (MBC) {
+            case HUC3:
+                fread(&HuC3Mode,  1, sizeof(u8), inFile);
+                fread(&HuC3Value, 1, sizeof(u8), inFile);
+                fread(&HuC3Shift, 1, sizeof(u8), inFile);
+                break;
+        }
+    }
 
     fclose(inFile);
     if (num == -1) {
@@ -1087,6 +1111,7 @@ int loadState(int num) {
     phaseCounter = state.phaseCounter;
     dividerCounter = state.dividerCounter;
     serialCounter = state.serialCounter;
+    ramEnabled = state.ramEnabled;
 
     screenOn = ioRam[0x40] & 0x80;
     transferReady = false;

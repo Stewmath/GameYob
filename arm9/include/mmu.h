@@ -5,16 +5,21 @@
 
 struct clockStruct
 {
-    int clockSeconds;
-    int clockMinutes;
-    int clockHours;
-    int clockDays;
-    int clockControl;
-    int clockSecondsL;
-    int clockMinutesL;
-    int clockHoursL;
-    int clockDaysL;
-    int clockControlL;
+    union {
+        struct {
+            int clockSeconds;
+            int clockMinutes;
+            int clockHours;
+            int clockDays;
+            int clockControl;
+        } mbc3;
+        struct {
+            int clockYears;
+            int clockDays;
+            int clockMinutes;
+            int unused[2];
+        } huc3;
+    };
     time_t clockLastTime;
 };
 
@@ -34,6 +39,11 @@ extern int numRomBanks;
 extern int numRamBanks;
 extern bool hasRumble;
 extern bool rumbleEnabled;
+
+extern bool ramEnabled;
+extern u8   HuC3Mode;
+extern u8   HuC3Value;
+extern u8   HuC3Shift;
 
 // whether the bios exists and has been loaded
 extern bool biosExists;

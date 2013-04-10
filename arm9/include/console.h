@@ -5,7 +5,7 @@ extern bool consoleDebugOutput;
 extern int selectedGameboyMode;
 
 void initConsole();
-void printConsoleMessage(char* s);
+void printConsoleMessage(const char* s);
 void exitConsole();
 bool isConsoleEnabled();
 int displayConsole();

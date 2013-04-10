@@ -313,7 +313,7 @@ void initConsole() {
 
 // Message will be printed immediately, but also stored in case it's overwritten 
 // right away.
-void printConsoleMessage(char* s) {
+void printConsoleMessage(const char* s) {
     strncpy(printMessage, s, 33);
 
     int newlines = 23-(menuList[menu].numOptions*2+2)-1;
