@@ -89,10 +89,16 @@ void vblankHandler()
     frame++;
     static bool vShift=true;
 
-    if (scaleMode != 0 && scaleFilter == 2) {
-        if (vShift) {
-            REG_BG2Y = 1<<7;
-            REG_BG3Y = 1<<7;
+    if (scaleMode != 0) {
+        if (vShift && scaleFilter != 0) {
+            if (scaleFilter == 1) {
+                REG_BG2Y = 1<<6;
+                REG_BG3Y = 1<<6;
+            }
+            else {
+                REG_BG2Y = 1<<7;
+                REG_BG3Y = 1<<7;
+            }
         }
         else {
             REG_BG2Y = 0;
@@ -284,10 +290,10 @@ void setScaleMode(int mode) {
 
     if (scaleFilter == 1) {
         REG_BG3X = BG2X + (1<<6);
-        REG_BG3Y = BG2Y + (1<<6);
+        REG_BG3Y = BG2Y;
     }
     else if (scaleFilter == 2) {
-        REG_BG3X = BG2X + (1<<6);
+        REG_BG3X = BG2X + (1<<7);
         REG_BG3Y = BG2Y;
     }
     else {
