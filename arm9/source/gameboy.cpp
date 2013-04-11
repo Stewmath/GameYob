@@ -68,14 +68,14 @@ int updateInput() {
         int line=0;
         if (fpsOutput) {
             consoleClear();
-            printf("FPS: %d\n", fps);
+            iprintf("FPS: %d\n", fps);
             line++;
         }
         fps = 0;
         startTimer();
         if (timeOutput) {
             for (; line<23-1; line++)
-                printf("\n");
+                iprintf("\n");
             time_t rawTime = time(NULL);
             char *timeString = ctime(&rawTime);
             for (int i=0;; i++) {
@@ -89,8 +89,8 @@ int updateInput() {
             s[5] = '\0';
             int spaces = 31-strlen(s);
             for (int i=0; i<spaces; i++)
-                printf(" ");
-            printf("%s\n", s);
+                iprintf(" ");
+            iprintf("%s\n", s);
         }
     }
     return retval;

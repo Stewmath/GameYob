@@ -139,11 +139,11 @@ void controlsParseConfig(const char* line2) {
     }
 }
 void controlsPrintConfig(FILE* file) {
-    fprintf(file, "config=%d\n", selectedKeyConfig);
+    fiprintf(file, "config=%d\n", selectedKeyConfig);
     for (unsigned int i=0; i<keyConfigs.size(); i++) {
-        fprintf(file, "(%s)\n", keyConfigs[i].name);
+        fiprintf(file, "(%s)\n", keyConfigs[i].name);
         for (int j=0; j<12; j++) {
-            fprintf(file, "%s=%s\n", dsKeyNames[j], gbKeyNames[keyConfigs[i].gbKeys[j]]);
+            fiprintf(file, "%s=%s\n", dsKeyNames[j], gbKeyNames[keyConfigs[i].gbKeys[j]]);
         }
     }
 }
@@ -154,28 +154,28 @@ void startKeyConfigChooser() {
     while (!quit) {
         KeyConfig* config = &keyConfigs[selectedKeyConfig];
         consoleClear();
-        printf("Config: ");
+        iprintf("Config: ");
         if (option == -1)
-            printf("* %s *\n\n", config->name);
+            iprintf("* %s *\n\n", config->name);
         else
-            printf("  %s  \n\n", config->name);
+            iprintf("  %s  \n\n", config->name);
 
-        printf("       Button   Function\n\n");
+        iprintf("       Button   Function\n\n");
 
         for (int i=0; i<12; i++) {
             int len = 11-strlen(dsKeyNames[i]);
             while (len > 0) {
-                printf(" ");
+                iprintf(" ");
                 len--;
             }
             if (option == i) 
-                printf("* %s | %s *\n", dsKeyNames[i], gbKeyNames[config->gbKeys[i]]);
+                iprintf("* %s | %s *\n", dsKeyNames[i], gbKeyNames[config->gbKeys[i]]);
             else
-                printf("  %s | %s  \n", dsKeyNames[i], gbKeyNames[config->gbKeys[i]]);
+                iprintf("  %s | %s  \n", dsKeyNames[i], gbKeyNames[config->gbKeys[i]]);
         }
-        printf("\n\n\n\nPress X to make a new config.");
+        iprintf("\n\n\n\nPress X to make a new config.");
         if (selectedKeyConfig != 0) /* can't erase the default */ {
-            printf("\n\nPress Y to delete this config.");
+            iprintf("\n\nPress Y to delete this config.");
         }
 
         while (true) {
@@ -189,7 +189,7 @@ void startKeyConfigChooser() {
                 keyConfigs.push_back(KeyConfig(*config));
                 selectedKeyConfig = keyConfigs.size()-1;
                 char name[32];
-                sprintf(name, "Custom %d", keyConfigs.size()-1);
+                siprintf(name, "Custom %d", keyConfigs.size()-1);
                 strcpy(keyConfigs.back().name, name);
                 option = -1;
                 break;
@@ -270,13 +270,13 @@ void generalParseConfig(const char* line) {
 
 void generalPrintConfig(FILE* file) {
     if (biosPath == 0)
-        fprintf(file, "biosfile=\n");
+        fiprintf(file, "biosfile=\n");
     else
-        fprintf(file, "biosfile=%s\n", biosPath);
+        fiprintf(file, "biosfile=%s\n", biosPath);
     if (romPath == 0)
-        fprintf(file, "rompath=\n");
+        fiprintf(file, "rompath=\n");
     else
-        fprintf(file, "rompath=%s\n", romPath);
+        fiprintf(file, "rompath=%s\n", romPath);
 }
 
 void readConfigFile() {
@@ -322,16 +322,16 @@ end:
 
 void writeConfigFile() {
     FILE* file = fopen("/gameyob.ini", "w");
-    fprintf(file, "[general]\n");
+    fiprintf(file, "[general]\n");
     generalPrintConfig(file);
-    fprintf(file, "[console]\n");
+    fiprintf(file, "[console]\n");
     consolePrintConfig(file);
-    fprintf(file, "[controls]\n");
+    fiprintf(file, "[controls]\n");
     controlsPrintConfig(file);
     fclose(file);
 
     char nameBuf[100];
-    sprintf(nameBuf, "%s.cht", basename);
+    siprintf(nameBuf, "%s.cht", basename);
     saveCheats(nameBuf);
 }
 
@@ -429,7 +429,7 @@ int loadProgram(char* f)
     }
 
     char nameBuf[100];
-    sprintf(nameBuf, "%s.yss", basename);
+    siprintf(nameBuf, "%s.yss", basename);
     FILE* stateFile = fopen(nameBuf, "r");
     suspendStateExists = stateFile;
     if (stateFile)
@@ -437,7 +437,7 @@ int loadProgram(char* f)
 
     loadSave();
 
-    sprintf(nameBuf, "%s.cht", basename);
+    siprintf(nameBuf, "%s.cht", basename);
     loadCheats(nameBuf);
 
     cyclesToEvent = 1;
@@ -604,13 +604,13 @@ char* getRomTitle() {
 
 void printRomInfo() {
     consoleClear();
-    printf("ROM Title: \"%s\"\n", romTitle);
+    iprintf("ROM Title: \"%s\"\n", romTitle);
     if (mapperNumber == 0)
-        printf("Cartridge type: %.2x (No MBC)\n", mapperNumber);
+        iprintf("Cartridge type: %.2x (No MBC)\n", mapperNumber);
     else
-        printf("Cartridge type: %.2x (MBC%d)\n", mapperNumber, MBC);
-    printf("ROM Size: %.2x (%d banks)\n", romSize, numRomBanks);
-    printf("RAM Size: %.2x (%d banks)\n", ramSize, numRamBanks);
+        iprintf("Cartridge type: %.2x (MBC%d)\n", mapperNumber, MBC);
+    iprintf("ROM Size: %.2x (%d banks)\n", romSize, numRomBanks);
+    iprintf("RAM Size: %.2x (%d banks)\n", ramSize, numRamBanks);
     while (true) {
         swiWaitForVBlank();
         readKeys();
@@ -728,9 +728,9 @@ void saveState(int num) {
 
     char statename[100];
     if (num == -1)
-        sprintf(statename, "%s.yss", basename);
+        siprintf(statename, "%s.yss", basename);
     else
-        sprintf(statename, "%s.ys%d", basename, num);
+        siprintf(statename, "%s.ys%d", basename, num);
     FILE* outFile = fopen(statename, "w");
 
     if (outFile == 0) {
@@ -775,9 +775,9 @@ int loadState(int num) {
 
     char statename[100];
     if (num == -1)
-        sprintf(statename, "%s.yss", basename);
+        siprintf(statename, "%s.yss", basename);
     else
-        sprintf(statename, "%s.ys%d", basename, num);
+        siprintf(statename, "%s.ys%d", basename, num);
     FILE* inFile = fopen(statename, "r");
 
     if (inFile == 0) {

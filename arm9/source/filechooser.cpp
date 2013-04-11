@@ -193,7 +193,7 @@ char* startFileChooser() {
     DIR* dp = opendir(cwd);
     struct dirent *entry;
     if (dp == NULL) {
-        printf("Error opening directory.\n");
+        iprintf("Error opening directory.\n");
         return 0;
     }
     while (true) {
@@ -222,13 +222,13 @@ char* startFileChooser() {
             consoleClear();
             for (int i=scrollY; i<scrollY+filesPerPage && i<numFiles; i++) {
                 if (i == fileSelection)
-                    printf("* ");
+                    iprintf("* ");
                 else if (i == scrollY && i != 0)
-                    printf("^ ");
+                    iprintf("^ ");
                 else if (i == scrollY+filesPerPage-1 && scrollY+filesPerPage-1 != numFiles-1)
-                    printf("v ");
+                    iprintf("v ");
                 else
-                    printf("  ");
+                    iprintf("  ");
                 char outBuffer[32];
 
                 int maxLen = 29;
@@ -237,9 +237,9 @@ char* startFileChooser() {
                 strncpy(outBuffer, filenames[i], maxLen);
                 outBuffer[maxLen] = '\0';
                 if (directory[i])
-                    printf("%s/\n", outBuffer);
+                    iprintf("%s/\n", outBuffer);
                 else
-                    printf("%s\n", outBuffer);
+                    iprintf("%s\n", outBuffer);
             }
 
             while (true) {

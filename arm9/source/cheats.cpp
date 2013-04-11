@@ -215,23 +215,23 @@ bool startCheatMenu() {
 
     while (!quit) {
         consoleClear();
-        printf("          Cheat Menu\n\n");
+        iprintf("          Cheat Menu\n\n");
         for (int i=firstCheat; i<numCheats && i < firstCheat+cheatsPerPage; i++) {
             if (slots[i] & SLOT_USED) {
-                printf("%s", cheats[i].name);
+                iprintf("%s", cheats[i].name);
                 for (int j=0; j<25-strlen(cheats[i].name); j++)
-                    printf(" ");
+                    iprintf(" ");
                 if (slots[i] & SLOT_ENABLED) {
                     if (selection == i)
-                        printf("* On * ");
+                        iprintf("* On * ");
                     else
-                        printf("  On   ");
+                        iprintf("  On   ");
                 }
                 else {
                     if (selection == i)
-                        printf("* Off *");
+                        iprintf("* Off *");
                     else
-                        printf("  Off  ");
+                        iprintf("  Off  ");
                 }
             }
         }
@@ -277,7 +277,7 @@ void saveCheats(const char* filename) {
         return;
     FILE* file = fopen(filename, "w");
     for (int i=0; i<numCheats; i++) {
-        fprintf(file, "%s %d%s\n", cheats[i].cheatString, !!(slots[i] & SLOT_ENABLED), cheats[i].name);
+        fiprintf(file, "%s %d%s\n", cheats[i].cheatString, !!(slots[i] & SLOT_ENABLED), cheats[i].name);
     }
     fclose(file);
 }

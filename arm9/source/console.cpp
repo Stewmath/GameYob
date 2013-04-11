@@ -334,11 +334,11 @@ void printConsoleMessage(char* s) {
 
     int newlines = 23-(menuList[menu].numOptions*2+2)-1;
     for (int i=0; i<newlines; i++)
-        printf("\n");
+        iprintf("\n");
     int spaces = 31-strlen(printMessage);
     for (int i=0; i<spaces; i++)
-        printf(" ");
-    printf("%s\n", printMessage);
+        iprintf(" ");
+    iprintf("%s\n", printMessage);
 }
 
 void enterConsole() {
@@ -369,48 +369,48 @@ int displayConsole() {
         if (option == -1)
             nameStart-=2;
         for (int i=0; i<nameStart; i++)
-            printf(" ");
+            iprintf(" ");
         if (option == -1)
-            printf("* ");
-        printf("[");
-        printf(menuList[menu].name);
-        printf("]");
+            iprintf("* ");
+        iprintf("[");
+        iprintf(menuList[menu].name);
+        iprintf("]");
         if (option == -1)
-            printf(" *");
-        printf("\n\n");
+            iprintf(" *");
+        iprintf("\n\n");
 
         for (int i=0; i<menuList[menu].numOptions; i++) {
             if (menuList[menu].options[i].numValues == 0) {
                 for (int j=0; j<(32-strlen(menuList[menu].options[i].name))/2-2; j++)
-                    printf(" ");
+                    iprintf(" ");
                 if (i == option)
-                    printf("* %s *\n\n", menuList[menu].options[i].name);
+                    iprintf("* %s *\n\n", menuList[menu].options[i].name);
                 else
-                    printf("  %s  \n\n", menuList[menu].options[i].name);
+                    iprintf("  %s  \n\n", menuList[menu].options[i].name);
             }
             else {
                 for (int j=0; j<17-strlen(menuList[menu].options[i].name); j++)
-                    printf(" ");
-                printf("%s ", menuList[menu].options[i].name);
+                    iprintf(" ");
+                iprintf("%s ", menuList[menu].options[i].name);
                 if (i == option)
-                    printf("* ");
+                    iprintf("* ");
                 else
-                    printf("  ");
-                printf("%s", menuList[menu].options[i].values[menuList[menu].options[i].selection]);
+                    iprintf("  ");
+                iprintf("%s", menuList[menu].options[i].values[menuList[menu].options[i].selection]);
                 if (i == option)
-                    printf(" *");
-                printf("\n\n");
+                    iprintf(" *");
+                iprintf("\n\n");
             }
         }
 
         if (printMessage[0] != '\0') {
             int newlines = 23-(menuList[menu].numOptions*2+2)-1;
             for (int i=0; i<newlines; i++)
-                printf("\n");
+                iprintf("\n");
             int spaces = 31-strlen(printMessage);
             for (int i=0; i<spaces; i++)
-                printf(" ");
-            printf("%s\n", printMessage);
+                iprintf(" ");
+            iprintf("%s\n", printMessage);
 
             printMessage[0] = '\0';
         }
@@ -531,14 +531,14 @@ void consolePrintConfig(FILE* file) {
     for (int i=0; i<numMenus; i++) {
         for (int j=0; j<menuList[i].numOptions; j++) {
             if (menuList[i].options[j].numValues != 0)
-                fprintf(file, "%s=%d\n", menuList[i].options[j].name, menuList[i].options[j].selection);
+                fiprintf(file, "%s=%d\n", menuList[i].options[j].name, menuList[i].options[j].selection);
         }
     }
 }
 
 void addToLog(const char* format, va_list args) {
     if (consoleDebugOutput)
-        vprintf(format, args);
+        viprintf(format, args);
 }
 
 
