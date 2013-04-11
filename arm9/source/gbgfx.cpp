@@ -224,7 +224,7 @@ void updateTileMap(int m, int tile, int y) {
                 b1 <<= 1;
                 color |= (b2>>6)&2;
                 b2 <<= 1;
-                *dest = paletteid*16+color+1;
+                *dest = paletteid*4+color+1;
                 dest += dir;
             }
             dest += 257;
@@ -241,7 +241,7 @@ void updateTileMap(int m, int tile, int y) {
             b1 <<= 1;
             color |= (b2>>6)&2;
             b2 <<= 1;
-            *(dest++) = paletteid*16+color+1;
+            *(dest++) = paletteid*4+color+1;
         }
         dest += 256-8;
     }
@@ -539,6 +539,7 @@ void drawScanline(int scanline) {
                 u8 flags = hram[index+3];
                 int flipX = flags&0x20;
                 int flipY = flags&0x40;
+                int priority = flags&0x80;
                 int paletteid, bank;
                 if (gbMode == CGB) {
                     paletteid = flags&7;
@@ -570,17 +571,22 @@ void drawScanline(int scanline) {
                     b1 <<= 1;
                     color |= (b2>>6)&2;
                     b2 <<= 1;
-                    if (color != 0 && dx >= 0 && dx < 160) {
+                    bool draw=true;
+                    if (priority) {
+                        u8 oldColor = (dx%2 ? dest[dx/2]&0xff : dest[dx/2]>>8);
+                        if (oldColor < 4*8+1 && (oldColor-1)%4 != 0)
+                            draw = false;
+                    }
+                    if (draw && color != 0 && dx >= 0 && dx < 160) {
                         if (dx%2 == 0) {
                             dest[dx/2] &= 0xff00;
-                            dest[dx/2] |= paletteid*16+color+5;
+                            dest[dx/2] |= paletteid*4+color+0x21;
                         }
                         else {
                             dest[dx/2] &= 0x00ff;
-                            dest[dx/2] |= (paletteid*16+color+5)<<8;
+                            dest[dx/2] |= (paletteid*4+color+0x21)<<8;
                         }
                     }
-                    //dest[dx] = src[x]+8*4+paletteid*4;
                     dx += dir;
                 }
             }
@@ -669,12 +675,12 @@ void updateBgPalette(int paletteid, u8* data) {
     if (gbMode == GB) {
         for (int i=0; i<4; i++) {
             u8 id = (ioRam[0x47]>>(i*2))&3;
-            BG_PALETTE[paletteid*16+i+1] = data[paletteid*8+id*2] | (data[paletteid*8+id*2+1]<<8) | BIT(15);
+            BG_PALETTE[paletteid*4+i+1] = data[paletteid*8+id*2] | (data[paletteid*8+id*2+1]<<8) | BIT(15);
         }
     }
     else {
         for (int i=0; i<4; i++) {
-            BG_PALETTE[paletteid*16+i+1] = data[paletteid*8+i*2] | (data[paletteid*8+i*2+1]<<8) | BIT(15);
+            BG_PALETTE[paletteid*4+i+1] = data[paletteid*8+i*2] | (data[paletteid*8+i*2+1]<<8) | BIT(15);
         }
     }
 }
@@ -682,12 +688,12 @@ void updateSprPalette(int paletteid) {
     if (gbMode == GB) {
         for (int i=0; i<4; i++) {
             u8 id = (ioRam[0x48+paletteid]>>(i*2))&3;
-            BG_PALETTE[paletteid*16+i+5] = sprPaletteData[paletteid*8+id*2] | (sprPaletteData[paletteid*8+id*2+1]<<8) | BIT(15);
+            BG_PALETTE[paletteid*4+i+0x21] = sprPaletteData[paletteid*8+id*2] | (sprPaletteData[paletteid*8+id*2+1]<<8) | BIT(15);
         }
     }
     else {
         for (int i=0; i<4; i++) {
-            BG_PALETTE[paletteid*16+i+5] = sprPaletteData[paletteid*8+i*2] | (sprPaletteData[paletteid*8+i*2+1]<<8) | BIT(15);
+            BG_PALETTE[paletteid*4+i+0x21] = sprPaletteData[paletteid*8+i*2] | (sprPaletteData[paletteid*8+i*2+1]<<8) | BIT(15);
         }
     }
 }
@@ -854,4 +860,3 @@ void handleVideoRegister(u8 ioReg, u8 val) {
             ioRam[ioReg] = val;
     }
 }
-
