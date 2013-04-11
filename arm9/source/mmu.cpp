@@ -61,6 +61,8 @@ int vramBank;
 int MBC;
 int memoryModel;
 
+bool rockmanMapper;
+
 int currentRomBank;
 int currentRamBank;
 
@@ -110,6 +112,8 @@ void initMMU()
     dmaLength=0;
     dmaMode=0;
 
+    ramEnabled = false;
+
     HuC3Value = 0;
     HuC3Shift = 0;
 
@@ -136,18 +140,23 @@ void mapMemory() {
     memory[0xe] = wram[0];
     memory[0xf] = highram;
 
+    /* Rockman8 by Yang Yang uses a silghtly different MBC1 variant */
+    rockmanMapper = !strcmp(getRomTitle(), "ROCKMAN 99");
+
     dmaSource = (ioRam[0x51]<<8) | (ioRam[0x52]);
     dmaSource &= 0xFFF0;
     dmaDest = (ioRam[0x53]<<8) | (ioRam[0x54]);
     dmaDest &= 0x1FF0;
 }
 
-#define OVERFLOW(x,val,y) do { \
-            if (x >= val) { \
-                x -= val; \
-                y++; \
-            } \
-        } while (0) 
+/* Increment y if x is greater than val */
+#define OVERFLOW(x,val,y)   \
+    do {                    \
+        while (x >= val) {  \
+            x -= val;       \
+            y++;            \
+        }                   \
+    } while (0) 
 
 void latchClock()
 {
@@ -178,7 +187,9 @@ void latchClock()
             break;
         case HUC3:
             gbClock.huc3.clockMinutes += lt->tm_min;
+            OVERFLOW(gbClock.huc3.clockMinutes, 60*24, gbClock.huc3.clockDays);
             gbClock.huc3.clockDays    += lt->tm_yday;
+            OVERFLOW(gbClock.huc3.clockDays, 365, gbClock.huc3.clockYears);
             gbClock.huc3.clockYears   += lt->tm_year;
             break;
     }
@@ -249,6 +260,10 @@ u8 readMemory(u16 addr)
         if (mbcReads[MBC])
             return mbcReads[MBC](addr);
     }
+
+    /* Echo area emulation */
+    if (addr >= 0xe000 && addr <= 0xfdff)
+        addr -= 0x2000;
 
     return memory[addr>>12][addr&0xfff];
 }
@@ -409,7 +424,11 @@ void m1w (u16 addr, u8 val) {
             ramEnabled = ((val & 0xf) == 0xa);
             break;
         case 0x2000: /* 2000 - 3fff */
-            newBank = (currentRomBank & 0xe0) | (val & 0x1f);
+            val &= 0x1f;
+            if (rockmanMapper)
+                newBank = ((val > 0xf) ? val - 8 : val);
+            else
+                newBank = (currentRomBank & 0xe0) | val;
             refreshRomBank((newBank) ? newBank : 1);
             break;
         case 0x4000: /* 4000 - 5fff */
@@ -533,6 +552,11 @@ const mbcWrite mbcWrites[] = {
 void writeMemory(u16 addr, u8 val)
 {
     /* TODO : numRamBanks == 0 should be handled ? */
+
+    /* Echo area emulation */
+    if (addr >= 0xe000 && addr <= 0xfdff)
+        addr -= 0x2000;
+
     switch (addr >> 12)
     {
         case 0x8:
@@ -544,8 +568,6 @@ void writeMemory(u16 addr, u8 val)
             return;
         case 0xD:
             wram[wramBank][addr&0xFFF] = val;
-            return;
-        case 0xE:
             return;
         case 0xF:
             if (addr >= 0xFF00) 
