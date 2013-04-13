@@ -60,7 +60,7 @@ int main(int argc, char* argv[])
     REG_POWERCNT = POWER_ALL & ~(POWER_MATRIX | POWER_3D_CORE); // don't need 3D
     PrintConsole console;
     consoleInit(NULL, defaultConsole.bgLayer, BgType_Text4bpp, BgSize_T_256x256, defaultConsole.mapBase, defaultConsole.gfxBase, false, true);
-    consoleDebugInit(DebugDevice_CONSOLE);
+    consoleDebugInit(DebugDevice_NOCASH);
 
     defaultExceptionHandler();
 

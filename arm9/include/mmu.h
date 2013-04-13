@@ -5,22 +5,13 @@
 
 struct clockStruct
 {
+    int m, d;
     union {
-        struct {
-            int clockSeconds;
-            int clockMinutes;
-            int clockHours;
-            int clockDays;
-            int clockControl;
-        } mbc3;
-        struct {
-            int clockYears;
-            int clockDays;
-            int clockMinutes;
-            int unused[2];
-        } huc3;
+        struct { int s, h, ctrl; };
+        struct { int y; int u[2]; /* Unused */ };
     };
-    time_t clockLastTime;
+    int latch[5]; /* For VBA compatibility */
+    time_t last;
 };
 
 extern clockStruct gbClock;
@@ -41,6 +32,7 @@ extern bool hasRumble;
 extern bool rumbleEnabled;
 
 extern bool ramEnabled;
+extern u8   rtcReg;
 extern u8   HuC3Mode;
 extern u8   HuC3Value;
 extern u8   HuC3Shift;

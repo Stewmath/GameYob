@@ -73,10 +73,12 @@ int dmaMode;
 
 /* MBC flags */
 bool ramEnabled;
+
+u8   rtcReg;
+
 u8   HuC3Mode;
 u8   HuC3Value;
 u8   HuC3Shift;
-u8   HuC3CmdMode;
 
 typedef void (* mbcWrite)(u16,u8);
 typedef u8   (* mbcRead )(u16);
@@ -114,8 +116,14 @@ void initMMU()
 
     ramEnabled = false;
 
+    rtcReg = -1;
+
     HuC3Value = 0;
     HuC3Shift = 0;
+
+    memset(&gbClock, 0, sizeof(clockStruct));
+    /* Start ticking! */
+    gbClock.last = time(NULL) - 120*60;
 
     if (!biosExists)
         biosEnabled = false;
@@ -162,44 +170,50 @@ void latchClock()
 {
     // +2h, the same as lameboy
     time_t now = time(NULL)-120*60;
-    time_t difference = now - gbClock.clockLastTime;
+    time_t difference = now - gbClock.last;
     struct tm* lt = gmtime((const time_t *)&difference);
 
     switch (MBC) {
         case MBC3:
-            gbClock.mbc3.clockSeconds += lt->tm_sec;
-            OVERFLOW(gbClock.mbc3.clockSeconds, 60, gbClock.mbc3.clockMinutes);
-            gbClock.mbc3.clockMinutes += lt->tm_min;
-            OVERFLOW(gbClock.mbc3.clockMinutes, 60, gbClock.mbc3.clockHours);
-            gbClock.mbc3.clockHours   += lt->tm_hour;
-            OVERFLOW(gbClock.mbc3.clockHours, 24, gbClock.mbc3.clockDays);
-            gbClock.mbc3.clockDays    += lt->tm_yday;
+            gbClock.s += lt->tm_sec;
+            OVERFLOW(gbClock.s, 60, gbClock.m);
+            gbClock.m += lt->tm_min;
+            OVERFLOW(gbClock.m, 60, gbClock.h);
+            gbClock.h += lt->tm_hour;
+            OVERFLOW(gbClock.h, 24, gbClock.d);
+            gbClock.d += lt->tm_yday;
             /* Overflow! */
-            if (gbClock.mbc3.clockDays > 0x1FF)
+            if (gbClock.d > 0x1FF)
             {
                 /* Set the carry bit */
-                gbClock.mbc3.clockControl |= 0x80;
-                gbClock.mbc3.clockDays -= 0x200;
+                gbClock.ctrl |= 0x80;
+                gbClock.d -= 0x200;
             }
             /* The 9th bit of the day register is in the control register */ 
-            gbClock.mbc3.clockControl &= ~1;
-            gbClock.mbc3.clockControl |= (gbClock.mbc3.clockDays > 0xff);
+            gbClock.ctrl &= ~1;
+            gbClock.ctrl |= (gbClock.d > 0xff);
             break;
         case HUC3:
-            gbClock.huc3.clockMinutes += lt->tm_min;
-            OVERFLOW(gbClock.huc3.clockMinutes, 60*24, gbClock.huc3.clockDays);
-            gbClock.huc3.clockDays    += lt->tm_yday;
-            OVERFLOW(gbClock.huc3.clockDays, 365, gbClock.huc3.clockYears);
-            gbClock.huc3.clockYears   += lt->tm_year;
+            gbClock.m += lt->tm_min;
+            OVERFLOW(gbClock.m, 60*24, gbClock.d);
+            gbClock.d += lt->tm_yday;
+            OVERFLOW(gbClock.d, 365, gbClock.y);
+            gbClock.y += lt->tm_year - 70;
             break;
     }
 
-    gbClock.clockLastTime = now;
+    gbClock.last = now;
 }
 
 void handleHuC3Command (u8 cmd) 
 {
     switch (cmd&0xf0) {
+        case 0x40:
+            HuC3Shift = 0;
+            latchClock();
+            break;
+        case 0x50:
+            break;
         case 0x60: 
             HuC3Value = 1;
             break;
@@ -230,19 +244,25 @@ u8 h3r (u16 addr) {
 
 /* MBC3 */
 u8 m3r (u16 addr) {
-    switch (currentRamBank) {
-        case 0x8:
-            return gbClock.mbc3.clockSeconds;
-        case 0x9:
-            return gbClock.mbc3.clockMinutes;
-        case 0xA:
-            return gbClock.mbc3.clockHours;
-        case 0xB:
-            return gbClock.mbc3.clockDays&0xff;
-        case 0xC:
-            return gbClock.mbc3.clockControl;
+    if (!ramEnabled)
+        return 0xff;
+
+    if (rtcReg > 0) {
+        switch (rtcReg) {
+            case 0x8:
+                return gbClock.s;
+            case 0x9:
+                return gbClock.m;
+            case 0xA:
+                return gbClock.h;
+            case 0xB:
+                return gbClock.d&0xff;
+            case 0xC:
+                return gbClock.ctrl;
+        }
     }
-    return (ramEnabled) ? memory[addr>>12][addr&0xfff] : 0xff;
+
+    return memory[addr>>12][addr&0xfff];
 }
 
 const mbcRead mbcReads[] = { 
@@ -343,8 +363,7 @@ void m0w (u16 addr, u8 val) {
         case 0x6000: /* 6000 - 7fff */
             break;
         case 0xa000: /* a000 - bfff */
-            if (ramEnabled)
-                externRam[currentRamBank][addr&0x1fff] = val;
+            externRam[currentRamBank][addr&0x1fff] = val;
             break;
     }
 }
@@ -382,35 +401,44 @@ void m3w(u16 addr, u8 val)
             refreshRomBank((val) ? val : 1);
             break;
         case 0x4000: /* 4000 - 5fff */
-            refreshRamBank(val);
+            /* The RTC register is selected by writing values 0x8-0xc, ram banks
+             * are selected by values 0x0-0x3 */
+            rtcReg = -1;
+            if (val <= 0x3)
+                refreshRamBank(val);
+            else
+                rtcReg = val;
             break;
         case 0x6000: /* 6000 - 7fff */
             if (val)
                 latchClock();
             break;
         case 0xa000: /* a000 - bfff */
-            switch (currentRamBank) {
+            if (!ramEnabled)
+                break;
+
+            switch (rtcReg) {
                 case 0x8:
-                    gbClock.mbc3.clockSeconds = val%60;
+                    gbClock.s = val;
                     return;
                 case 0x9:
-                    gbClock.mbc3.clockMinutes = val%60;
+                    gbClock.m = val;
                     return;
                 case 0xA:
-                    gbClock.mbc3.clockHours = val%24;
+                    gbClock.h = val;
                     return;
                 case 0xB:
-                    gbClock.mbc3.clockDays &= 0x100;
-                    gbClock.mbc3.clockDays |= val;
+                    gbClock.d &= 0x100;
+                    gbClock.d |= val;
                     return;
                 case 0xC:
-                    gbClock.mbc3.clockDays &= 0xFF;
-                    gbClock.mbc3.clockDays |= (val&1)<<8;
-                    gbClock.mbc3.clockControl = val;
+                    gbClock.d &= 0xFF;
+                    gbClock.d |= (val&1)<<8;
+                    gbClock.ctrl = val;
                     return;
+                default:
+                    externRam[currentRamBank][addr&0x1fff] = val;
             }
-            if (ramEnabled)
-                externRam[currentRamBank][addr&0x1fff] = val;
             break;
     }
 }
