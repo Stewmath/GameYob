@@ -156,10 +156,8 @@ void initLCD()
 {
     // Pokemon Yellow hack: I need to intentionally SLOW DOWN emulation for 
     // Pikachu's pitch to sound right...
-    // The exact value of this will vary, so I'm going to leave it commented for 
-    // now.
-    yellowHack = strcmp(getRomTitle(), "POKEMON YELLOW");
-    if (false && yellowHack && !(fastForwardMode || fastForwardKey))
+    yellowHack = strcmp(getRomTitle(), "POKEMON YELLOW") == 0;
+    if (yellowHack && !(fastForwardMode || fastForwardKey))
         maxWaitCycles = 50;
     else
         maxWaitCycles = 800;
