@@ -159,7 +159,7 @@ void initLCD()
     // The exact value of this will vary, so I'm going to leave it commented for 
     // now.
     yellowHack = strcmp(getRomTitle(), "POKEMON YELLOW");
-    if (yellowHack && !(fastForwardMode || fastForwardKey))
+    if (false && yellowHack && !(fastForwardMode || fastForwardKey))
         maxWaitCycles = 50;
     else
         maxWaitCycles = 800;

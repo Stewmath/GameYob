@@ -89,6 +89,9 @@ u8   HuC3Shift;
 typedef void (* mbcWrite)(u16,u8);
 typedef u8   (* mbcRead )(u16);
 
+mbcWrite writeFunc;
+mbcRead readFunc;
+
 void refreshRomBank(int bank) 
 {
     if (bank < numRomBanks) {
@@ -108,107 +111,6 @@ void refreshRamBank (int bank)
         memory[0xa] = externRam[currentRamBank];
         memory[0xb] = externRam[currentRamBank]+0x1000; 
     }
-}
-
-void initMMU()
-{
-    wramBank = 1;
-    vramBank = 0;
-    memoryModel = 0;
-    dmaSource=0;
-    dmaDest=0;
-    dmaLength=0;
-    dmaMode=0;
-
-    ramEnabled = false;
-
-    rtcReg = -1;
-
-    HuC3Value = 0;
-    HuC3Shift = 0;
-
-    memset(&gbClock, 0, sizeof(clockStruct));
-    /* Start ticking! */
-    gbClock.last = time(NULL) - 120*60;
-
-    if (!biosExists)
-        biosEnabled = false;
-    biosOn = biosEnabled;
-    mapMemory();
-    memset(ioRam, 0, 0x100);
-}
-
-void mapMemory() {
-    if (biosOn)
-        memory[0x0] = bios;
-    else
-        memory[0x0] = rom[0];
-    memory[0x1] = rom[0]+0x1000;
-    memory[0x2] = rom[0]+0x2000;
-    memory[0x3] = rom[0]+0x3000;
-    refreshRomBank(1);
-    refreshVramBank();
-    refreshRamBank(0);
-    memory[0xc] = wram[0];
-    refreshWramBank();
-    memory[0xe] = wram[0];
-    memory[0xf] = highram;
-
-    /* Rockman8 by Yang Yang uses a silghtly different MBC1 variant */
-    rockmanMapper = !strcmp(getRomTitle(), "ROCKMAN 99");
-
-    dmaSource = (ioRam[0x51]<<8) | (ioRam[0x52]);
-    dmaSource &= 0xFFF0;
-    dmaDest = (ioRam[0x53]<<8) | (ioRam[0x54]);
-    dmaDest &= 0x1FF0;
-}
-
-/* Increment y if x is greater than val */
-#define OVERFLOW(x,val,y)   \
-    do {                    \
-        while (x >= val) {  \
-            x -= val;       \
-            y++;            \
-        }                   \
-    } while (0) 
-
-void latchClock()
-{
-    // +2h, the same as lameboy
-    time_t now = time(NULL)-120*60;
-    time_t difference = now - gbClock.last;
-    struct tm* lt = gmtime((const time_t *)&difference);
-
-    switch (MBC) {
-        case MBC3:
-            gbClock.s += lt->tm_sec;
-            OVERFLOW(gbClock.s, 60, gbClock.m);
-            gbClock.m += lt->tm_min;
-            OVERFLOW(gbClock.m, 60, gbClock.h);
-            gbClock.h += lt->tm_hour;
-            OVERFLOW(gbClock.h, 24, gbClock.d);
-            gbClock.d += lt->tm_yday;
-            /* Overflow! */
-            if (gbClock.d > 0x1FF)
-            {
-                /* Set the carry bit */
-                gbClock.ctrl |= 0x80;
-                gbClock.d -= 0x200;
-            }
-            /* The 9th bit of the day register is in the control register */ 
-            gbClock.ctrl &= ~1;
-            gbClock.ctrl |= (gbClock.d > 0xff);
-            break;
-        case HUC3:
-            gbClock.m += lt->tm_min;
-            OVERFLOW(gbClock.m, 60*24, gbClock.d);
-            gbClock.d += lt->tm_yday;
-            OVERFLOW(gbClock.d, 365, gbClock.y);
-            gbClock.y += lt->tm_year - 70;
-            break;
-    }
-
-    gbClock.last = now;
 }
 
 void handleHuC3Command (u8 cmd) 
@@ -274,86 +176,6 @@ u8 m3r (u16 addr) {
 const mbcRead mbcReads[] = { 
     NULL, NULL, NULL, m3r, NULL, h3r, NULL
 };
-
-u8 readMemory(u16 addr)
-{    
-    if (addr >= 0xff00)
-        return readIO(addr&0xff);
-
-    /* Check if in range a000-bfff */
-    if ((addr & 0xe000) == 0xa000) {
-        /* Check if there's an handler for this mbc */
-        if (mbcReads[MBC])
-            return mbcReads[MBC](addr);
-    }
-
-    /* Echo area emulation */
-    if (addr >= 0xe000 && addr <= 0xfdff)
-        addr -= 0x2000;
-
-    return memory[addr>>12][addr&0xfff];
-}
-
-#ifdef DS
-u8 readIO(u8 ioReg) ITCM_CODE;
-#endif
-
-u8 readIO(u8 ioReg)
-{
-    switch (ioReg)
-    {
-        case 0x10: // NR10, sweep register 1, bit 7 set on read
-            return ioRam[ioReg] | 0x80;
-        case 0x11: // NR11, sound length/pattern duty 1, bits 5-0 set on read
-            return ioRam[ioReg] | 0x3F;
-        case 0x13: // NR13, sound frequency low byte 1, all bits set on read
-            return 0xFF;
-        case 0x14: // NR14, sound frequency high byte 1, bits 7,5-0 set on read
-            return ioRam[ioReg] | 0xBF;
-        case 0x15: // No register, all bits set on read
-            return 0xFF;
-        case 0x16: // NR21, sound length/pattern duty 2, bits 5-0 set on read
-            return ioRam[ioReg] | 0x3F;
-        case 0x18: // NR23, sound frequency low byte 2, all bits set on read
-            return 0xFF;
-        case 0x19: // NR24, sound frequency high byte 2, bits 7,5-0 set on read
-            return ioRam[ioReg] | 0xBF;
-        case 0x1A: // NR30, sound mode 3, bits 6-0 set on read
-            return ioRam[ioReg] | 0x7F;
-        case 0x1B: // NR31, sound length 3, all bits set on read
-            return 0xFF;
-        case 0x1C: // NR32, sound output level 3, bits 7,4-0 set on read
-            return ioRam[ioReg] | 0x9F;
-        case 0x1D: // NR33, sound frequency low byte 2, all bits set on read
-            return 0xFF;
-        case 0x1E: // NR34, sound frequency high byte 2, bits 7,5-0 set on read
-            return ioRam[ioReg] | 0xBF;
-        case 0x1F: // No register, all bits set on read
-            return 0xFF;
-        case 0x20: // NR41, sound mode/length 4, all bits set on read
-            return 0xFF;
-        case 0x23: // NR44, sound counter/consecutive, bits 7,5-0 set on read
-            return ioRam[ioReg] | 0xBF;
-        case 0x26: // NR52, global sound status, bits 6-4 set on read
-            return ioRam[ioReg] | 0x70;
-        case 0x27: // No register, all bits set on read
-        case 0x28:
-        case 0x29:
-        case 0x2A:
-        case 0x2B:
-        case 0x2C:
-        case 0x2D:
-        case 0x2E:
-        case 0x2F:
-            return 0xFF;
-        default:
-            return ioRam[ioReg];
-    }
-}
-
-#ifdef DS
-void writeMemory(u16 addr, u8 val) ITCM_CODE;
-#endif
 
 /* MBC Write handlers */
 
@@ -595,13 +417,196 @@ const mbcWrite mbcWrites[] = {
     m0w, m1w, m2w, m3w, m5w, h3w, h1w
 };
 
+void initMMU()
+{
+    wramBank = 1;
+    vramBank = 0;
+    memoryModel = 0;
+    dmaSource=0;
+    dmaDest=0;
+    dmaLength=0;
+    dmaMode=0;
+
+    ramEnabled = false;
+
+    rtcReg = -1;
+
+    HuC3Value = 0;
+    HuC3Shift = 0;
+
+    readFunc = mbcReads[MBC];
+    writeFunc = mbcWrites[MBC];
+
+    memset(&gbClock, 0, sizeof(clockStruct));
+    /* Start ticking! */
+    gbClock.last = time(NULL) - 120*60;
+
+    if (!biosExists)
+        biosEnabled = false;
+    biosOn = biosEnabled;
+    mapMemory();
+    memset(ioRam, 0, 0x100);
+}
+
+void mapMemory() {
+    if (biosOn)
+        memory[0x0] = bios;
+    else
+        memory[0x0] = rom[0];
+    memory[0x1] = rom[0]+0x1000;
+    memory[0x2] = rom[0]+0x2000;
+    memory[0x3] = rom[0]+0x3000;
+    refreshRomBank(1);
+    refreshVramBank();
+    refreshRamBank(0);
+    memory[0xc] = wram[0];
+    refreshWramBank();
+    memory[0xe] = wram[0];
+    memory[0xf] = highram;
+
+    /* Rockman8 by Yang Yang uses a silghtly different MBC1 variant */
+    rockmanMapper = !strcmp(getRomTitle(), "ROCKMAN 99");
+
+    dmaSource = (ioRam[0x51]<<8) | (ioRam[0x52]);
+    dmaSource &= 0xFFF0;
+    dmaDest = (ioRam[0x53]<<8) | (ioRam[0x54]);
+    dmaDest &= 0x1FF0;
+}
+
+/* Increment y if x is greater than val */
+#define OVERFLOW(x,val,y)   \
+    do {                    \
+        while (x >= val) {  \
+            x -= val;       \
+            y++;            \
+        }                   \
+    } while (0) 
+
+void latchClock()
+{
+    // +2h, the same as lameboy
+    time_t now = time(NULL)-120*60;
+    time_t difference = now - gbClock.last;
+    struct tm* lt = gmtime((const time_t *)&difference);
+
+    switch (MBC) {
+        case MBC3:
+            gbClock.s += lt->tm_sec;
+            OVERFLOW(gbClock.s, 60, gbClock.m);
+            gbClock.m += lt->tm_min;
+            OVERFLOW(gbClock.m, 60, gbClock.h);
+            gbClock.h += lt->tm_hour;
+            OVERFLOW(gbClock.h, 24, gbClock.d);
+            gbClock.d += lt->tm_yday;
+            /* Overflow! */
+            if (gbClock.d > 0x1FF)
+            {
+                /* Set the carry bit */
+                gbClock.ctrl |= 0x80;
+                gbClock.d -= 0x200;
+            }
+            /* The 9th bit of the day register is in the control register */ 
+            gbClock.ctrl &= ~1;
+            gbClock.ctrl |= (gbClock.d > 0xff);
+            break;
+        case HUC3:
+            gbClock.m += lt->tm_min;
+            OVERFLOW(gbClock.m, 60*24, gbClock.d);
+            gbClock.d += lt->tm_yday;
+            OVERFLOW(gbClock.d, 365, gbClock.y);
+            gbClock.y += lt->tm_year - 70;
+            break;
+    }
+
+    gbClock.last = now;
+}
+
+u8 readMemory(u16 addr)
+{    
+    int area = addr>>13;
+    if (area >= 0xa/2) {
+        /* Check if in range a000-bfff */
+        if (area == 0xa/2) {
+            /* Check if there's an handler for this mbc */
+            if (readFunc != NULL)
+                return readFunc(addr);
+        }
+        else if (area == 0xe/2) {
+            if (addr >= 0xff00)
+                return readIO(addr&0xff);
+            // Check for echo area
+            else if (addr < 0xfe00)
+                addr -= 0x2000;
+        }
+    }
+
+    return memory[addr>>12][addr&0xfff];
+}
+
+#ifdef DS
+u8 readIO(u8 ioReg) ITCM_CODE;
+#endif
+
+u8 readIO(u8 ioReg)
+{
+    switch (ioReg)
+    {
+        case 0x10: // NR10, sweep register 1, bit 7 set on read
+            return ioRam[ioReg] | 0x80;
+        case 0x11: // NR11, sound length/pattern duty 1, bits 5-0 set on read
+            return ioRam[ioReg] | 0x3F;
+        case 0x13: // NR13, sound frequency low byte 1, all bits set on read
+            return 0xFF;
+        case 0x14: // NR14, sound frequency high byte 1, bits 7,5-0 set on read
+            return ioRam[ioReg] | 0xBF;
+        case 0x15: // No register, all bits set on read
+            return 0xFF;
+        case 0x16: // NR21, sound length/pattern duty 2, bits 5-0 set on read
+            return ioRam[ioReg] | 0x3F;
+        case 0x18: // NR23, sound frequency low byte 2, all bits set on read
+            return 0xFF;
+        case 0x19: // NR24, sound frequency high byte 2, bits 7,5-0 set on read
+            return ioRam[ioReg] | 0xBF;
+        case 0x1A: // NR30, sound mode 3, bits 6-0 set on read
+            return ioRam[ioReg] | 0x7F;
+        case 0x1B: // NR31, sound length 3, all bits set on read
+            return 0xFF;
+        case 0x1C: // NR32, sound output level 3, bits 7,4-0 set on read
+            return ioRam[ioReg] | 0x9F;
+        case 0x1D: // NR33, sound frequency low byte 2, all bits set on read
+            return 0xFF;
+        case 0x1E: // NR34, sound frequency high byte 2, bits 7,5-0 set on read
+            return ioRam[ioReg] | 0xBF;
+        case 0x1F: // No register, all bits set on read
+            return 0xFF;
+        case 0x20: // NR41, sound mode/length 4, all bits set on read
+            return 0xFF;
+        case 0x23: // NR44, sound counter/consecutive, bits 7,5-0 set on read
+            return ioRam[ioReg] | 0xBF;
+        case 0x26: // NR52, global sound status, bits 6-4 set on read
+            return ioRam[ioReg] | 0x70;
+        case 0x27: // No register, all bits set on read
+        case 0x28:
+        case 0x29:
+        case 0x2A:
+        case 0x2B:
+        case 0x2C:
+        case 0x2D:
+        case 0x2E:
+        case 0x2F:
+            return 0xFF;
+        default:
+            return ioRam[ioReg];
+    }
+}
+
+#ifdef DS
+void writeMemory(u16 addr, u8 val) ITCM_CODE;
+#endif
+
 void writeMemory(u16 addr, u8 val)
 {
     /* TODO : numRamBanks == 0 should be handled ? */
-
-    /* Echo area emulation */
-    if (addr >= 0xe000 && addr <= 0xfdff)
-        addr -= 0x2000;
 
     switch (addr >> 12)
     {
@@ -615,16 +620,22 @@ void writeMemory(u16 addr, u8 val)
         case 0xD:
             wram[wramBank][addr&0xFFF] = val;
             return;
-        case 0xF:
-            if (addr >= 0xFF00) 
-                writeIO(addr & 0xFF, val);
-            else
-                writeHram(addr&0x1ff, val);
+        case 0xE: // Echo area
+            wram[0][addr&0xFFF] = val;
             return;
+        case 0xF:
+            if (addr >= 0xFF00)
+                writeIO(addr & 0xFF, val);
+            else if (addr >= 0xFE00)
+                writeHram(addr&0x1ff, val);
+            else // Echo area
+                wram[wramBank][addr&0xFFF] = val;
+            return;
+
     }
 
-    if (mbcWrites[MBC])
-        mbcWrites[MBC](addr, val);
+    if (writeFunc != NULL)
+        writeFunc(addr, val);
 }
 
 
