@@ -5,17 +5,13 @@
 
 struct clockStruct
 {
-    int clockSeconds;
-    int clockMinutes;
-    int clockHours;
-    int clockDays;
-    int clockControl;
-    int clockSecondsL;
-    int clockMinutesL;
-    int clockHoursL;
-    int clockDaysL;
-    int clockControlL;
-    time_t clockLastTime;
+    int m, d;
+    union {
+        struct { int s, h, ctrl; };
+        struct { int y; int u[2]; /* Unused */ };
+    };
+    int latch[5]; /* For VBA compatibility */
+    time_t last;
 };
 
 extern clockStruct gbClock;
@@ -37,6 +33,12 @@ extern int rumbleStrength;
 extern int rumbleInserted;
 
 void doRumble(bool rumbleVal);
+
+extern bool ramEnabled;
+extern u8   rtcReg;
+extern u8   HuC3Mode;
+extern u8   HuC3Value;
+extern u8   HuC3Shift;
 
 // whether the bios exists and has been loaded
 extern bool biosExists;

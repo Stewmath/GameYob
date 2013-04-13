@@ -2,6 +2,18 @@
 #include "global.h"
 #include <stdio.h>
 
+/* All the possible MBC */
+enum {
+    MBC0 = 0,
+    MBC1,
+    MBC2,
+    MBC3,
+    MBC5,
+    HUC3,
+    HUC1,
+    MBC_MAX,
+};
+
 #define BUTTONA		0x1
 #define BUTTONB		0x2
 #define SELECT		0x4

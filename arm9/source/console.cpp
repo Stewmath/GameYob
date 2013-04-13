@@ -276,7 +276,7 @@ ConsoleSubMenu menuList[] = {
             {"Manage Cheats", cheatFunc, 0, {}, 0},
             {"Fast Forward", fastForwardFunc, 2, {"Off","On"}, 0},
             {"Game Screen", setScreenFunc, 2, {"Top","Bottom"}, 0},
-            {"Console Output", consoleOutputFunc, 4, {"Off","Time","FPS+Time","Debug"}, 0},
+            {"Console Output", consoleOutputFunc, 4, {"Off","Time","FPS+Time","Debug"}, 3},
             {"NiFi", nifiEnableFunc, 2, {"Off","On"}, 0},
             {"Rumble Pak", setRumbleFunc, 4, {"Off","Low","Mid","High"}, 2},
             {"Save Settings", saveSettingsFunc, 0, {}, 0}
@@ -329,7 +329,7 @@ void initConsole() {
 
 // Message will be printed immediately, but also stored in case it's overwritten 
 // right away.
-void printConsoleMessage(char* s) {
+void printConsoleMessage(const char* s) {
     strncpy(printMessage, s, 33);
 
     int newlines = 23-(menuList[menu].numOptions*2+2)-1;

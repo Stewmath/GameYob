@@ -336,7 +336,6 @@ void writeConfigFile() {
 }
 
 
-
 void loadBios(const char* filename) {
     FILE* file = fopen(filename, "rb");
     biosExists = file != NULL;
@@ -403,18 +402,22 @@ int loadProgram(char* f)
     romTitle[nameLength] = '\0';
 
     if (mapperNumber == 0)
-        MBC = 0;
+        MBC = MBC0;
     else if (mapperNumber <= 3)
-        MBC = 1;
+        MBC = MBC1;
     else if (mapperNumber >= 5 && mapperNumber <= 6)
-        MBC = 2;
+        MBC = MBC2;
     else if (mapperNumber == 0x10 || mapperNumber == 0x12 || mapperNumber == 0x13)
-        MBC = 3;
+        MBC = MBC3;
     else if (mapperNumber >= 0x19 && mapperNumber <= 0x1E)
-        MBC = 5;
+        MBC = MBC5;
+    else if (mapperNumber == 0xFE)
+        MBC = HUC3;
+    else if (mapperNumber == 0xFF)
+        MBC = HUC1;
     else {
         printLog("Unknown MBC: %.2x\nDefaulting to MBC5\n", mapperNumber);
-        MBC = 5;
+        MBC = MBC5;
     }
 
     hasRumble = false;
@@ -468,11 +471,12 @@ bool bankLoaded(int bank) {
 
 int loadSave()
 {
+    FILE* file;
+    int i;
     // unload previous save
     if (externRam != NULL) {
-        for (int i=0; i<numRamBanks; i++) {
+        for (int i=0; i<numRamBanks; i++) 
             free(externRam[i]);
-        }
         free(externRam);
     }
     externRam = NULL;
@@ -498,62 +502,65 @@ int loadSave()
             numRamBanks = 4;
             break;
     }
-    if (MBC == 2)
+    if (MBC == MBC2)
         numRamBanks = 1;
 
     if (numRamBanks == 0)
         return 0;
 
     externRam = (u8**)malloc(numRamBanks*sizeof(u8*));
-    int i;
     for (i=0; i<numRamBanks; i++)
-    {
         externRam[i] = (u8*)malloc(0x2000*sizeof(u8));
-    }
 
     // Now load the data.
-    FILE* file;
     file = fopen(savename, "r");
-    if (file != NULL)
-    {
-        for (i=0; i<numRamBanks; i++)
-            fread(externRam[i], 1, 0x2000, file);
-        if (MBC == 3)
-        {
-            fread(&gbClock.clockSeconds, 1, sizeof(int)*10+sizeof(time_t), file);
-        }
-        fclose(file);
-    }
-    else
-    {
+    if (!file) {
         printLog("Couldn't open file \"%s\".\n", savename);
         return 1;
     }
+
+    for (i=0; i<numRamBanks; i++)
+        fread(externRam[i], 1, 0x2000, file);
+
+    switch (MBC) {
+        case MBC3:
+        case HUC3:
+            fread(&gbClock, 1, sizeof(gbClock), file);
+            break;
+    }
+
+    fclose(file);
+
     return 0;
 }
 
 int saveGame()
 {
+    FILE* file;
+    int i;
+
     if (numRamBanks == 0)
         return 0;
-    FILE* file;
+
     file = fopen(savename, "w");
-    if (file != NULL)
-    {
-        int i;
-        for (i=0; i<numRamBanks; i++)
-            fwrite(externRam[i], 1, 0x2000, file);
-        if (MBC == 3)
-        {
-            fwrite(&gbClock.clockSeconds, 1, sizeof(int)*10+sizeof(time_t), file);
-        }
-        fclose(file);
-    }
-    else
-    {
+
+    if (!file) {
         printLog("There was an error while saving.\n");
         return 1;
     }
+
+    for (i=0; i<numRamBanks; i++)
+        fwrite(externRam[i], 1, 0x2000, file);
+
+    switch (MBC) {
+        case MBC3:
+        case HUC3:
+            fwrite(&gbClock, 1, sizeof(gbClock), file);
+            break;
+    }
+
+    fclose(file);
+
     return 0;
 }
 
@@ -602,13 +609,12 @@ char* getRomTitle() {
     return romTitle;
 }
 
+const char *mbcName[] = {"ROM","MBC1","MBC2","MBC3","MBC5","HUC3","HUC1"};
+
 void printRomInfo() {
     consoleClear();
     iprintf("ROM Title: \"%s\"\n", romTitle);
-    if (mapperNumber == 0)
-        iprintf("Cartridge type: %.2x (No MBC)\n", mapperNumber);
-    else
-        iprintf("Cartridge type: %.2x (MBC%d)\n", mapperNumber, MBC);
+    iprintf("Cartridge type: %.2x (%s)\n", mapperNumber, mbcName[MBC]);
     iprintf("ROM Size: %.2x (%d banks)\n", romSize, numRomBanks);
     iprintf("RAM Size: %.2x (%d banks)\n", ramSize, numRamBanks);
     while (true) {
@@ -701,7 +707,7 @@ int handleEvents()
     return 0;
 }
 
-const int STATE_VERSION = 2;
+const int STATE_VERSION = 3;
 
 struct StateStruct {
     // version
@@ -720,18 +726,21 @@ struct StateStruct {
     int scanlineCounter, timerCounter, phaseCounter, dividerCounter;
     // v2
     int serialCounter;
-    //int dmaSource,dmaDest,dmaMode,dmaLength;
+    // v3
+    bool ramEnabled;
+    // MBC-specific stuff
 };
 
 void saveState(int num) {
+    FILE* outFile;
     StateStruct state;
-
     char statename[100];
+
     if (num == -1)
         siprintf(statename, "%s.yss", basename);
     else
         siprintf(statename, "%s.ys%d", basename, num);
-    FILE* outFile = fopen(statename, "w");
+    outFile = fopen(statename, "w");
 
     if (outFile == 0) {
         printConsoleMessage("Error opening file for writing.");
@@ -755,6 +764,7 @@ void saveState(int num) {
     state.phaseCounter = phaseCounter;
     state.dividerCounter = dividerCounter;
     state.serialCounter = serialCounter;
+    state.ramEnabled = ramEnabled;
 
     fwrite(&STATE_VERSION, sizeof(int), 1, outFile);
     fwrite((char*)bgPaletteData, 1, sizeof(bgPaletteData), outFile);
@@ -766,36 +776,44 @@ void saveState(int num) {
         fwrite((char*)externRam[i], 1, 0x2000, outFile);
     fwrite((char*)&state, 1, sizeof(StateStruct), outFile);
 
+    switch (MBC) {
+        case MBC3:
+            fwrite(&rtcReg,    1, sizeof(u8), outFile);
+            break;
+        case HUC3:
+            fwrite(&HuC3Mode,  1, sizeof(u8), outFile);
+            fwrite(&HuC3Value, 1, sizeof(u8), outFile);
+            fwrite(&HuC3Shift, 1, sizeof(u8), outFile);
+            break;
+    }
+
+
     fclose(outFile);
 }
 
 int loadState(int num) {
+    FILE *inFile;
     StateStruct state;
+    char statename[100];
+    int version;
+
     memset(&state, 0, sizeof(StateStruct));
 
-    char statename[100];
     if (num == -1)
         siprintf(statename, "%s.yss", basename);
     else
         siprintf(statename, "%s.ys%d", basename, num);
-    FILE* inFile = fopen(statename, "r");
+    inFile = fopen(statename, "r");
 
     if (inFile == 0) {
         printConsoleMessage("Error opening state file.");
         return 1;
     }
 
-    int version;
     fread(&version, sizeof(int), 1, inFile);
 
-    /*
-    if (state.version > STATE_VERSION) {
-        printConsoleMessage("State is from a newer GameYob.");
-        return 1;
-    }
-    */
-    if (version == 0) {
-        printConsoleMessage("State is incompatible.");
+    if (version == 0 || version > STATE_VERSION) {
+        printConsoleMessage("State is from an incompatible version.");
         return 1;
     }
 
@@ -807,6 +825,20 @@ int loadState(int num) {
     for (int i=0; i<numRamBanks; i++)
         fread((char*)externRam[i], 1, 0x2000, inFile);
     fread((char*)&state, 1, sizeof(StateStruct), inFile);
+
+    /* MBC-specific values have been introduced in v3 */
+    if (version >= 3) {
+        switch (MBC) {
+            case MBC3:
+                fread(&rtcReg,    1, sizeof(u8), inFile);
+                break;
+            case HUC3:
+                fread(&HuC3Mode,  1, sizeof(u8), inFile);
+                fread(&HuC3Value, 1, sizeof(u8), inFile);
+                fread(&HuC3Shift, 1, sizeof(u8), inFile);
+                break;
+        }
+    }
 
     fclose(inFile);
     if (num == -1) {
@@ -833,6 +865,7 @@ int loadState(int num) {
     phaseCounter = state.phaseCounter;
     dividerCounter = state.dividerCounter;
     serialCounter = state.serialCounter;
+    ramEnabled = state.ramEnabled;
 
     screenOn = ioRam[0x40] & 0x80;
     transferReady = false;

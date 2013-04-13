@@ -6,7 +6,8 @@ extern int selectedGameboyMode;
 extern bool gbaMode;
 
 void initConsole();
-void printConsoleMessage(char* s);
+
+void printConsoleMessage(const char* s);
 
 void enterConsole(); // May be called from an interrupt
 void exitConsole();

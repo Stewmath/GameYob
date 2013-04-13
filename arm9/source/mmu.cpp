@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <cstdlib>
 #include "mmu.h"
@@ -13,23 +12,10 @@
 #include <nds.h>
 #endif
 
-#define refreshRomBank() { \
-    loadRomBank(); \
-    memory[0x4] = rom[currentRomBank]; \
-    memory[0x5] = rom[currentRomBank]+0x1000; \
-    memory[0x6] = rom[currentRomBank]+0x2000; \
-    memory[0x7] = rom[currentRomBank]+0x3000; }
+
 #define refreshVramBank() { \
     memory[0x8] = vram[vramBank]; \
     memory[0x9] = vram[vramBank]+0x1000; }
-#define refreshRamBank() \
-    if (currentRamBank >= numRamBanks) { \
-        memory[0xa] = nullSpace; \
-        memory[0xb] = nullSpace; \
-    } \
-    else { \
-    memory[0xa] = externRam[currentRamBank]; \
-    memory[0xb] = externRam[currentRamBank]+0x1000; }
 #define refreshWramBank() { \
     memory[0xd] = wram[wramBank]; }
 
@@ -74,16 +60,14 @@ u8 spriteData[0xA0]
 DTCM_BSS
 #endif
 ;
-// This is space used for reading and writing to out-of-bounds areas.
-// I don't want to waste time checking for bad memory access in the 
-// quickRead/quickWrite functions.
-u8 nullSpace[0x1000];
 
 int wramBank;
 int vramBank;
 
 int MBC;
 int memoryModel;
+
+bool rockmanMapper;
 
 int currentRomBank;
 int currentRamBank;
@@ -93,17 +77,59 @@ u16 dmaDest;
 u16 dmaLength;
 int dmaMode;
 
+/* MBC flags */
+bool ramEnabled;
+
+u8   rtcReg;
+
+u8   HuC3Mode;
+u8   HuC3Value;
+u8   HuC3Shift;
+
+typedef void (* mbcWrite)(u16,u8);
+typedef u8   (* mbcRead )(u16);
+
+void refreshRomBank(int bank) 
+{
+    if (bank < numRomBanks) {
+        currentRomBank = bank;
+        loadRomBank(); 
+        memory[0x4] = rom[currentRomBank];
+        memory[0x5] = rom[currentRomBank]+0x1000;
+        memory[0x6] = rom[currentRomBank]+0x2000;
+        memory[0x7] = rom[currentRomBank]+0x3000; 
+    }
+}
+
+void refreshRamBank (int bank) 
+{
+    if (bank < numRamBanks) {
+        currentRamBank = bank;
+        memory[0xa] = externRam[currentRamBank];
+        memory[0xb] = externRam[currentRamBank]+0x1000; 
+    }
+}
+
 void initMMU()
 {
     wramBank = 1;
     vramBank = 0;
-    currentRomBank = 1;
-    currentRamBank = 0;
     memoryModel = 0;
     dmaSource=0;
     dmaDest=0;
     dmaLength=0;
     dmaMode=0;
+
+    ramEnabled = false;
+
+    rtcReg = -1;
+
+    HuC3Value = 0;
+    HuC3Shift = 0;
+
+    memset(&gbClock, 0, sizeof(clockStruct));
+    /* Start ticking! */
+    gbClock.last = time(NULL) - 120*60;
 
     if (!biosExists)
         biosEnabled = false;
@@ -120,13 +146,16 @@ void mapMemory() {
     memory[0x1] = rom[0]+0x1000;
     memory[0x2] = rom[0]+0x2000;
     memory[0x3] = rom[0]+0x3000;
-    refreshRomBank();
+    refreshRomBank(1);
     refreshVramBank();
-    refreshRamBank();
+    refreshRamBank(0);
     memory[0xc] = wram[0];
     refreshWramBank();
     memory[0xe] = wram[0];
     memory[0xf] = highram;
+
+    /* Rockman8 by Yang Yang uses a silghtly different MBC1 variant */
+    rockmanMapper = !strcmp(getRomTitle(), "ROCKMAN 99");
 
     dmaSource = (ioRam[0x51]<<8) | (ioRam[0x52]);
     dmaSource &= 0xFFF0;
@@ -134,86 +163,134 @@ void mapMemory() {
     dmaDest &= 0x1FF0;
 }
 
+/* Increment y if x is greater than val */
+#define OVERFLOW(x,val,y)   \
+    do {                    \
+        while (x >= val) {  \
+            x -= val;       \
+            y++;            \
+        }                   \
+    } while (0) 
+
 void latchClock()
 {
     // +2h, the same as lameboy
     time_t now = time(NULL)-120*60;
-    time_t difference = now - gbClock.clockLastTime;
+    time_t difference = now - gbClock.last;
+    struct tm* lt = gmtime((const time_t *)&difference);
 
-    int seconds = difference%60;
-    gbClock.clockSeconds += seconds;
-    if (gbClock.clockSeconds >= 60)
-    {
-        gbClock.clockMinutes++;
-        gbClock.clockSeconds -= 60;
+    switch (MBC) {
+        case MBC3:
+            gbClock.s += lt->tm_sec;
+            OVERFLOW(gbClock.s, 60, gbClock.m);
+            gbClock.m += lt->tm_min;
+            OVERFLOW(gbClock.m, 60, gbClock.h);
+            gbClock.h += lt->tm_hour;
+            OVERFLOW(gbClock.h, 24, gbClock.d);
+            gbClock.d += lt->tm_yday;
+            /* Overflow! */
+            if (gbClock.d > 0x1FF)
+            {
+                /* Set the carry bit */
+                gbClock.ctrl |= 0x80;
+                gbClock.d -= 0x200;
+            }
+            /* The 9th bit of the day register is in the control register */ 
+            gbClock.ctrl &= ~1;
+            gbClock.ctrl |= (gbClock.d > 0xff);
+            break;
+        case HUC3:
+            gbClock.m += lt->tm_min;
+            OVERFLOW(gbClock.m, 60*24, gbClock.d);
+            gbClock.d += lt->tm_yday;
+            OVERFLOW(gbClock.d, 365, gbClock.y);
+            gbClock.y += lt->tm_year - 70;
+            break;
     }
 
-    difference /= 60;
-    int minutes = difference%60;
-    gbClock.clockMinutes += minutes;
-    if (gbClock.clockMinutes >= 60)
-    {
-        gbClock.clockHours++;
-        gbClock.clockMinutes -= 60;
-    }
+    gbClock.last = now;
+}
 
-    difference /= 60;
-    gbClock.clockHours += difference%24;
-    if (gbClock.clockHours >= 24)
-    {
-        gbClock.clockDays++;
-        gbClock.clockHours -= 24;
+void handleHuC3Command (u8 cmd) 
+{
+    switch (cmd&0xf0) {
+        case 0x40:
+            HuC3Shift = 0;
+            latchClock();
+            break;
+        case 0x50:
+            break;
+        case 0x60: 
+            HuC3Value = 1;
+            break;
+        default:
+            printLog("undandled HuC3 cmd %02x\n", cmd);
     }
-
-    difference /= 24;
-    gbClock.clockDays += difference;
-    if (gbClock.clockDays > 0x1FF)
-    {
-        gbClock.clockControl |= 0x80;
-        gbClock.clockDays -= 0x200;
-    }
-    gbClock.clockControl &= ~1;
-    gbClock.clockControl |= gbClock.clockDays>>8;
-    gbClock.clockLastTime = now;
-
-    gbClock.clockSecondsL = gbClock.clockSeconds;
-    gbClock.clockMinutesL = gbClock.clockMinutes;
-    gbClock.clockHoursL = gbClock.clockHours;
-    gbClock.clockDaysL = gbClock.clockDays;
-    gbClock.clockControlL = gbClock.clockControl;
 }
 
 #ifdef DS
 u8 readMemory(u16 addr) ITCM_CODE;
 #endif
 
-u8 readMemory(u16 addr)
-{
-    if (MBC == 3 && (addr&0xe000) == 0xa000) {
-        switch (currentRamBank)
-        {
+/* MBC read handlers */
+
+/* HUC3 */
+u8 h3r (u16 addr) {
+    switch (HuC3Mode) {
+        case 0xc:
+            return HuC3Value;
+        case 0xb:
+        case 0xd:
+            /* Return 1 as a fixed value, needed for some games to
+             * boot, the meaning is unknown. */
+            return 1;
+    }
+    return (ramEnabled) ? memory[addr>>12][addr&0xfff] : 0xff;
+}
+
+/* MBC3 */
+u8 m3r (u16 addr) {
+    if (!ramEnabled)
+        return 0xff;
+
+    if (rtcReg > 0) {
+        switch (rtcReg) {
             case 0x8:
-                return gbClock.clockSecondsL;
+                return gbClock.s;
             case 0x9:
-                return gbClock.clockMinutesL;
+                return gbClock.m;
             case 0xA:
-                return gbClock.clockHoursL;
+                return gbClock.h;
             case 0xB:
-                return gbClock.clockDaysL&0xFF;
+                return gbClock.d&0xff;
             case 0xC:
-                return gbClock.clockControlL;
-            case 0:
-            case 1:
-            case 2:
-            case 3:
-                break;
-            default:
-                return 0;
+                return gbClock.ctrl;
         }
     }
+
+    return memory[addr>>12][addr&0xfff];
+}
+
+const mbcRead mbcReads[] = { 
+    NULL, NULL, NULL, m3r, NULL, h3r, NULL
+};
+
+u8 readMemory(u16 addr)
+{    
     if (addr >= 0xff00)
         return readIO(addr&0xff);
-    
+
+    /* Check if in range a000-bfff */
+    if ((addr & 0xe000) == 0xa000) {
+        /* Check if there's an handler for this mbc */
+        if (mbcReads[MBC])
+            return mbcReads[MBC](addr);
+    }
+
+    /* Echo area emulation */
+    if (addr >= 0xe000 && addr <= 0xfdff)
+        addr -= 0x2000;
+
     return memory[addr>>12][addr&0xfff];
 }
 
@@ -278,183 +355,259 @@ u8 readIO(u8 ioReg)
 void writeMemory(u16 addr, u8 val) ITCM_CODE;
 #endif
 
+/* MBC Write handlers */
+
+/* MBC0 */
+void m0w (u16 addr, u8 val) {
+    switch (addr & 0xe000) {
+        case 0x0000: /* 0000 - 1fff */
+            break;
+        case 0x2000: /* 2000 - 3fff */
+            break;
+        case 0x4000: /* 4000 - 5fff */
+            break;
+        case 0x6000: /* 6000 - 7fff */
+            break;
+        case 0xa000: /* a000 - bfff */
+            externRam[currentRamBank][addr&0x1fff] = val;
+            break;
+    }
+}
+
+/* MBC2 */
+void m2w(u16 addr, u8 val)
+{
+    switch (addr & 0xe000) {
+        case 0x0000: /* 0000 - 1fff */
+            ramEnabled = ((val & 0xf) == 0xa);
+            break;
+        case 0x2000: /* 2000 - 3fff */
+            refreshRomBank((val) ? val : 1);
+            break;
+        case 0x4000: /* 4000 - 5fff */
+            break;
+        case 0x6000: /* 6000 - 7fff */
+            break;
+        case 0xa000: /* a000 - bfff */
+            if (ramEnabled)
+                externRam[currentRamBank][addr&0x1fff] = val&0xf;
+            break;
+    }
+}
+
+/* MBC3 */
+void m3w(u16 addr, u8 val)
+{
+    switch (addr & 0xe000) {
+        case 0x0000: /* 0000 - 1fff */
+            ramEnabled = ((val & 0xf) == 0xa);
+            break;
+        case 0x2000: /* 2000 - 3fff */
+            val &= 0x7f;
+            refreshRomBank((val) ? val : 1);
+            break;
+        case 0x4000: /* 4000 - 5fff */
+            /* The RTC register is selected by writing values 0x8-0xc, ram banks
+             * are selected by values 0x0-0x3 */
+            rtcReg = -1;
+            if (val <= 0x3)
+                refreshRamBank(val);
+            else
+                rtcReg = val;
+            break;
+        case 0x6000: /* 6000 - 7fff */
+            if (val)
+                latchClock();
+            break;
+        case 0xa000: /* a000 - bfff */
+            if (!ramEnabled)
+                break;
+
+            switch (rtcReg) {
+                case 0x8:
+                    gbClock.s = val;
+                    return;
+                case 0x9:
+                    gbClock.m = val;
+                    return;
+                case 0xA:
+                    gbClock.h = val;
+                    return;
+                case 0xB:
+                    gbClock.d &= 0x100;
+                    gbClock.d |= val;
+                    return;
+                case 0xC:
+                    gbClock.d &= 0xFF;
+                    gbClock.d |= (val&1)<<8;
+                    gbClock.ctrl = val;
+                    return;
+                default:
+                    externRam[currentRamBank][addr&0x1fff] = val;
+            }
+            break;
+    }
+}
+
+/* MBC1 */
+void m1w (u16 addr, u8 val) {
+    int newBank;
+
+    switch (addr & 0xe000) {
+        case 0x0000: /* 0000 - 1fff */
+            ramEnabled = ((val & 0xf) == 0xa);
+            break;
+        case 0x2000: /* 2000 - 3fff */
+            val &= 0x1f;
+            if (rockmanMapper)
+                newBank = ((val > 0xf) ? val - 8 : val);
+            else
+                newBank = (currentRomBank & 0xe0) | val;
+            refreshRomBank((newBank) ? newBank : 1);
+            break;
+        case 0x4000: /* 4000 - 5fff */
+            val &= 3;
+            /* ROM mode */
+            if (memoryModel == 0) {
+                newBank = (currentRomBank & 0x1F) | (val<<5);
+                refreshRomBank((newBank) ? newBank : 1);
+            }
+            /* RAM mode */
+            else
+                refreshRamBank(val);
+            break;
+        case 0x6000: /* 6000 - 7fff */
+            memoryModel = val & 1;
+            break;
+        case 0xa000: /* a000 - bfff */
+            if (ramEnabled)
+                externRam[currentRamBank][addr&0x1fff] = val;
+            break;
+    }
+}
+
+/* HUC1 */
+void h1w(u16 addr, u8 val)
+{
+    switch (addr & 0xe000) {
+        case 0x0000: /* 0000 - 1fff */
+            ramEnabled = ((val & 0xf) == 0xa);
+            break;
+        case 0x2000: /* 2000 - 3fff */
+            refreshRomBank(val & 0x3f);
+            break;
+        case 0x4000: /* 4000 - 5fff */
+            val &= 3;
+            /* ROM mode */
+            if (memoryModel == 0) 
+                refreshRomBank(val);
+            /* RAM mode */
+            else
+                refreshRamBank(val);
+            break;
+        case 0x6000: /* 6000 - 7fff */
+            memoryModel = val & 1;
+            break;
+        case 0xa000: /* a000 - bfff */
+            if (ramEnabled)
+                externRam[currentRamBank][addr&0x1fff] = val;
+            break;
+    }
+}
+
+/* MBC5 */
+void m5w (u16 addr, u8 val) {
+    switch (addr & 0xe000) {
+        case 0x0000: /* 0000 - 1fff */
+            ramEnabled = ((val & 0xf) == 0xa);
+            break;
+        case 0x2000: /* 2000 - 3fff */
+            switch (addr >> 12) {
+                case 0x2: refreshRomBank((currentRomBank & 0x100) |  val);          break;
+                case 0x3: refreshRomBank((currentRomBank & 0xff ) | (val&1) << 8);  break;
+            }
+            break;
+        case 0x4000: /* 4000 - 5fff */
+            val &= 0xf;
+            /* MBC5 might have a rumble motor, which is triggered by the
+             * 4th bit of the value written */
+            if (hasRumble) {
+                if (rumbleStrength)
+                {
+                    if (rumbleInserted)
+                    {
+                        rumbleValue = (val & 0x8) ? 1 : 0;
+                        if (rumbleValue != lastRumbleValue)
+                        {
+                            doRumble(rumbleValue);
+                            lastRumbleValue = rumbleValue;
+                        }
+                    }
+                }
+
+                val &= 0x07;
+            }
+
+            refreshRamBank(val);
+            break;
+        case 0x6000: /* 6000 - 7fff */
+            break;
+        case 0xa000: /* a000 - bfff */
+            if (ramEnabled)
+                externRam[currentRamBank][addr&0x1fff] = val;;
+            break;
+    }
+}
+
+/* HUC3 */
+void h3w (u16 addr, u8 val) {
+    switch (addr & 0xe000) {
+        case 0x0000: /* 0000 - 1fff */
+            ramEnabled = ((val & 0xf) == 0xa);
+            HuC3Mode = val;
+            break;
+        case 0x2000: /* 2000 - 3fff */
+            refreshRomBank((val) ? val : 1);
+            break;
+        case 0x4000: /* 4000 - 5fff */
+            refreshRamBank(val & 0xf);
+            break;
+        case 0x6000: /* 6000 - 7fff */
+            break;
+        case 0xa000: /* a000 - bfff */
+            switch (HuC3Mode) {
+                case 0xb:
+                    handleHuC3Command(val);
+                    break;
+                case 0xc:
+                case 0xd:
+                case 0xe:
+                    break;
+                default:
+                    if (ramEnabled)
+                        externRam[currentRamBank][addr&0x1fff] = val;
+            }
+            break;
+    }
+}
+
+const mbcWrite mbcWrites[] = {
+    m0w, m1w, m2w, m3w, m5w, h3w, h1w
+};
+
 void writeMemory(u16 addr, u8 val)
 {
+    /* TODO : numRamBanks == 0 should be handled ? */
+
+    /* Echo area emulation */
+    if (addr >= 0xe000 && addr <= 0xfdff)
+        addr -= 0x2000;
+
     switch (addr >> 12)
     {
-        case 0x0:
-        case 0x1:
-            // MBC2's ram enable would be here
-            return;
-        case 0x2:
-            if (MBC == 5)
-            {
-                currentRomBank &= 0x100;
-                currentRomBank |= val;
-                if (currentRomBank >= numRomBanks)
-                {
-                    currentRomBank = numRomBanks-1;
-                    printLog("Game tried to access more rom than it has\n");
-                }
-                refreshRomBank();
-                return;
-            }
-            // Else fall through
-        case 0x3:
-            switch (MBC)
-            {
-                case 1:
-                    currentRomBank &= 0xE0;
-                    currentRomBank |= (val & 0x1F);
-                    if (currentRomBank == 0)
-                        currentRomBank = 1;
-                    break;
-                case 2:
-                    currentRomBank = val;
-                    if (currentRomBank == 0)
-                        currentRomBank = 1;
-                    break;
-                case 3:
-                    currentRomBank = (val & 0x7F);
-                    if (currentRomBank == 0)
-                        currentRomBank = 1;
-                    break;
-                case 5:
-                    currentRomBank &= 0xFF;
-                    currentRomBank |= (val&1) << 8;
-                    break;
-                default:
-                    break;
-            }
-            if (currentRomBank >= numRomBanks)
-            {
-                currentRomBank = numRomBanks-1;
-                printLog("Game tried to access more rom than it has\n");
-            }
-            refreshRomBank();
-            return;
-        case 0x4:
-        case 0x5:
-            switch (MBC)
-            {
-                case 1:
-                    if (memoryModel == 0)
-                    {
-                        currentRomBank &= 0x1F;
-                        val &= 3;
-                        currentRomBank |= (val<<5);
-                        if (currentRomBank == 0)
-                            currentRomBank = 1;
-                        if (currentRomBank >= numRomBanks)
-                        {
-                            printLog("Game tried to access more rom than it has (%x)\n", currentRomBank);
-                            currentRomBank = numRomBanks-1;
-                        }
-                        refreshRomBank();
-                    }
-                    else
-                    {
-                        currentRamBank = val & 0x3;
-                        refreshRamBank();
-                    }
-                    break;
-                case 3:
-                    currentRamBank = val;
-                    refreshRamBank();
-                    break;
-                case 5:
-                    val &= 0xf;
-
-                    /* MBC5 might have a rumble motor, which is triggered by the
-                     * 4th bit of the value written */
-                    if (hasRumble) {
-                        if (rumbleStrength)
-                        {
-                            if (rumbleInserted)
-                            {
-                                rumbleValue = (val & 0x8) ? 1 : 0;
-                                if (rumbleValue != lastRumbleValue)
-                                {
-                                    doRumble(rumbleValue);
-                                    lastRumbleValue = rumbleValue;
-                                }
-                            }
-                        }
-
-                        val &= 0x07;
-                    }
-
-                    currentRamBank = val;
-                    refreshRamBank();
-                    break;
-                default:
-                    break;
-            }
-            if (currentRamBank >= numRamBanks && MBC != 3)
-            {
-                if (numRamBanks == 0)
-                    currentRamBank = 0;
-                else {
-                    printLog("Game tried to access more ram than it has (%x) @ %04x\n", currentRamBank, gbRegs.pc);
-                    currentRamBank = numRamBanks-1;
-                    refreshRamBank();
-                }
-            }
-            return;
-        case 0x6:
-        case 0x7:
-            if (MBC == 1)
-            {
-                memoryModel = val & 1;
-            }
-            else if (MBC == 3)
-            {
-                if (val == 1)
-                    latchClock();
-            }
-            return;
         case 0x8:
         case 0x9:
             writeVram(addr&0x1fff, val);
-            return;
-        case 0xA:
-        case 0xB:
-            if (numRamBanks == 0)
-                return;
-            if (MBC == 3)
-            {
-                switch (currentRamBank)
-                {
-                    case 0x8:
-                        gbClock.clockSeconds = val%60;
-                        return;
-                    case 0x9:
-                        gbClock.clockMinutes = val%60;
-                        return;
-                    case 0xA:
-                        gbClock.clockHours = val%24;
-                        return;
-                    case 0xB:
-                        gbClock.clockDays &= 0x100;
-                        gbClock.clockDays |= val;
-                        return;
-                    case 0xC:
-                        gbClock.clockDays &= 0xFF;
-                        gbClock.clockDays |= (val&1)<<8;
-                        gbClock.clockControl = val;
-                        return;
-                    case 0:
-                    case 1:
-                    case 2:
-                    case 3:
-                        break;
-                    default:
-                        return;
-                }
-            }
-            if (MBC == 2)
-                val &= 0xf;
-            externRam[currentRamBank][addr&0x1fff] = val;
             return;
         case 0xC:
             wram[0][addr&0xFFF] = val;
@@ -462,19 +615,16 @@ void writeMemory(u16 addr, u8 val)
         case 0xD:
             wram[wramBank][addr&0xFFF] = val;
             return;
-        case 0xE:
-            return;
         case 0xF:
-            if (addr >= 0xFF00) {
+            if (addr >= 0xFF00) 
                 writeIO(addr & 0xFF, val);
-            }
-            else {
+            else
                 writeHram(addr&0x1ff, val);
-            }
-            return;
-        default:
             return;
     }
+
+    if (mbcWrites[MBC])
+        mbcWrites[MBC](addr, val);
 }
 
 
