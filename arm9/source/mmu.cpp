@@ -74,7 +74,7 @@ int dmaMode;
 /* MBC flags */
 bool ramEnabled;
 
-u8   rtcReg;
+char rtcReg;
 
 u8   HuC3Mode;
 u8   HuC3Value;

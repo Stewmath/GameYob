@@ -1030,7 +1030,7 @@ void saveState(int num) {
 
     switch (MBC) {
         case MBC3:
-            fwrite(&rtcReg,    1, sizeof(u8), outFile);
+            fwrite(&rtcReg,    1, sizeof(char), outFile);
             break;
         case HUC3:
             fwrite(&HuC3Mode,  1, sizeof(u8), outFile);
@@ -1082,7 +1082,7 @@ int loadState(int num) {
     if (version >= 3) {
         switch (MBC) {
             case MBC3:
-                fread(&rtcReg,    1, sizeof(u8), inFile);
+                fread(&rtcReg,    1, sizeof(char), inFile);
                 break;
             case HUC3:
                 fread(&HuC3Mode,  1, sizeof(u8), inFile);
