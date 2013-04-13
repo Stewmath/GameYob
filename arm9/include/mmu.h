@@ -32,7 +32,7 @@ extern bool hasRumble;
 extern bool rumbleEnabled;
 
 extern bool ramEnabled;
-extern u8   rtcReg;
+extern char rtcReg;
 extern u8   HuC3Mode;
 extern u8   HuC3Value;
 extern u8   HuC3Shift;
