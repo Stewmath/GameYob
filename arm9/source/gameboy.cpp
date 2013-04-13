@@ -18,10 +18,6 @@ int scanlineCounter;
 int doubleSpeed;
 
 int fps;
-int turbo;
-int turboFrameSkip;
-int frameskip;
-int frameskipCounter;
 bool fpsOutput=true;
 bool timeOutput=true;
 bool fastForwardMode = false; // controlled by the menu
@@ -169,8 +165,6 @@ void initLCD()
     timerCounter = 0;
     dividerCounter = 256;
     serialCounter = 0;
-    turboFrameSkip = 4;
-    turbo=0;
 
     // Timer stuff
     periods[0] = clockSpeed/4096;

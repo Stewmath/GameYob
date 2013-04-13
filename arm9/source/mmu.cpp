@@ -158,15 +158,15 @@ u8 m3r (u16 addr) {
     if (rtcReg > 0) {
         switch (rtcReg) {
             case 0x8:
-                return gbClock.s;
+                return gbClock.mbc3.s;
             case 0x9:
-                return gbClock.m;
+                return gbClock.mbc3.m;
             case 0xA:
-                return gbClock.h;
+                return gbClock.mbc3.h;
             case 0xB:
-                return gbClock.d&0xff;
+                return gbClock.mbc3.d&0xff;
             case 0xC:
-                return gbClock.ctrl;
+                return gbClock.mbc3.ctrl;
         }
     }
 
@@ -247,22 +247,22 @@ void m3w(u16 addr, u8 val)
 
             switch (rtcReg) {
                 case 0x8:
-                    gbClock.s = val;
+                    gbClock.mbc3.s = val;
                     return;
                 case 0x9:
-                    gbClock.m = val;
+                    gbClock.mbc3.m = val;
                     return;
                 case 0xA:
-                    gbClock.h = val;
+                    gbClock.mbc3.h = val;
                     return;
                 case 0xB:
-                    gbClock.d &= 0x100;
-                    gbClock.d |= val;
+                    gbClock.mbc3.d &= 0x100;
+                    gbClock.mbc3.d |= val;
                     return;
                 case 0xC:
-                    gbClock.d &= 0xFF;
-                    gbClock.d |= (val&1)<<8;
-                    gbClock.ctrl = val;
+                    gbClock.mbc3.d &= 0xFF;
+                    gbClock.mbc3.d |= (val&1)<<8;
+                    gbClock.mbc3.ctrl = val;
                     return;
                 default:
                     externRam[currentRamBank][addr&0x1fff] = val;
@@ -437,10 +437,6 @@ void initMMU()
     readFunc = mbcReads[MBC];
     writeFunc = mbcWrites[MBC];
 
-    memset(&gbClock, 0, sizeof(clockStruct));
-    /* Start ticking! */
-    gbClock.last = time(NULL) - 120*60;
-
     if (!biosExists)
         biosEnabled = false;
     biosOn = biosEnabled;
@@ -491,30 +487,30 @@ void latchClock()
 
     switch (MBC) {
         case MBC3:
-            gbClock.s += lt->tm_sec;
-            OVERFLOW(gbClock.s, 60, gbClock.m);
-            gbClock.m += lt->tm_min;
-            OVERFLOW(gbClock.m, 60, gbClock.h);
-            gbClock.h += lt->tm_hour;
-            OVERFLOW(gbClock.h, 24, gbClock.d);
-            gbClock.d += lt->tm_yday;
+            gbClock.mbc3.s += lt->tm_sec;
+            OVERFLOW(gbClock.mbc3.s, 60, gbClock.mbc3.m);
+            gbClock.mbc3.m += lt->tm_min;
+            OVERFLOW(gbClock.mbc3.m, 60, gbClock.mbc3.h);
+            gbClock.mbc3.h += lt->tm_hour;
+            OVERFLOW(gbClock.mbc3.h, 24, gbClock.mbc3.d);
+            gbClock.mbc3.d += lt->tm_yday;
             /* Overflow! */
-            if (gbClock.d > 0x1FF)
+            if (gbClock.mbc3.d > 0x1FF)
             {
                 /* Set the carry bit */
-                gbClock.ctrl |= 0x80;
-                gbClock.d -= 0x200;
+                gbClock.mbc3.ctrl |= 0x80;
+                gbClock.mbc3.d -= 0x200;
             }
             /* The 9th bit of the day register is in the control register */ 
-            gbClock.ctrl &= ~1;
-            gbClock.ctrl |= (gbClock.d > 0xff);
+            gbClock.mbc3.ctrl &= ~1;
+            gbClock.mbc3.ctrl |= (gbClock.mbc3.d > 0xff);
             break;
         case HUC3:
-            gbClock.m += lt->tm_min;
-            OVERFLOW(gbClock.m, 60*24, gbClock.d);
-            gbClock.d += lt->tm_yday;
-            OVERFLOW(gbClock.d, 365, gbClock.y);
-            gbClock.y += lt->tm_year - 70;
+            gbClock.huc3.m += lt->tm_min;
+            OVERFLOW(gbClock.huc3.m, 60*24, gbClock.huc3.d);
+            gbClock.huc3.d += lt->tm_yday;
+            OVERFLOW(gbClock.huc3.d, 365, gbClock.huc3.y);
+            gbClock.huc3.y += lt->tm_year - 70;
             break;
     }
 

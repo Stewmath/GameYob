@@ -5,10 +5,14 @@
 
 struct clockStruct
 {
-    int m, d;
     union {
-        struct { int s, h, ctrl; };
-        struct { int y; int u[2]; /* Unused */ };
+        struct {
+            int s, m, h, d, ctrl;
+        } mbc3;
+        struct {
+            int m, d, y;
+            int u[2]; /* Unused */
+        } huc3;
     };
     int latch[5]; /* For VBA compatibility */
     time_t last;
