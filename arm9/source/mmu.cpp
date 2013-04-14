@@ -12,7 +12,6 @@
 #include <nds.h>
 #endif
 
-
 #define refreshVramBank() { \
     memory[0x8] = vram[vramBank]; \
     memory[0x9] = vram[vramBank]+0x1000; }
@@ -208,8 +207,30 @@ void latchClock()
 void handleHuC3Command (u8 cmd) 
 {
     switch (cmd&0xf0) {
+        case 0x10: /* Read clock */
+            if (HuC3Shift > 24)
+                break;
+
+            switch (HuC3Shift) {
+                case 0: case 4: case 8:     /* Minutes */
+                    HuC3Value = (gbClock.m >> HuC3Shift) & 0xf;
+                    break;
+                case 12: case 16: case 20:  /* Days */
+                    HuC3Value = (gbClock.d >> (HuC3Shift - 12)) & 0xf;
+                    break;
+                case 24:                    /* Year */
+                    HuC3Value = gbClock.y & 0xf;
+                    break;
+            }
+            HuC3Shift += 4;
+            break;
         case 0x40:
-            HuC3Shift = 0;
+            switch (cmd&0xf) {
+                case 0: case 4: case 7:
+                    HuC3Shift = 0;
+                    break;
+            }
+
             latchClock();
             break;
         case 0x50:
@@ -266,7 +287,7 @@ u8 m3r (u16 addr) {
 }
 
 const mbcRead mbcReads[] = { 
-    NULL, NULL, NULL, m3r, NULL, h3r, NULL
+    NULL, NULL, NULL, m3r, NULL, NULL, NULL, h3r, NULL
 };
 
 u8 readMemory(u16 addr)
@@ -574,13 +595,11 @@ void h3w (u16 addr, u8 val) {
 }
 
 const mbcWrite mbcWrites[] = {
-    m0w, m1w, m2w, m3w, m5w, h3w, h1w
+    m0w, m1w, m2w, m3w, NULL, m5w, NULL, h3w, h1w
 };
 
 void writeMemory(u16 addr, u8 val)
 {
-    /* TODO : numRamBanks == 0 should be handled ? */
-
     /* Echo area emulation */
     if (addr >= 0xe000 && addr <= 0xfdff)
         addr -= 0x2000;

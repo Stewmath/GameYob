@@ -162,7 +162,7 @@ void initLCD()
     // Pikachu's pitch to sound right...
     // The exact value of this will vary, so I'm going to leave it commented for 
     // now.
-    yellowHack = strcmp(getRomTitle(), "POKEMON YELLOW");
+    yellowHack = !strcmp(getRomTitle(), "POKEMON YELLOW");
     if (yellowHack && !(fastForwardMode || fastForwardKey))
         maxWaitCycles = 50;
     else

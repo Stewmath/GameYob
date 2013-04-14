@@ -26,7 +26,7 @@ char basename[100];
 char romTitle[20];
 // Values taken from the cartridge header
 u8 ramSize;
-u8 mapperNumber;
+u8 mapper;
 u8 cgbFlag;
 u8 romSize;
 bool hasRumble;
@@ -641,41 +641,61 @@ int loadProgram(char* f)
     strcat(savename, ".sav");
 
     cgbFlag = rom[0][0x143];
-    mapperNumber = rom[0][0x147];
     romSize = rom[0][0x148];
     ramSize = rom[0][0x149];
+    mapper  = rom[0][0x147];
 
     int nameLength = 16;
     if (cgbFlag == 0x80 || cgbFlag == 0xc0)
         nameLength = 15;
-    for (int i=0; i<nameLength; i++) {
+    for (int i=0; i<nameLength; i++) 
         romTitle[i] = (char)rom[0][i+0x134];
-    }
     romTitle[nameLength] = '\0';
-
-    if (mapperNumber == 0)
-        MBC = MBC0;
-    else if (mapperNumber <= 3)
-        MBC = MBC1;
-    else if (mapperNumber >= 5 && mapperNumber <= 6)
-        MBC = MBC2;
-    else if (mapperNumber == 0x10 || mapperNumber == 0x12 || mapperNumber == 0x13)
-        MBC = MBC3;
-    else if (mapperNumber >= 0x19 && mapperNumber <= 0x1E)
-        MBC = MBC5;
-    else if (mapperNumber == 0xFE)
-        MBC = HUC3;
-    else if (mapperNumber == 0xFF)
-        MBC = HUC1;
-    else {
-        printLog("Unknown MBC: %.2x\nDefaulting to MBC5\n", mapperNumber);
-        MBC = MBC5;
-    }
 
     hasRumble = false;
 
-    if (mapperNumber >= 0x1C && mapperNumber <= 0x1E)
-        hasRumble = true;
+    switch (mapper) {
+        case 0: case 8: case 9:
+            MBC = MBC0; 
+            break;
+        case 1: case 2: case 3:
+            MBC = MBC1;
+            break;
+        case 5: case 6:
+            MBC = MBC2;
+            break;
+        //case 0xb: case 0xc: case 0xd:
+            //MBC = MMM01;
+            //break;
+        case 0xf: case 0x10: case 0x11: case 0x12: case 0x13:
+            MBC = MBC3;
+            break;
+        //case 0x15: case 0x16: case 0x17:
+            //MBC = MBC4;
+            //break;
+        case 0x19: case 0x1a: case 0x1b: 
+            MBC = MBC5;
+            break;
+        case 0x1c: case 0x1d: case 0x1e:
+            MBC = MBC5;
+            hasRumble = true;
+            break;
+        case 0x22:
+            MBC = MBC7;
+            break;
+        case 0xea: /* Hack for SONIC5 */
+            MBC = MBC1;
+            break;
+        case 0xfe:
+            MBC = HUC3;
+            break;
+        case 0xff:
+            MBC = HUC1;
+            break;
+        default:
+            printLog("Unsupported MBC %02x\n", mapper);
+            return 1;
+    }
 
     // Little hack to preserve "quickread" from gbcpu.cpp.
     if (biosExists) {
@@ -866,7 +886,7 @@ const char *mbcName[] = {"ROM","MBC1","MBC2","MBC3","MBC5","HUC3","HUC1"};
 void printRomInfo() {
     consoleClear();
     printf("ROM Title: \"%s\"\n", romTitle);
-    printf("Cartridge type: %.2x (%s)\n", mapperNumber, mbcName[MBC]);
+    printf("Cartridge type: %.2x (%s)\n", mapper, mbcName[MBC]);
     printf("ROM Size: %.2x (%d banks)\n", romSize, numRomBanks);
     printf("RAM Size: %.2x (%d banks)\n", ramSize, numRamBanks);
     while (true) {
