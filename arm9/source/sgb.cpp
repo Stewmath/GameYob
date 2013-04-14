@@ -127,6 +127,8 @@ void sgbPalSet(int block) {
     if (sgbPacket[9]&0x80) {
         sgbLoadAttrFile(sgbPacket[9]&0x3f);
     }
+    if (sgbPacket[9]&40)
+        setGFXMask(0);
 }
 void sgbPalTrn(int block) {
     memcpy(sgbPalettes, vram[0]+0x800, 0x1000);
@@ -147,12 +149,18 @@ void sgbAttrTrn(int block) {
 
 void sgbAttrSet(int block) {
     sgbLoadAttrFile(sgbPacket[1]&0x3f);
+    if (sgbPacket[1]&0x40)
+        setGFXMask(0);
+}
+
+void sgbMask(int block) {
+    setGFXMask(sgbPacket[1]&3);
 }
 
 void (*sgbCommands[])(int) = {
     sgbPalXX,sgbPalXX,sgbPalXX,sgbPalXX,sgbAttrBlock,NULL,NULL,NULL,
     NULL,NULL,sgbPalSet,sgbPalTrn,NULL,NULL,NULL,NULL,
-    NULL,sgbMltReq,NULL,NULL,NULL,sgbAttrTrn,sgbAttrSet,NULL,
+    NULL,sgbMltReq,NULL,NULL,NULL,sgbAttrTrn,sgbAttrSet,sgbMask,
     NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL
 };
 

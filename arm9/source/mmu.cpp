@@ -694,7 +694,10 @@ void writeIO(u8 ioReg, u8 val)
     switch (ioReg)
     {
         case 0x00:
-            sgbHandleP1(val);
+            if (sgbMode)
+                sgbHandleP1(val);
+            else
+                ioRam[0x00] = val|0xcf;
             return;
         case 0x02:
             {

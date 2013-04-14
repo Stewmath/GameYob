@@ -78,7 +78,7 @@ int interruptWaitMode=0;
 bool windowDisabled = false;
 bool hblankDisabled = false;
 
-int dmaLine;
+int gfxMask;
 
 
 void drawSprite(u8* data);
@@ -233,7 +233,7 @@ void hblankHandler()
     int line = REG_VCOUNT+1;
     int gbLine = line-screenOffsY;
 
-    if (!(gbLine < 144))
+    if (gbLine >= 144)
         return;
     if (gbLine <= 0) {
         gbLine = 0;
@@ -318,6 +318,8 @@ void initGFX()
 
     memset(vram[0], 0, 0x2000);
     memset(vram[1], 0, 0x2000);
+
+    gfxMask = 0;
 
     refreshGFX();
 }
@@ -431,7 +433,12 @@ void enableScreen() {
         irqEnable(IRQ_HBLANK);
     }
     irqSet(IRQ_HBLANK, hblankHandler);
+}
 
+void setGFXMask(int mask) {
+    gfxMask = mask;
+    if (gfxMask == 0)
+        refreshGFX();
 }
 
 // Possibly doing twice the work necessary in gbc games, when writing to bank 0, then bank 1.
@@ -532,7 +539,8 @@ void copyTile(u8 *src,u16 *dest) {
 
 void drawScreen()
 {
-    refreshSgbPalette();
+    if (sgbMode && !gfxMask)
+        refreshSgbPalette();
 
     DC_FlushRange(mapBuf[0], 0x400*2);
     DC_FlushRange(mapBuf[1], 0x400*2);
@@ -544,6 +552,8 @@ void drawScreen()
     if (!(fastForwardMode || fastForwardKey))
         swiIntrWait(interruptWaitMode, IRQ_VBLANK);
 
+    if (gfxMask)
+        return;
     dmaCopy(mapBuf[0], map[0], 0x400*2);
     dmaCopy(mapBuf[1], map[1], 0x400*2);
     dmaCopy(blankMapBuf[0], blankMap[0], 0x400*2);
@@ -613,8 +623,12 @@ void drawSprites(u8* data, int tall) {
             }
             else
             {
-                int sgbPalette = sgbMap[y/8*20 + x/8]&3;
-                paletteid = sgbPalette+(!!(data[spriteNum+3] & 0x10))*4;
+                if (sgbMode) {
+                    int sgbPalette = sgbMap[y/8*20 + x/8]&3;
+                    paletteid = sgbPalette+(!!(data[spriteNum+3] & 0x10))*4;
+                }
+                else
+                    paletteid = !!(data[spriteNum+3] & 10);
             }
 
             int priorityVal = (priority ? spr_priority_low : spr_priority);
@@ -665,7 +679,7 @@ void drawScanline(int scanline) ITCM_CODE;
 
 void drawScanline(int scanline)
 {
-    if (hblankDisabled)
+    if (hblankDisabled || gfxMask)
         return;
     int winX = ioRam[0x4b];
     if (winPosY == -2)
@@ -924,7 +938,6 @@ void handleVideoRegister(u8 ioReg, u8 val) {
                 }
                 spritesModified = true;
 
-                dmaLine = ioRam[0x44];
                 //printLog("dma write %d\n", ioRam[0x44]);
                 return;
             }

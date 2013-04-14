@@ -21,7 +21,8 @@ int consoleScreenBacklight;
 int stateNum=0;
 
 int selectedGameboyMode=0;
-bool gbaMode=false;
+bool gbaModeOption=false;
+int sgbModeOption=false;
 
 extern int interruptWaitMode;
 extern bool windowDisabled;
@@ -148,7 +149,11 @@ void gameboyModeFunc(int value) {
 }
 
 void gbaModeFunc(int value) {
-    gbaMode = value;
+    gbaModeOption = value;
+}
+
+void sgbModeFunc(int value) {
+    sgbModeOption = value;
 }
 
 void biosEnableFunc(int value) {
@@ -284,11 +289,12 @@ ConsoleSubMenu menuList[] = {
     },
     {
         "GB Modes",
-        3,
+        4,
         {
             {"GBC Bios", biosEnableFunc, 2, {"Off","On"}, 1},
             {"GBC Mode", gameboyModeFunc, 3, {"Off","If Needed","On"}, 2},
-            {"GBC on GBA", gbaModeFunc, 2, {"Off","On"}, 0}
+            {"GBC on GBA", gbaModeFunc, 2, {"Off","On"}, 0},
+            {"SGB Mode", sgbModeFunc, 3, {"Off","Prefer GBC","Prefer SGB"}, 1}
         }
     },
     {

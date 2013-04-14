@@ -27,6 +27,9 @@ extern bool yellowHack;
 extern bool fpsOutput;
 extern bool timeOutput;
 
+extern int gbMode;
+extern bool sgbMode;
+
 void runEmul();
 void initLCD();
 void initGameboyMode();

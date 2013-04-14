@@ -3,7 +3,8 @@
 
 extern bool consoleDebugOutput;
 extern int selectedGameboyMode;
-extern bool gbaMode;
+extern bool gbaModeOption;
+extern int sgbModeOption;
 
 void initConsole();
 

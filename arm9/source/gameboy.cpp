@@ -12,6 +12,7 @@
 #include "nifi.h"
 #include "console.h"
 #include "cheats.h"
+#include "sgb.h"
 
 int mode2Cycles, mode3Cycles;
 int scanlineCounter;
@@ -36,6 +37,9 @@ int timerPeriod;
 long periods[4];
 
 bool screenOn = true;
+
+int gbMode;
+bool sgbMode;
 
 int cyclesToEvent;
 int maxWaitCycles;
@@ -176,6 +180,38 @@ void initLCD()
     timerStop(2);
 }
 
+void initSGBMode() {
+    sgbMode = true;
+    gbRegs.af.b.h = 0x01;
+    gbMode = GB;
+    if (rom[0][0x143] == 0x80 || rom[0][0x143] == 0xC0)
+        // Init the palette in case the bios overwrote it, since it 
+        // assumed it was starting in GBC mode.
+        initGFXPalette();
+    initSGB();
+}
+void initGBMode() {
+    if (sgbModeOption != 0 && rom[0][0x14b] == 0x33 && rom[0][0x146] == 0x03)
+        initSGBMode();
+    else {
+        gbRegs.af.b.h = 0x01;
+        gbMode = GB;
+        if (rom[0][0x143] == 0x80 || rom[0][0x143] == 0xC0)
+            // Init the palette in case the bios overwrote it, since it 
+            // assumed it was starting in GBC mode.
+            initGFXPalette();
+    }
+}
+void initGBCMode() {
+    if (sgbModeOption == 2 && rom[0][0x14b] == 0x33 && rom[0][0x146] == 0x03)
+        initSGBMode();
+    else {
+        gbRegs.af.b.h = 0x11;
+        if (gbaModeOption)
+            gbRegs.bc.b.h |= 1;
+        gbMode = CGB;
+    }
+}
 // Called either from startup, or when the BIOS writes to FF50.
 void initGameboyMode() {
     gbRegs.af.b.l = 0xB0;
@@ -184,38 +220,19 @@ void initGameboyMode() {
     gbRegs.hl.w = 0x014D;
     switch(selectedGameboyMode) {
         case 0: // GB
-            gbRegs.af.b.h = 0x01;
-            gbMode = GB;
-            if (rom[0][0x143] == 0x80 || rom[0][0x143] == 0xC0)
-                // Init the palette in case the bios overwrote it, since it 
-                // assumed it was starting in GBC mode.
-                initGFXPalette();
+            initGBMode();
             return;
         case 1: // GBC if needed
-            if (rom[0][0x143] == 0xC0) {
-                gbRegs.af.b.h = 0x11;
-                if (gbaMode)
-                    gbRegs.bc.b.h |= 1;
-                gbMode = CGB;
-            }
-            else {
-                gbRegs.af.b.h = 0x01;
-                gbMode = GB;
-                if (rom[0][0x143] == 0x80 || rom[0][0x143] == 0xC0)
-                    initGFXPalette();
-            }
+            if (rom[0][0x143] == 0xC0)
+                initGBCMode();
+            else
+                initGBMode();
             return;
         case 2: // GBC
-            if (rom[0][0x143] == 0x80 || rom[0][0x143] == 0xC0) {
-                gbRegs.af.b.h = 0x11;
-                if (gbaMode)
-                    gbRegs.bc.b.h |= 1;
-                gbMode = CGB;
-            }
-            else {
-                gbRegs.af.b.h = 0x01;
-                gbMode = GB;
-            }
+            if (rom[0][0x143] == 0x80 || rom[0][0x143] == 0xC0)
+                initGBCMode();
+            else
+                initGBMode();
             return;
     }
     if (rom[0][0x143] == 0x80 || rom[0][0x143] == 0xC0)

@@ -28,7 +28,6 @@ extern struct Registers gbRegs;
 extern int fps;
 extern int halt;
 extern int ime;
-extern int gbMode;
 extern int extraCycles;
 extern int cyclesToExecute;
 

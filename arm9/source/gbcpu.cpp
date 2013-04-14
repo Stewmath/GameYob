@@ -47,8 +47,6 @@ DTCM_BSS
 ;
 int halt;
 
-int gbMode;
-
 u8 opCycles[0x100]
 #ifdef DS
 DTCM_DATA
@@ -131,6 +129,7 @@ void initCPU()
     writeIO(0x4b, 0x00);
     writeIO(0xff, 0x00);
 
+    sgbMode = false;
     if (biosOn)
     {
         gbRegs.pc.w = 0;
