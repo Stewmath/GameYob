@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <time.h>
 //#include <iostream>
 //#include <string>
 #include "gbgfx.h"
@@ -19,6 +20,8 @@
 #include "cheats.h"
 
 extern bool __dsimode;
+extern time_t rawTime;
+extern time_t lastRawTime;
 
 void initializeGameboy() {
     initMMU();
@@ -62,6 +65,10 @@ int main(int argc, char* argv[])
 
     fifoSetValue32Handler(FIFO_USER_02, fifoValue32Handler, NULL);
 
+    time(&rawTime);
+    lastRawTime = rawTime;
+    timerStart(0, ClockDivider_1024, TIMER_FREQ_1024(1), clockUpdater);
+
     /* Reset the EZ3in1 if present */
     if (!__dsimode) {
         sysSetCartOwner(BUS_OWNER_ARM9);
@@ -100,7 +107,6 @@ int main(int argc, char* argv[])
 
 
     initializeGameboy();
-    startTimer();
 
     updateConsoleScreen();
 

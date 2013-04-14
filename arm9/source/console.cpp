@@ -220,10 +220,7 @@ void serialFunc(int value) {
 }
 
 void setRumbleFunc(int value) {
-    if (value > 0)
-        rumbleStrength = value;
-    else
-        rumbleStrength = 0;
+    rumbleStrength = value;
 
     if (__dsimode)
         return;
