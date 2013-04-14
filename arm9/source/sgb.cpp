@@ -4,14 +4,15 @@
 #include "gbgfx.h"
 #include "gbcpu.h"
 
-int sgbPacketLength; // Length of packet to be transferred (in bits)
-int sgbPacketBit; // Bit # currently being sent
-int sgbPacketsTransferred;
+int sgbPacketLength; // Number of packets to be transferred this command
+int sgbPacketsTransferred; // Number of packets which have been transferred so far
+int sgbPacketBit; // Next bit # to be sent in the packet. -1 if no packet is being transferred.
 u8 sgbPacket[16];
 u8 sgbCommand;
 
 u8* sgbPalettes = vram[1]; // Borrow vram bank 1. We don't need it in sgb mode.
-u8* sgbMap = vram[1]+0x1000;
+u8* sgbAttrFiles = vram[1]+0x1000;
+u8 sgbMap[20*18];
 
 int numControllers;
 int selectedController;
@@ -25,6 +26,23 @@ void initSGB() {
     numControllers=1;
     selectedController=0;
     sgbPacketBit = -1;
+}
+
+void sgbLoadAttrFile(int index) {
+    if (index > 0x2c) {
+        printLog("Bad Attr %x\n", index);
+        return;
+    }
+    printLog("Load Attr %x\n", index);
+    int src = index*90;
+    int dest=0;
+    for (int i=0; i<20*18/4; i++) {
+        sgbMap[dest++] = (sgbAttrFiles[src]>>6)&3;
+        sgbMap[dest++] = (sgbAttrFiles[src]>>4)&3;
+        sgbMap[dest++] = (sgbAttrFiles[src]>>2)&3;
+        sgbMap[dest++] = (sgbAttrFiles[src]>>0)&3;
+        src++;
+    }
 }
 
 void sgbPalXX(int block) {
@@ -54,8 +72,8 @@ void sgbPalXX(int block) {
 
     memcpy(bgPaletteData+s2*8, sgbPacket+1, 2);
     memcpy(sprPaletteData+s2*8, sgbPacket+1, 2);
-    memcpy(bgPaletteData+s2*8+2, sgbPacket+9, 8);
-    memcpy(sprPaletteData+s2*8+2, sgbPacket+9, 8);
+    memcpy(bgPaletteData+s2*8+2, sgbPacket+9, 6);
+    memcpy(sprPaletteData+s2*8+2, sgbPacket+9, 6);
 }
 
 void sgbAttrBlock(int block) {
@@ -73,18 +91,23 @@ void sgbAttrBlock(int block) {
             blockData[blockDataBytes] = sgbPacket[pos];
         }
         if (blockDataBytes == 6) {
+            printLog("Block ");
+            if (blockData[0]&1)
+                printLog("INSIDE ");
+            if (blockData[0]&2)
+                printLog("LINE ");
+            if (blockData[0]&4)
+                printLog("OUTSIDE");
+            printLog("\n");
             int palette = blockData[1]&3;
             int x1=blockData[2];
             int y1=blockData[3];
             int x2=blockData[4];
             int y2=blockData[5];
 
-            for (int i=0; i<6; i++)
-                printLog("%.2x ", blockData[i]);
-            printLog("\n");
             for (int x=x1; x<=x2; x++) {
                 for (int y=y1; y<=y2; y++) {
-                    vram[1][0x1000+y*20+x] = palette;
+                    sgbMap[y*20+x] = palette;
                 }
             }
 
@@ -95,16 +118,17 @@ void sgbAttrBlock(int block) {
 }
 
 void sgbPalSet(int block) {
-    printLog("SET\n");
     for (int i=0; i<4; i++) {
         int paletteid = (sgbPacket[i*2+1] | (sgbPacket[i*2+2]<<8));
-        printLog("%d: %x\n", i, paletteid);
+        //printLog("%d: %x\n", i, paletteid);
         memcpy(bgPaletteData+i*8, sgbPalettes + (sgbPacket[i*2+1] | (sgbPacket[i*2+2]<<8))*8, 8);
         memcpy(sprPaletteData+i*8, sgbPalettes + (sgbPacket[i*2+1] | sgbPacket[i*2+2]<<8)*8, 8);
     }
+    if (sgbPacket[9]&0x80) {
+        sgbLoadAttrFile(sgbPacket[9]&0x3f);
+    }
 }
 void sgbPalTrn(int block) {
-    printLog("TRN\n");
     memcpy(sgbPalettes, vram[0]+0x800, 0x1000);
 }
 
@@ -116,10 +140,19 @@ void sgbMltReq(int block) {
         selectedController = 0;
 }
 
+void sgbAttrTrn(int block) {
+    printLog("Attr TRN\n");
+    memcpy(sgbAttrFiles, vram[0]+0x800, 0xfd2);
+}
+
+void sgbAttrSet(int block) {
+    sgbLoadAttrFile(sgbPacket[1]&0x3f);
+}
+
 void (*sgbCommands[])(int) = {
     sgbPalXX,sgbPalXX,sgbPalXX,sgbPalXX,sgbAttrBlock,NULL,NULL,NULL,
     NULL,NULL,sgbPalSet,sgbPalTrn,NULL,NULL,NULL,NULL,
-    NULL,sgbMltReq,NULL,NULL,NULL,NULL,NULL,NULL,
+    NULL,sgbMltReq,NULL,NULL,NULL,sgbAttrTrn,sgbAttrSet,NULL,
     NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL
 };
 

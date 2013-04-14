@@ -104,6 +104,7 @@ typedef struct {
     u16 winBlankCnt;
     u16 winCnt;
     u16 winOverlayCnt;
+    u8 bgMap,winMap;
     bool spritesOn;
     bool tileSigned;
     u8 bgPaletteData[0x40];
@@ -210,8 +211,10 @@ inline void drawLine(int gbLine) {
     }
     if (state->sprPalettesModified) {
         if (gbMode == GB) {
-            updateSprPalette(0, state->sprPaletteData, state->sprPal[0]);
-            updateSprPalette(1, state->sprPaletteData, state->sprPal[1]);
+            for (int i=0; i<4; i++) {
+                updateSprPalette(i, state->sprPaletteData, state->sprPal[0]);
+                updateSprPalette(i+4, state->sprPaletteData, state->sprPal[1]);
+            }
         }
         else {
             for (int i=0; i<8; i++) {
@@ -372,27 +375,41 @@ void refreshGFX() {
 }
 
 void refreshSgbPalette() {
-    int winMap,bgMap;
-    if (ioRam[0x40] & 0x40)
-        winMap = 1;
-    else
-        winMap = 0;
-    if (ioRam[0x40] & 0x8)
-        bgMap = 1;
-    else
-        bgMap = 0;
+    int winMap=0,bgMap=0;
+    bool winOn=0;
+    int hofs=0,vofs=0,winX=0,winY=0;
 
-    for (int x=0; x<20; x++) {
-        for (int y=0; y<18; y++) {
-            int realx = (x*8-(ioRam[0x4b]-7))/8;
-            int realy = (y*8-ioRam[0x4a])/8;
-
-            int palette = vram[1][0x1000+y*20+x]&3;
-            if (realx >= 0 && realy >= 0 && realx < 32 && realy < 32) {
-                int i = realy*32+realx;
-                mapBuf[winMap][i] &= ~(7<<12);
-                mapBuf[winMap][i] |= (palette<<12);
+    for (int y=0; y<18; y++) {
+        for (int yPix=y*8; yPix<y*8+8; yPix++) {
+            if (renderingState[yPix].modified) {
+                winOn = renderingState[yPix].winOn;
+                winX = renderingState[yPix].winX;
+                winY = renderingState[yPix].winY;
+                hofs = renderingState[yPix].hofs;
+                vofs = renderingState[yPix].vofs;
+                winMap = renderingState[yPix].winMap;
+                bgMap = renderingState[yPix].bgMap;
             }
+        }
+        for (int x=0; x<20; x++) {
+            int palette = sgbMap[y*20+x]&3;
+
+            int realx = (x*8-(winX-7))/8;
+            int realy = (y*8-winY)/8;
+
+            if (winOn) {
+                if (realx >= 0 && realy >= 0 && realx < 32 && realy < 32) {
+                    int i = realy*32+realx;
+                    mapBuf[winMap][i] &= ~(7<<12);
+                    mapBuf[winMap][i] |= (palette<<12);
+                }
+            }
+
+            realx = ((x*8+hofs)&0xff)/8;
+            realy = ((y*8+vofs)&0xff)/8;
+            int i = realy*32+realx;
+            mapBuf[bgMap][i] &= ~(7<<12);
+            mapBuf[bgMap][i] |= (palette<<12);
         }
     }
 }
@@ -416,13 +433,6 @@ void enableScreen() {
     irqSet(IRQ_HBLANK, hblankHandler);
 
 }
-
-/*
-void setSgbPalette(int slot, int palette) {
-    memcpy(BG_PALETTE+slot*16+1, sgbPalettes+palette*2, 8);
-    memcpy(SPRITE_PALETTE+slot*16+1, sgbPalettes+palette*2, 8);
-}
-*/
 
 // Possibly doing twice the work necessary in gbc games, when writing to bank 0, then bank 1.
 void updateTileMap(int m, int i, u8 val) {
@@ -522,6 +532,8 @@ void copyTile(u8 *src,u16 *dest) {
 
 void drawScreen()
 {
+    refreshSgbPalette();
+
     DC_FlushRange(mapBuf[0], 0x400*2);
     DC_FlushRange(mapBuf[1], 0x400*2);
     DC_FlushRange(blankMapBuf[0], 0x400*2);
@@ -531,8 +543,6 @@ void drawScreen()
 
     if (!(fastForwardMode || fastForwardKey))
         swiIntrWait(interruptWaitMode, IRQ_VBLANK);
-
-    refreshSgbPalette();
 
     dmaCopy(mapBuf[0], map[0], 0x400*2);
     dmaCopy(mapBuf[1], map[1], 0x400*2);
@@ -603,7 +613,8 @@ void drawSprites(u8* data, int tall) {
             }
             else
             {
-                paletteid = !!(data[spriteNum+3] & 0x10);
+                int sgbPalette = sgbMap[y/8*20 + x/8]&3;
+                paletteid = sgbPalette+(!!(data[spriteNum+3] & 0x10))*4;
             }
 
             int priorityVal = (priority ? spr_priority_low : spr_priority);
@@ -732,6 +743,9 @@ void drawScanline(int scanline)
 
     renderingState[scanline].winOn = winOn;
     renderingState[scanline].spritesOn = ioRam[0x40] & 0x2;
+
+    renderingState[scanline].bgMap = BGMapAddr;
+    renderingState[scanline].winMap = winMapAddr;
 
     if (gbMode != CGB && !(ioRam[0x40] & 1)) {
         renderingState[scanline].winBlankCnt = BG_MAP_BASE(off_map_base) | 3;
@@ -869,6 +883,9 @@ void updateBgPalette(int paletteid, u8* data, u8 dmgPal) {
     }
 }
 void updateSprPalette(int paletteid, u8* data, u8 dmgPal) {
+    int src = paletteid;
+    if (gbMode == GB && paletteid >= 4) // SGB stuff
+        src -= 4;
     for (int i=0; i<4; i++) {
         int id;
         if (gbMode == GB)
@@ -876,7 +893,7 @@ void updateSprPalette(int paletteid, u8* data, u8 dmgPal) {
         else
             id = i;
 
-        SPRITE_PALETTE[((paletteid)*16)+i] = data[(paletteid*8)+(id*2)] | data[(paletteid*8)+(id*2)+1]<<8;
+        SPRITE_PALETTE[((paletteid)*16)+i] = data[(src*8)+(id*2)] | data[(src*8)+(id*2)+1]<<8;
     }
 }
 
