@@ -39,7 +39,7 @@ extern int rumbleInserted;
 void doRumble(bool rumbleVal);
 
 extern bool ramEnabled;
-extern u8   rtcReg;
+extern char rtcReg;
 extern u8   HuC3Mode;
 extern u8   HuC3Value;
 extern u8   HuC3Shift;
