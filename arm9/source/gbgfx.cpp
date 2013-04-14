@@ -6,6 +6,7 @@
 #include "gbcpu.h"
 #include "main.h"
 #include "gameboy.h"
+#include "sgb.h"
 
 const int spr_priority = 2;
 const int spr_priority_low = 3;
@@ -198,7 +199,8 @@ inline void drawLine(int gbLine) {
     }
     if (state->bgPalettesModified) {
         if (gbMode == GB) {
-            updateBgPalette(0, state->bgPaletteData, state->bgPal);
+            for (int i=0; i<4; i++)
+                updateBgPalette(i, state->bgPaletteData, state->bgPal);
         }
         else {
             for (int i=0; i<8; i++) {
@@ -369,6 +371,32 @@ void refreshGFX() {
     */
 }
 
+void refreshSgbPalette() {
+    int winMap,bgMap;
+    if (ioRam[0x40] & 0x40)
+        winMap = 1;
+    else
+        winMap = 0;
+    if (ioRam[0x40] & 0x8)
+        bgMap = 1;
+    else
+        bgMap = 0;
+
+    for (int x=0; x<20; x++) {
+        for (int y=0; y<18; y++) {
+            int realx = (x*8-(ioRam[0x4b]-7))/8;
+            int realy = (y*8-ioRam[0x4a])/8;
+
+            int palette = vram[1][0x1000+y*20+x]&3;
+            if (realx >= 0 && realy >= 0 && realx < 32 && realy < 32) {
+                int i = realy*32+realx;
+                mapBuf[winMap][i] &= ~(7<<12);
+                mapBuf[winMap][i] |= (palette<<12);
+            }
+        }
+    }
+}
+
 void disableScreen() {
     videoBgDisable(0);
     videoBgDisable(1);
@@ -388,6 +416,13 @@ void enableScreen() {
     irqSet(IRQ_HBLANK, hblankHandler);
 
 }
+
+/*
+void setSgbPalette(int slot, int palette) {
+    memcpy(BG_PALETTE+slot*16+1, sgbPalettes+palette*2, 8);
+    memcpy(SPRITE_PALETTE+slot*16+1, sgbPalettes+palette*2, 8);
+}
+*/
 
 // Possibly doing twice the work necessary in gbc games, when writing to bank 0, then bank 1.
 void updateTileMap(int m, int i, u8 val) {
@@ -496,6 +531,8 @@ void drawScreen()
 
     if (!(fastForwardMode || fastForwardKey))
         swiIntrWait(interruptWaitMode, IRQ_VBLANK);
+
+    refreshSgbPalette();
 
     dmaCopy(mapBuf[0], map[0], 0x400*2);
     dmaCopy(mapBuf[1], map[1], 0x400*2);

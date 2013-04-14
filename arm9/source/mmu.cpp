@@ -8,6 +8,7 @@
 #include "inputhelper.h"
 #include "main.h"
 #include "nifi.h"
+#include "sgb.h"
 #ifdef DS
 #include <nds.h>
 #endif
@@ -448,6 +449,8 @@ void initMMU()
     dmaLength=0;
     dmaMode=0;
 
+    initSGB();
+
     ramEnabled = false;
 
     rtcReg = -1;
@@ -568,6 +571,13 @@ u8 readIO(u8 ioReg)
 {
     switch (ioReg)
     {
+        case 0x00:
+            if (!(ioRam[ioReg]&0x20))
+                return 0xc0 | (ioRam[ioReg] & 0xF0) | (buttonsPressed & 0xF);
+            else if (!(ioRam[ioReg]&0x10))
+                return 0xc0 | (ioRam[ioReg] & 0xF0) | ((buttonsPressed & 0xF0)>>4);
+            else
+                return ioRam[ioReg];
         case 0x10: // NR10, sweep register 1, bit 7 set on read
             return ioRam[ioReg] | 0x80;
         case 0x11: // NR11, sound length/pattern duty 1, bits 5-0 set on read
@@ -684,12 +694,7 @@ void writeIO(u8 ioReg, u8 val)
     switch (ioReg)
     {
         case 0x00:
-            if (!(val&0x20))
-                ioRam[ioReg] = 0xc0 | (val & 0xF0) | (buttonsPressed & 0xF);
-            else if (!(val&0x10))
-                ioRam[ioReg] = 0xc0 | (val & 0xF0) | ((buttonsPressed & 0xF0)>>4);
-            else
-                ioRam[ioReg] = 0xff;
+            sgbHandleP1(val);
             return;
         case 0x02:
             {

@@ -12,6 +12,7 @@ void drawScreen();
 void initGFX();
 void initGFXPalette();
 void refreshGFX();
+void refreshSgbPalette();
 void disableScreen();
 void enableScreen();
 
