@@ -127,11 +127,14 @@ void sgbPalSet(int block) {
     if (sgbPacket[9]&0x80) {
         sgbLoadAttrFile(sgbPacket[9]&0x3f);
     }
-    if (sgbPacket[9]&40)
+    if (sgbPacket[9]&0x40)
         setGFXMask(0);
 }
 void sgbPalTrn(int block) {
-    memcpy(sgbPalettes, vram[0]+0x800, 0x1000);
+    if (ioRam[0x40] & 0x10)
+        memcpy(sgbPalettes, vram[0], 0x1000);
+    else
+        memcpy(sgbPalettes, vram[0]+0x800, 0x1000);
 }
 
 void sgbMltReq(int block) {
@@ -143,8 +146,10 @@ void sgbMltReq(int block) {
 }
 
 void sgbAttrTrn(int block) {
-    printLog("Attr TRN\n");
-    memcpy(sgbAttrFiles, vram[0]+0x800, 0xfd2);
+    if (ioRam[0x40] & 0x10)
+        memcpy(sgbAttrFiles, vram[0], 0x1000);
+    else
+        memcpy(sgbAttrFiles, vram[0]+0x800, 0xfd2);
 }
 
 void sgbAttrSet(int block) {

@@ -628,7 +628,7 @@ void drawSprites(u8* data, int tall) {
                     paletteid = sgbPalette+(!!(data[spriteNum+3] & 0x10))*4;
                 }
                 else
-                    paletteid = !!(data[spriteNum+3] & 10);
+                    paletteid = ((data[spriteNum+3] & 0x10) ? 5 : 0);
             }
 
             int priorityVal = (priority ? spr_priority_low : spr_priority);
