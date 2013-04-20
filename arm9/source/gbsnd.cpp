@@ -433,7 +433,6 @@ void handleSoundRegister(u8 ioReg, u8 val)
             {
                 chanOn &= ~CHAN_3;
                 clearChan3();
-                //buf.clear();
             }
             else {
                 chanOn |= CHAN_3;
@@ -441,7 +440,6 @@ void handleSoundRegister(u8 ioReg, u8 val)
             }
             setSoundVolume(2);
             ioRam[0x1a] = val | 0x7f;
-            //playChan3();
             break;
             // Length
         case 0x1B:
@@ -482,11 +480,12 @@ void handleSoundRegister(u8 ioReg, u8 val)
         case 0x1E:
             chanFreq[2] &= 0xFF;
             chanFreq[2] |= (val&7)<<8;
-            if ((val & 0x80) && (ioRam[0x1A] & 0x80))
+            if (val & 0x80)
             {
                 chanOn |= CHAN_3;
                 chanLenCounter[2] = (256-chanLen[2])*clockSpeed/256;
                 playSample(sound[2], sampleData, SoundFormat_8Bit, 0x20, 0, 0, 64, true, 0);
+                setSoundVolume(2);
                 setChan3();
             }
             if (val & 0x40)
@@ -499,7 +498,6 @@ void handleSoundRegister(u8 ioReg, u8 val)
             }
             ioRam[0x1e] = val;
             refreshSoundFreq(2);
-            setSoundVolume(2);
             break;
             // CHANNEL 4
             // Length
