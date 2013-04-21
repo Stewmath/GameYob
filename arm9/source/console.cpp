@@ -593,7 +593,7 @@ uint32   ReadNorFlashID()
             ID = 0x89168916;
             return ID;
         }
-        //¼ì²â256M¿¨
+        //256M
         *((vuint16 *)(FlashBase+0x555*2)) = 0xAA ;
         *((vuint16 *)(FlashBase+0x2AA*2)) = 0x55 ;
         *((vuint16 *)(FlashBase+0x555*2)) = 0x90 ;
