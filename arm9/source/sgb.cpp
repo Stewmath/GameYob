@@ -28,6 +28,13 @@ void initSGB() {
     sgbPacketBit = -1;
 }
 
+u8* getVramTransferSrc() {
+    if (ioRam[0x40] & 0x10)
+        return vram[0];
+    else
+        return vram[0]+0x800;
+}
+
 void sgbLoadAttrFile(int index) {
     if (index > 0x2c) {
         printLog("Bad Attr %x\n", index);
@@ -131,10 +138,7 @@ void sgbPalSet(int block) {
         setGFXMask(0);
 }
 void sgbPalTrn(int block) {
-    if (ioRam[0x40] & 0x10)
-        memcpy(sgbPalettes, vram[0], 0x1000);
-    else
-        memcpy(sgbPalettes, vram[0]+0x800, 0x1000);
+    memcpy(sgbPalettes, getVramTransferSrc(), 0x1000);
 }
 
 void sgbMltReq(int block) {
@@ -145,11 +149,16 @@ void sgbMltReq(int block) {
         selectedController = 0;
 }
 
+void sgbChrTrn(int blonk) {
+    setSgbTiles(getVramTransferSrc(), sgbPacket[1]);
+}
+
+void sgbPctTrn(int block) {
+    setSgbMap(getVramTransferSrc());
+}
+
 void sgbAttrTrn(int block) {
-    if (ioRam[0x40] & 0x10)
-        memcpy(sgbAttrFiles, vram[0], 0x1000);
-    else
-        memcpy(sgbAttrFiles, vram[0]+0x800, 0xfd2);
+    memcpy(sgbAttrFiles, getVramTransferSrc(), 0x1000);
 }
 
 void sgbAttrSet(int block) {
@@ -165,7 +174,7 @@ void sgbMask(int block) {
 void (*sgbCommands[])(int) = {
     sgbPalXX,sgbPalXX,sgbPalXX,sgbPalXX,sgbAttrBlock,NULL,NULL,NULL,
     NULL,NULL,sgbPalSet,sgbPalTrn,NULL,NULL,NULL,NULL,
-    NULL,sgbMltReq,NULL,NULL,NULL,sgbAttrTrn,sgbAttrSet,sgbMask,
+    NULL,sgbMltReq,NULL,sgbChrTrn,sgbPctTrn,sgbAttrTrn,sgbAttrSet,sgbMask,
     NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL
 };
 

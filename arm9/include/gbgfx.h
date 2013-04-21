@@ -17,6 +17,8 @@ void disableScreen();
 void enableScreen();
 
 void setGFXMask(int mask);
+void setSgbTiles(u8* src, u8 flags);
+void setSgbMap(u8* src);
 
 void writeVram(u16 addr, u8 val);
 void writeVram16(u16 addr, u16 src);
