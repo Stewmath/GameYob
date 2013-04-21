@@ -98,6 +98,7 @@ void sgbAttrBlock(int block) {
             blockData[blockDataBytes] = sgbPacket[pos];
         }
         if (blockDataBytes == 6) {
+            /*
             printLog("Block ");
             if (blockData[0]&1)
                 printLog("INSIDE ");
@@ -106,6 +107,7 @@ void sgbAttrBlock(int block) {
             if (blockData[0]&4)
                 printLog("OUTSIDE");
             printLog("\n");
+            */
             int palette = blockData[1]&3;
             int x1=blockData[2];
             int y1=blockData[3];
@@ -179,6 +181,11 @@ void (*sgbCommands[])(int) = {
 };
 
 void sgbHandleP1(u8 val) {
+    if ((val&0x30) == 0) {
+        sgbPacketBit = 0;
+        ioRam[0x00] = 0xcf;
+        return;
+    }
     if (sgbPacketBit != -1) {
         int shift = sgbPacketBit%8;
         int byte = (sgbPacketBit/8)%16;
@@ -219,11 +226,7 @@ void sgbHandleP1(u8 val) {
         }
     }
     else {
-        if ((val&0x30) == 0) {
-            sgbPacketBit = 0;
-            ioRam[0x00] = 0xcf;
-        }
-        else if ((val&0x30) == 0x30) {
+        if ((val&0x30) == 0x30) {
             selectedController++;
             if (selectedController >= numControllers)
                 selectedController = 0;

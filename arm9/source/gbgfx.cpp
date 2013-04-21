@@ -12,28 +12,30 @@ const int spr_priority = 2;
 const int spr_priority_low = 3;
 
 const int map_base[] = {1, 2};
-const int blank_map_base[] = {3, 4};
+const int color0_map_base[] = {3, 4};
 const int overlay_map_base[] = {5, 6};
 const int off_map_base = 7;
 const int border_map_base = 8;
 
-const int win_blank_priority = 3;
+const int win_color0_priority = 3;
 const int win_priority = 2;
 
-const int bg_blank_priority = 3;
+const int bg_color0_priority = 3;
 const int bg_priority = 2;
 
 const int bg_overlay_priority = 1;
 const int win_overlay_priority = 1;
 
+const int win_all_priority = 2;
+
 u16* map[2];
-u16* blankMap[2];
+u16* color0Map[2];
 u16* overlayMap[2];
 u16* offMap;
 u16* borderMap;
 
 u16 mapBuf[2][0x400];
-u16 blankMapBuf[2][0x400];
+u16 color0MapBuf[2][0x400];
 u16 overlayMapBuf[2][0x400];
 
 int screenOffsX = 48;
@@ -90,12 +92,13 @@ typedef struct {
     u8 winY;
     u8 winPosY;
     u8 winOn;
-    u16 bgBlankCnt;
+    u16 bgColor0Cnt;
     u16 bgCnt;
     u16 bgOverlayCnt;
-    u16 winBlankCnt;
-    u16 winCnt;
-    u16 winOverlayCnt;
+    u16 winColor0Cnt;   // Contains color 0 only
+    u16 winCnt;         // Contains colors 1-3
+    u16 winOverlayCnt;  // Contains colors 1-3, only for 'priority' tiles
+    u16 winAllCnt;      // Contains colors 0-3. Used when available layers are limited.
     u8 bgMap,winMap;
     bool spritesOn;
     bool tileSigned;
@@ -125,6 +128,10 @@ typedef struct
 
 #define sprites ((spriteEntry*)OAM)
 
+#define BG_CNT(x) (*((vu16*)0x4000008+(x)))
+#define BG_HOFS(x) (*((vu16*)0x4000010+(x)*2))
+#define BG_VOFS(x) (*((vu16*)0x4000012+(x)*2))
+
 // The graphics are drawn with the DS's native hardware.
 // Games tend to modify the graphics in the middle of being drawn.
 // These changes are recorded and applied during DS hblank.
@@ -137,14 +144,78 @@ inline void drawLine(int gbLine) {
     else
         REG_DISPCNT &= ~DISPLAY_SPR_ACTIVE;
 
-    int hofs = state->hofs-screenOffsX;
-    int vofs = state->vofs-screenOffsY;
+    bool useWin = state->winOn && !windowDisabled;
+    int layer = 0;
+    int bgLayers,winLayers;
+    if (useWin) {
+        if (state->winX > 7) {
+            winLayers = 1;
+            bgLayers = 2;
+        }
+        else {
+            winLayers = 3;
+            bgLayers = 0;
+        }
+    }
+    else {
+        winLayers = 0;
+        bgLayers = 3;
+        WIN_IN |= 7;
+        WIN0_X0 = screenOffsX;
+        WIN0_Y0 = screenOffsY;
+    }
 
-    REG_BG3HOFS = hofs;
-    REG_BG3VOFS = vofs;
-    REG_BG3CNT = state->bgCnt;
+    if (winLayers != 0) {
+        int whofs = -(state->winX-7)-screenOffsX;
+        int wvofs = -(gbLine-state->winPosY)-screenOffsY;
+        if (winLayers == 1) {
+            BG_CNT(layer) = state->winAllCnt;
+            BG_HOFS(layer) = whofs;
+            BG_VOFS(layer++) = wvofs;
+        }
+        else {
+            BG_CNT(layer) = state->winColor0Cnt;
+            BG_HOFS(layer) = whofs;
+            BG_VOFS(layer++) = wvofs;
+            BG_CNT(layer) = state->winCnt;
+            BG_HOFS(layer) = whofs;
+            BG_VOFS(layer++) = wvofs;
+            if (winLayers >= 3) {
+                BG_CNT(layer) = state->winOverlayCnt;
+                BG_HOFS(layer) = whofs;
+                BG_VOFS(layer++) = wvofs;
+            }
+        }
+        if (state->winX <= 7)
+            WIN0_X0 = screenOffsX;
+        else
+            WIN0_X0 = state->winX-7+screenOffsX;
+        WIN_IN |= 7<<8;
+        for (int i=0; i<layer; i++)
+            WIN_IN &= ~(1<<(8+i));
+    }
+    if (bgLayers > 1) {
+        int hofs = state->hofs-screenOffsX;
+        int vofs = state->vofs-screenOffsY;
+        BG_CNT(layer) = state->bgColor0Cnt;
+        BG_HOFS(layer) = hofs;
+        BG_VOFS(layer++) = vofs;
+        BG_CNT(layer) = state->bgCnt;
+        BG_HOFS(layer) = hofs;
+        BG_VOFS(layer++) = vofs;
+        if (bgLayers >= 3) {
+            BG_CNT(layer) = state->bgOverlayCnt;
+            BG_HOFS(layer) = hofs;
+            BG_VOFS(layer++) = vofs;
+        }
+    }
 
-    REG_BG2CNT = state->bgBlankCnt;
+    /*
+    BG_HOFS(3) = hofs;
+    BG_VOFS(3) = vofs;
+    BG_CNT(3) = state->bgCnt;
+
+    REG_BG2CNT = state->bgColor0Cnt;
     REG_BG2HOFS = hofs;
     REG_BG2VOFS = vofs;
 
@@ -152,11 +223,9 @@ inline void drawLine(int gbLine) {
         REG_DISPCNT &= ~DISPLAY_WIN0_ON;
         WIN_IN = (WIN_IN | (1<<8)) & ~4; // Set bit 8, unset bit 2
 
-        /*
         REG_BG0CNT = state->bgOverlayCnt;
         REG_BG0HOFS = hofs;
         REG_BG0VOFS = vofs;
-        */
     }
     else {
         REG_DISPCNT |= DISPLAY_WIN0_ON;
@@ -173,11 +242,9 @@ inline void drawLine(int gbLine) {
         int whofs = -(winX-7)-screenOffsX;
         int wvofs = -(gbLine-state->winPosY)-screenOffsY;
 
-        /*
         REG_BG0HOFS = whofs;
         REG_BG0VOFS = wvofs;
-        REG_BG0CNT = state->winBlankCnt;
-        */
+        REG_BG0CNT = state->winColor0Cnt;
 
         REG_BG1HOFS = whofs;
         REG_BG1VOFS = wvofs;
@@ -193,10 +260,13 @@ inline void drawLine(int gbLine) {
             REG_BG2CNT = state->winOverlayCnt;
         }
     }
+    */
     if (state->bgPalettesModified) {
         if (gbMode == GB) {
             for (int i=0; i<4; i++)
                 updateBgPalette(i, state->bgPaletteData, state->bgPal);
+            if (sgbMode)
+                BG_PALETTE[0] = state->bgPaletteData[0] | state->bgPaletteData[1]<<8;
         }
         else {
             for (int i=0; i<8; i++) {
@@ -219,9 +289,6 @@ inline void drawLine(int gbLine) {
     }
     if (state->spritesModified)
         drawSprites(state->spriteData, state->tallSprites);
-    REG_BG0CNT = BG_MAP_BASE(border_map_base) | BG_TILE_BASE(8);
-    REG_BG0HOFS = 0;
-    REG_BG0VOFS = -(screenOffsY-40);
 }
 
 void hblankHandler() ITCM_CODE;
@@ -264,37 +331,37 @@ void initGFX()
 
 
     // Backdrop
-    BG_PALETTE[0] = RGB8(0,0,0);
+    //BG_PALETTE[0] = RGB8(0,0,0);
 
     map[0] = BG_MAP_RAM(map_base[0]);
     map[1] = BG_MAP_RAM(map_base[1]);
-    blankMap[0] = BG_MAP_RAM(blank_map_base[0]);
-    blankMap[1] = BG_MAP_RAM(blank_map_base[1]);
+    color0Map[0] = BG_MAP_RAM(color0_map_base[0]);
+    color0Map[1] = BG_MAP_RAM(color0_map_base[1]);
     overlayMap[0] = BG_MAP_RAM(overlay_map_base[0]);
     overlayMap[1] = BG_MAP_RAM(overlay_map_base[1]);
     offMap = BG_MAP_RAM(off_map_base);
     borderMap = BG_MAP_RAM(border_map_base);
 
-    // Tile for "Blank maps", which contain only the gameboy's color 0.
+    // Tile for "color0 maps", which contain only the gameboy's color 0.
     for (int i=0; i<16; i++) {
         BG_GFX[i] = 1 | (1<<4) | (1<<8) | (1<<12);
     }
 
     // Initialize the "off map", for when the gameboy screen is disabled.
-    // Uses the "Blank map" tile because, why not.
+    // Uses the "color0 map" tile because, why not.
     for (int i=0; i<32*32; i++) {
-        offMap[i] = 8<<12;
+        offMap[i] = 15<<12;
     }
     // Off map palette
-    BG_PALETTE[8*16+1] = RGB8(255,255,255);
+    BG_PALETTE[15*16+1] = RGB8(255,255,255);
 
     for (int i=40; i<128; i++)
         sprites[i].attr0 = ATTR0_DISABLED;
 
     initGFXPalette();
 
-    WIN_IN = (0x7) | (1<<4) | (0xc<<8) | (1<<12);
-    WIN_OUT = 1;
+    WIN_IN = 7 | (1<<4) | (1<<12);
+    WIN_OUT = 1<<3;
     WIN1_X0 = screenOffsX;
     WIN1_X1 = screenOffsX+160;
     WIN1_Y0 = screenOffsY;
@@ -320,6 +387,10 @@ void initGFX()
     memset(vram[1], 0, 0x2000);
 
     gfxMask = 0;
+
+    REG_BG3CNT = BG_MAP_BASE(border_map_base) | BG_TILE_BASE(12);
+    REG_BG3HOFS = 0;
+    REG_BG3VOFS = -(screenOffsY-40);
 
     refreshGFX();
 }
@@ -417,22 +488,15 @@ void refreshSgbPalette() {
 }
 
 void disableScreen() {
-    //videoBgDisable(0);
-    videoBgDisable(1);
     REG_BG2CNT = BG_MAP_BASE(off_map_base);
-    videoBgDisable(3);
-    REG_DISPCNT &= ~(DISPLAY_SPR_ACTIVE | DISPLAY_WIN0_ON);
-    irqClear(IRQ_HBLANK);
+    REG_DISPCNT &= ~DISPLAY_SPR_ACTIVE;
+    WIN_IN |= 7<<8;
+    irqDisable(IRQ_HBLANK);
 }
 void enableScreen() {
-    videoBgEnable(0);
-    videoBgEnable(1);
-    videoBgEnable(2);
-    videoBgEnable(3);
     if (!hblankDisabled) {
         irqEnable(IRQ_HBLANK);
     }
-    irqSet(IRQ_HBLANK, hblankHandler);
 }
 
 void setGFXMask(int mask) {
@@ -481,8 +545,8 @@ void setSgbTiles(u8* src, u8 flags) {
                 bb0 |= (colorid<<shift);
                 shift -= 4;
             }
-            BG_GFX[0x10000+index++] = bb0;
-            BG_GFX[0x10000+index++] = bb1;
+            BG_GFX[0x18000+index++] = bb0;
+            BG_GFX[0x18000+index++] = bb1;
         }
         srcIndex += 16;
     }
@@ -498,9 +562,8 @@ void setSgbMap(u8* src) {
         borderMap[i] = tile | (paletteid<<12) | (flipX<<10) | (flipY<<11);
     }
 
-    DC_FlushRange(src, 0x800);
+    DC_FlushRange(src+0x800, 0x80);
     dmaCopy(src+0x800, BG_PALETTE+8*16, 0x80);
-    //BG_PALETTE[0] = src[0x860] | src[0x861]<<8;
 }
 
 // Possibly doing twice the work necessary in gbc games, when writing to bank 0, then bank 1.
@@ -527,7 +590,7 @@ void updateTileMap(int m, int i, u8 val) {
         overlayMapBuf[m][i] = 0x300;
     }
     mapBuf[m][i] = (tileNum+(bank*0x100)) | (paletteid<<12) | (flipX<<10) | (flipY<<11);
-    blankMapBuf[m][i] = paletteid<<12;
+    color0MapBuf[m][i] = paletteid<<12;
 }
 
 void drawTile(int tileNum, int bank) {
@@ -543,6 +606,7 @@ void drawTile(int tileNum, int bank) {
         int b1=*(src++);
         int b2=*(src++)<<1;
         int bb0=0, bb1=0;
+        int fb0=0, fb1=0;
         int sb0=0, sb1=0;
         int shift=12;
         for (int x=0; x<4; x++) {
@@ -551,6 +615,7 @@ void drawTile(int tileNum, int bank) {
             colorid |= b2&2;
             b2 >>= 1;
 
+            fb1 |= (colorid+1)<<shift;
             if (colorid != 0)
                 bb1 |= ((colorid+1)<<shift);
             if (unsign)
@@ -564,6 +629,7 @@ void drawTile(int tileNum, int bank) {
             colorid |= b2&2;
             b2 >>= 1;
 
+            fb0 |= (colorid+1)<<shift;
             if (colorid != 0)
                 bb0 |= ((colorid+1)<<shift);
             if (unsign)
@@ -571,14 +637,18 @@ void drawTile(int tileNum, int bank) {
             shift -= 4;
         }
         if (unsign) {
-            BG_GFX[0x4000+index] = bb0;
-            BG_GFX[0x4000+index+1] = bb1;
+            BG_GFX[0x8000+index] = bb0;
+            BG_GFX[0x8000+index+1] = bb1;
+            BG_GFX[0x10000+index] = fb0;
+            BG_GFX[0x10000+index+1] = fb1;
             SPRITE_GFX[index++] = sb0;
             SPRITE_GFX[index++] = sb1;
         }
         if (sign) {
-            BG_GFX[0x8000+signedIndex++] = bb0;
-            BG_GFX[0x8000+signedIndex++] = bb1;
+            BG_GFX[0xc000+signedIndex] = bb0;
+            BG_GFX[0xc000+signedIndex+1] = bb1;
+            BG_GFX[0x14000+signedIndex++] = fb0;
+            BG_GFX[0x14000+signedIndex++] = fb1;
         }
     }
 }
@@ -606,8 +676,8 @@ void drawScreen()
 
     DC_FlushRange(mapBuf[0], 0x400*2);
     DC_FlushRange(mapBuf[1], 0x400*2);
-    DC_FlushRange(blankMapBuf[0], 0x400*2);
-    DC_FlushRange(blankMapBuf[1], 0x400*2);
+    DC_FlushRange(color0MapBuf[0], 0x400*2);
+    DC_FlushRange(color0MapBuf[1], 0x400*2);
     DC_FlushRange(overlayMapBuf[0], 0x400*2);
     DC_FlushRange(overlayMapBuf[1], 0x400*2);
 
@@ -618,8 +688,8 @@ void drawScreen()
         return;
     dmaCopy(mapBuf[0], map[0], 0x400*2);
     dmaCopy(mapBuf[1], map[1], 0x400*2);
-    dmaCopy(blankMapBuf[0], blankMap[0], 0x400*2);
-    dmaCopy(blankMapBuf[1], blankMap[1], 0x400*2);
+    dmaCopy(color0MapBuf[0], color0Map[0], 0x400*2);
+    dmaCopy(color0MapBuf[1], color0Map[1], 0x400*2);
     dmaCopy(overlayMapBuf[0], overlayMap[0], 0x400*2);
     dmaCopy(overlayMapBuf[1], overlayMap[1], 0x400*2);
 
@@ -825,10 +895,10 @@ void drawScanline(int scanline)
     renderingState[scanline].winMap = winMap;
 
     if (gbMode != CGB && !(ioRam[0x40] & 1)) {
-        renderingState[scanline].winBlankCnt = BG_MAP_BASE(off_map_base) | 3;
+        renderingState[scanline].winColor0Cnt = BG_MAP_BASE(off_map_base) | 3;
         renderingState[scanline].winCnt = BG_MAP_BASE(off_map_base) | 3;
         renderingState[scanline].winOverlayCnt = BG_MAP_BASE(off_map_base) | 3;
-        renderingState[scanline].bgBlankCnt = BG_MAP_BASE(off_map_base) | 3;
+        renderingState[scanline].bgColor0Cnt = BG_MAP_BASE(off_map_base) | 3;
         renderingState[scanline].bgCnt = BG_MAP_BASE(off_map_base) | 3;
         renderingState[scanline].bgOverlayCnt = BG_MAP_BASE(off_map_base) | 3;
     }
@@ -840,12 +910,14 @@ void drawScanline(int scanline)
 
         renderingState[scanline].tileSigned = tileSigned;
 
-        int tileBase = (tileSigned ? 4 : 2);
+        int tileBase = (tileSigned ? 6 : 4);
 
-        renderingState[scanline].winBlankCnt = (BG_MAP_BASE(blank_map_base[winMap]) | BG_TILE_BASE(0) | win_blank_priority);
+        renderingState[scanline].winColor0Cnt = (BG_MAP_BASE(color0_map_base[winMap]) | BG_TILE_BASE(0) | win_color0_priority);
         renderingState[scanline].winCnt = (BG_MAP_BASE(winMapBase) | BG_TILE_BASE(tileBase) | win_priority);
-        renderingState[scanline].bgBlankCnt = (BG_MAP_BASE(blank_map_base[bgMap]) | BG_TILE_BASE(0) | bg_blank_priority);
+        renderingState[scanline].bgColor0Cnt = (BG_MAP_BASE(color0_map_base[bgMap]) | BG_TILE_BASE(0) | bg_color0_priority);
         renderingState[scanline].bgCnt = (BG_MAP_BASE(bgMapBase) | BG_TILE_BASE(tileBase) | bg_priority);
+
+        renderingState[scanline].winAllCnt = (BG_MAP_BASE(winMapBase) | BG_TILE_BASE(tileBase+4) | win_all_priority);
 
         if (priorityOn) {
             renderingState[scanline].winOverlayCnt = (BG_MAP_BASE(overlay_map_base[winMap]) | BG_TILE_BASE(tileBase) | win_overlay_priority);
