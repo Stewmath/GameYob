@@ -1,4 +1,3 @@
 #pragma once
 
-void startTimer();
-int getTimerTicks();
+void clockUpdater(); 

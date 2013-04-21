@@ -18,6 +18,9 @@ int mode2Cycles, mode3Cycles;
 int scanlineCounter;
 int doubleSpeed;
 
+time_t rawTime;
+time_t lastRawTime;
+
 int fps;
 bool fpsOutput=true;
 bool timeOutput=true;
@@ -62,7 +65,7 @@ int updateInput() {
 
     readKeys();
     int retval = handleEvents();		// Input mostly
-    if (!consoleDebugOutput && getTimerTicks() >= 1000)
+    if (!consoleDebugOutput && (rawTime > lastRawTime))
     {
         consoleClear();
         int line=0;
@@ -72,11 +75,9 @@ int updateInput() {
             line++;
         }
         fps = 0;
-        startTimer();
         if (timeOutput) {
             for (; line<23-1; line++)
                 iprintf("\n");
-            time_t rawTime = time(NULL);
             char *timeString = ctime(&rawTime);
             for (int i=0;; i++) {
                 if (timeString[i] == ':') {
@@ -92,6 +93,7 @@ int updateInput() {
                 iprintf(" ");
             iprintf("%s\n", s);
         }
+        lastRawTime = rawTime;
     }
     return retval;
 }

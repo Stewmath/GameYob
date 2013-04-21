@@ -13,6 +13,8 @@
 #include <nds.h>
 #endif
 
+extern time_t rawTime;
+
 #define refreshVramBank() { \
     memory[0x8] = vram[vramBank]; \
     memory[0x9] = vram[vramBank]+0x1000; }
@@ -376,10 +378,8 @@ void m5w (u16 addr, u8 val) {
             /* MBC5 might have a rumble motor, which is triggered by the
              * 4th bit of the value written */
             if (hasRumble) {
-                if (rumbleStrength)
-                {
-                    if (rumbleInserted)
-                    {
+                if (rumbleStrength) {
+                    if (rumbleInserted) {
                         rumbleValue = (val & 0x8) ? 1 : 0;
                         if (rumbleValue != lastRumbleValue)
                         {
@@ -505,7 +505,7 @@ void mapMemory() {
 void latchClock()
 {
     // +2h, the same as lameboy
-    time_t now = time(NULL)-120*60;
+    time_t now = rawTime-120*60;
     time_t difference = now - gbClock.last;
     struct tm* lt = gmtime((const time_t *)&difference);
 

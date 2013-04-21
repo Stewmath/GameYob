@@ -150,7 +150,9 @@ int main() {
 
 	irqInit();
 	// Start the RTC tracking IRQ
-	initClockIRQ();
+	//initClockIRQ(); //windwakr: Doesn't seem to work on 3DS.
+	resyncClock();
+
 	fifoInit();
 
 	SetYtrigger(80);
