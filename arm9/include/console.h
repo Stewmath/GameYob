@@ -1,6 +1,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 
+extern bool resetting;
 extern bool consoleDebugOutput;
 extern int selectedGameboyMode;
 extern bool gbaModeOption;

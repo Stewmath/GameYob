@@ -21,6 +21,7 @@ char printMessage[33];
 int consoleScreenBacklight;
 int stateNum=0;
 
+bool resetting;
 int selectedGameboyMode=0;
 bool gbaModeOption=false;
 int sgbModeOption=false;
@@ -130,7 +131,9 @@ void stateSaveFunc(int value) {
     printConsoleMessage("State saved.");
 }
 void resetFunc(int value) {
+    resetting = true;
     initializeGameboy();
+    resetting = false;
     quitConsole = true;
     displayConsoleRetval = 1;
 }

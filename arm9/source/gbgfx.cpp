@@ -222,7 +222,7 @@ inline void drawLine(int gbLine) {
         if (gbMode == GB) {
             for (int i=0; i<4; i++)
                 updateBgPalette(i, state->bgPaletteData, state->bgPal);
-            if (sgbMode)
+            if (sgbMode && loadedBorderType == BORDER_SGB)
                 BG_PALETTE[0] = state->bgPaletteData[0] | state->bgPaletteData[1]<<8;
         }
         else {
@@ -304,34 +304,49 @@ int loadBorder(const char* filename) {
 
     fclose(file);
 
-    REG_DISPCNT &= ~7;
-    REG_DISPCNT |= 3; // Mode 3
-    REG_BG3CNT = BG_MAP_BASE(16) | BG_BMP16_256x256;
-    REG_BG3X = 0;
-    REG_BG3Y = 0;
-    REG_BG3PA = 1<<8;
-    REG_BG3PB = 0;
-    REG_BG3PC = 0;
-    REG_BG3PD = 1<<8;
     loadedBorderType = BORDER_CUSTOM;
     return 0;
 }
 void setCustomBorder(bool enabled) {
     if (loadedBorderType == BORDER_CUSTOM && !customBordersEnabled)
         loadedBorderType = BORDER_NONE;
-    if (loadedBorderType == BORDER_CUSTOM)
-        return;
+    if (loadedBorderType == BORDER_SGB && !sgbBordersEnabled)
+        loadedBorderType = BORDER_NONE;
+
+    if (resetting && loadedBorderType != BORDER_NONE)
+        goto end; // Don't overwrite the border when "reset" is selected.
+
     if (enabled) {
+        if (loadedBorderType == BORDER_CUSTOM)
+            return;
         if (loadBorder("/border.bmp") == 1)
-            videoBgDisable(3);
-        else
-            videoBgEnable(3);
+            loadedBorderType = BORDER_NONE;
     }
-    else {
-        videoBgDisable(3);
+    else
+        loadedBorderType = BORDER_NONE;
+
+end:
+
+    videoBgDisable(3);
+    if (loadedBorderType == BORDER_CUSTOM) {
+        REG_DISPCNT &= ~7;
+        REG_DISPCNT |= 3; // Mode 3
+        REG_BG3CNT = BG_MAP_BASE(16) | BG_BMP16_256x256;
+        REG_BG3X = 0;
+        REG_BG3Y = 0;
+        REG_BG3PA = 1<<8;
+        REG_BG3PB = 0;
+        REG_BG3PC = 0;
+        REG_BG3PD = 1<<8;
+        videoBgEnable(3);
     }
-    if (loadedBorderType == BORDER_NONE)
-        BG_PALETTE[0] = 0; // Backdrop
+    else if (loadedBorderType == BORDER_SGB) {
+        REG_DISPCNT &= ~7; // Mode 0
+        videoBgEnable(3);
+    }
+    else if (loadedBorderType == BORDER_NONE) {
+        BG_PALETTE[0] = 0; // Reset backdrop (SGB borders use the backdrop)
+    }
 }
 
 
@@ -341,7 +356,6 @@ void initGFX()
     vramSetBankB(VRAM_B_MAIN_BG);
     vramSetBankD(VRAM_D_MAIN_BG_0x06040000);
     vramSetBankE(VRAM_E_MAIN_SPRITE);
-
 
     map[0] = BG_MAP_RAM(map_base[0]);
     map[1] = BG_MAP_RAM(map_base[1]);
@@ -383,6 +397,8 @@ void initGFX()
 
     videoSetMode(MODE_3_2D | DISPLAY_BG0_ACTIVE | DISPLAY_BG1_ACTIVE | DISPLAY_BG2_ACTIVE | DISPLAY_BG3_ACTIVE |
             DISPLAY_WIN0_ON | DISPLAY_WIN1_ON | DISPLAY_SPR_ACTIVE | DISPLAY_SPR_1D);
+
+    setCustomBorder(customBordersEnabled);
     
     REG_DISPSTAT &= 0xFF;
     REG_DISPSTAT |= (144+screenOffsY)<<8;
@@ -398,7 +414,6 @@ void initGFX()
 
     gfxMask = 0;
 
-    setCustomBorder(customBordersEnabled);
     refreshGFX();
 }
 
@@ -576,6 +591,8 @@ void setSgbMap(u8* src) {
     DC_FlushRange(src+0x800, 0x80);
     dmaCopy(src+0x800, BG_PALETTE+8*16, 0x80);
 
+    if (loadedBorderType != BORDER_SGB)
+        videoBgDisable(3);
     loadedBorderType = BORDER_SGB;
     REG_BG3CNT = BG_MAP_BASE(border_map_base) | BG_TILE_BASE(12);
     REG_BG3HOFS = 0;
