@@ -7,6 +7,13 @@
 #include "main.h"
 #include "gameboy.h"
 #include "sgb.h"
+#include "console.h"
+
+enum {
+    BORDER_NONE=0,
+    BORDER_SGB,
+    BORDER_CUSTOM
+};
 
 const int spr_priority = 2;
 const int spr_priority_low = 3;
@@ -73,6 +80,7 @@ bool windowDisabled = false;
 bool hblankDisabled = false;
 
 int gfxMask;
+int loadedBorderType;
 
 
 void drawSprite(u8* data);
@@ -210,57 +218,6 @@ inline void drawLine(int gbLine) {
         }
     }
 
-    /*
-    BG_HOFS(3) = hofs;
-    BG_VOFS(3) = vofs;
-    BG_CNT(3) = state->bgCnt;
-
-    REG_BG2CNT = state->bgColor0Cnt;
-    REG_BG2HOFS = hofs;
-    REG_BG2VOFS = vofs;
-
-    if (!state->winOn || windowDisabled) {
-        REG_DISPCNT &= ~DISPLAY_WIN0_ON;
-        WIN_IN = (WIN_IN | (1<<8)) & ~4; // Set bit 8, unset bit 2
-
-        REG_BG0CNT = state->bgOverlayCnt;
-        REG_BG0HOFS = hofs;
-        REG_BG0VOFS = vofs;
-    }
-    else {
-        REG_DISPCNT |= DISPLAY_WIN0_ON;
-        WIN_IN &= ~(1<<8);
-
-        int winX = state->winX;
-
-        if (winX <= 7)
-            WIN0_X0 = screenOffsX;
-        else
-            WIN0_X0 = winX-7+screenOffsX;
-        WIN0_Y0 = state->winY+screenOffsY;
-
-        int whofs = -(winX-7)-screenOffsX;
-        int wvofs = -(gbLine-state->winPosY)-screenOffsY;
-
-        REG_BG0HOFS = whofs;
-        REG_BG0VOFS = wvofs;
-        REG_BG0CNT = state->winColor0Cnt;
-
-        REG_BG1HOFS = whofs;
-        REG_BG1VOFS = wvofs;
-        REG_BG1CNT = state->winCnt;
-
-        // If window fills whole scanline, give it one of the background layers 
-        // for "tile priority" (overlay).
-        if (winX <= 7) {
-            WIN_IN |= 4;
-
-            REG_BG2HOFS = whofs;
-            REG_BG2VOFS = wvofs;
-            REG_BG2CNT = state->winOverlayCnt;
-        }
-    }
-    */
     if (state->bgPalettesModified) {
         if (gbMode == GB) {
             for (int i=0; i<4; i++)
@@ -323,15 +280,68 @@ void vblankHandler()
     frame++;
 }
 
+int loadBorder(const char* filename) {
+    FILE* file = fopen(filename, "rb");
+    if (file == NULL) {
+        printLog("Error opening border.\n");
+        return 1;
+    }
+
+    fseek(file, 0xe, SEEK_SET);
+    u8 pixelStart = (u8)fgetc(file) + 0xe;
+    fseek(file, pixelStart, SEEK_SET);
+    for (int y=191; y>=0; y--) {
+        u16 buffer[256];
+        fread(buffer, 2, 0x100, file);
+        /*
+        DC_FlushRange(buffer, 0x100*2);
+        dmaCopy(buffer, BG_GFX+0x20000+y*256, 0x100*2);
+        */
+        for (int i=0; i<256; i++) {
+            BG_GFX[0x20000+y*256+i] = ((buffer[i]>>10)&0x1f) | ((buffer[i])&(0x1f<<5)) | (buffer[i]&0x1f)<<10 | BIT(15);
+        }
+    }
+
+    fclose(file);
+
+    REG_DISPCNT &= ~7;
+    REG_DISPCNT |= 3; // Mode 3
+    REG_BG3CNT = BG_MAP_BASE(16) | BG_BMP16_256x256;
+    REG_BG3X = 0;
+    REG_BG3Y = 0;
+    REG_BG3PA = 1<<8;
+    REG_BG3PB = 0;
+    REG_BG3PC = 0;
+    REG_BG3PD = 1<<8;
+    loadedBorderType = BORDER_CUSTOM;
+    return 0;
+}
+void setCustomBorder(bool enabled) {
+    if (loadedBorderType == BORDER_CUSTOM && !customBordersEnabled)
+        loadedBorderType = BORDER_NONE;
+    if (loadedBorderType == BORDER_CUSTOM)
+        return;
+    if (enabled) {
+        if (loadBorder("/border.bmp") == 1)
+            videoBgDisable(3);
+        else
+            videoBgEnable(3);
+    }
+    else {
+        videoBgDisable(3);
+    }
+    if (loadedBorderType == BORDER_NONE)
+        BG_PALETTE[0] = 0; // Backdrop
+}
+
+
 void initGFX()
 {
     vramSetBankA(VRAM_A_MAIN_BG);
     vramSetBankB(VRAM_B_MAIN_BG);
+    vramSetBankD(VRAM_D_MAIN_BG_0x06040000);
     vramSetBankE(VRAM_E_MAIN_SPRITE);
 
-
-    // Backdrop
-    //BG_PALETTE[0] = RGB8(0,0,0);
 
     map[0] = BG_MAP_RAM(map_base[0]);
     map[1] = BG_MAP_RAM(map_base[1]);
@@ -371,7 +381,7 @@ void initGFX()
     WIN0_X1 = screenOffsX+160;
     WIN0_Y1 = screenOffsY+144;
 
-    videoSetMode(MODE_0_2D | DISPLAY_BG0_ACTIVE | DISPLAY_BG1_ACTIVE | DISPLAY_BG2_ACTIVE | DISPLAY_BG3_ACTIVE | 
+    videoSetMode(MODE_3_2D | DISPLAY_BG0_ACTIVE | DISPLAY_BG1_ACTIVE | DISPLAY_BG2_ACTIVE | DISPLAY_BG3_ACTIVE |
             DISPLAY_WIN0_ON | DISPLAY_WIN1_ON | DISPLAY_SPR_ACTIVE | DISPLAY_SPR_1D);
     
     REG_DISPSTAT &= 0xFF;
@@ -388,10 +398,7 @@ void initGFX()
 
     gfxMask = 0;
 
-    REG_BG3CNT = BG_MAP_BASE(border_map_base) | BG_TILE_BASE(12);
-    REG_BG3HOFS = 0;
-    REG_BG3VOFS = -(screenOffsY-40);
-
+    setCustomBorder(customBordersEnabled);
     refreshGFX();
 }
 
@@ -506,6 +513,8 @@ void setGFXMask(int mask) {
 }
 
 void setSgbTiles(u8* src, u8 flags) {
+    if (!sgbBordersEnabled)
+        return;
     int index=0,srcIndex=0;
     if (flags&1)
         index += 0x80*16;
@@ -553,6 +562,8 @@ void setSgbTiles(u8* src, u8 flags) {
 }
 
 void setSgbMap(u8* src) {
+    if (!sgbBordersEnabled)
+        return;
     for (int i=0; i<32*32; i++) {
         u16 val = ((u16*)src)[i];
         int tile = val&0xff;
@@ -564,6 +575,13 @@ void setSgbMap(u8* src) {
 
     DC_FlushRange(src+0x800, 0x80);
     dmaCopy(src+0x800, BG_PALETTE+8*16, 0x80);
+
+    loadedBorderType = BORDER_SGB;
+    REG_BG3CNT = BG_MAP_BASE(border_map_base) | BG_TILE_BASE(12);
+    REG_BG3HOFS = 0;
+    REG_BG3VOFS = -(screenOffsY-40);
+    REG_DISPCNT &= ~7; // Mode 0
+    videoBgEnable(3);
 }
 
 // Possibly doing twice the work necessary in gbc games, when writing to bank 0, then bank 1.

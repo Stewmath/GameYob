@@ -5,6 +5,8 @@ extern bool consoleDebugOutput;
 extern int selectedGameboyMode;
 extern bool gbaModeOption;
 extern int sgbModeOption;
+extern bool customBordersEnabled;
+extern bool sgbBordersEnabled;
 
 void initConsole();
 

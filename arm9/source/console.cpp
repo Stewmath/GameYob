@@ -8,6 +8,7 @@
 #include "mmu.h"
 #include "nifi.h"
 #include "cheats.h"
+#include "gbgfx.h"
 
 const int screenTileWidth = 32;
 bool consoleDebugOutput = false;
@@ -23,6 +24,9 @@ int stateNum=0;
 int selectedGameboyMode=0;
 bool gbaModeOption=false;
 int sgbModeOption=false;
+
+bool customBordersEnabled;
+bool sgbBordersEnabled;
 
 extern int interruptWaitMode;
 extern bool windowDisabled;
@@ -62,16 +66,6 @@ void exitNoSaveFunc(int value) {
 }
 void fastForwardFunc(int value) {
     fastForwardMode = (value == 1);
-}
-void setScreenFunc(int value) {
-    if (value) {
-        lcdMainOnBottom();
-        consoleScreenBacklight = PM_BACKLIGHT_TOP;
-    }
-    else {
-        lcdMainOnTop();
-        consoleScreenBacklight = PM_BACKLIGHT_BOTTOM;
-    }
 }
 void consoleOutputFunc(int value) {
     if (value == 0) {
@@ -160,6 +154,24 @@ void biosEnableFunc(int value) {
     biosEnabled = value;
 }
 
+void setScreenFunc(int value) {
+    if (value) {
+        lcdMainOnBottom();
+        consoleScreenBacklight = PM_BACKLIGHT_TOP;
+    }
+    else {
+        lcdMainOnTop();
+        consoleScreenBacklight = PM_BACKLIGHT_BOTTOM;
+    }
+}
+
+void customBorderEnableFunc(int value) {
+    customBordersEnabled = value;
+}
+
+void sgbBorderEnableFunc(int value) {
+    sgbBordersEnabled = value;
+}
 
 void vblankWaitFunc(int value) {
     // For SOME REASON it crashes in dsi mode when it's zero.
@@ -272,12 +284,11 @@ ConsoleSubMenu menuList[] = {
     },
     {
         "Settings",
-        8,
+        7,
         {
             {"Key Config", keyConfigFunc, 0, {}, 0},
             {"Manage Cheats", cheatFunc, 0, {}, 0},
             {"Fast Forward", fastForwardFunc, 2, {"Off","On"}, 0},
-            {"Game Screen", setScreenFunc, 2, {"Top","Bottom"}, 0},
             {"Console Output", consoleOutputFunc, 4, {"Off","Time","FPS+Time","Debug"}, 3},
             {"NiFi", nifiEnableFunc, 2, {"Off","On"}, 0},
             {"Rumble Pak", setRumbleFunc, 4, {"Off","Low","Mid","High"}, 2},
@@ -292,6 +303,15 @@ ConsoleSubMenu menuList[] = {
             {"GBC Mode", gameboyModeFunc, 3, {"Off","If Needed","On"}, 2},
             {"GBC on GBA", gbaModeFunc, 2, {"Off","On"}, 0},
             {"SGB Mode", sgbModeFunc, 3, {"Off","Prefer GBC","Prefer SGB"}, 1}
+        }
+    },
+    {
+        "Display",
+        3,
+        {
+            {"Game Screen", setScreenFunc, 2, {"Top","Bottom"}, 0},
+            {"Custom Border", customBorderEnableFunc, 2, {"Off","On"}, 1},
+            {"SGB Borders", sgbBorderEnableFunc, 2, {"Off","On"}, 1}
         }
     },
     {

@@ -16,6 +16,7 @@ void refreshSgbPalette();
 void disableScreen();
 void enableScreen();
 
+void setCustomBorder(bool enabled);
 void setGFXMask(int mask);
 void setSgbTiles(u8* src, u8 flags);
 void setSgbMap(u8* src);
