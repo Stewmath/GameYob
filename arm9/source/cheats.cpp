@@ -108,7 +108,7 @@ void toggleCheat (int i, bool enabled)
 
 void unapplyGGCheat(int cheat) {
     if (slots[cheat] & (SLOT_GAMEGENIE | SLOT_GAMEGENIE1)) {
-        for (int i=0; i<cheats[cheat].patchedBanks.size(); i++) {
+        for (unsigned int i=0; i<cheats[cheat].patchedBanks.size(); i++) {
             int bank = cheats[cheat].patchedBanks[i];
             if (bankLoaded(bank)) {
                 rom[bank][cheats[cheat].address&0x3fff] = cheats[cheat].patchedValues[i];
@@ -219,7 +219,7 @@ bool startCheatMenu() {
         for (int i=firstCheat; i<numCheats && i < firstCheat+cheatsPerPage; i++) {
             if (slots[i] & SLOT_USED) {
                 iprintf("%s", cheats[i].name);
-                for (int j=0; j<25-strlen(cheats[i].name); j++)
+                for (unsigned int j=0; j<25-strlen(cheats[i].name); j++)
                     iprintf(" ");
                 if (slots[i] & SLOT_ENABLED) {
                     if (selection == i)

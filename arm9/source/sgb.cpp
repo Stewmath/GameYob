@@ -128,7 +128,7 @@ void sgbAttrBlock(int block) {
 
 void sgbPalSet(int block) {
     for (int i=0; i<4; i++) {
-        int paletteid = (sgbPacket[i*2+1] | (sgbPacket[i*2+2]<<8));
+        //int paletteid = (sgbPacket[i*2+1] | (sgbPacket[i*2+2]<<8));
         //printLog("%d: %x\n", i, paletteid);
         memcpy(bgPaletteData+i*8, sgbPalettes + (sgbPacket[i*2+1] | (sgbPacket[i*2+2]<<8))*8, 8);
         memcpy(sprPaletteData+i*8, sgbPalettes + (sgbPacket[i*2+1] | sgbPacket[i*2+2]<<8)*8, 8);

@@ -290,7 +290,7 @@ void readConfigFile() {
     while (!feof(file)) {
         fgets(line, 100, file);
         char c=0;
-        while (*line != '\0' && (c = line[strlen(line)-1]) == ' ' || c == '\n' || c == '\r')
+        while (*line != '\0' && ((c = line[strlen(line)-1]) == ' ' || c == '\n' || c == '\r'))
             line[strlen(line)-1] = '\0';
         if (line[0] == '[') {
             char* endBrace;
