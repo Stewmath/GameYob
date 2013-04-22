@@ -404,7 +404,7 @@ int displayConsole() {
 
         for (int i=0; i<menuList[menu].numOptions; i++) {
             if (menuList[menu].options[i].numValues == 0) {
-                for (int j=0; j<(32-strlen(menuList[menu].options[i].name))/2-2; j++)
+                for (unsigned int j=0; j<(32-strlen(menuList[menu].options[i].name))/2-2; j++)
                     iprintf(" ");
                 if (i == option)
                     iprintf("* %s *\n\n", menuList[menu].options[i].name);
@@ -412,7 +412,7 @@ int displayConsole() {
                     iprintf("  %s  \n\n", menuList[menu].options[i].name);
             }
             else {
-                for (int j=0; j<17-strlen(menuList[menu].options[i].name); j++)
+                for (unsigned int j=0; j<17-strlen(menuList[menu].options[i].name); j++)
                     iprintf(" ");
                 iprintf("%s ", menuList[menu].options[i].name);
                 if (i == option)
@@ -569,7 +569,7 @@ void addToLog(const char* format, va_list args) {
 
 //3in1 stuff, find better place for it.
 //I tried including the files these functions came from, but I got compile errors and didn't feel like fixing them.
-#define FlashBase		0x08000000
+#define FlashBase    	0x08000000
 void		OpenNorWrite()
 {
     *(vuint16 *)0x9fe0000 = 0xd200;
@@ -611,9 +611,9 @@ uint32   ReadNorFlashID()
         if( (id1==0x89)&& (id2==0x89) &&(id3==0x8816) && (id4==0x8816))
         {
             ID = 0x89168916;
-            return 0x89168916;
+            return ID;
         }
-        //¼ì²â256M¿¨
+        //256M
         *((vuint16 *)(FlashBase+0x555*2)) = 0xAA ;
         *((vuint16 *)(FlashBase+0x2AA*2)) = 0x55 ;
         *((vuint16 *)(FlashBase+0x555*2)) = 0x90 ;

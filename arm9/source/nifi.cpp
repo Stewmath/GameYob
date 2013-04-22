@@ -29,14 +29,16 @@ void packetHandler(int packetID, int readlength)
     if (isConsoleEnabled())
         return;
     static char data[4096];
-    static int bytesRead;
+    // static int bytesRead = 0; // Not used
 
     // Wifi_RxRawReadPacket:  Allows user code to read a packet from within the WifiPacketHandler function
     //  long packetID:		a non-unique identifier which locates the packet specified in the internal buffer
     //  long readlength:		number of bytes to read (actually reads (number+1)&~1 bytes)
     //  unsigned short * data:	location for the data to be read into
-    bytesRead = Wifi_RxRawReadPacket(packetID, readlength, (unsigned short *)data);
-
+    
+	// bytesRead = Wifi_RxRawReadPacket(packetID, readlength, (unsigned short *)data); // Not used
+	Wifi_RxRawReadPacket(packetID, readlength, (unsigned short *)data);
+	
     // Check this is the right kind of packet
     if (data[32] == 'Y' && data[33] == 'O') {
         u8 command = data[34];
