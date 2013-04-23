@@ -536,16 +536,20 @@ void setGFXMask(int mask) {
     gfxMask = mask;
     if (gfxMask == 0) {
         refreshGFX();
-        if (loadedBorderType != BORDER_NONE)
+        if (loadedBorderType != BORDER_NONE) {
             videoBgEnable(3);
+            BG_PALETTE[0] = bgPaletteData[0] | bgPaletteData[1]<<8;
+        }
     }
 }
 
 void setSgbTiles(u8* src, u8 flags) {
     if (!sgbBordersEnabled)
         return;
-    if (gfxMask != 0)
+    if (gfxMask != 0) {
         videoBgDisable(3);
+        BG_PALETTE[0] = 0;
+    }
     int index=0,srcIndex=0;
     if (flags&1)
         index += 0x80*16;
@@ -595,8 +599,10 @@ void setSgbTiles(u8* src, u8 flags) {
 void setSgbMap(u8* src) {
     if (!sgbBordersEnabled)
         return;
-    if (gfxMask != 0)
+    if (gfxMask != 0) {
         videoBgDisable(3);
+        BG_PALETTE[0] = 0;
+    }
     for (int i=0; i<32*32; i++) {
         u16 val = ((u16*)src)[i];
         int tile = val&0xff;

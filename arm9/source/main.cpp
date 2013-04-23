@@ -65,7 +65,7 @@ void initializeGameboy() {
     initGFX();
     initSND();
 
-    if (suspendStateExists) {
+    if (!probingForBorder && suspendStateExists) {
         loadState(-1);
         // enter the console on resume
         advanceFrame = true;
