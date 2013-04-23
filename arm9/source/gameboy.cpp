@@ -47,6 +47,11 @@ bool sgbMode;
 int cyclesToEvent;
 int maxWaitCycles;
 
+bool resettingGameboy = false;
+
+bool probingForBorder=false;
+
+
 inline void setEventCycles(int cycles) {
     if (cycles < cyclesToEvent) {
         cyclesToEvent = cycles;
@@ -59,12 +64,12 @@ inline void setEventCycles(int cycles) {
 }
 
 // Called once every gameboy vblank
-int updateInput() {
+void updateInput() {
     if (cheatsEnabled)
         applyGSCheats();
 
     readKeys();
-    int retval = handleEvents();		// Input mostly
+    handleEvents();		// Input mostly
     if (!consoleDebugOutput && (rawTime > lastRawTime))
     {
         consoleClear();
@@ -95,7 +100,11 @@ int updateInput() {
         }
         lastRawTime = rawTime;
     }
-    return retval;
+}
+
+void resetGameboy() {
+    cyclesToExecute = 0;
+    resettingGameboy = true;
 }
 
 int soundCycles=0;
@@ -144,9 +153,12 @@ emuLoopStart:
             soundCycles = 0;
         }
 
-        if (updateLCD(cycles))
-            // Emulation is being reset or something
+        updateLCD(cycles);
+        if (resettingGameboy) {
+            initializeGameboy();
+            resettingGameboy = false;
             goto emuLoopStart;
+        }
 
         int interruptTriggered = ioRam[0x0F] & ioRam[0xFF];
         if (interruptTriggered)
@@ -205,6 +217,10 @@ void initGBMode() {
     }
 }
 void initGBCMode() {
+    if (probingForBorder) {
+        initSGBMode();
+        return;
+    }
     if (sgbModeOption == 2 && rom[0][0x14b] == 0x33 && rom[0][0x146] == 0x03)
         initSGBMode();
     else {
@@ -245,7 +261,7 @@ void initGameboyMode() {
 }
 
 
-inline int updateLCD(int cycles)
+inline void updateLCD(int cycles)
 {
     if (!(ioRam[0x40] & 0x80))		// If LCD is off
     {
@@ -257,7 +273,7 @@ inline int updateLCD(int cycles)
         // ds should check for input and whatnot.
         phaseCounter -= cycles;
         if (phaseCounter <= 0) {
-            if (!(fastForwardMode || fastForwardKey))
+            if (!(fastForwardMode || fastForwardKey || probingForBorder))
                 swiIntrWait(interruptWaitMode, 1);
             fps++;
             phaseCounter += 456*153*(doubleSpeed?2:1);
@@ -265,10 +281,8 @@ inline int updateLCD(int cycles)
                 disableScreen();
                 screenOn = false;
             }
-            if (updateInput())
-                return 1;
+            updateInput();
         }
-        return 0;
     }
 
     scanlineCounter -= cycles;
@@ -347,8 +361,7 @@ inline int updateLCD(int cycles)
                         enableScreen();
                         screenOn = true;
                     }
-                    if (updateInput())
-                        return 1;
+                    updateInput();
                 }
                 if (ioRam[0x44] >= 144) {
                     setEventCycles(scanlineCounter);
@@ -370,8 +383,6 @@ inline int updateLCD(int cycles)
             }
             break;
     }
-
-    return 0;
 }
 
 inline void updateTimers(int cycles)

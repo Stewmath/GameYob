@@ -14,14 +14,13 @@ const int screenTileWidth = 32;
 bool consoleDebugOutput = false;
 bool quitConsole = false;
 bool consoleOn = false;
-int displayConsoleRetval=0;
 int menu=0;
 int option = -1;
 char printMessage[33];
 int consoleScreenBacklight;
 int stateNum=0;
 
-bool resetting;
+bool nukeBorder=false;
 int selectedGameboyMode=0;
 bool gbaModeOption=false;
 int sgbModeOption=false;
@@ -40,30 +39,24 @@ extern int rumbleStrength;
 
 extern bool __dsimode;
 
-void selectRomFunc() {
-    char* filename = startFileChooser();
-    loadProgram(filename);
-    free(filename);
-    initializeGameboy();
-    quitConsole = true;
-    displayConsoleRetval = 1;
-}
-
 void suspendFunc(int value) {
     printConsoleMessage("Suspending...");
     saveGame();
     saveState(-1);
     printMessage[0] = '\0';
-    selectRomFunc();
+    selectRom();
+    quitConsole = true;
 }
 void exitFunc(int value) {
     printConsoleMessage("Saving...");
     saveGame();
     printMessage[0] = '\0';
-    selectRomFunc();
+    selectRom();
+    quitConsole = true;
 }
 void exitNoSaveFunc(int value) {
-    selectRomFunc();
+    selectRom();
+    quitConsole = true;
 }
 void fastForwardFunc(int value) {
     fastForwardMode = (value == 1);
@@ -121,7 +114,6 @@ void stateLoadFunc(int value) {
     printConsoleMessage("Loading state...");
     if (loadState(stateNum) == 0) {
         printMessage[0] = '\0';
-        displayConsoleRetval = 1;
         quitConsole = true;
     }
 }
@@ -131,11 +123,9 @@ void stateSaveFunc(int value) {
     printConsoleMessage("State saved.");
 }
 void resetFunc(int value) {
-    resetting = true;
+    nukeBorder = false;
     initializeGameboy();
-    resetting = false;
     quitConsole = true;
-    displayConsoleRetval = 1;
 }
 void returnFunc(int value) {
     quitConsole = true;
@@ -378,12 +368,11 @@ bool isConsoleEnabled() {
     return consoleOn;
 }
 
-int displayConsole() {
+void displayConsole() {
     doRumble(0);
     powerOn(consoleScreenBacklight);
 
     advanceFrame = 0;
-    displayConsoleRetval=0;
     consoleOn = true;
 
     quitConsole = false;
@@ -526,8 +515,6 @@ end:
     consoleOn = false;
 
     updateConsoleScreen();
-
-    return displayConsoleRetval;
 }
 
 void updateConsoleScreen() {

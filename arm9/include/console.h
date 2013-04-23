@@ -1,7 +1,8 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-extern bool resetting;
+extern bool nukeBorder;
+
 extern bool consoleDebugOutput;
 extern int selectedGameboyMode;
 extern bool gbaModeOption;
@@ -17,7 +18,7 @@ void enterConsole(); // May be called from an interrupt
 void exitConsole();
 
 bool isConsoleEnabled();
-int displayConsole();
+void displayConsole();
 void updateConsoleScreen(); // Disables console screen if necessary
 
 void consoleParseConfig(const char* line);

@@ -51,7 +51,7 @@ int screenOffsY = 24;
 int tileSize;
 
 // Frame counter. Incremented each vblank.
-u8 frame=0;
+u16 frame=0;
 
 bool changedTile[2][0x180];
 int changedTileQueueLength=0;
@@ -222,8 +222,6 @@ inline void drawLine(int gbLine) {
         if (gbMode == GB) {
             for (int i=0; i<4; i++)
                 updateBgPalette(i, state->bgPaletteData, state->bgPal);
-            if (sgbMode && loadedBorderType == BORDER_SGB)
-                BG_PALETTE[0] = state->bgPaletteData[0] | state->bgPaletteData[1]<<8;
         }
         else {
             for (int i=0; i<8; i++) {
@@ -278,6 +276,12 @@ void vblankHandler()
 {
     memset(lineCompleted, 0, sizeof(lineCompleted));
     frame++;
+    if (frame == 120 && probingForBorder) {
+        // Give up on finding a sgb border.
+        probingForBorder = false;
+        nukeBorder = true;
+        resetGameboy();
+    }
 }
 
 int loadBorder(const char* filename) {
@@ -313,8 +317,9 @@ void setCustomBorder(bool enabled) {
     if (loadedBorderType == BORDER_SGB && !sgbBordersEnabled)
         loadedBorderType = BORDER_NONE;
 
-    if (resetting && loadedBorderType != BORDER_NONE)
+    if (!nukeBorder && loadedBorderType != BORDER_NONE) {
         goto end; // Don't overwrite the border when "reset" is selected.
+    }
 
     if (enabled) {
         if (loadedBorderType == BORDER_CUSTOM)
@@ -398,6 +403,9 @@ void initGFX()
     videoSetMode(MODE_3_2D | DISPLAY_BG0_ACTIVE | DISPLAY_BG1_ACTIVE | DISPLAY_BG2_ACTIVE | DISPLAY_BG3_ACTIVE |
             DISPLAY_WIN0_ON | DISPLAY_WIN1_ON | DISPLAY_SPR_ACTIVE | DISPLAY_SPR_1D);
 
+    if (probingForBorder)
+        disableScreen(); // Display nothing to prevent confusion, since some games don't provide their borders immediately.
+
     setCustomBorder(customBordersEnabled);
     
     REG_DISPSTAT &= 0xFF;
@@ -413,6 +421,7 @@ void initGFX()
     memset(vram[1], 0, 0x2000);
 
     gfxMask = 0;
+    frame = 0;
 
     refreshGFX();
 }
@@ -516,6 +525,8 @@ void disableScreen() {
     irqDisable(IRQ_HBLANK);
 }
 void enableScreen() {
+    if (probingForBorder)
+        return;
     if (!hblankDisabled) {
         irqEnable(IRQ_HBLANK);
     }
@@ -523,13 +534,18 @@ void enableScreen() {
 
 void setGFXMask(int mask) {
     gfxMask = mask;
-    if (gfxMask == 0)
+    if (gfxMask == 0) {
         refreshGFX();
+        if (loadedBorderType != BORDER_NONE)
+            videoBgEnable(3);
+    }
 }
 
 void setSgbTiles(u8* src, u8 flags) {
     if (!sgbBordersEnabled)
         return;
+    if (gfxMask != 0)
+        videoBgDisable(3);
     int index=0,srcIndex=0;
     if (flags&1)
         index += 0x80*16;
@@ -579,6 +595,8 @@ void setSgbTiles(u8* src, u8 flags) {
 void setSgbMap(u8* src) {
     if (!sgbBordersEnabled)
         return;
+    if (gfxMask != 0)
+        videoBgDisable(3);
     for (int i=0; i<32*32; i++) {
         u16 val = ((u16*)src)[i];
         int tile = val&0xff;
@@ -599,6 +617,13 @@ void setSgbMap(u8* src) {
     REG_BG3VOFS = -(screenOffsY-40);
     REG_DISPCNT &= ~7; // Mode 0
     videoBgEnable(3);
+
+    BG_PALETTE[0] = bgPaletteData[0] | bgPaletteData[1]<<8;
+    if (probingForBorder) {
+        probingForBorder = false;
+        nukeBorder = false;
+        resetGameboy();
+    }
 }
 
 // Possibly doing twice the work necessary in gbc games, when writing to bank 0, then bank 1.
@@ -716,7 +741,7 @@ void drawScreen()
     DC_FlushRange(overlayMapBuf[0], 0x400*2);
     DC_FlushRange(overlayMapBuf[1], 0x400*2);
 
-    if (!(fastForwardMode || fastForwardKey))
+    if (!(fastForwardMode || fastForwardKey || probingForBorder))
         swiIntrWait(interruptWaitMode, IRQ_VBLANK);
 
     if (gfxMask)

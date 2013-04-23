@@ -646,7 +646,7 @@ void printRomInfo() {
 }
 
 int autoFireCounterA=0,autoFireCounterB=0;
-int handleEvents()
+void handleEvents()
 {
     buttonsPressed = 0xff;
     if (keyPressed(keys[KEY_GB_UP])) {
@@ -713,7 +713,7 @@ int handleEvents()
         saveGame();
     if (advanceFrame || keyJustPressed(keys[KEY_MENU] | KEY_TOUCH)) {
         advanceFrame = 0;
-        return displayConsole();
+        displayConsole();
     }
     fastForwardKey = keyPressed(keys[KEY_FAST_FORWARD]);
 
@@ -723,8 +723,6 @@ int handleEvents()
         else
             maxWaitCycles = 50;
     }
-
-    return 0;
 }
 
 const int STATE_VERSION = 3;

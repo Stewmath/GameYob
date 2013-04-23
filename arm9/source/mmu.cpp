@@ -463,7 +463,7 @@ void initMMU()
 
     if (!biosExists)
         biosEnabled = false;
-    biosOn = biosEnabled;
+    biosOn = biosEnabled && !probingForBorder;
     mapMemory();
     memset(ioRam, 0, 0x100);
 }

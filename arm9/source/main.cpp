@@ -22,22 +22,8 @@
 extern bool __dsimode;
 extern time_t rawTime;
 extern time_t lastRawTime;
-
-void initializeGameboy() {
-    initMMU();
-    initCPU();
-    initLCD();
-    initGFX();
-    initSND();
-
-    if (suspendStateExists) {
-        loadState(-1);
-        // enter the console on resume
-        advanceFrame = true;
-    }
-}
-
 extern bool advanceFrame;
+
 void fifoValue32Handler(u32 value, void* user_data) {
     static bool wasInConsole;
     static bool oldSoundDisabled;
@@ -52,6 +38,37 @@ void fifoValue32Handler(u32 value, void* user_data) {
         if (!wasInConsole)
             exitConsole();
         soundDisabled = oldSoundDisabled;
+    }
+}
+
+
+void selectRom() {
+    char* filename = startFileChooser();
+    loadProgram(filename);
+    free(filename);
+
+    bool sgbEnhanced = rom[0][0x14b] == 0x33 && rom[0][0x146] == 0x03;
+    bool gbcEnhanced = rom[0][0x143] == 0x80 || rom[0][0x143] == 0xC0;
+    if (sgbEnhanced && gbcEnhanced && sgbBordersEnabled && sgbModeOption != 2) {
+        probingForBorder = true;
+        nukeBorder = false;
+    }
+    else
+        nukeBorder = true;
+    initializeGameboy();
+}
+
+void initializeGameboy() {
+    initMMU();
+    initCPU();
+    initLCD();
+    initGFX();
+    initSND();
+
+    if (suspendStateExists) {
+        loadState(-1);
+        // enter the console on resume
+        advanceFrame = true;
     }
 }
 
@@ -81,19 +98,10 @@ int main(int argc, char* argv[])
     initInput();
     readConfigFile();
 
-    char *filename;
-    bool filenameAllocated = false;
-    if (argc >= 2) {
-        filename = argv[1];
-    }
-    else {
-        filename = startFileChooser();
-        filenameAllocated = true;
-    }
-
     if (!biosExists) {
+        // Check for the bios in the default directory
         FILE* file;
-        file = fopen("gbc_bios.bin", "rb");
+        file = fopen("/lameboy/gbc_bios.bin", "rb");
         biosExists = file != NULL;
         if (biosExists)
             fread(bios, 1, 0x900, file);
@@ -101,12 +109,14 @@ int main(int argc, char* argv[])
             biosEnabled = false;
     }
 
-    loadProgram(filename);
-    if (filenameAllocated)
-        free(filename);
+    if (argc >= 2) {
+        char* filename = argv[1];
+        loadProgram(filename);
+    }
+    else {
+        selectRom();
+    }
 
-
-    initializeGameboy();
 
     updateConsoleScreen();
 

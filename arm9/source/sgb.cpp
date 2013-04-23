@@ -143,6 +143,10 @@ void sgbPalTrn(int block) {
     memcpy(sgbPalettes, getVramTransferSrc(), 0x1000);
 }
 
+void sgbDataSnd(int block) {
+    //printLog("SND %.2x -> %.2x:%.2x%.2x\n", sgbPacket[4], sgbPacket[3], sgbPacket[2], sgbPacket[1]);
+}
+
 void sgbMltReq(int block) {
     numControllers = (sgbPacket[1]&3)+1;
     if (numControllers > 1)
@@ -175,7 +179,7 @@ void sgbMask(int block) {
 
 void (*sgbCommands[])(int) = {
     sgbPalXX,sgbPalXX,sgbPalXX,sgbPalXX,sgbAttrBlock,NULL,NULL,NULL,
-    NULL,NULL,sgbPalSet,sgbPalTrn,NULL,NULL,NULL,NULL,
+    NULL,NULL,sgbPalSet,sgbPalTrn,NULL,NULL,NULL,sgbDataSnd,
     NULL,sgbMltReq,NULL,sgbChrTrn,sgbPctTrn,sgbAttrTrn,sgbAttrSet,sgbMask,
     NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL
 };

@@ -30,10 +30,14 @@ extern bool timeOutput;
 extern int gbMode;
 extern bool sgbMode;
 
+extern bool probingForBorder;
+
+void resetGameboy(); // This may be called even from the context of "runOpcode".
+
 void runEmul();
 void initLCD();
 void initGameboyMode();
-int updateLCD(int cycles);
+void updateLCD(int cycles);
 void updateTimers(int cycles);
 void handleInterrupts();
 void requestInterrupt(int id);
