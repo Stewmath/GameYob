@@ -276,7 +276,7 @@ void vblankHandler()
 {
     memset(lineCompleted, 0, sizeof(lineCompleted));
     frame++;
-    if (frame == 120 && probingForBorder) {
+    if (frame == 150 && probingForBorder) {
         // Give up on finding a sgb border.
         probingForBorder = false;
         nukeBorder = true;

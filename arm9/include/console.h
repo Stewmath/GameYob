@@ -4,7 +4,7 @@
 extern bool nukeBorder;
 
 extern bool consoleDebugOutput;
-extern int selectedGameboyMode;
+extern int gbcModeOption;
 extern bool gbaModeOption;
 extern int sgbModeOption;
 extern bool customBordersEnabled;

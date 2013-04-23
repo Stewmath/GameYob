@@ -44,10 +44,12 @@ extern u8   HuC3Mode;
 extern u8   HuC3Value;
 extern u8   HuC3Shift;
 
+extern int resultantGBMode;
+
 // whether the bios exists and has been loaded
 extern bool biosExists;
-// whether the bios should be used
-extern bool biosEnabled;
+// how/when the bios should be used
+extern int biosEnabled;
 // whether the bios is mapped to memory
 extern bool biosOn;
 

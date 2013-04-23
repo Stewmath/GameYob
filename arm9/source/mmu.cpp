@@ -36,9 +36,11 @@ clockStruct gbClock;
 int numRomBanks=0;
 int numRamBanks=0;
 
+int resultantGBMode;
+
 u8 bios[0x900];
 bool biosExists = false;
-bool biosEnabled = false;
+int biosEnabled;
 bool biosOn = false;
 
 u8 buttonsPressed = 0xff;
@@ -463,7 +465,14 @@ void initMMU()
 
     if (!biosExists)
         biosEnabled = false;
-    biosOn = biosEnabled && !probingForBorder;
+
+    biosOn = false;
+    if (!probingForBorder) {
+        if (biosEnabled == 2)
+            biosOn = true;
+        else if (biosEnabled == 1 && resultantGBMode == 0)
+            biosOn = true;
+    }
     mapMemory();
     memset(ioRam, 0, 0x100);
 }

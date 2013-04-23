@@ -47,18 +47,53 @@ void selectRom() {
     loadProgram(filename);
     free(filename);
 
-    bool sgbEnhanced = rom[0][0x14b] == 0x33 && rom[0][0x146] == 0x03;
-    bool gbcEnhanced = rom[0][0x143] == 0x80 || rom[0][0x143] == 0xC0;
-    if (sgbEnhanced && gbcEnhanced && sgbBordersEnabled && sgbModeOption != 2) {
-        probingForBorder = true;
-        nukeBorder = false;
-    }
-    else
-        nukeBorder = true;
+    probingForBorder = true; // This will be ignored if starting in sgb mode, or if there is no sgb mode.
+    nukeBorder = true;
     initializeGameboy();
 }
 
+void initGBMode() {
+    if (sgbModeOption != 0 && rom[0][0x14b] == 0x33 && rom[0][0x146] == 0x03)
+        resultantGBMode = 2;
+    else {
+        resultantGBMode = 0;
+    }
+}
+void initGBCMode() {
+    if (sgbModeOption == 2 && rom[0][0x14b] == 0x33 && rom[0][0x146] == 0x03)
+        resultantGBMode = 2;
+    else {
+        resultantGBMode = 1;
+    }
+}
 void initializeGameboy() {
+    switch(gbcModeOption) {
+        case 0: // GB
+            initGBMode();
+            break;
+        case 1: // GBC if needed
+            if (rom[0][0x143] == 0xC0)
+                initGBCMode();
+            else
+                initGBMode();
+            break;
+        case 2: // GBC
+            if (rom[0][0x143] == 0x80 || rom[0][0x143] == 0xC0)
+                initGBCMode();
+            else
+                initGBMode();
+            break;
+    }
+
+    bool sgbEnhanced = rom[0][0x14b] == 0x33 && rom[0][0x146] == 0x03;
+    if (sgbEnhanced && resultantGBMode != 2 && probingForBorder) {
+        resultantGBMode = 2;
+        nukeBorder = false;
+    }
+    else {
+        probingForBorder = false;
+    }
+
     initMMU();
     initCPU();
     initLCD();
@@ -106,7 +141,7 @@ int main(int argc, char* argv[])
         if (biosExists)
             fread(bios, 1, 0x900, file);
         else
-            biosEnabled = false;
+            biosEnabled = 0;
     }
 
     if (argc >= 2) {
