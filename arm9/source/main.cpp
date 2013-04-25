@@ -56,10 +56,7 @@ void selectRom() {
     loadProgram(filename);
     free(filename);
 
-    probingForBorder = true; // This will be ignored if starting in sgb mode, or if there is no sgb mode.
-    nukeBorder = true;
-
-    initializeGameboy();
+    initializeGameboyFirstTime();
 }
 
 void initGBMode() {
@@ -117,6 +114,12 @@ void initializeGameboy() {
     }
 }
 
+void initializeGameboyFirstTime() {
+    probingForBorder = true; // This will be ignored if starting in sgb mode, or if there is no sgb mode.
+    nukeBorder = true;
+    initializeGameboy();
+}
+
 int main(int argc, char* argv[])
 {
     REG_POWERCNT = POWER_ALL & ~(POWER_MATRIX | POWER_3D_CORE); // don't need 3D
@@ -146,6 +149,7 @@ int main(int argc, char* argv[])
     if (argc >= 2) {
         char* filename = argv[1];
         loadProgram(filename);
+        initializeGameboyFirstTime();
     }
     else {
         selectRom();
