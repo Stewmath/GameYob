@@ -156,7 +156,11 @@ void setScreenFunc(int value) {
 
 void setScaleModeFunc(int value) {
     scaleMode = value;
-    updateScreens();
+//    updateScreens();
+}
+void setScaleFilterFunc(int value) {
+    scaleFilter = value;
+//    updateScreens();
 }
 
 void customBorderEnableFunc(int value) {
@@ -301,10 +305,11 @@ ConsoleSubMenu menuList[] = {
     },
     {
         "Display",
-        4,
+        5,
         {
             {"Game Screen", setScreenFunc, 2, {"Top","Bottom"}, 0},
-            {"Scaling", setScaleModeFunc, 2, {"Off","On"}, 0},
+            {"Scaling", setScaleModeFunc, 3, {"Off","Aspect","Full"}, 0},
+            {"Scale Filter", setScaleFilterFunc, 3, {"Off","Filter A","Filter B"}, 1},
             {"Custom Border", customBorderEnableFunc, 2, {"Off","On"}, 1},
             {"SGB Borders", sgbBorderEnableFunc, 2, {"Off","On"}, 1}
         }
@@ -343,6 +348,7 @@ void initConsole() {
             }
         }
     }
+    updateScreens();
 }
 
 // Message will be printed immediately, but also stored in case it's overwritten 
@@ -519,6 +525,7 @@ end:
 }
 
 void updateScreens() {
+    swiWaitForVBlank();
     if (!consoleOn && scaleMode != 0) {
         powerOff(backlights[consoleScreen]);
         if (consoleScreen == 0)
@@ -530,9 +537,10 @@ void updateScreens() {
         refreshScaleMode();
     }
     else {
-        videoBgEnable(0);
-        videoBgDisable(2);
-        videoBgDisable(3);
+        videoBgEnableSub(0);
+        videoBgDisableSub(2);
+        videoBgDisableSub(3);
+        vramSetBankD(VRAM_D_MAIN_BG_0x06040000);
 
         if (!(fpsOutput || timeOutput || consoleDebugOutput || consoleOn))
             powerOff(backlights[consoleScreen]);

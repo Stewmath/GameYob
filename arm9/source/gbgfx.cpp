@@ -79,6 +79,7 @@ int interruptWaitMode=0;
 bool windowDisabled = false;
 bool hblankDisabled = false;
 
+bool screenDisabled;
 int gfxMask;
 int loadedBorderType;
 
@@ -263,9 +264,13 @@ void hblankHandler()
         gbLine = 0;
         if (lineCompleted[0])
             return;
-        vramSetBankC(VRAM_C_SUB_BG);
-        vramSetBankD(VRAM_D_LCD);
+        if (scaleMode != 0) {
+            vramSetBankC(VRAM_C_SUB_BG);
+            vramSetBankD(VRAM_D_LCD);
+        }
     }
+    if (screenDisabled)
+        return;
 
     if (gbLine != 0 && !lineCompleted[gbLine-1] && drawingState[gbLine-1].modified)
         drawLine(gbLine-1);
@@ -411,6 +416,7 @@ void initGFX()
 
     gfxMask = 0;
     frame = 0;
+    screenDisabled = true;
 
     refreshGFX();
 }
@@ -511,14 +517,12 @@ void disableScreen() {
     REG_BG2CNT = BG_MAP_BASE(off_map_base);
     REG_DISPCNT &= ~DISPLAY_SPR_ACTIVE;
     WIN_IN |= 7<<8;
-    irqDisable(IRQ_HBLANK);
+    screenDisabled = true;
 }
 void enableScreen() {
     if (probingForBorder)
         return;
-    if (!hblankDisabled) {
-        irqEnable(IRQ_HBLANK);
-    }
+    screenDisabled = false;
 }
 
 void setCustomBorder(bool enabled) {
@@ -588,12 +592,14 @@ void refreshScaleMode() {
                 break;
             }
         case 2:
-            BG2PA = (1<<8)/((double)255/160);
-            BG2PB = 0;
-            BG2PC = 0;
-            BG2PD = (1<<8)/((double)192/144);
-            SCALE_BGX = 0;
-            SCALE_BGY = 0;
+            {
+                BG2PA = (1<<8)/((double)255/160);
+                BG2PB = 0;
+                BG2PC = 0;
+                BG2PD = (1<<8)/((double)192/144);
+                SCALE_BGX = (1<<8)*(screenOffsX-(256-160*255/160)/2/(255/160));
+                SCALE_BGY = 0;
+            }
             break;
         default:
             return;
@@ -614,8 +620,8 @@ void refreshScaleMode() {
         REG_BG3Y_SUB = SCALE_BGY;
     }
     else if (scaleFilter == 2) {
-        REG_BG3X_SUB = SCALE_BGX + (1<<7);
-        REG_BG3Y_SUB = SCALE_BGY;
+        REG_BG3X_SUB = SCALE_BGX + (1<<6);
+        REG_BG3Y_SUB = SCALE_BGY + (1<<6);
     }
     else {
         REG_BG3X_SUB = SCALE_BGX;

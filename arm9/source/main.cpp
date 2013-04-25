@@ -110,7 +110,6 @@ void initializeGameboy() {
 int main(int argc, char* argv[])
 {
     REG_POWERCNT = POWER_ALL & ~(POWER_MATRIX | POWER_3D_CORE); // don't need 3D
-    consoleDemoInit();
     consoleDebugInit(DebugDevice_CONSOLE);
 
     defaultExceptionHandler();
@@ -129,6 +128,7 @@ int main(int argc, char* argv[])
         GBA_BUS[0x1000] = 0xF0;
     }
 
+    consoleOn = true;
     initConsole();
     initInput();
     readConfigFile();
@@ -152,6 +152,7 @@ int main(int argc, char* argv[])
         selectRom();
     }
 
+    consoleOn = false;
 
     updateScreens();
 

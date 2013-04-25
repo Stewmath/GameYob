@@ -3,6 +3,7 @@
 
 extern int interruptWaitMode;
 extern int scaleMode;
+extern int scaleFilter;
 
 extern u8 bgPaletteData[0x40];
 extern u8 sprPaletteData[0x40];
