@@ -153,7 +153,7 @@ int main(int argc, char* argv[])
     }
 
 
-    updateConsoleScreen();
+    updateScreens();
 
     runEmul();
 
