@@ -31,6 +31,7 @@
 ---------------------------------------------------------------------------------*/
 #include <nds.h>
 #include <dswifi7.h>
+#include "common.h"
 
 void installGameboySoundFIFO();
 
@@ -39,153 +40,152 @@ void sdmmcValueHandler(u32 value, void* user_data);
 extern int __dsimode;
 extern bool sleepIsEnabled;
 
-//---------------------------------------------------------------------------------
+SharedData* sharedData;
+
 void VblankHandler(void) {
-//---------------------------------------------------------------------------------
     // Copy from vram bank D to C
-    dmaCopyWordsAsynch(3, (u16*)0x06000000+24*256, (u16*)0x06020000, 256*144*2);
-	Wifi_Update();
+    if (sharedData->scalingOn)
+        dmaCopyWordsAsynch(3, (u16*)0x06000000+24*256, (u16*)0x06020000, 256*144*2);
+    Wifi_Update();
 }
 
-//---------------------------------------------------------------------------------
 void VcountHandler() {
-//---------------------------------------------------------------------------------
-	inputGetAndSend();
+    inputGetAndSend();
 }
 
 volatile bool exitflag = false;
 
-//---------------------------------------------------------------------------------
 void powerButtonCB() {
-//---------------------------------------------------------------------------------
-	exitflag = true;
+    exitflag = true;
 }
 
 // Custom version of a handler in libnds.
 // Tells the arm9 we're entering sleep mode to prevent crashes relating to audio 
 // code. It's a weird hack but it seems to work.
-//---------------------------------------------------------------------------------
 void powerHandler(u32 value, void* user_data) {
-//---------------------------------------------------------------------------------
-	u32 temp;
-	u32 ie_save;
-	int battery, backlight, power;
+    u32 temp;
+    u32 ie_save;
+    int battery, backlight, power;
 
-	switch(value & 0xFFFF0000) {
-		//power control
-	case PM_REQ_LED:
-		ledBlink(value);
-		break;
-	case PM_REQ_ON:
-		temp = readPowerManagement(PM_CONTROL_REG);
-		writePowerManagement(PM_CONTROL_REG, temp | (value & 0xFFFF));
-		break;
-	case PM_REQ_OFF:
-		temp = readPowerManagement(PM_CONTROL_REG) & (~(value & 0xFFFF));
-		writePowerManagement(PM_CONTROL_REG, temp);
-		break;
+    switch(value & 0xFFFF0000) {
+        //power control
+        case PM_REQ_LED:
+            ledBlink(value);
+            break;
+        case PM_REQ_ON:
+            temp = readPowerManagement(PM_CONTROL_REG);
+            writePowerManagement(PM_CONTROL_REG, temp | (value & 0xFFFF));
+            break;
+        case PM_REQ_OFF:
+            temp = readPowerManagement(PM_CONTROL_REG) & (~(value & 0xFFFF));
+            writePowerManagement(PM_CONTROL_REG, temp);
+            break;
 
-	case PM_REQ_SLEEP:
+        case PM_REQ_SLEEP:
 
-        // Signal to disable sound
-        fifoSendValue32(FIFO_USER_02, 1);
-			
-		ie_save = REG_IE;
-		// Turn the speaker down.
-		if (REG_POWERCNT & 1) swiChangeSoundBias(0,0x400);
-		// Save current power state.
-		power = readPowerManagement(PM_CONTROL_REG);
-		// Set sleep LED.
-		writePowerManagement(PM_CONTROL_REG, PM_LED_CONTROL(1));
-		// Register for the lid interrupt.
-		REG_IE = IRQ_LID;
+            // Signal to disable sound
+            fifoSendValue32(FIFO_USER_02, 1);
 
-		// Power down till we get our interrupt.
-		swiSleep(); //waits for PM (lid open) interrupt
+            ie_save = REG_IE;
+            // Turn the speaker down.
+            if (REG_POWERCNT & 1) swiChangeSoundBias(0,0x400);
+            // Save current power state.
+            power = readPowerManagement(PM_CONTROL_REG);
+            // Set sleep LED.
+            writePowerManagement(PM_CONTROL_REG, PM_LED_CONTROL(1));
+            // Register for the lid interrupt.
+            REG_IE = IRQ_LID;
 
-		//100ms
-		swiDelay(838000);
-		
-		// Restore the interrupt state.
-		REG_IE = ie_save;
+            // Power down till we get our interrupt.
+            swiSleep(); //waits for PM (lid open) interrupt
 
-		// Restore power state.
-		writePowerManagement(PM_CONTROL_REG, power);
+            //100ms
+            swiDelay(838000);
 
-		// Turn the speaker up.
-		if (REG_POWERCNT & 1) swiChangeSoundBias(1,0x400); 
+            // Restore the interrupt state.
+            REG_IE = ie_save;
 
-        // Signal to re-enable sound
-        fifoSendValue32(FIFO_USER_02, 0);
+            // Restore power state.
+            writePowerManagement(PM_CONTROL_REG, power);
 
-		// update clock tracking
-		resyncClock();
-		break;
+            // Turn the speaker up.
+            if (REG_POWERCNT & 1) swiChangeSoundBias(1,0x400); 
 
-	case PM_REQ_SLEEP_DISABLE:
-		sleepIsEnabled = false;
-		break;
+            // Signal to re-enable sound
+            fifoSendValue32(FIFO_USER_02, 0);
 
-	case PM_REQ_SLEEP_ENABLE:
-		sleepIsEnabled = true;
-		break;
-	case PM_REQ_BATTERY:
-		if (!__dsimode) {
-			battery = (readPowerManagement(PM_BATTERY_REG) & 1)?3:15;
-			backlight = readPowerManagement(PM_BACKLIGHT_LEVEL);
-			if (backlight & (1<<6)) battery += (backlight & (1<<3))<<4;
-		} else {
-			battery = i2cReadRegister(I2C_PM,I2CREGPM_BATTERY);
-		}
-		fifoSendValue32(FIFO_SYSTEM, battery);
-		break;
-	case PM_DSI_HACK:
-		__dsimode = true;
-		break;
-	}
+            // update clock tracking
+            resyncClock();
+            break;
+
+        case PM_REQ_SLEEP_DISABLE:
+            sleepIsEnabled = false;
+            break;
+
+        case PM_REQ_SLEEP_ENABLE:
+            sleepIsEnabled = true;
+            break;
+        case PM_REQ_BATTERY:
+            if (!__dsimode) {
+                battery = (readPowerManagement(PM_BATTERY_REG) & 1)?3:15;
+                backlight = readPowerManagement(PM_BACKLIGHT_LEVEL);
+                if (backlight & (1<<6)) battery += (backlight & (1<<3))<<4;
+            } else {
+                battery = i2cReadRegister(I2C_PM,I2CREGPM_BATTERY);
+            }
+            fifoSendValue32(FIFO_SYSTEM, battery);
+            break;
+        case PM_DSI_HACK:
+            __dsimode = true;
+            break;
+    }
 }
 //---------------------------------------------------------------------------------
 int main() {
-//---------------------------------------------------------------------------------
-	readUserSettings();
-	ledBlink(0);
+    //---------------------------------------------------------------------------------
+    readUserSettings();
+    ledBlink(0);
 
-	irqInit();
-	// Start the RTC tracking IRQ
-	//initClockIRQ(); //windwakr: Doesn't seem to work on 3DS.
-	resyncClock();
+    irqInit();
+    // Start the RTC tracking IRQ
+    //initClockIRQ(); //windwakr: Doesn't seem to work on 3DS.
+    resyncClock();
 
-	fifoInit();
+    fifoInit();
 
-	SetYtrigger(80);
+    while (!fifoCheckAddress(FIFO_USER_03));
+    sharedData = (SharedData*)fifoGetAddress(FIFO_USER_03);
 
-	installWifiFIFO();
-	installSoundFIFO();
+    SetYtrigger(80);
 
-	installSystemFIFO();
+    installWifiFIFO();
+    installSoundFIFO();
+
+    installSystemFIFO();
     // Replaces handler established in installSystemFIFO().
-	fifoSetValue32Handler(FIFO_PM, powerHandler, 0);
+    fifoSetValue32Handler(FIFO_PM, powerHandler, 0);
     /*
-	fifoSetValue32Handler(FIFO_SDMMC, sdmmcValueHandler, 0);
-	fifoSetDatamsgHandler(FIFO_SDMMC, sdmmcMsgHandler, 0);
-    */
+       fifoSetValue32Handler(FIFO_SDMMC, sdmmcValueHandler, 0);
+       fifoSetDatamsgHandler(FIFO_SDMMC, sdmmcMsgHandler, 0);
+       */
 
-	irqSet(IRQ_VCOUNT, VcountHandler);
-	irqSet(IRQ_VBLANK, VblankHandler);
+    irqSet(IRQ_VCOUNT, VcountHandler);
+    irqSet(IRQ_VBLANK, VblankHandler);
 
-	irqEnable( IRQ_VBLANK | IRQ_VCOUNT | IRQ_NETWORK);
-	
-	setPowerButtonCB(powerButtonCB);   
+    irqEnable( IRQ_VBLANK | IRQ_VCOUNT | IRQ_NETWORK);
+
+    setPowerButtonCB(powerButtonCB);   
 
 
-  installGameboySoundFIFO();
+    installGameboySoundFIFO();
 
-	// Keep the ARM7 mostly idle
-	while (!exitflag) {
-		if ( 0 == (REG_KEYINPUT & (KEY_SELECT | KEY_START | KEY_L | KEY_R))) {
-			exitflag = true;
-		}
-		swiWaitForVBlank();
-	}
-	return 0;
+
+    // Keep the ARM7 mostly idle
+    while (!exitflag) {
+        if ( 0 == (REG_KEYINPUT & (KEY_SELECT | KEY_START | KEY_L | KEY_R))) {
+            exitflag = true;
+        }
+        swiWaitForVBlank();
+    }
+    return 0;
 }

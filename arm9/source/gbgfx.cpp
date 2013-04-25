@@ -574,6 +574,8 @@ void refreshScaleMode() {
         return;
     }
     
+    if (loadedBorderType == BORDER_CUSTOM)
+        setCustomBorder(false);
     videoSetModeSub(MODE_5_2D);
     videoBgDisableSub(0);
     bgInitSub(3, BgType_Bmp16, BgSize_B16_256x256, 0, 0);

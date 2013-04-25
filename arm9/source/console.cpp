@@ -526,7 +526,10 @@ end:
 
 void updateScreens() {
     swiWaitForVBlank();
+
     if (!consoleOn && scaleMode != 0) {
+        sharedData->scalingOn = 1;
+
         powerOff(backlights[consoleScreen]);
         if (consoleScreen == 0)
             lcdMainOnTop();
@@ -537,6 +540,8 @@ void updateScreens() {
         refreshScaleMode();
     }
     else {
+        sharedData->scalingOn = 0;
+
         videoBgEnableSub(0);
         videoBgDisableSub(2);
         videoBgDisableSub(3);

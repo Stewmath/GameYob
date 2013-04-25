@@ -24,6 +24,8 @@ extern time_t rawTime;
 extern time_t lastRawTime;
 extern bool advanceFrame;
 
+SharedData* sharedData;
+
 void fifoValue32Handler(u32 value, void* user_data) {
     static bool wasInConsole;
     static bool oldSoundDisabled;
@@ -115,6 +117,11 @@ int main(int argc, char* argv[])
     defaultExceptionHandler();
 
     fifoSetValue32Handler(FIFO_USER_02, fifoValue32Handler, NULL);
+
+
+    sharedData = (SharedData*)memUncached(malloc(sizeof(SharedData)));
+    fifoSendAddress(FIFO_USER_03, (void*)memUncached(sharedData));
+
 
     time(&rawTime);
     lastRawTime = rawTime;
