@@ -341,8 +341,6 @@ void loadBios(const char* filename) {
     biosExists = file != NULL;
     if (biosExists)
         fread(bios, 1, 0x900, file);
-    else
-        biosEnabled = 0;
 }
 
 int loadProgram(char* f)

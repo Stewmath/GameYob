@@ -44,11 +44,21 @@ void fifoValue32Handler(u32 value, void* user_data) {
 
 void selectRom() {
     char* filename = startFileChooser();
+
+    if (!biosExists) {
+        FILE* file;
+        file = fopen("gbc_bios.bin", "rb");
+        biosExists = file != NULL;
+        if (biosExists)
+            fread(bios, 1, 0x900, file);
+    }
+
     loadProgram(filename);
     free(filename);
 
     probingForBorder = true; // This will be ignored if starting in sgb mode, or if there is no sgb mode.
     nukeBorder = true;
+
     initializeGameboy();
 }
 
@@ -133,17 +143,6 @@ int main(int argc, char* argv[])
     initInput();
     readConfigFile();
 
-    if (!biosExists) {
-        // Check for the bios in the default directory
-        FILE* file;
-        file = fopen("/lameboy/gbc_bios.bin", "rb");
-        biosExists = file != NULL;
-        if (biosExists)
-            fread(bios, 1, 0x900, file);
-        else
-            biosEnabled = 0;
-    }
-
     if (argc >= 2) {
         char* filename = argv[1];
         loadProgram(filename);
@@ -151,7 +150,6 @@ int main(int argc, char* argv[])
     else {
         selectRom();
     }
-
 
     updateConsoleScreen();
 

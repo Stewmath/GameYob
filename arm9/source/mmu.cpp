@@ -463,11 +463,8 @@ void initMMU()
     readFunc = mbcReads[MBC];
     writeFunc = mbcWrites[MBC];
 
-    if (!biosExists)
-        biosEnabled = false;
-
     biosOn = false;
-    if (!probingForBorder) {
+    if (biosExists && !probingForBorder) {
         if (biosEnabled == 2)
             biosOn = true;
         else if (biosEnabled == 1 && resultantGBMode == 0)
