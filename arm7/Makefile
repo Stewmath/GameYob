@@ -22,7 +22,7 @@ include $(DEVKITARM)/ds_rules
 TARGET		:=	gameyob
 BUILD		:=	build
 SOURCES		:=	source
-INCLUDES	:=	include ../common build
+INCLUDES	:=	include ../include build
 
 #---------------------------------------------------------------------------------
 # options for code generation

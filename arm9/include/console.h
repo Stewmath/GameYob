@@ -3,6 +3,8 @@
 
 extern bool nukeBorder;
 
+extern bool consoleOn;
+
 extern bool consoleDebugOutput;
 extern int gbcModeOption;
 extern bool gbaModeOption;
@@ -19,7 +21,7 @@ void exitConsole();
 
 bool isConsoleEnabled();
 void displayConsole();
-void updateConsoleScreen(); // Disables console screen if necessary
+void updateScreens();
 
 void consoleParseConfig(const char* line);
 void consolePrintConfig(FILE* file);

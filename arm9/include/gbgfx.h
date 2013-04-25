@@ -2,6 +2,8 @@
 #include "global.h"
 
 extern int interruptWaitMode;
+extern int scaleMode;
+extern int scaleFilter;
 
 extern u8 bgPaletteData[0x40];
 extern u8 sprPaletteData[0x40];
@@ -17,6 +19,7 @@ void disableScreen();
 void enableScreen();
 
 void setCustomBorder(bool enabled);
+void refreshScaleMode();
 void setGFXMask(int mask);
 void setSgbTiles(u8* src, u8 flags);
 void setSgbMap(u8* src);

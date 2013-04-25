@@ -24,6 +24,8 @@ extern time_t rawTime;
 extern time_t lastRawTime;
 extern bool advanceFrame;
 
+SharedData* sharedData;
+
 void fifoValue32Handler(u32 value, void* user_data) {
     static bool wasInConsole;
     static bool oldSoundDisabled;
@@ -123,12 +125,16 @@ void initializeGameboyFirstTime() {
 int main(int argc, char* argv[])
 {
     REG_POWERCNT = POWER_ALL & ~(POWER_MATRIX | POWER_3D_CORE); // don't need 3D
-    consoleDemoInit();
     consoleDebugInit(DebugDevice_CONSOLE);
 
     defaultExceptionHandler();
 
     fifoSetValue32Handler(FIFO_USER_02, fifoValue32Handler, NULL);
+
+
+    sharedData = (SharedData*)memUncached(malloc(sizeof(SharedData)));
+    fifoSendAddress(FIFO_USER_03, (void*)memUncached(sharedData));
+
 
     time(&rawTime);
     lastRawTime = rawTime;
@@ -142,6 +148,7 @@ int main(int argc, char* argv[])
         GBA_BUS[0x1000] = 0xF0;
     }
 
+    consoleOn = true;
     initConsole();
     initInput();
     readConfigFile();
@@ -155,7 +162,8 @@ int main(int argc, char* argv[])
         selectRom();
     }
 
-    updateConsoleScreen();
+    consoleOn = false;
+    updateScreens();
 
     runEmul();
 

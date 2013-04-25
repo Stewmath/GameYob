@@ -11,13 +11,15 @@
 #include "gbgfx.h"
 
 const int screenTileWidth = 32;
+const int backlights[] = {PM_BACKLIGHT_TOP, PM_BACKLIGHT_BOTTOM};
+
 bool consoleDebugOutput = false;
 bool quitConsole = false;
 bool consoleOn = false;
 int menu=0;
 int option = -1;
 char printMessage[33];
-int consoleScreenBacklight;
+int consoleScreen;
 int stateNum=0;
 
 bool nukeBorder=false;
@@ -148,14 +150,17 @@ void biosEnableFunc(int value) {
 }
 
 void setScreenFunc(int value) {
-    if (value) {
-        lcdMainOnBottom();
-        consoleScreenBacklight = PM_BACKLIGHT_TOP;
-    }
-    else {
-        lcdMainOnTop();
-        consoleScreenBacklight = PM_BACKLIGHT_BOTTOM;
-    }
+    consoleScreen = !value;
+    updateScreens();
+}
+
+void setScaleModeFunc(int value) {
+    scaleMode = value;
+//    updateScreens();
+}
+void setScaleFilterFunc(int value) {
+    scaleFilter = value;
+//    updateScreens();
 }
 
 void customBorderEnableFunc(int value) {
@@ -300,9 +305,11 @@ ConsoleSubMenu menuList[] = {
     },
     {
         "Display",
-        3,
+        5,
         {
             {"Game Screen", setScreenFunc, 2, {"Top","Bottom"}, 0},
+            {"Scaling", setScaleModeFunc, 3, {"Off","Aspect","Full"}, 0},
+            {"Scale Filter", setScaleFilterFunc, 3, {"Off","Filter A","Filter B"}, 1},
             {"Custom Border", customBorderEnableFunc, 2, {"Off","On"}, 1},
             {"SGB Borders", sgbBorderEnableFunc, 2, {"Off","On"}, 1}
         }
@@ -316,7 +323,7 @@ ConsoleSubMenu menuList[] = {
             {"Window", windowEnableFunc, 2, {"Off","On"}, 1},
             {"Sound", soundEnableFunc, 2, {"Off","On"}, 1},
             {"Advance Frame", advanceFrameFunc, 0, {}, 0},
-            {"ROM Info", romInfoFunc, 0, {}, 0}
+            {"ROM Info", romInfoFunc, 0, {}, 0},
         }
     },
     {
@@ -341,6 +348,7 @@ void initConsole() {
             }
         }
     }
+    updateScreens();
 }
 
 // Message will be printed immediately, but also stored in case it's overwritten 
@@ -369,14 +377,13 @@ bool isConsoleEnabled() {
 }
 
 void displayConsole() {
-    doRumble(0);
-    powerOn(consoleScreenBacklight);
-
     advanceFrame = 0;
     consoleOn = true;
-
     quitConsole = false;
+
     soundDisable();
+    doRumble(0);
+    updateScreens();
 
     while (!quitConsole) {
         consoleClear();
@@ -514,12 +521,43 @@ end:
     consoleClear();
     consoleOn = false;
 
-    updateConsoleScreen();
+    updateScreens();
 }
 
-void updateConsoleScreen() {
-    if (!(fpsOutput || timeOutput || consoleDebugOutput))
-        powerOff(consoleScreenBacklight);
+void updateScreens() {
+    swiWaitForVBlank();
+
+    if (!consoleOn && scaleMode != 0) {
+        sharedData->scalingOn = 1;
+
+        powerOff(backlights[consoleScreen]);
+        if (consoleScreen == 0)
+            lcdMainOnTop();
+        else
+            lcdMainOnBottom();
+        powerOn(backlights[!consoleScreen]);
+
+        refreshScaleMode();
+    }
+    else {
+        sharedData->scalingOn = 0;
+
+        videoBgEnableSub(0);
+        videoBgDisableSub(2);
+        videoBgDisableSub(3);
+        vramSetBankD(VRAM_D_MAIN_BG_0x06040000);
+
+        if (!(fpsOutput || timeOutput || consoleDebugOutput || consoleOn))
+            powerOff(backlights[consoleScreen]);
+        else
+            powerOn(backlights[consoleScreen]);
+        consoleDemoInit();
+        if (consoleScreen == 0)
+            lcdMainOnBottom();
+        else
+            lcdMainOnTop();
+        powerOn(backlights[!consoleScreen]);
+    }
 }
 
 void consoleParseConfig(const char* line) {

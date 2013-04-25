@@ -79,8 +79,13 @@ int interruptWaitMode=0;
 bool windowDisabled = false;
 bool hblankDisabled = false;
 
+bool screenDisabled;
 int gfxMask;
 int loadedBorderType;
+
+int scaleMode;
+int scaleFilter=1;
+int SCALE_BGX, SCALE_BGY;
 
 
 void drawSprite(u8* data);
@@ -259,7 +264,13 @@ void hblankHandler()
         gbLine = 0;
         if (lineCompleted[0])
             return;
+        if (scaleMode != 0) {
+            vramSetBankC(VRAM_C_SUB_BG);
+            vramSetBankD(VRAM_D_LCD);
+        }
     }
+    if (screenDisabled)
+        return;
 
     if (gbLine != 0 && !lineCompleted[gbLine-1] && drawingState[gbLine-1].modified)
         drawLine(gbLine-1);
@@ -272,15 +283,41 @@ void hblankHandler()
     drawLine(gbLine);
 }
 
+bool vshift=false;
+bool scalingBankC=false;
 void vblankHandler()
 {
+    if (!consoleOn) {
+        if (scaleMode != 0) {
+            vramSetBankD(VRAM_D_ARM7_0x06000000);
+            vramSetBankC(VRAM_C_ARM7_0x06020000);
+        }
+
+        frame++;
+        if (frame == 150 && probingForBorder) {
+            // Give up on finding a sgb border.
+            probingForBorder = false;
+            nukeBorder = true;
+            resetGameboy();
+        }
+        if (scaleMode != 0) {
+            REG_DISPCAPCNT = 15 | 3<<16 | 0<<18 | 3<<20 | 0<<29;
+            REG_DISPCAPCNT |= BIT(31);
+            //dmaCopyWordsAsynch(0, (u8*)0x06860000, (u8*)0x06200000, 192*256*2);
+        }
+    }
+
     memset(lineCompleted, 0, sizeof(lineCompleted));
-    frame++;
-    if (frame == 150 && probingForBorder) {
-        // Give up on finding a sgb border.
-        probingForBorder = false;
-        nukeBorder = true;
-        resetGameboy();
+    if (scaleFilter == 1) {
+        if (vshift) {
+            REG_BG2Y_SUB = SCALE_BGY + (1<<6);
+            REG_BG3Y_SUB = SCALE_BGY + (1<<6);
+        }
+        else {
+            REG_BG2Y_SUB = SCALE_BGY;
+            REG_BG3Y_SUB = SCALE_BGY;
+        }
+        vshift = !vshift;
     }
 }
 
@@ -311,55 +348,12 @@ int loadBorder(const char* filename) {
     loadedBorderType = BORDER_CUSTOM;
     return 0;
 }
-void setCustomBorder(bool enabled) {
-    if (loadedBorderType == BORDER_CUSTOM && !customBordersEnabled)
-        loadedBorderType = BORDER_NONE;
-    if (loadedBorderType == BORDER_SGB && !sgbBordersEnabled)
-        loadedBorderType = BORDER_NONE;
-
-    if (!nukeBorder && loadedBorderType != BORDER_NONE) {
-        goto end; // Don't overwrite the border when "reset" is selected.
-    }
-
-    if (enabled) {
-        if (loadedBorderType == BORDER_CUSTOM)
-            return;
-        if (loadBorder("/border.bmp") == 1)
-            loadedBorderType = BORDER_NONE;
-    }
-    else
-        loadedBorderType = BORDER_NONE;
-
-end:
-
-    videoBgDisable(3);
-    if (loadedBorderType == BORDER_CUSTOM) {
-        REG_DISPCNT &= ~7;
-        REG_DISPCNT |= 3; // Mode 3
-        REG_BG3CNT = BG_MAP_BASE(16) | BG_BMP16_256x256;
-        REG_BG3X = 0;
-        REG_BG3Y = 0;
-        REG_BG3PA = 1<<8;
-        REG_BG3PB = 0;
-        REG_BG3PC = 0;
-        REG_BG3PD = 1<<8;
-        videoBgEnable(3);
-    }
-    else if (loadedBorderType == BORDER_SGB) {
-        REG_DISPCNT &= ~7; // Mode 0
-        videoBgEnable(3);
-    }
-    else if (loadedBorderType == BORDER_NONE) {
-        BG_PALETTE[0] = 0; // Reset backdrop (SGB borders use the backdrop)
-    }
-}
 
 
 void initGFX()
 {
     vramSetBankA(VRAM_A_MAIN_BG);
     vramSetBankB(VRAM_B_MAIN_BG);
-    vramSetBankD(VRAM_D_MAIN_BG_0x06040000);
     vramSetBankE(VRAM_E_MAIN_SPRITE);
 
     map[0] = BG_MAP_RAM(map_base[0]);
@@ -422,6 +416,7 @@ void initGFX()
 
     gfxMask = 0;
     frame = 0;
+    screenDisabled = true;
 
     refreshGFX();
 }
@@ -522,14 +517,122 @@ void disableScreen() {
     REG_BG2CNT = BG_MAP_BASE(off_map_base);
     REG_DISPCNT &= ~DISPLAY_SPR_ACTIVE;
     WIN_IN |= 7<<8;
-    irqDisable(IRQ_HBLANK);
+    screenDisabled = true;
 }
 void enableScreen() {
     if (probingForBorder)
         return;
-    if (!hblankDisabled) {
-        irqEnable(IRQ_HBLANK);
+    screenDisabled = false;
+}
+
+void setCustomBorder(bool enabled) {
+    if (loadedBorderType == BORDER_CUSTOM && !customBordersEnabled)
+        loadedBorderType = BORDER_NONE;
+    if (loadedBorderType == BORDER_SGB && !sgbBordersEnabled)
+        loadedBorderType = BORDER_NONE;
+
+    if (!nukeBorder && loadedBorderType != BORDER_NONE) {
+        goto end; // Don't overwrite the border when "reset" is selected.
     }
+
+    if (enabled) {
+        if (loadedBorderType == BORDER_CUSTOM)
+            return;
+        if (loadBorder("/border.bmp") == 1)
+            loadedBorderType = BORDER_NONE;
+    }
+    else
+        loadedBorderType = BORDER_NONE;
+
+end:
+
+    videoBgDisable(3);
+    if (loadedBorderType == BORDER_CUSTOM) {
+        REG_DISPCNT &= ~7;
+        REG_DISPCNT |= 3; // Mode 3
+        REG_BG3CNT = BG_MAP_BASE(16) | BG_BMP16_256x256;
+        REG_BG3X = 0;
+        REG_BG3Y = 0;
+        REG_BG3PA = 1<<8;
+        REG_BG3PB = 0;
+        REG_BG3PC = 0;
+        REG_BG3PD = 1<<8;
+        videoBgEnable(3);
+    }
+    else if (loadedBorderType == BORDER_SGB) {
+        REG_DISPCNT &= ~7; // Mode 0
+        videoBgEnable(3);
+    }
+    else if (loadedBorderType == BORDER_NONE) {
+        BG_PALETTE[0] = 0; // Reset backdrop (SGB borders use the backdrop)
+    }
+}
+void refreshScaleMode() {
+    int BG2PA,BG2PB,BG2PC,BG2PD;
+
+    if (scaleMode == 0) {
+        return;
+    }
+    
+    if (loadedBorderType == BORDER_CUSTOM)
+        setCustomBorder(false);
+    videoSetModeSub(MODE_5_2D);
+    videoBgDisableSub(0);
+    bgInitSub(3, BgType_Bmp16, BgSize_B16_256x256, 0, 0);
+    bgInitSub(2, BgType_Bmp16, BgSize_B16_256x256, 0, 0);
+
+    switch(scaleMode) {
+        case 1:
+            {
+                const double scaleFactor = (double)192/144;
+                BG2PA = (1<<8)/scaleFactor;
+                BG2PB = 0;
+                BG2PC = 0;
+                BG2PD = (1<<8)/scaleFactor;
+                SCALE_BGX = (1<<8)*(screenOffsX-(256-160*scaleFactor)/2/scaleFactor);
+                SCALE_BGY = 0;
+                break;
+            }
+        case 2:
+            {
+                BG2PA = (1<<8)/((double)255/160);
+                BG2PB = 0;
+                BG2PC = 0;
+                BG2PD = (1<<8)/((double)192/144);
+                SCALE_BGX = (1<<8)*(screenOffsX-(256-160*255/160)/2/(255/160));
+                SCALE_BGY = 0;
+            }
+            break;
+        default:
+            return;
+    }
+
+    REG_BLDCNT_SUB = 1<<2 | 1<<11 | 1<<6;
+    REG_BLDALPHA_SUB = 8 | 8<<8;
+
+    REG_BG2X_SUB = SCALE_BGX;
+    REG_BG2Y_SUB = SCALE_BGY;
+    REG_BG2PA_SUB = BG2PA;
+    REG_BG2PB_SUB = BG2PB;
+    REG_BG2PC_SUB = BG2PC;
+    REG_BG2PD_SUB = BG2PD;
+
+    if (scaleFilter == 1) {
+        REG_BG3X_SUB = SCALE_BGX + (1<<6);
+        REG_BG3Y_SUB = SCALE_BGY;
+    }
+    else if (scaleFilter == 2) {
+        REG_BG3X_SUB = SCALE_BGX + (1<<6);
+        REG_BG3Y_SUB = SCALE_BGY + (1<<6);
+    }
+    else {
+        REG_BG3X_SUB = SCALE_BGX;
+        REG_BG3Y_SUB = SCALE_BGY;
+    }
+    REG_BG3PA_SUB = BG2PA;
+    REG_BG3PB_SUB = BG2PB;
+    REG_BG3PC_SUB = BG2PC;
+    REG_BG3PD_SUB = BG2PD;
 }
 
 void setGFXMask(int mask) {
