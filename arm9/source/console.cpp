@@ -530,6 +530,7 @@ void updateScreens() {
     if (!consoleOn && scaleMode != 0) {
         sharedData->scalingOn = 1;
 
+        REG_DISPCNT &= ~(3<<16);
         powerOff(backlights[consoleScreen]);
         if (consoleScreen == 0)
             lcdMainOnTop();
@@ -542,6 +543,7 @@ void updateScreens() {
     else {
         sharedData->scalingOn = 0;
 
+        REG_DISPCNT |= 1<<16;
         videoBgEnableSub(0);
         videoBgDisableSub(2);
         videoBgDisableSub(3);
