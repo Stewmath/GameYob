@@ -39,8 +39,6 @@ int timerCounter;
 int timerPeriod;
 long periods[4];
 
-bool screenOn = true;
-
 int gbMode;
 bool sgbMode;
 
@@ -237,14 +235,9 @@ inline void updateLCD(int cycles)
         // ds should check for input and whatnot.
         phaseCounter -= cycles;
         if (phaseCounter <= 0) {
-            if (!(fastForwardMode || fastForwardKey || probingForBorder))
-                swiIntrWait(interruptWaitMode, 1);
             fps++;
             phaseCounter += 456*153*(doubleSpeed?2:1);
-            if (screenOn) {
-                disableScreen();
-                screenOn = false;
-            }
+            drawScreen();
             updateInput();
         }
     }
@@ -321,10 +314,6 @@ inline void updateLCD(int cycles)
 
                     fps++;
                     drawScreen();
-                    if (!screenOn) {
-                        enableScreen();
-                        screenOn = true;
-                    }
                     updateInput();
                 }
                 if (ioRam[0x44] >= 144) {

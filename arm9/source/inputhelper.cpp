@@ -883,7 +883,6 @@ int loadState(int num) {
     serialCounter = state.serialCounter;
     ramEnabled = state.ramEnabled;
 
-    screenOn = ioRam[0x40] & 0x80;
     transferReady = false;
     timerPeriod = periods[ioRam[0x07]&0x3];
     cyclesToEvent = 1;

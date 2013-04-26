@@ -13,8 +13,6 @@ extern int serialCounter;
 extern int timerPeriod;
 extern long periods[4];
 
-extern bool screenOn;
-
 extern int doubleSpeed;
 extern int cyclesToEvent;
 extern int maxWaitCycles;

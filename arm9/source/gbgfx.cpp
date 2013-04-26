@@ -79,7 +79,6 @@ int interruptWaitMode=0;
 bool windowDisabled = false;
 bool hblankDisabled = false;
 
-bool screenDisabled;
 int gfxMask;
 int loadedBorderType;
 
@@ -87,6 +86,8 @@ int scaleMode;
 int scaleFilter=1;
 int SCALE_BGX, SCALE_BGY;
 
+bool lastScreenDisabled;
+bool screenDisabled;
 
 void drawSprite(u8* data);
 void drawSprites(u8* data, int tallSprites);
@@ -152,6 +153,11 @@ typedef struct
 inline void drawLine(int gbLine) {
     ScanlineStruct *state = &drawingState[gbLine];
 
+    if (screenDisabled) {
+        REG_DISPCNT &= ~DISPLAY_SPR_ACTIVE;
+        REG_BG0CNT = BG_MAP_BASE(off_map_base);
+        return;
+    }
     if (state->spritesOn)
         REG_DISPCNT |= DISPLAY_SPR_ACTIVE;
     else
@@ -269,8 +275,6 @@ void hblankHandler()
             vramSetBankD(VRAM_D_LCD);
         }
     }
-    if (screenDisabled)
-        return;
 
     if (gbLine != 0 && !lineCompleted[gbLine-1] && drawingState[gbLine-1].modified)
         drawLine(gbLine-1);
@@ -441,7 +445,6 @@ void initGFX()
 
     gfxMask = 0;
     frame = 0;
-    screenDisabled = true;
 
     refreshGFX();
 }
@@ -488,10 +491,8 @@ void refreshGFX() {
     }
     bgPalettesModified = true;
     sprPalettesModified = true;
-    if (screenOn)
-        enableScreen();
-    else
-        disableScreen();
+    lastScreenDisabled = ioRam[0x40] & 0x80;
+    screenDisabled = true;
     /*
     for (int i=0; i<0xa0; i++)
         spriteData[i] = hram[i];
@@ -539,15 +540,11 @@ void refreshSgbPalette() {
 }
 
 void disableScreen() {
-    REG_BG2CNT = BG_MAP_BASE(off_map_base);
-    REG_DISPCNT &= ~DISPLAY_SPR_ACTIVE;
-    WIN_IN |= 7<<8;
-    screenDisabled = true;
+    //renderingState[0].lcdc = ioRam[0x40];
 }
 void enableScreen() {
     if (probingForBorder)
         return;
-    screenDisabled = false;
 }
 
 void setCustomBorder(bool enabled) {
@@ -895,6 +892,11 @@ void drawScreen()
     ScanlineStruct* tmp = renderingState;
     renderingState = drawingState;
     drawingState = tmp;
+
+    screenDisabled = lastScreenDisabled;
+    if (!(ioRam[0x40] & 0x80))
+        screenDisabled = true;
+    lastScreenDisabled = !(ioRam[0x40] & 0x80);
 
     winPosY = -1;
 
