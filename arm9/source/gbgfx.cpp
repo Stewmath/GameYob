@@ -263,6 +263,8 @@ void hblankHandler()
 {
     int line = REG_VCOUNT+1;
     int gbLine = line-screenOffsY;
+    if ((REG_DISPSTAT&3) != 2)
+        gbLine--;
 
     if (gbLine >= 144)
         return;
