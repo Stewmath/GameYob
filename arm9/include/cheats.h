@@ -17,7 +17,7 @@ typedef struct cheat_t {
 } cheat_t;
 
 
-#define MAX_CHEATS      14 
+#define MAX_CHEATS      100 
 #define SLOT_ENABLED    (1<<0)
 #define SLOT_USED       (1<<1)
 #define SLOT_TYPE_MASK  (3<<2)

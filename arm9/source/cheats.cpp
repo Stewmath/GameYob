@@ -165,6 +165,8 @@ void applyGSCheats (void)
 }
 
 void loadCheats(const char* filename) {
+    numCheats = 0;
+
     FILE* file = fopen(filename, "r");
     if (file == NULL)
         return;
@@ -173,7 +175,6 @@ void loadCheats(const char* filename) {
     for (int i=0; i<numCheats; i++)
         removeCheat(i);
 
-    numCheats=0;
     while (!feof(file)) {
         char line[100];
         fgets(line, 100, file);
@@ -200,8 +201,9 @@ void loadCheats(const char* filename) {
 }
 
 bool startCheatMenu() {
-    const int cheatsPerPage=14;
+    const int cheatsPerPage=18;
 
+    int numPages = (numCheats-1)/cheatsPerPage+1;
     bool quit=false;
     static int selection=0;
     static int firstCheat=0;
@@ -214,9 +216,11 @@ bool startCheatMenu() {
     }
 
     while (!quit) {
+        int page = selection/cheatsPerPage;
         consoleClear();
-        iprintf("          Cheat Menu\n\n");
-        for (int i=firstCheat; i<numCheats && i < firstCheat+cheatsPerPage; i++) {
+        iprintf("          Cheat Menu      ");
+        iprintf("%d/%d\n\n", page+1, numPages);
+        for (int i=page*cheatsPerPage; i<numCheats && i < (page+1)*cheatsPerPage; i++) {
             if (slots[i] & SLOT_USED) {
                 iprintf("%s", cheats[i].name);
                 for (unsigned int j=0; j<25-strlen(cheats[i].name); j++)
@@ -261,6 +265,18 @@ bool startCheatMenu() {
             }
             else if (keyJustPressed(KEY_RIGHT | KEY_LEFT)) {
                 toggleCheat(selection, !(slots[selection] & SLOT_ENABLED));
+                break;
+            }
+            else if (keyJustPressed(KEY_R)) {
+                selection += cheatsPerPage;
+                if (selection >= numCheats)
+                    selection = 0;
+                break;
+            }
+            else if (keyJustPressed(KEY_L)) {
+                selection -= cheatsPerPage;
+                if (selection < 0)
+                    selection = numCheats-1;
                 break;
             }
             else if (keyJustPressed(KEY_B)) {
