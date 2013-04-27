@@ -802,6 +802,8 @@ void writeIO(u8 ioReg, u8 val)
             handleVideoRegister(ioReg, val);
             return;
         case 0x44:
+            //ioRam[0x44] = 0;
+            printLog("LY Write %d\n", val);
             return;
         case 0x68:
             ioRam[ioReg] = val;

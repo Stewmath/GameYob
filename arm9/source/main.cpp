@@ -18,13 +18,14 @@
 #include "console.h"
 #include "nifi.h"
 #include "cheats.h"
+#include "common.h"
 
 extern bool __dsimode;
 extern time_t rawTime;
 extern time_t lastRawTime;
 extern bool advanceFrame;
 
-SharedData* sharedData;
+volatile SharedData* sharedData;
 
 void fifoValue32Handler(u32 value, void* user_data) {
     static bool wasInConsole;
@@ -114,15 +115,14 @@ void initializeGameboy() {
         // enter the console on resume
         advanceFrame = true;
     }
+
+    updateScreens();
 }
 
 void initializeGameboyFirstTime() {
-    if (sgbBordersEnabled) {
+    if (sgbBordersEnabled)
         probingForBorder = true; // This will be ignored if starting in sgb mode, or if there is no sgb mode.
-        nukeBorder = false;
-    }
-    else
-        nukeBorder = true;
+    nukeBorder = true;
     initializeGameboy();
 }
 
@@ -137,7 +137,7 @@ int main(int argc, char* argv[])
 
 
     sharedData = (SharedData*)memUncached(malloc(sizeof(SharedData)));
-    fifoSendAddress(FIFO_USER_03, (void*)memUncached(sharedData));
+    fifoSendAddress(FIFO_USER_03, (void*)memUncached((void*)sharedData));
 
 
     time(&rawTime);
@@ -157,6 +157,8 @@ int main(int argc, char* argv[])
     initInput();
     readConfigFile();
 
+    consoleOn = false;
+
     if (argc >= 2) {
         char* filename = argv[1];
         loadProgram(filename);
@@ -165,9 +167,6 @@ int main(int argc, char* argv[])
     else {
         selectRom();
     }
-
-    consoleOn = false;
-    updateScreens();
 
     runEmul();
 

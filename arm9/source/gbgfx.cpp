@@ -8,6 +8,7 @@
 #include "gameboy.h"
 #include "sgb.h"
 #include "console.h"
+#include "common.h"
 
 enum {
     BORDER_NONE=0,
@@ -89,7 +90,6 @@ int SCALE_BGX, SCALE_BGY;
 bool lastScreenDisabled;
 bool screenDisabled;
 
-void drawSprite(u8* data);
 void drawSprites(u8* data, int tallSprites);
 void drawTile(int tile, int bank);
 void updateTiles();
@@ -296,8 +296,14 @@ void vblankHandler()
 {
     if (!consoleOn) {
         if (scaleMode != 0) {
+            // Capture the main display into bank D
+            REG_DISPCAPCNT = 15 | 3<<16 | 0<<18 | 3<<20 | 0<<29 | 1<<31;
+
+            // Leave the DMA copying for arm7
+            //dmaCopyWordsAsynch(0, (u8*)0x06860000, (u8*)0x06200000, 192*256*2);
             vramSetBankD(VRAM_D_ARM7_0x06000000);
             vramSetBankC(VRAM_C_ARM7_0x06020000);
+            sharedData->scaleTransferReady = true;
         }
 
         frame++;
@@ -306,11 +312,6 @@ void vblankHandler()
             probingForBorder = false;
             nukeBorder = true;
             resetGameboy();
-        }
-        if (scaleMode != 0) {
-            REG_DISPCAPCNT = 15 | 3<<16 | 0<<18 | 3<<20 | 0<<29;
-            REG_DISPCAPCNT |= BIT(31);
-            //dmaCopyWordsAsynch(0, (u8*)0x06860000, (u8*)0x06200000, 192*256*2);
         }
     }
 
@@ -597,7 +598,7 @@ void refreshScaleMode() {
     switch(scaleMode) {
         case 1:
             {
-                const double scaleFactor = (double)192/144;
+                const double scaleFactor = (double)191/144;
                 BG2PA = (1<<8)/scaleFactor;
                 BG2PB = 0;
                 BG2PC = 0;
@@ -611,7 +612,7 @@ void refreshScaleMode() {
                 BG2PA = (1<<8)/((double)255/160);
                 BG2PB = 0;
                 BG2PC = 0;
-                BG2PD = (1<<8)/((double)192/144);
+                BG2PD = (1<<8)/((double)191/144);
                 SCALE_BGX = (1<<8)*(screenOffsX-(256-160*255/160)/2/(255/160));
                 SCALE_BGY = 0;
             }
@@ -927,8 +928,8 @@ void drawSprites(u8* data, int tall) {
             else
             {
                 if (sgbMode) {
-                    int sgbPalette = sgbMap[y/8*20 + x/8]&3;
-                    paletteid = sgbPalette+(!!(data[spriteNum+3] & 0x10))*4;
+                    int sgbPalette = sgbMap[(y+8)/8*20 + x/8]&3;
+                    paletteid = i%8;//sgbPalette+(!!(data[spriteNum+3] & 0x10))*4;
                 }
                 else
                     paletteid = ((data[spriteNum+3] & 0x10) ? 5 : 0);
@@ -941,42 +942,6 @@ void drawSprites(u8* data, int tall) {
         }
     }
 }
-/*
-void drawSprite(int i) {
-    int spriteNum = i*4;
-    if (spriteData[spriteNum] == 0)
-        sprites[i].attr0 = ATTR0_DISABLED;
-    else
-    {
-        int y = spriteData[spriteNum]-16;
-        int tall = !!(ioRam[0x40]&0x4);
-        int tileNum = spriteData[spriteNum+2];
-        if (tall)
-            tileNum &= ~1;
-        int x = (spriteData[spriteNum+1]-8)&0x1FF;
-        int bank = 0;
-        int flipX = !!(spriteData[spriteNum+3] & 0x20);
-        int flipY = !!(spriteData[spriteNum+3] & 0x40);
-        int priority = !!(spriteData[spriteNum+3] & 0x80);
-        int paletteid;
-
-        if (gbMode == CGB)
-        {
-            bank = !!(spriteData[spriteNum+3]&0x8);
-            paletteid = spriteData[spriteNum+3] & 0x7;
-        }
-        else
-        {
-            paletteid = !!(spriteData[spriteNum+3] & 0x10);
-        }
-
-        int priorityVal = (priority ? spr_priority_low : spr_priority);
-        sprites[i].attr0 = (y+screenOffsY) | (tall<<15);
-        sprites[i].attr1 = (x+screenOffsX) | (flipX<<12) | (flipY<<13);
-        sprites[i].attr2 = (tileNum+(bank*0x100)) | (priorityVal<<10) | (paletteid<<12);
-    }
-}
-*/
 
 void drawScanline(int scanline) ITCM_CODE;
 
@@ -1268,9 +1233,6 @@ void handleVideoRegister(u8 ioReg, u8 val) {
             lineModified = true;
             ioRam[0x4a] = val;
             break;
-        case 0x44:
-            //ioRam[0x44] = 0;
-            return;
         case 0x47:				// BG Palette (GB classic only)
             ioRam[0x47] = val;
             if (gbMode == GB)

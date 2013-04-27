@@ -40,12 +40,15 @@ void sdmmcValueHandler(u32 value, void* user_data);
 extern int __dsimode;
 extern bool sleepIsEnabled;
 
-SharedData* sharedData;
+volatile SharedData* sharedData;
 
 void VblankHandler(void) {
-    // Copy from vram bank D to C
-    if (sharedData->scalingOn)
+    if (sharedData->scalingOn) {
+        while (!sharedData->scaleTransferReady);
+        // Copy from vram bank D to C
         dmaCopyWordsAsynch(3, (u16*)0x06000000+24*256, (u16*)0x06020000, 256*144*2);
+        sharedData->scaleTransferReady = 0;
+    }
     Wifi_Update();
 }
 
@@ -164,10 +167,6 @@ int main() {
     installSystemFIFO();
     // Replaces handler established in installSystemFIFO().
     fifoSetValue32Handler(FIFO_PM, powerHandler, 0);
-    /*
-       fifoSetValue32Handler(FIFO_SDMMC, sdmmcValueHandler, 0);
-       fifoSetDatamsgHandler(FIFO_SDMMC, sdmmcMsgHandler, 0);
-       */
 
     irqSet(IRQ_VCOUNT, VcountHandler);
     irqSet(IRQ_VBLANK, VblankHandler);

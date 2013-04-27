@@ -542,6 +542,7 @@ void updateScreens() {
     }
     else {
         sharedData->scalingOn = 0;
+        sharedData->scaleTransferReady = 1;
 
         REG_DISPCNT |= 1<<16;
         videoBgEnableSub(0);
@@ -549,16 +550,18 @@ void updateScreens() {
         videoBgDisableSub(3);
         vramSetBankD(VRAM_D_MAIN_BG_0x06040000);
 
-        if (!(fpsOutput || timeOutput || consoleDebugOutput || consoleOn))
-            powerOff(backlights[consoleScreen]);
-        else
-            powerOn(backlights[consoleScreen]);
         consoleDemoInit();
         if (consoleScreen == 0)
             lcdMainOnBottom();
         else
             lcdMainOnTop();
+
         powerOn(backlights[!consoleScreen]);
+
+        if (!(fpsOutput || timeOutput || consoleDebugOutput || consoleOn))
+            powerOff(backlights[consoleScreen]);
+        else
+            powerOn(backlights[consoleScreen]);
     }
 }
 
