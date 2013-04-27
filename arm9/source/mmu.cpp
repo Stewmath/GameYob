@@ -217,7 +217,8 @@ void m0w (u16 addr, u8 val) {
         case 0x6000: /* 6000 - 7fff */
             break;
         case 0xa000: /* a000 - bfff */
-            externRam[currentRamBank][addr&0x1fff] = val;
+            if (numRamBanks)
+                externRam[currentRamBank][addr&0x1fff] = val;
             break;
     }
 }
@@ -237,7 +238,7 @@ void m2w(u16 addr, u8 val)
         case 0x6000: /* 6000 - 7fff */
             break;
         case 0xa000: /* a000 - bfff */
-            if (ramEnabled)
+            if (ramEnabled && numRamBanks)
                 externRam[currentRamBank][addr&0x1fff] = val&0xf;
             break;
     }
@@ -291,7 +292,8 @@ void m3w(u16 addr, u8 val)
                     gbClock.mbc3.ctrl = val;
                     return;
                 default:
-                    externRam[currentRamBank][addr&0x1fff] = val;
+                    if (numRamBanks)
+                        externRam[currentRamBank][addr&0x1fff] = val;
             }
             break;
     }
@@ -328,7 +330,7 @@ void m1w (u16 addr, u8 val) {
             memoryModel = val & 1;
             break;
         case 0xa000: /* a000 - bfff */
-            if (ramEnabled)
+            if (ramEnabled && numRamBanks)
                 externRam[currentRamBank][addr&0x1fff] = val;
             break;
     }
@@ -357,7 +359,7 @@ void h1w(u16 addr, u8 val)
             memoryModel = val & 1;
             break;
         case 0xa000: /* a000 - bfff */
-            if (ramEnabled)
+            if (ramEnabled && numRamBanks)
                 externRam[currentRamBank][addr&0x1fff] = val;
             break;
     }
@@ -399,7 +401,7 @@ void m5w (u16 addr, u8 val) {
         case 0x6000: /* 6000 - 7fff */
             break;
         case 0xa000: /* a000 - bfff */
-            if (ramEnabled)
+            if (ramEnabled && numRamBanks)
                 externRam[currentRamBank][addr&0x1fff] = val;;
             break;
     }
@@ -430,7 +432,7 @@ void h3w (u16 addr, u8 val) {
                 case 0xe:
                     break;
                 default:
-                    if (ramEnabled)
+                    if (ramEnabled && numRamBanks)
                         externRam[currentRamBank][addr&0x1fff] = val;
             }
             break;
