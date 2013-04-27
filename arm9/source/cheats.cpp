@@ -206,13 +206,11 @@ bool startCheatMenu() {
     int numPages = (numCheats-1)/cheatsPerPage+1;
     bool quit=false;
     static int selection=0;
-    static int firstCheat=0;
 
     if (numCheats == 0)
         return false;
     if (selection >= numCheats) {
         selection = 0;
-        firstCheat = selection;
     }
 
     while (!quit) {
@@ -246,20 +244,12 @@ bool startCheatMenu() {
             if (keyPressedAutoRepeat(KEY_UP)) {
                 if (selection > 0) {
                     selection--;
-                    if (selection < firstCheat)
-                        firstCheat = selection;
                     break;
                 }
             }
             else if (keyPressedAutoRepeat(KEY_DOWN)) {
                 if (selection < numCheats-1) {
                     selection++;
-                    if (selection-firstCheat+1 > cheatsPerPage) {
-                        firstCheat = selection-cheatsPerPage+1;
-                        if (firstCheat < 0)
-                            firstCheat = 0;
-                    }
-
                     break;
                 }
             }
