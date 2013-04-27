@@ -15,8 +15,6 @@ void initGFX();
 void initGFXPalette();
 void refreshGFX();
 void refreshSgbPalette();
-void disableScreen();
-void enableScreen();
 
 void setCustomBorder(bool enabled);
 void refreshScaleMode();

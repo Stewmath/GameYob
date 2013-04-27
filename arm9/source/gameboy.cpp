@@ -63,6 +63,9 @@ inline void setEventCycles(int cycles) {
 
 // Called once every gameboy vblank
 void updateInput() {
+    if (probingForBorder)
+        return;
+
     if (cheatsEnabled)
         applyGSCheats();
 

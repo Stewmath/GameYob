@@ -428,9 +428,6 @@ void initGFX()
     videoSetMode(MODE_3_2D | DISPLAY_BG0_ACTIVE | DISPLAY_BG1_ACTIVE | DISPLAY_BG2_ACTIVE | DISPLAY_BG3_ACTIVE |
             DISPLAY_WIN0_ON | DISPLAY_WIN1_ON | DISPLAY_SPR_ACTIVE | DISPLAY_SPR_1D);
 
-    if (probingForBorder)
-        disableScreen(); // Display nothing to prevent confusion, since some games don't provide their borders immediately.
-
     setCustomBorder(customBordersEnabled);
     
     REG_DISPSTAT &= 0xFF;
@@ -539,14 +536,6 @@ void refreshSgbPalette() {
             mapBuf[bgMap][i] |= (palette<<12);
         }
     }
-}
-
-void disableScreen() {
-    //renderingState[0].lcdc = ioRam[0x40];
-}
-void enableScreen() {
-    if (probingForBorder)
-        return;
 }
 
 void setCustomBorder(bool enabled) {
@@ -867,6 +856,8 @@ void copyTile(u8 *src,u16 *dest) {
 
 void drawScreen()
 {
+    if (probingForBorder)
+        return;
     if (sgbMode && !gfxMask)
         refreshSgbPalette();
 
@@ -877,7 +868,7 @@ void drawScreen()
     DC_FlushRange(overlayMapBuf[0], 0x400*2);
     DC_FlushRange(overlayMapBuf[1], 0x400*2);
 
-    if (!(fastForwardMode || fastForwardKey || probingForBorder))
+    if (!(fastForwardMode || fastForwardKey))
         swiIntrWait(interruptWaitMode, IRQ_VBLANK);
 
     if (gfxMask)
@@ -902,33 +893,12 @@ void drawScreen()
 
     winPosY = -1;
 
-    /*
-       if (drawingState[0].spritesOn)
-       REG_DISPCNT |= DISPLAY_SPR_ACTIVE;
-       */
-
     // Check we're actually done drawing the screen.
     if (REG_VCOUNT >= screenOffsY+144) {
         REG_DISPCNT |= DISPLAY_SPR_ACTIVE;
     }
 
-    // Palettes
-    /*
-    if (palettesModified) {
-        palettesModified = false;
-        for (int paletteid=0; paletteid<8; paletteid++) {
-            if (gbMode == CGB || paletteid <= 1)
-                updateSprPalette(paletteid, sprPaletteData, ioRam[0x48+paletteid]);
-            updateBgPalette(paletteid, bgPaletteData, ioRam[0x47]);
-        }
-    }
-    */
-
     updateTiles();
-    //drawSprites();
-
-    if (interruptWaitMode == 1 && !(currentFrame+1 == frame && REG_VCOUNT >= 192) && (currentFrame != frame || REG_VCOUNT < 144+screenOffsY))
-        printLog("badv %d-%d, %d\n", currentFrame, frame, REG_VCOUNT);
 }
 
 void drawSprites(u8* data, int tall) {

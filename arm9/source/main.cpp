@@ -117,8 +117,12 @@ void initializeGameboy() {
 }
 
 void initializeGameboyFirstTime() {
-    probingForBorder = true; // This will be ignored if starting in sgb mode, or if there is no sgb mode.
-    nukeBorder = true;
+    if (sgbBordersEnabled) {
+        probingForBorder = true; // This will be ignored if starting in sgb mode, or if there is no sgb mode.
+        nukeBorder = false;
+    }
+    else
+        nukeBorder = true;
     initializeGameboy();
 }
 
