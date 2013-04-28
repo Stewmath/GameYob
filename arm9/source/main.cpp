@@ -37,6 +37,8 @@ void fifoValue32Handler(u32 value, void* user_data) {
         soundDisabled = true;
     }
     else {
+        time(&rawTime);
+        lastRawTime = rawTime;
         soundDisabled = false;
         if (!wasInConsole)
             exitConsole();

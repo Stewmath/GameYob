@@ -114,11 +114,11 @@ void powerHandler(u32 value, void* user_data) {
             // Turn the speaker up.
             if (REG_POWERCNT & 1) swiChangeSoundBias(1,0x400); 
 
-            // Signal to re-enable sound
-            fifoSendValue32(FIFO_USER_02, 0);
-
             // update clock tracking
             resyncClock();
+
+            // Signal to re-enable sound
+            fifoSendValue32(FIFO_USER_02, 0);
             break;
 
         case PM_REQ_SLEEP_DISABLE:
