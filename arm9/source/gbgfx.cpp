@@ -156,6 +156,7 @@ inline void drawLine(int gbLine) {
     if (screenDisabled) {
         REG_DISPCNT &= ~DISPLAY_SPR_ACTIVE;
         REG_BG0CNT = BG_MAP_BASE(off_map_base);
+        WIN_IN |= 7<<8;
         return;
     }
     if (state->spritesOn)
