@@ -291,7 +291,7 @@ void hblankHandler()
 }
 
 bool shift=false;
-bool shiftVertical;
+bool shiftVertical=true;
 volatile int lastHofs, lastVofs;
 void vblankHandler()
 {
@@ -318,6 +318,7 @@ void vblankHandler()
 
     memset(lineCompleted, 0, sizeof(lineCompleted));
     if (scaleFilter == 1) {
+        /*
         if (lastHofs != ioRam[0x43]) {
             shiftVertical = true;
             REG_BG2X_SUB = SCALE_BGX;
@@ -328,27 +329,20 @@ void vblankHandler()
             REG_BG2Y_SUB = SCALE_BGY;
             REG_BG3Y_SUB = SCALE_BGY + (1<<6);
         }
+        */
         lastHofs = ioRam[0x43];
         lastVofs = ioRam[0x42];
         if (shift) {
-            if (shiftVertical) {
-                REG_BG2Y_SUB = SCALE_BGY + (1<<6);
-                REG_BG3Y_SUB = SCALE_BGY + (1<<6);
-            }
-            else {
-                REG_BG2X_SUB = SCALE_BGX + (1<<6);
-                REG_BG3X_SUB = SCALE_BGX + (1<<6);
-            }
+            REG_BG2X_SUB = SCALE_BGX - (1<<5);
+            REG_BG2Y_SUB = SCALE_BGY - (1<<5);
+            REG_BG3X_SUB = SCALE_BGX + (1<<5);
+            REG_BG3Y_SUB = SCALE_BGY + (1<<5);
         }
         else {
-            if (shiftVertical) {
-                REG_BG2Y_SUB = SCALE_BGY;
-                REG_BG3Y_SUB = SCALE_BGY;
-            }
-            else {
-                REG_BG2X_SUB = SCALE_BGX;
-                REG_BG3X_SUB = SCALE_BGX;
-            }
+            REG_BG2X_SUB = SCALE_BGX - (1<<5);
+            REG_BG2Y_SUB = SCALE_BGY + (1<<5);
+            REG_BG3X_SUB = SCALE_BGX + (1<<5);
+            REG_BG3Y_SUB = SCALE_BGY - (1<<5);
         }
         shift = !shift;
     }
@@ -634,7 +628,7 @@ void refreshScaleMode() {
 
     if (scaleFilter == 1) {
         REG_BG3X_SUB = SCALE_BGX;
-        REG_BG3Y_SUB = SCALE_BGY + (1<<6);
+        REG_BG3Y_SUB = SCALE_BGY;
     }
     else if (scaleFilter == 2) {
         REG_BG3X_SUB = SCALE_BGX + (1<<6);
