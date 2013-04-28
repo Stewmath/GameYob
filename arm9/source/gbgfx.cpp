@@ -929,7 +929,7 @@ void drawSprites(u8* data, int tall) {
             {
                 if (sgbMode) {
                     int sgbPalette = sgbMap[(y+8)/8*20 + x/8]&3;
-                    paletteid = i%8;//sgbPalette+(!!(data[spriteNum+3] & 0x10))*4;
+                    paletteid = sgbPalette+(!!(data[spriteNum+3] & 0x10))*4;
                 }
                 else
                     paletteid = ((data[spriteNum+3] & 0x10) ? 5 : 0);
