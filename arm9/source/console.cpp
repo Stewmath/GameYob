@@ -578,6 +578,7 @@ void consoleParseConfig(const char* line) {
             if (strcmpi(menuList[i].options[j].name, option) == 0 && menuList[i].options[j].numValues != 0) {
                 menuList[i].options[j].selection = val;
                 menuList[i].options[j].function(val);
+                return;
             }
         }
     }
