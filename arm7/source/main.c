@@ -150,11 +150,11 @@ int main() {
     ledBlink(0);
 
     irqInit();
+    fifoInit();
+
     // Start the RTC tracking IRQ
     //initClockIRQ(); //windwakr: Doesn't seem to work on 3DS.
     resyncClock();
-
-    fifoInit();
 
     while (!fifoCheckAddress(FIFO_USER_03));
     sharedData = (SharedData*)fifoGetAddress(FIFO_USER_03);

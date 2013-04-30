@@ -135,13 +135,6 @@ int main(int argc, char* argv[])
 
     defaultExceptionHandler();
 
-    fifoSetValue32Handler(FIFO_USER_02, fifoValue32Handler, NULL);
-
-
-    sharedData = (SharedData*)memUncached(malloc(sizeof(SharedData)));
-    fifoSendAddress(FIFO_USER_03, (void*)memUncached((void*)sharedData));
-
-
     time(&rawTime);
     lastRawTime = rawTime;
     timerStart(0, ClockDivider_1024, TIMER_FREQ_1024(1), clockUpdater);
@@ -154,12 +147,17 @@ int main(int argc, char* argv[])
         GBA_BUS[0x1000] = 0xF0;
     }
 
+    fifoSetValue32Handler(FIFO_USER_02, fifoValue32Handler, NULL);
+
     consoleOn = true;
     initConsole();
     initInput();
     readConfigFile();
 
     consoleOn = false;
+
+    sharedData = (SharedData*)memUncached(malloc(sizeof(SharedData)));
+    fifoSendAddress(FIFO_USER_03, (void*)memUncached((void*)sharedData));
 
     if (argc >= 2) {
         char* filename = argv[1];
