@@ -504,7 +504,7 @@ void refreshSgbPalette() {
 
     for (int y=0; y<18; y++) {
         for (int yPix=y*8; yPix<y*8+8; yPix++) {
-            if (renderingState[yPix].modified) {
+            if (renderingState[yPix].modified && renderingState[yPix].mapsModified) {
                 winOn = renderingState[yPix].winOn;
                 winX = renderingState[yPix].winX;
                 winY = renderingState[yPix].winY;
