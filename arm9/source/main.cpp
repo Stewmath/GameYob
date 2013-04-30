@@ -117,8 +117,6 @@ void initializeGameboy() {
         // enter the console on resume
         advanceFrame = true;
     }
-
-    updateScreens();
 }
 
 void initializeGameboyFirstTime() {
@@ -167,6 +165,7 @@ int main(int argc, char* argv[])
         selectRom();
     }
     consoleOn = false;
+    updateScreens();
 
     runEmul();
 
