@@ -157,7 +157,8 @@ int main(int argc, char* argv[])
     consoleOn = false;
 
     sharedData = (SharedData*)memUncached(malloc(sizeof(SharedData)));
-    fifoSendAddress(FIFO_USER_03, (void*)memUncached((void*)sharedData));
+    if (!__dsimode) // TODO: get shared memory working in dsi mode. I don't have access to dsi mode!
+        fifoSendAddress(FIFO_USER_03, (void*)memUncached((void*)sharedData));
 
     if (argc >= 2) {
         char* filename = argv[1];
