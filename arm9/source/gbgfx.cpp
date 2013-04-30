@@ -100,6 +100,7 @@ void updateSprPalette(int paletteid, u8* data, u8 dmgPal);
 bool lineCompleted[144];
 typedef struct {
     bool modified;
+    bool mapsModified;
     u8 hofs;
     u8 vofs;
     u8 winX;
@@ -159,74 +160,76 @@ inline void drawLine(int gbLine) {
         WIN_IN |= 7<<8;
         return;
     }
-    if (state->spritesOn)
-        REG_DISPCNT |= DISPLAY_SPR_ACTIVE;
-    else
-        REG_DISPCNT &= ~DISPLAY_SPR_ACTIVE;
+    if (state->mapsModified) {
+        if (state->spritesOn)
+            REG_DISPCNT |= DISPLAY_SPR_ACTIVE;
+        else
+            REG_DISPCNT &= ~DISPLAY_SPR_ACTIVE;
 
-    bool useWin = state->winOn && !windowDisabled;
-    int layer = 0;
-    int bgLayers,winLayers;
-    if (useWin) {
-        if (state->winX > 7) {
-            winLayers = 1;
-            bgLayers = 2;
+        bool useWin = state->winOn && !windowDisabled;
+        int layer = 0;
+        int bgLayers,winLayers;
+        if (useWin) {
+            if (state->winX > 7) {
+                winLayers = 1;
+                bgLayers = 2;
+            }
+            else {
+                winLayers = 3;
+                bgLayers = 0;
+            }
         }
         else {
-            winLayers = 3;
-            bgLayers = 0;
+            winLayers = 0;
+            bgLayers = 3;
+            WIN_IN |= 7;
+            WIN0_X0 = screenOffsX;
+            WIN0_Y0 = screenOffsY;
         }
-    }
-    else {
-        winLayers = 0;
-        bgLayers = 3;
-        WIN_IN |= 7;
-        WIN0_X0 = screenOffsX;
-        WIN0_Y0 = screenOffsY;
-    }
 
-    if (winLayers != 0) {
-        int whofs = -(state->winX-7)-screenOffsX;
-        int wvofs = -(gbLine-state->winPosY)-screenOffsY;
-        if (winLayers == 1) {
-            BG_CNT(layer) = state->winAllCnt;
-            BG_HOFS(layer) = whofs;
-            BG_VOFS(layer++) = wvofs;
-        }
-        else {
-            BG_CNT(layer) = state->winColor0Cnt;
-            BG_HOFS(layer) = whofs;
-            BG_VOFS(layer++) = wvofs;
-            BG_CNT(layer) = state->winCnt;
-            BG_HOFS(layer) = whofs;
-            BG_VOFS(layer++) = wvofs;
-            if (winLayers >= 3) {
-                BG_CNT(layer) = state->winOverlayCnt;
+        if (winLayers != 0) {
+            int whofs = -(state->winX-7)-screenOffsX;
+            int wvofs = -(gbLine-state->winPosY)-screenOffsY;
+            if (winLayers == 1) {
+                BG_CNT(layer) = state->winAllCnt;
                 BG_HOFS(layer) = whofs;
                 BG_VOFS(layer++) = wvofs;
             }
+            else {
+                BG_CNT(layer) = state->winColor0Cnt;
+                BG_HOFS(layer) = whofs;
+                BG_VOFS(layer++) = wvofs;
+                BG_CNT(layer) = state->winCnt;
+                BG_HOFS(layer) = whofs;
+                BG_VOFS(layer++) = wvofs;
+                if (winLayers >= 3) {
+                    BG_CNT(layer) = state->winOverlayCnt;
+                    BG_HOFS(layer) = whofs;
+                    BG_VOFS(layer++) = wvofs;
+                }
+            }
+            if (state->winX <= 7)
+                WIN0_X0 = screenOffsX;
+            else
+                WIN0_X0 = state->winX-7+screenOffsX;
+            WIN_IN |= 7<<8;
+            for (int i=0; i<layer; i++)
+                WIN_IN &= ~(1<<(8+i));
         }
-        if (state->winX <= 7)
-            WIN0_X0 = screenOffsX;
-        else
-            WIN0_X0 = state->winX-7+screenOffsX;
-        WIN_IN |= 7<<8;
-        for (int i=0; i<layer; i++)
-            WIN_IN &= ~(1<<(8+i));
-    }
-    if (bgLayers > 1) {
-        int hofs = state->hofs-screenOffsX;
-        int vofs = state->vofs-screenOffsY;
-        BG_CNT(layer) = state->bgColor0Cnt;
-        BG_HOFS(layer) = hofs;
-        BG_VOFS(layer++) = vofs;
-        BG_CNT(layer) = state->bgCnt;
-        BG_HOFS(layer) = hofs;
-        BG_VOFS(layer++) = vofs;
-        if (bgLayers >= 3) {
-            BG_CNT(layer) = state->bgOverlayCnt;
+        if (bgLayers > 1) {
+            int hofs = state->hofs-screenOffsX;
+            int vofs = state->vofs-screenOffsY;
+            BG_CNT(layer) = state->bgColor0Cnt;
             BG_HOFS(layer) = hofs;
             BG_VOFS(layer++) = vofs;
+            BG_CNT(layer) = state->bgCnt;
+            BG_HOFS(layer) = hofs;
+            BG_VOFS(layer++) = vofs;
+            if (bgLayers >= 3) {
+                BG_CNT(layer) = state->bgOverlayCnt;
+                BG_HOFS(layer) = hofs;
+                BG_VOFS(layer++) = vofs;
+            }
         }
     }
 
@@ -947,6 +950,10 @@ void drawScanline(int scanline) ITCM_CODE;
 
 void drawScanline(int scanline)
 {
+    renderingState[scanline].mapsModified = false;
+    renderingState[scanline].spritesModified = false;
+    renderingState[scanline].bgPalettesModified = false;
+    renderingState[scanline].sprPalettesModified = false;
     if (hblankDisabled || gfxMask)
         return;
     int winX = ioRam[0x4b];
@@ -954,22 +961,6 @@ void drawScanline(int scanline)
         winPosY = ioRam[0x44]-ioRam[0x4a];
     else if (winX < 167 && ioRam[0x4a] <= scanline)
         winPosY++;
-    if (scanline == 0) {
-        renderingState[scanline].bgPalettesModified = true;
-        renderingState[scanline].sprPalettesModified = true;
-    }
-    else {
-        renderingState[scanline].bgPalettesModified = bgPalettesModified;
-        renderingState[scanline].sprPalettesModified = sprPalettesModified;
-        if (bgPalettesModified) {
-            bgPalettesModified = false;
-            lineModified = true;
-        }
-        if (sprPalettesModified) {
-            sprPalettesModified = false;
-            lineModified = true;
-        }
-    }
     if (scanline == 0)
         spritesModified = true;
     renderingState[scanline].spritesModified = spritesModified;
@@ -980,29 +971,17 @@ void drawScanline(int scanline)
         lineModified = true;
         spritesModified = false;
     }
-    if (scanline == 0 || /*(scanline != 1 && (renderingState[scanline-1].modified && !renderingState[scanline-2].modified)) ||*/ scanline == ioRam[0x4a])
+    if (scanline == 0 || scanline == ioRam[0x4a])
         lineModified = true;
-    if (!lineModified) {
+    else if (!lineModified) {
         renderingState[scanline].modified = false;
         return;
     } 
 
     renderingState[scanline].modified = true;
+    renderingState[scanline].mapsModified = true;
     lineModified = false;
 
-    if (renderingState[scanline].bgPalettesModified) {
-        for (int i=0; i<0x40; i++) {
-            renderingState[scanline].bgPaletteData[i] = bgPaletteData[i];
-        }
-    }
-    if (renderingState[scanline].sprPalettesModified) {
-        for (int i=0; i<0x40; i++) {
-            renderingState[scanline].sprPaletteData[i] = sprPaletteData[i];
-        }
-    }
-    renderingState[scanline].bgPal = ioRam[0x47];
-    renderingState[scanline].sprPal[0] = ioRam[0x48];
-    renderingState[scanline].sprPal[1] = ioRam[0x49];
     bool winOn = (ioRam[0x40] & 0x20) && winX < 167 && ioRam[0x4a] < 144 && ioRam[0x4a] <= scanline;
     renderingState[scanline].hofs = ioRam[0x43];
     renderingState[scanline].vofs = ioRam[0x42];
@@ -1065,6 +1044,49 @@ void drawScanline(int scanline)
             renderingState[scanline].bgOverlayCnt = (BG_MAP_BASE(overlay_map_base[bgMap]) | BG_TILE_BASE(tileBase) | bg_priority);
         }
     }
+}
+
+void drawScanlinePalettes(int scanline) {
+    if (hblankDisabled || gfxMask)
+        return;
+    bool palettesModified = false;
+    if (scanline == 0) {
+        renderingState[scanline].bgPalettesModified = true;
+        renderingState[scanline].sprPalettesModified = true;
+        bgPalettesModified = false;
+        sprPalettesModified = false;
+        palettesModified = true;
+    }
+    else {
+        renderingState[scanline].bgPalettesModified = bgPalettesModified;
+        renderingState[scanline].sprPalettesModified = sprPalettesModified;
+        if (bgPalettesModified) {
+            bgPalettesModified = false;
+            palettesModified = true;
+        }
+        if (sprPalettesModified) {
+            sprPalettesModified = false;
+            palettesModified = true;
+        }
+    }
+    if (!palettesModified)
+        return;
+
+    renderingState[scanline].modified = true;
+
+    if (renderingState[scanline].bgPalettesModified) {
+        for (int i=0; i<0x40; i++) {
+            renderingState[scanline].bgPaletteData[i] = bgPaletteData[i];
+        }
+    }
+    if (renderingState[scanline].sprPalettesModified) {
+        for (int i=0; i<0x40; i++) {
+            renderingState[scanline].sprPaletteData[i] = sprPaletteData[i];
+        }
+    }
+    renderingState[scanline].bgPal = ioRam[0x47];
+    renderingState[scanline].sprPal[0] = ioRam[0x48];
+    renderingState[scanline].sprPal[1] = ioRam[0x49];
 }
 
 void writeVram(u16 addr, u8 val) {
