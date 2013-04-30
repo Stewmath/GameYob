@@ -149,16 +149,14 @@ int main(int argc, char* argv[])
 
     fifoSetValue32Handler(FIFO_USER_02, fifoValue32Handler, NULL);
 
+    sharedData = (SharedData*)memUncached(malloc(sizeof(SharedData)));
+    sharedData->scalingOn = false;
+    fifoSendAddress(FIFO_USER_03, (void*)memUncached((void*)sharedData));
+
     consoleOn = true;
     initConsole();
     initInput();
     readConfigFile();
-
-    consoleOn = false;
-
-    sharedData = (SharedData*)memUncached(malloc(sizeof(SharedData)));
-    if (!__dsimode) // TODO: get shared memory working in dsi mode. I don't have access to dsi mode!
-        fifoSendAddress(FIFO_USER_03, (void*)memUncached((void*)sharedData));
 
     if (argc >= 2) {
         char* filename = argv[1];
@@ -168,6 +166,7 @@ int main(int argc, char* argv[])
     else {
         selectRom();
     }
+    consoleOn = false;
 
     runEmul();
 

@@ -542,7 +542,6 @@ void updateScreens() {
     }
     else {
         sharedData->scalingOn = 0;
-        sharedData->scaleTransferReady = 1;
 
         REG_DISPCNT |= 1<<16;
         videoBgEnableSub(0);

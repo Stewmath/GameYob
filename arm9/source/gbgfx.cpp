@@ -276,10 +276,11 @@ void hblankHandler()
         gbLine = 0;
         if (lineCompleted[0])
             return;
-        if (scaleMode != 0) {
-            vramSetBankC(VRAM_C_SUB_BG);
+
+        // These vram banks may have been allocated to arm7 for scaling stuff.
+        vramSetBankC(VRAM_C_SUB_BG);
+        if (sharedData->scalingOn)
             vramSetBankD(VRAM_D_LCD);
-        }
     }
 
     if (gbLine != 0 && !lineCompleted[gbLine-1] && drawingState[gbLine-1].modified)
@@ -294,12 +295,10 @@ void hblankHandler()
 }
 
 bool shift=false;
-bool shiftVertical=true;
-volatile int lastHofs, lastVofs;
 void vblankHandler()
 {
     if (!consoleOn) {
-        if (scaleMode != 0) {
+        if (sharedData->scalingOn) {
             // Capture the main display into bank D
             REG_DISPCAPCNT = 15 | 3<<16 | 0<<18 | 3<<20 | 0<<29 | 1<<31;
 
@@ -321,20 +320,6 @@ void vblankHandler()
 
     memset(lineCompleted, 0, sizeof(lineCompleted));
     if (scaleFilter == 1) {
-        /*
-        if (lastHofs != ioRam[0x43]) {
-            shiftVertical = true;
-            REG_BG2X_SUB = SCALE_BGX;
-            REG_BG3X_SUB = SCALE_BGX + (1<<6);
-        }
-        else if (lastVofs != ioRam[0x42]) {
-            shiftVertical = false;
-            REG_BG2Y_SUB = SCALE_BGY;
-            REG_BG3Y_SUB = SCALE_BGY + (1<<6);
-        }
-        */
-        lastHofs = ioRam[0x43];
-        lastVofs = ioRam[0x42];
         if (shift) {
             REG_BG2X_SUB = SCALE_BGX - (1<<5);
             REG_BG2Y_SUB = SCALE_BGY - (1<<5);
@@ -650,9 +635,6 @@ void refreshScaleMode() {
     REG_BG3PB_SUB = BG2PB;
     REG_BG3PC_SUB = BG2PC;
     REG_BG3PD_SUB = BG2PD;
-
-    lastHofs = -1;
-    lastVofs = -1;
 }
 
 void setGFXMask(int mask) {
