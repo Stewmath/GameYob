@@ -474,8 +474,8 @@ void refreshGFX() {
     }
     bgPalettesModified = true;
     sprPalettesModified = true;
-    lastScreenDisabled = ioRam[0x40] & 0x80;
-    screenDisabled = true;
+    lastScreenDisabled = !(ioRam[0x40] & 0x80);
+    screenDisabled = lastScreenDisabled;
     /*
     for (int i=0; i<0xa0; i++)
         spriteData[i] = hram[i];
@@ -641,6 +641,8 @@ void refreshScaleMode() {
 }
 
 void setGFXMask(int mask) {
+    if (gfxMask == mask)
+        return;
     gfxMask = mask;
     if (gfxMask == 0) {
         refreshGFX();
@@ -868,8 +870,6 @@ void drawScreen()
     dmaCopy(color0MapBuf[1], color0Map[1], 0x400*2);
     dmaCopy(overlayMapBuf[0], overlayMap[0], 0x400*2);
     dmaCopy(overlayMapBuf[1], overlayMap[1], 0x400*2);
-
-    int currentFrame = frame;
 
     ScanlineStruct* tmp = renderingState;
     renderingState = drawingState;
