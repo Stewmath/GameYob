@@ -26,6 +26,7 @@ void initSGB() {
     numControllers=1;
     selectedController=0;
     sgbPacketBit = -1;
+    sgbPacketsTransferred = 0;
 }
 
 u8* getVramTransferSrc() {
@@ -127,11 +128,15 @@ void sgbAttrBlock(int block) {
 }
 
 void sgbPalSet(int block) {
+    int color0Paletteid = (sgbPacket[1] | (sgbPacket[2]<<8))&0x1ff;
     for (int i=0; i<4; i++) {
-        //int paletteid = (sgbPacket[i*2+1] | (sgbPacket[i*2+2]<<8));
+        int paletteid = (sgbPacket[i*2+1] | (sgbPacket[i*2+2]<<8))&0x1ff;
         //printLog("%d: %x\n", i, paletteid);
-        memcpy(bgPaletteData+i*8, sgbPalettes + (sgbPacket[i*2+1] | (sgbPacket[i*2+2]<<8))*8, 8);
-        memcpy(sprPaletteData+i*8, sgbPalettes + (sgbPacket[i*2+1] | sgbPacket[i*2+2]<<8)*8, 8);
+        memcpy(bgPaletteData+i*8+2, sgbPalettes + paletteid*8+2, 6);
+        memcpy(sprPaletteData+i*8+2, sgbPalettes + paletteid*8+2, 6);
+
+        memcpy(bgPaletteData+i*8, sgbPalettes + color0Paletteid*8, 2); // Color 0 is the same for everything
+        memcpy(sprPaletteData+i*8, sgbPalettes + color0Paletteid*8, 2);
     }
     if (sgbPacket[9]&0x80) {
         sgbLoadAttrFile(sgbPacket[9]&0x3f);
@@ -165,6 +170,13 @@ void sgbPctTrn(int block) {
 
 void sgbAttrTrn(int block) {
     memcpy(sgbAttrFiles, getVramTransferSrc(), 0x1000);
+    /*
+    for (int y=0; y<18; y++) {
+        for (int x=0; x<20/4; x++)
+            printLog("%.2x", sgbAttrFiles[90*5+y*20+x]);
+        printLog("\n");
+    }
+    */
 }
 
 void sgbAttrSet(int block) {
@@ -191,12 +203,19 @@ void sgbHandleP1(u8 val) {
         return;
     }
     if (sgbPacketBit != -1) {
+        u8 oldVal = ioRam[0x00];
+        ioRam[0x00] = val;
+
         int shift = sgbPacketBit%8;
         int byte = (sgbPacketBit/8)%16;
         if (shift == 0)
             sgbPacket[byte] = 0;
 
         int bit;
+        if ((oldVal & 0x30) == 0 && (val & 0x30) != 0x30) { // A bit of speculation here
+            sgbPacketBit = -1;
+            return;
+        }
         if (!(val & 0x10))
             bit = 0;
         else if (!(val & 0x20))
@@ -206,13 +225,12 @@ void sgbHandleP1(u8 val) {
 
         sgbPacket[byte] |= bit<<shift;
         sgbPacketBit++;
-        if (sgbPacketLength == 0 && sgbPacketBit == 8) {
-            sgbCommand = sgbPacket[0]/8;
-            sgbPacketLength = sgbPacket[0]&7;
-            sgbPacketsTransferred = 0;
-            printLog("CMD %x\n", sgbCommand);
-        }
         if (sgbPacketBit == 128) {
+            if (sgbPacketsTransferred == 0) {
+                sgbCommand = sgbPacket[0]/8;
+                sgbPacketLength = sgbPacket[0]&7;
+                printLog("CMD %x\n", sgbCommand);
+            }
             if (sgbCommands[sgbCommand] != 0)
                 sgbCommands[sgbCommand](sgbPacketsTransferred);
             /*
@@ -226,6 +244,7 @@ void sgbHandleP1(u8 val) {
             sgbPacketsTransferred++;
             if (sgbPacketsTransferred == sgbPacketLength) {
                 sgbPacketLength = 0;
+                sgbPacketsTransferred = 0;
             }
         }
     }
