@@ -488,8 +488,8 @@ void refreshSgbPalette() {
     int hofs=0,vofs=0,winX=0,winY=0;
 
     for (int y=0; y<18; y++) {
-        for (int yPix=y*8; yPix<y*8+8; yPix++) {
-            if (renderingState[yPix].modified && renderingState[yPix].mapsModified) {
+        for (int yPix=y*8-7; yPix<=y*8; yPix++) {
+            if (yPix >= 0 && renderingState[yPix].modified && renderingState[yPix].mapsModified) {
                 winOn = renderingState[yPix].winOn;
                 winX = renderingState[yPix].winX;
                 winY = renderingState[yPix].winY;
@@ -513,11 +513,14 @@ void refreshSgbPalette() {
                 }
             }
 
-            realx = ((x*8+hofs)&0xff)/8;
-            realy = ((y*8+vofs)&0xff)/8;
-            int i = realy*32+realx;
-            mapBuf[bgMap][i] &= ~(7<<12);
-            mapBuf[bgMap][i] |= (palette<<12);
+            int loop = (x == 19 ? 2 : 1); // Give tile 20 tile 19's palette, as it's scrolling in
+            for (int j=0; j<loop; j++) {
+                realx = (((x+j)*8+hofs)&0xff)/8;
+                realy = ((y*8+vofs+7)&0xff)/8;
+                int i = realy*32+realx;
+                mapBuf[bgMap][i] &= ~(7<<12);
+                mapBuf[bgMap][i] |= (palette<<12);
+            }
         }
     }
 }
@@ -913,7 +916,9 @@ void drawSprites(u8* data, int tall) {
             else
             {
                 if (sgbMode) {
-                    int sgbPalette = sgbMap[y/8*20 + x/8]&3;
+                    int yPos = (y < 0 ? 0 : y/8);
+                    int xPos = (x < 0 ? 0 : x/8);
+                    int sgbPalette = sgbMap[yPos*20 + xPos]&3;
                     paletteid = sgbPalette+(!!(data[spriteNum+3] & 0x10))*4;
                 }
                 else
