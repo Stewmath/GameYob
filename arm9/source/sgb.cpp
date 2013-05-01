@@ -115,16 +115,6 @@ void sgbAttrBlock(int block) {
             data[cmdData.attrBlock.dataBytes] = sgbPacket[pos];
         }
         if (cmdData.attrBlock.dataBytes == 6) {
-            /*
-            printLog("Block ");
-            if (data[0]&1)
-                printLog("INSIDE ");
-            if (data[0]&2)
-                printLog("LINE ");
-            if (data[0]&4)
-                printLog("OUTSIDE");
-            printLog("\n");
-            */
             int pIn = data[1]&3;
             int pLine = (data[1]>>2)&3;
             int pOut = (data[1]>>4)&3;
@@ -132,22 +122,23 @@ void sgbAttrBlock(int block) {
             int y1=data[3];
             int x2=data[4];
             int y2=data[5];
+            bool changeLine = data[0] & 2;
+            if (!changeLine) {
+                if ((data[0] & 7) == 1) {
+                    changeLine = true;
+                    pLine = pIn;
+                }
+                else if ((data[0] & 7) == 4) {
+                    changeLine = true;
+                    pLine = pOut;
+                }
+            }
 
             if (data[0] & 1) { // Inside block
                 for (int x=x1+1; x<x2; x++) {
                     for (int y=y1+1; y<y2; y++) {
                         sgbMap[y*20+x] = pIn;
                     }
-                }
-            }
-            if (data[0] & 2) { // Line surrounding block
-                for (int x=x1; x<=x2; x++) {
-                    sgbMap[y1*20+x] = pLine;
-                    sgbMap[y2*20+x] = pLine;
-                }
-                for (int y=y1; y<=y2; y++) {
-                    sgbMap[y*20+x1] = pLine;
-                    sgbMap[y*20+x2] = pLine;
                 }
             }
             if (data[0] & 4) { // Outside block
@@ -159,6 +150,16 @@ void sgbAttrBlock(int block) {
                             }
                         }
                     }
+                }
+            }
+            if (changeLine) { // Line surrounding block
+                for (int x=x1; x<=x2; x++) {
+                    sgbMap[y1*20+x] = pLine;
+                    sgbMap[y2*20+x] = pLine;
+                }
+                for (int y=y1; y<=y2; y++) {
+                    sgbMap[y*20+x1] = pLine;
+                    sgbMap[y*20+x2] = pLine;
                 }
             }
 
@@ -326,7 +327,7 @@ void sgbHandleP1(u8 val) {
             sgbPacket[byte] = 0;
 
         int bit;
-        if ((oldVal & 0x30) == 0 && (val & 0x30) != 0x30) { // A bit of speculation here
+        if ((oldVal & 0x30) == 0 && (val & 0x30) != 0x30) { // A bit of speculation here. Fixes castlevania.
             sgbPacketBit = -1;
             return;
         }
@@ -363,7 +364,7 @@ void sgbHandleP1(u8 val) {
         }
     }
     else {
-        if ((val&0x30) == 0x30) {
+        if ((val&0x30) == 0x30 && (ioRam[0x00]&0x30) != 0x30) {
             selectedController++;
             if (selectedController >= numControllers)
                 selectedController = 0;
@@ -371,6 +372,6 @@ void sgbHandleP1(u8 val) {
             //printLog("0x00 = %.2x\n", ioRam[0x00]);
         }
         else
-            ioRam[0x00] = val;
+            ioRam[0x00] = val|0xcf;
     }
 }

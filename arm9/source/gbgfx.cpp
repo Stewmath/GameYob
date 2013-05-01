@@ -482,6 +482,9 @@ void refreshGFX() {
     */
 }
 
+// SGB palettes can't quite be perfect because SGB doesn't (necessarily) align 
+// palettes with tiles. Mostly problematic with scrolling around status bars.  
+// Bars on the bottom are favored by this code.
 void refreshSgbPalette() {
     int winMap=0,bgMap=0;
     bool winOn=0;
@@ -502,25 +505,31 @@ void refreshSgbPalette() {
         for (int x=0; x<20; x++) {
             int palette = sgbMap[y*20+x]&3;
 
-            int realx = (x*8-(winX-7))/8;
-            int realy = (y*8-winY)/8;
+            int yLoop = (y == 0 ? 2 : 1); // Give vertical tile -1 tile 0's palette as it's scrolling in
+            int xLoop = (x == 19 ? 2 : 1); // Give horizontal tile 20 tile 19's palette, as it's scrolling in
+            while (yLoop-- > 0) {
+                for (int j=0; j<xLoop; j++) {
+                    {
+                        int realx = (((x+j)*8+hofs)&0xff)/8;
+                        int realy = (((y-yLoop)*8+vofs+7)&0xff)/8;
+                        int i = realy*32+realx;
+                        mapBuf[bgMap][i] &= ~(7<<12);
+                        mapBuf[bgMap][i] |= (palette<<12);
+                    }
 
-            if (winOn) {
-                if (realx >= 0 && realy >= 0 && realx < 32 && realy < 32) {
-                    int i = realy*32+realx;
-                    mapBuf[winMap][i] &= ~(7<<12);
-                    mapBuf[winMap][i] |= (palette<<12);
+                    if (winOn) {
+                        int realx = ((x+j)*8-(winX-7))/8;
+                        int realy = ((y-yLoop)*8-winY+7)/8;
+
+                        if (realx >= 0 && realy >= 0 && realx < 32 && realy < 32) {
+                            int i = realy*32+realx;
+                            mapBuf[winMap][i] &= ~(7<<12);
+                            mapBuf[winMap][i] |= (palette<<12);
+                        }
+                    }
                 }
             }
 
-            int loop = (x == 19 ? 2 : 1); // Give tile 20 tile 19's palette, as it's scrolling in
-            for (int j=0; j<loop; j++) {
-                realx = (((x+j)*8+hofs)&0xff)/8;
-                realy = ((y*8+vofs+7)&0xff)/8;
-                int i = realy*32+realx;
-                mapBuf[bgMap][i] &= ~(7<<12);
-                mapBuf[bgMap][i] |= (palette<<12);
-            }
         }
     }
 }
