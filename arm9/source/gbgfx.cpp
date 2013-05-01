@@ -901,7 +901,7 @@ void drawSprites(u8* data, int tall) {
             int tileNum = data[spriteNum+2];
             if (tall)
                 tileNum &= ~1;
-            int x = (data[spriteNum+1]-8)&0x1FF;
+            int x = data[spriteNum+1]-8;
             int bank = 0;
             int flipX = !!(data[spriteNum+3] & 0x20);
             int flipY = !!(data[spriteNum+3] & 0x40);
@@ -927,7 +927,7 @@ void drawSprites(u8* data, int tall) {
 
             int priorityVal = (priority ? spr_priority_low : spr_priority);
             sprites[i].attr0 = (y+screenOffsY) | (tall<<15);
-            sprites[i].attr1 = (x+screenOffsX) | (flipX<<12) | (flipY<<13);
+            sprites[i].attr1 = ((x&0x1ff)+screenOffsX) | (flipX<<12) | (flipY<<13);
             sprites[i].attr2 = (tileNum+(bank*0x100)) | (priorityVal<<10) | (paletteid<<12);
         }
     }
