@@ -25,7 +25,7 @@ DATA		:=
 #---------------------------------------------------------------------------------
 ARCH	:=	# -mthumb -mthumb-interwork	#This may cause some problem when there are some cross-calls between C&Assembly. It also ends up being slower than non-Thumb code.
 
-CFLAGS	:=	-Wall -DNO_VIZ\
+CFLAGS	:=	-Wall -Wno-psabi -DNO_VIZ\
  			-march=armv5te -mtune=arm946e-s -fomit-frame-pointer\
 			-ffast-math -O3 -g \
 			$(ARCH)
