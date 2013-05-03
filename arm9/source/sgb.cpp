@@ -44,11 +44,33 @@ void initSGB() {
     memset(sgbMap, 0, 20*18);
 }
 
-u8* getVramTransferSrc() {
-    if (ioRam[0x40] & 0x10)
-        return vram[0];
-    else
-        return vram[0]+0x800;
+void doVramTransfer(u8* dest) {
+    int map = 0x1800+((ioRam[0x40]>>3)&1)*0x400;
+    int index=0;
+    for (int y=0; y<18; y++) {
+        for (int x=0; x<20; x++) {
+            if (index == 0x1000)
+                return;
+            int tile = vram[0][map+y*32+x];
+            if (ioRam[0x40] & 0x10)
+                memcpy(dest+index, vram[0]+tile*16, 16);
+            else
+                memcpy(dest+index, vram[0]+0x1000+((s8)tile)*16, 16);
+            index += 16;
+        }
+    }
+}
+
+void setBackdrop(u16 val) {
+    BG_PALETTE[0] = val;
+    for (int i=0; i<4; i++) {
+        bgPaletteData[i*8] = val&0xff;
+        bgPaletteData[i*8+1] = val>>8;
+        sprPaletteData[i*8] = val&0xff;
+        sprPaletteData[i*8+1] = val>>8;
+        sprPaletteData[(i+4)*8] = val&0xff;
+        sprPaletteData[(i+4)*8+1] = val>>8;
+    }
 }
 
 void sgbLoadAttrFile(int index) {
@@ -90,13 +112,13 @@ void sgbPalXX(int block) {
         default:
             return;
     }
-    memcpy(bgPaletteData+s1*8, sgbPacket+1, 8);
-    memcpy(sprPaletteData+s1*8, sgbPacket+1, 8);
+    memcpy(bgPaletteData+s1*8+2, sgbPacket+3, 6);
+    memcpy(sprPaletteData+s1*8+2, sgbPacket+3, 6);
 
-    memcpy(bgPaletteData+s2*8, sgbPacket+1, 2);
-    memcpy(sprPaletteData+s2*8, sgbPacket+1, 2);
     memcpy(bgPaletteData+s2*8+2, sgbPacket+9, 6);
     memcpy(sprPaletteData+s2*8+2, sgbPacket+9, 6);
+
+    setBackdrop(sgbPacket[1] | sgbPacket[2]<<8);
 }
 
 void sgbAttrBlock(int block) {
@@ -243,16 +265,15 @@ void sgbAttrChr(int block) {
 }
 
 void sgbPalSet(int block) {
-    int color0Paletteid = (sgbPacket[1] | (sgbPacket[2]<<8))&0x1ff;
     for (int i=0; i<4; i++) {
         int paletteid = (sgbPacket[i*2+1] | (sgbPacket[i*2+2]<<8))&0x1ff;
         //printLog("%d: %x\n", i, paletteid);
         memcpy(bgPaletteData+i*8+2, sgbPalettes + paletteid*8+2, 6);
         memcpy(sprPaletteData+i*8+2, sgbPalettes + paletteid*8+2, 6);
-
-        memcpy(bgPaletteData+i*8, sgbPalettes + color0Paletteid*8, 2); // Color 0 is the same for everything
-        memcpy(sprPaletteData+i*8, sgbPalettes + color0Paletteid*8, 2);
     }
+    int color0Paletteid = (sgbPacket[1] | (sgbPacket[2]<<8))&0x1ff;
+    setBackdrop(sgbPalettes[color0Paletteid*8] | (sgbPalettes[color0Paletteid*8+1]<<8));
+
     if (sgbPacket[9]&0x80) {
         sgbLoadAttrFile(sgbPacket[9]&0x3f);
     }
@@ -260,7 +281,7 @@ void sgbPalSet(int block) {
         setGFXMask(0);
 }
 void sgbPalTrn(int block) {
-    memcpy(sgbPalettes, getVramTransferSrc(), 0x1000);
+    doVramTransfer(sgbPalettes);
 }
 
 void sgbDataSnd(int block) {
@@ -276,22 +297,20 @@ void sgbMltReq(int block) {
 }
 
 void sgbChrTrn(int blonk) {
-    setSgbTiles(getVramTransferSrc(), sgbPacket[1]);
+    u8* data = (u8*)malloc(0x1000);
+    doVramTransfer(data);
+    setSgbTiles(data, sgbPacket[1]);
+    free(data);
 }
 
 void sgbPctTrn(int block) {
-    setSgbMap(getVramTransferSrc());
+    u8* data = (u8*)malloc(0x1000);
+    doVramTransfer(data);
+    setSgbMap(data);
 }
 
 void sgbAttrTrn(int block) {
-    memcpy(sgbAttrFiles, getVramTransferSrc(), 0x1000);
-    /*
-    for (int y=0; y<18; y++) {
-        for (int x=0; x<20/4; x++)
-            printLog("%.2x", sgbAttrFiles[90*5+y*20+x]);
-        printLog("\n");
-    }
-    */
+    doVramTransfer(sgbAttrFiles);
 }
 
 void sgbAttrSet(int block) {

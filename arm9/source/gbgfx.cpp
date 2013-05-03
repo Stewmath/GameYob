@@ -505,21 +505,28 @@ void refreshSgbPalette() {
         for (int x=0; x<20; x++) {
             int palette = sgbMap[y*20+x]&3;
 
+            // BACKGROUND
             int yLoop = (y == 0 ? 2 : 1); // Give vertical tile -1 tile 0's palette as it's scrolling in
             int xLoop = (x == 19 ? 2 : 1); // Give horizontal tile 20 tile 19's palette, as it's scrolling in
             while (yLoop-- > 0) {
                 for (int j=0; j<xLoop; j++) {
-                    {
-                        int realx = (((x+j)*8+hofs)&0xff)/8;
-                        int realy = (((y-yLoop)*8+vofs+7)&0xff)/8;
-                        int i = realy*32+realx;
-                        mapBuf[bgMap][i] &= ~(7<<12);
-                        mapBuf[bgMap][i] |= (palette<<12);
-                    }
+                    int realx = (((x+j)*8+hofs)&0xff)/8;
+                    int realy = (((y-yLoop)*8+vofs+7)&0xff)/8;
+                    int i = realy*32+realx;
+                    mapBuf[bgMap][i] &= ~(7<<12);
+                    mapBuf[bgMap][i] |= (palette<<12);
+                }
+            }
 
-                    if (winOn) {
+            // WINDOW
+            if (winOn) {
+                yLoop = (y == 17 ? 2 : 1); // Give vertical tile 19 tile 18's palette as it's scrolling in
+                xLoop = (x == 19 ? 2 : 1); // x is treated the same as the background
+
+                while (yLoop-- > 0) {
+                    for (int j=0; j<xLoop; j++) {
                         int realx = ((x+j)*8-(winX-7))/8;
-                        int realy = ((y-yLoop)*8-winY+7)/8;
+                        int realy = ((y+yLoop)*8-winY)/8;
 
                         if (realx >= 0 && realy >= 0 && realx < 32 && realy < 32) {
                             int i = realy*32+realx;
@@ -529,7 +536,6 @@ void refreshSgbPalette() {
                     }
                 }
             }
-
         }
     }
 }

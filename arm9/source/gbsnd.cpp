@@ -60,7 +60,7 @@ void updateSoundSample(int byte);
 
 void playPSG(int channel, DutyCycle cycle, u32 freq, u8 volume, u8 pan){
     if (freq > 0xffff) {
-        printLog("Bad PSG frequency %x\n", freq);
+        //printLog("Bad PSG frequency %x\n", freq);
         freq = 0xffff;
     }
     FifoMessage msg;
@@ -81,7 +81,7 @@ void playPSG(int channel, DutyCycle cycle, u32 freq, u8 volume, u8 pan){
 }
 void playSample(int channel, const void* data, SoundFormat format, u32 dataSize, u32 freq, u8 volume, u8 pan, bool loop, u16 loopPoint){ 
     if (freq > 0xffff) {
-        printLog("Bad sample frequency %x\n", freq);
+        //printLog("Bad sample frequency %x\n", freq);
         freq = 0xffff;
     }
     FifoMessage msg;
