@@ -27,10 +27,6 @@ int rumbleInserted = 0;
 bool rumbleValue = 0;
 bool lastRumbleValue = 0;
 
-int watchAddr=-1;
-int readWatchAddr=-1;
-int bankWatchAddr=-1;
-
 clockStruct gbClock;
 
 int numRomBanks=0;
@@ -56,8 +52,8 @@ u8** externRam = NULL;
 u8 wram[8][0x1000];
 
 u8 highram[0x1000];
-u8* hram = highram+0xe00;
-u8* ioRam = hram+0x100;
+u8* const hram = highram+0xe00;
+u8* const ioRam = hram+0x100;
 
 u8 spriteData[0xA0]
 #ifdef DS
@@ -156,9 +152,6 @@ void handleHuC3Command (u8 cmd)
     }
 }
 
-#ifdef DS
-u8 readMemory(u16 addr) ITCM_CODE;
-#endif
 
 /* MBC read handlers */
 
@@ -207,16 +200,21 @@ const mbcRead mbcReads[] = {
 
 /* MBC0 */
 void m0w (u16 addr, u8 val) {
-    switch (addr & 0xe000) {
-        case 0x0000: /* 0000 - 1fff */
+    switch (addr >> 12) {
+        case 0x0: /* 0000 - 1fff */
+        case 0x1:
             break;
-        case 0x2000: /* 2000 - 3fff */
+        case 0x2: /* 2000 - 3fff */
+        case 0x3:
             break;
-        case 0x4000: /* 4000 - 5fff */
+        case 0x4: /* 4000 - 5fff */
+        case 0x5:
             break;
-        case 0x6000: /* 6000 - 7fff */
+        case 0x6: /* 6000 - 7fff */
+        case 0x7:
             break;
-        case 0xa000: /* a000 - bfff */
+        case 0xa: /* a000 - bfff */
+        case 0xb:
             if (numRamBanks)
                 externRam[currentRamBank][addr&0x1fff] = val;
             break;
@@ -226,18 +224,23 @@ void m0w (u16 addr, u8 val) {
 /* MBC2 */
 void m2w(u16 addr, u8 val)
 {
-    switch (addr & 0xe000) {
-        case 0x0000: /* 0000 - 1fff */
+    switch (addr >> 12) {
+        case 0x0: /* 0000 - 1fff */
+        case 0x1:
             ramEnabled = ((val & 0xf) == 0xa);
             break;
-        case 0x2000: /* 2000 - 3fff */
+        case 0x2: /* 2000 - 3fff */
+        case 0x3:
             refreshRomBank((val) ? val : 1);
             break;
-        case 0x4000: /* 4000 - 5fff */
+        case 0x4: /* 4000 - 5fff */
+        case 0x5:
             break;
-        case 0x6000: /* 6000 - 7fff */
+        case 0x6: /* 6000 - 7fff */
+        case 0x7:
             break;
-        case 0xa000: /* a000 - bfff */
+        case 0xa: /* a000 - bfff */
+        case 0xb:
             if (ramEnabled && numRamBanks)
                 externRam[currentRamBank][addr&0x1fff] = val&0xf;
             break;
@@ -247,15 +250,18 @@ void m2w(u16 addr, u8 val)
 /* MBC3 */
 void m3w(u16 addr, u8 val)
 {
-    switch (addr & 0xe000) {
-        case 0x0000: /* 0000 - 1fff */
+    switch (addr >> 12) {
+        case 0x0: /* 0000 - 1fff */
+        case 0x1:
             ramEnabled = ((val & 0xf) == 0xa);
             break;
-        case 0x2000: /* 2000 - 3fff */
+        case 0x2: /* 2000 - 3fff */
+        case 0x3:
             val &= 0x7f;
             refreshRomBank((val) ? val : 1);
             break;
-        case 0x4000: /* 4000 - 5fff */
+        case 0x4: /* 4000 - 5fff */
+        case 0x5:
             /* The RTC register is selected by writing values 0x8-0xc, ram banks
              * are selected by values 0x0-0x3 */
             rtcReg = -1;
@@ -264,11 +270,13 @@ void m3w(u16 addr, u8 val)
             else
                 rtcReg = val;
             break;
-        case 0x6000: /* 6000 - 7fff */
+        case 0x6: /* 6000 - 7fff */
+        case 0x7:
             if (val)
                 latchClock();
             break;
-        case 0xa000: /* a000 - bfff */
+        case 0xa: /* a000 - bfff */
+        case 0xb:
             if (!ramEnabled)
                 break;
 
@@ -303,11 +311,13 @@ void m3w(u16 addr, u8 val)
 void m1w (u16 addr, u8 val) {
     int newBank;
 
-    switch (addr & 0xe000) {
-        case 0x0000: /* 0000 - 1fff */
+    switch (addr >> 12) {
+        case 0x0: /* 0000 - 1fff */
+        case 0x1:
             ramEnabled = ((val & 0xf) == 0xa);
             break;
-        case 0x2000: /* 2000 - 3fff */
+        case 0x2: /* 2000 - 3fff */
+        case 0x3:
             val &= 0x1f;
             if (rockmanMapper)
                 newBank = ((val > 0xf) ? val - 8 : val);
@@ -315,7 +325,8 @@ void m1w (u16 addr, u8 val) {
                 newBank = (currentRomBank & 0xe0) | val;
             refreshRomBank((newBank) ? newBank : 1);
             break;
-        case 0x4000: /* 4000 - 5fff */
+        case 0x4: /* 4000 - 5fff */
+        case 0x5:
             val &= 3;
             /* ROM mode */
             if (memoryModel == 0) {
@@ -326,10 +337,12 @@ void m1w (u16 addr, u8 val) {
             else
                 refreshRamBank(val);
             break;
-        case 0x6000: /* 6000 - 7fff */
+        case 0x6: /* 6000 - 7fff */
+        case 0x7:
             memoryModel = val & 1;
             break;
-        case 0xa000: /* a000 - bfff */
+        case 0xa: /* a000 - bfff */
+        case 0xb:
             if (ramEnabled && numRamBanks)
                 externRam[currentRamBank][addr&0x1fff] = val;
             break;
@@ -339,14 +352,17 @@ void m1w (u16 addr, u8 val) {
 /* HUC1 */
 void h1w(u16 addr, u8 val)
 {
-    switch (addr & 0xe000) {
-        case 0x0000: /* 0000 - 1fff */
+    switch (addr >> 12) {
+        case 0x0: /* 0000 - 1fff */
+        case 0x1:
             ramEnabled = ((val & 0xf) == 0xa);
             break;
-        case 0x2000: /* 2000 - 3fff */
+        case 0x2: /* 2000 - 3fff */
+        case 0x3:
             refreshRomBank(val & 0x3f);
             break;
-        case 0x4000: /* 4000 - 5fff */
+        case 0x4: /* 4000 - 5fff */
+        case 0x5:
             val &= 3;
             /* ROM mode */
             if (memoryModel == 0) 
@@ -355,10 +371,12 @@ void h1w(u16 addr, u8 val)
             else
                 refreshRamBank(val);
             break;
-        case 0x6000: /* 6000 - 7fff */
+        case 0x6: /* 6000 - 7fff */
+        case 0x7:
             memoryModel = val & 1;
             break;
-        case 0xa000: /* a000 - bfff */
+        case 0xa: /* a000 - bfff */
+        case 0xb:
             if (ramEnabled && numRamBanks)
                 externRam[currentRamBank][addr&0x1fff] = val;
             break;
@@ -367,17 +385,19 @@ void h1w(u16 addr, u8 val)
 
 /* MBC5 */
 void m5w (u16 addr, u8 val) {
-    switch (addr & 0xe000) {
-        case 0x0000: /* 0000 - 1fff */
+    switch (addr >> 12) {
+        case 0x0: /* 0000 - 1fff */
+        case 0x1:
             ramEnabled = ((val & 0xf) == 0xa);
             break;
-        case 0x2000: /* 2000 - 3fff */
-            switch (addr >> 12) {
-                case 0x2: refreshRomBank((currentRomBank & 0x100) |  val);          break;
-                case 0x3: refreshRomBank((currentRomBank & 0xff ) | (val&1) << 8);  break;
-            }
+        case 0x2: /* 2000 - 3fff */
+            refreshRomBank((currentRomBank & 0x100) |  val);
             break;
-        case 0x4000: /* 4000 - 5fff */
+        case 0x3:
+            refreshRomBank((currentRomBank & 0xff ) | (val&1) << 8);
+            break;
+        case 0x4: /* 4000 - 5fff */
+        case 0x5:
             val &= 0xf;
             /* MBC5 might have a rumble motor, which is triggered by the
              * 4th bit of the value written */
@@ -398,31 +418,38 @@ void m5w (u16 addr, u8 val) {
 
             refreshRamBank(val);
             break;
-        case 0x6000: /* 6000 - 7fff */
+        case 0x6: /* 6000 - 7fff */
+        case 0x7:
             break;
-        case 0xa000: /* a000 - bfff */
+        case 0xa: /* a000 - bfff */
+        case 0xb:
             if (ramEnabled && numRamBanks)
-                externRam[currentRamBank][addr&0x1fff] = val;;
+                externRam[currentRamBank][addr&0x1fff] = val;
             break;
     }
 }
 
 /* HUC3 */
 void h3w (u16 addr, u8 val) {
-    switch (addr & 0xe000) {
-        case 0x0000: /* 0000 - 1fff */
+    switch (addr >> 12) {
+        case 0x0: /* 0000 - 1fff */
+        case 0x1:
             ramEnabled = ((val & 0xf) == 0xa);
             HuC3Mode = val;
             break;
-        case 0x2000: /* 2000 - 3fff */
+        case 0x2: /* 2000 - 3fff */
+        case 0x3:
             refreshRomBank((val) ? val : 1);
             break;
-        case 0x4000: /* 4000 - 5fff */
+        case 0x4: /* 4000 - 5fff */
+        case 0x5:
             refreshRamBank(val & 0xf);
             break;
-        case 0x6000: /* 6000 - 7fff */
+        case 0x6: /* 6000 - 7fff */
+        case 0x7:
             break;
-        case 0xa000: /* a000 - bfff */
+        case 0xa: /* a000 - bfff */
+        case 0xb:
             switch (HuC3Mode) {
                 case 0xb:
                     handleHuC3Command(val);
@@ -549,10 +576,14 @@ void latchClock()
     gbClock.last = now;
 }
 
+#ifdef DS
+u8 readMemory(u16 addr) ITCM_CODE;
+#endif
+
 u8 readMemory(u16 addr)
-{    
+{
     int area = addr>>13;
-    if (area >= 0xa/2) {
+    if (area & 0x04) { // Addr >= 0x8000
         /* Check if in range a000-bfff */
         if (area == 0xa/2) {
             /* Check if there's an handler for this mbc */
@@ -641,8 +672,6 @@ void writeMemory(u16 addr, u8 val) ITCM_CODE;
 
 void writeMemory(u16 addr, u8 val)
 {
-    /* TODO : numRamBanks == 0 should be handled ? */
-
     switch (addr >> 12)
     {
         case 0x8:

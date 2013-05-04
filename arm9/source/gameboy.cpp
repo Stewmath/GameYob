@@ -63,6 +63,11 @@ inline void setEventCycles(int cycles) {
 
 // Called once every gameboy vblank
 void updateInput() {
+    if (resettingGameboy) {
+        initializeGameboy();
+        resettingGameboy = false;
+    }
+
     if (probingForBorder)
         return;
 
@@ -114,7 +119,6 @@ void runEmul()
 {
     for (;;)
     {
-emuLoopStart:
         cyclesToEvent -= extraCycles;
         int cycles;
         if (halt)
@@ -155,11 +159,6 @@ emuLoopStart:
         }
 
         updateLCD(cycles);
-        if (resettingGameboy) {
-            initializeGameboy();
-            resettingGameboy = false;
-            goto emuLoopStart;
-        }
 
         int interruptTriggered = ioRam[0x0F] & ioRam[0xFF];
         if (interruptTriggered)
@@ -252,7 +251,7 @@ inline void updateLCD(int cycles)
         case 2:
             {
                 if (scanlineCounter <= mode2Cycles) {
-                    ioRam[0x41]++;
+                    ioRam[0x41]++; // Set mode 3
                     setEventCycles(scanlineCounter-mode3Cycles);
                     drawScanline(ioRam[0x44]);
                 }
@@ -263,7 +262,7 @@ inline void updateLCD(int cycles)
         case 3:
             {
                 if (scanlineCounter <= mode3Cycles) {
-                    ioRam[0x41] &= ~3;
+                    ioRam[0x41] &= ~3; // Set mode 0
 
                     if (ioRam[0x41]&0x8)
                     {
@@ -290,7 +289,7 @@ inline void updateLCD(int cycles)
             {
                 scanlineCounter += 456*(doubleSpeed?2:1);
                 if (ioRam[0x44] == 0 && (ioRam[0x41]&3) == 1) {
-                    ioRam[0x41]++; // Mode 2
+                    ioRam[0x41]++; // Set mode 2
                     setEventCycles(scanlineCounter-mode2Cycles);
                 }
                 else {
@@ -312,7 +311,7 @@ inline void updateLCD(int cycles)
                         }
                         else {
                             ioRam[0x41] &= ~3;
-                            ioRam[0x41] |= 2;
+                            ioRam[0x41] |= 2; // Set mode 2
                             setEventCycles(scanlineCounter-mode2Cycles);
                         }
                     }
@@ -361,20 +360,23 @@ inline void updateTimers(int cycles)
         timerCounter -= cycles;
         while (timerCounter <= 0)
         {
-            timerCounter += timerPeriod;
-            if ((++ioRam[0x05]) == 0)
-            {
+            int clocksAdded = (-timerCounter)/timerPeriod+1;
+            timerCounter += timerPeriod*clocksAdded;
+            int sum = ioRam[0x05]+clocksAdded;
+            if (sum > 0xff) {
                 requestInterrupt(TIMER);
                 ioRam[0x05] = ioRam[0x06];
             }
+            else
+                ioRam[0x05] = (u8)sum;
         }
         setEventCycles(timerCounter+timerPeriod*(255-ioRam[0x05]));
     }
     dividerCounter -= cycles;
-    while (dividerCounter <= 0)
-    {
-        dividerCounter += 256;
-        ioRam[0x04]++;
+    if (dividerCounter <= 0) {
+        int divsAdded = -dividerCounter/256+1;
+        dividerCounter += divsAdded*256;
+        ioRam[0x04] += divsAdded;
     }
     //setEventCycles(dividerCounter);
 }
@@ -389,12 +391,16 @@ void requestInterrupt(int id)
 
 void setDoubleSpeed(int val) {
     if (val == 0) {
+        if (doubleSpeed)
+            scanlineCounter >>= 1;
         mode2Cycles = 456 - 80;
         mode3Cycles = 456 - 172 - 80;
         doubleSpeed = 0;
         ioRam[0x4D] &= ~0x80;
     }
     else {
+        if (!doubleSpeed)
+            scanlineCounter <<= 1;
         mode2Cycles = (456 - 80)*2;
         mode3Cycles = (456 - 172 - 80)*2;
         doubleSpeed = 1;

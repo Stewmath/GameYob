@@ -1122,8 +1122,10 @@ void writeVram(u16 addr, u8 val) {
 }
 void writeVram16(u16 dest, u16 src) {
     bool changed=false;
+    u8* page = memory[src>>12];
+    int offset = src&0xfff;
     for (int i=0; i<16; i++) {
-        u8 val = readMemory(src++);
+        u8 val = page[offset++];
         if (vram[vramBank][dest] != val) {
             changed = true;
             vram[vramBank][dest] = val;
@@ -1133,7 +1135,6 @@ void writeVram16(u16 dest, u16 src) {
     if (!changed)
         return;
     dest -= 16;
-    src -= 16;
     if (dest < 0x1800) {
         int tileNum = dest/16;
         if (ioRam[0x44] < 144) {
