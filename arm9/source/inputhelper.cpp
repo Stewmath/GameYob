@@ -20,6 +20,7 @@
 #include "cheats.h"
 
 FILE* romFile=NULL;
+FILE* saveFile=NULL;
 char filename[100];
 char savename[100];
 char basename[100];
@@ -489,7 +490,9 @@ bool bankLoaded(int bank) {
 
 int loadSave()
 {
-    FILE* file;
+    if (saveFile != NULL)
+        fclose(saveFile);
+    saveFile = NULL;
     int i;
     // unload previous save
     if (externRam != NULL) {
@@ -531,24 +534,21 @@ int loadSave()
         externRam[i] = (u8*)malloc(0x2000*sizeof(u8));
 
     // Now load the data.
-    file = fopen(savename, "r");
-    if (!file) {
+    saveFile = fopen(savename, "r+b");
+    if (!saveFile) {
         printLog("Couldn't open file \"%s\".\n", savename);
         return 1;
     }
 
     for (i=0; i<numRamBanks; i++)
-        fread(externRam[i], 1, 0x2000, file);
+        fread(externRam[i], 1, 0x2000, saveFile);
 
     switch (MBC) {
         case MBC3:
         case HUC3:
-            fread(&gbClock, 1, sizeof(gbClock), file);
+            fread(&gbClock, 1, sizeof(gbClock), saveFile);
             break;
     }
-
-    fclose(file);
-
     return 0;
 }
 

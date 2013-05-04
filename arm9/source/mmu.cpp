@@ -203,6 +203,20 @@ const mbcRead mbcReads[] = {
     NULL, NULL, NULL, m3r, NULL, NULL, NULL, h3r, NULL
 };
 
+
+extern FILE* saveFile;
+bool saveModified=false;
+int numWrites=0;
+void writeSram(u16 addr, u8 val) {
+    if (externRam[currentRamBank][addr] != val) {
+        externRam[currentRamBank][addr] = val;
+        fseek(saveFile, currentRamBank*0x2000+addr, SEEK_SET);
+        fputc(val, saveFile);
+        saveModified = true;
+        numWrites++;
+    }
+}
+
 /* MBC Write handlers */
 
 /* MBC0 */
@@ -218,7 +232,7 @@ void m0w (u16 addr, u8 val) {
             break;
         case 0xa000: /* a000 - bfff */
             if (numRamBanks)
-                externRam[currentRamBank][addr&0x1fff] = val;
+                writeSram(addr&0x1fff, val);
             break;
     }
 }
@@ -239,7 +253,7 @@ void m2w(u16 addr, u8 val)
             break;
         case 0xa000: /* a000 - bfff */
             if (ramEnabled && numRamBanks)
-                externRam[currentRamBank][addr&0x1fff] = val&0xf;
+                writeSram(addr&0x1fff, val&0xf);
             break;
     }
 }
@@ -293,7 +307,7 @@ void m3w(u16 addr, u8 val)
                     return;
                 default:
                     if (numRamBanks)
-                        externRam[currentRamBank][addr&0x1fff] = val;
+                        writeSram(addr&0x1fff, val);
             }
             break;
     }
@@ -331,7 +345,7 @@ void m1w (u16 addr, u8 val) {
             break;
         case 0xa000: /* a000 - bfff */
             if (ramEnabled && numRamBanks)
-                externRam[currentRamBank][addr&0x1fff] = val;
+                writeSram(addr&0x1fff, val);
             break;
     }
 }
@@ -360,7 +374,7 @@ void h1w(u16 addr, u8 val)
             break;
         case 0xa000: /* a000 - bfff */
             if (ramEnabled && numRamBanks)
-                externRam[currentRamBank][addr&0x1fff] = val;
+                writeSram(addr&0x1fff, val);
             break;
     }
 }
@@ -401,8 +415,9 @@ void m5w (u16 addr, u8 val) {
         case 0x6000: /* 6000 - 7fff */
             break;
         case 0xa000: /* a000 - bfff */
-            if (ramEnabled && numRamBanks)
-                externRam[currentRamBank][addr&0x1fff] = val;;
+            if (ramEnabled && numRamBanks) {
+                writeSram(addr&0x1fff, val);
+            }
             break;
     }
 }
@@ -433,7 +448,7 @@ void h3w (u16 addr, u8 val) {
                     break;
                 default:
                     if (ramEnabled && numRamBanks)
-                        externRam[currentRamBank][addr&0x1fff] = val;
+                        writeSram(addr&0x1fff, val);
             }
             break;
     }

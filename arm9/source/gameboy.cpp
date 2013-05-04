@@ -61,10 +61,29 @@ inline void setEventCycles(int cycles) {
     }
 }
 
+extern FILE* saveFile;
+bool saving=false;
+extern char savename[];
+extern int numWrites;
 // Called once every gameboy vblank
 void updateInput() {
     if (probingForBorder)
         return;
+
+    if (saveModified) {
+        saving = true;
+        saveModified = false;
+    }
+    else if (saving) {
+        fflush(saveFile);
+        printLog("SAVE %d\n", numWrites);
+        numWrites = 0;
+        saving = false;
+        /*
+        fclose(saveFile);
+        saveFile = fopen(savename, "w");
+        */
+    }
 
     if (cheatsEnabled)
         applyGSCheats();
