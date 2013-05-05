@@ -14,7 +14,6 @@
 #include "cheats.h"
 #include "sgb.h"
 
-int mode2Cycles, mode3Cycles;
 int scanlineCounter;
 int doubleSpeed;
 
@@ -108,8 +107,9 @@ void updateInput() {
     }
 }
 
+// This function can be called from weird contexts, so just set a flag to deal 
+// with it later.
 void resetGameboy() {
-    cyclesToExecute = 0;
     resettingGameboy = true;
 }
 
@@ -239,45 +239,41 @@ inline void updateLCD(int cycles)
         if (phaseCounter <= 0) {
             fps++;
             phaseCounter += 456*153*(doubleSpeed?2:1);
-            drawScreen();
+            drawScreen();   // drawScreen recognizes the screen is disabled and makes it all white.
             updateInput();
         }
     }
 
     scanlineCounter -= cycles;
 
+    if (scanlineCounter > 0) {
+        setEventCycles(scanlineCounter);
+        return;
+    }
+
     switch(ioRam[0x41]&3)
     {
         case 2:
             {
-                if (scanlineCounter <= mode2Cycles) {
-                    ioRam[0x41]++; // Set mode 3
-                    setEventCycles(scanlineCounter-mode3Cycles);
-                    drawScanline(ioRam[0x44]);
-                }
-                else
-                    setEventCycles(scanlineCounter-mode2Cycles);
+                ioRam[0x41]++; // Set mode 3
+                scanlineCounter += 172<<doubleSpeed;
+                drawScanline(ioRam[0x44]);
             }
             break;
         case 3:
             {
-                if (scanlineCounter <= mode3Cycles) {
-                    ioRam[0x41] &= ~3; // Set mode 0
+                ioRam[0x41] &= ~3; // Set mode 0
+                scanlineCounter += 204<<doubleSpeed;
 
-                    if (ioRam[0x41]&0x8)
-                    {
-                        requestInterrupt(LCD);
-                    }
-
-                    drawScanlinePalettes(ioRam[0x44]);
-                    if (updateHblankDMA()) {
-                        extraCycles += 50;
-                    }
-
-                    setEventCycles(scanlineCounter);
+                if (ioRam[0x41]&0x8)
+                {
+                    requestInterrupt(LCD);
                 }
-                else
-                    setEventCycles(scanlineCounter-mode3Cycles);
+
+                drawScanlinePalettes(ioRam[0x44]);
+                if (updateHblankDMA()) {
+                    extraCycles += 50;
+                }
             }
             break;
         case 0:
@@ -285,72 +281,67 @@ inline void updateLCD(int cycles)
                 // fall through to next case
             }
         case 1:
-            if (scanlineCounter <= 0)
-            {
-                scanlineCounter += 456*(doubleSpeed?2:1);
-                if (ioRam[0x44] == 0 && (ioRam[0x41]&3) == 1) {
-                    ioRam[0x41]++; // Set mode 2
-                    setEventCycles(scanlineCounter-mode2Cycles);
-                }
-                else {
-                    ioRam[0x44]++;
-
-                    if (ioRam[0x44] < 144 || ioRam[0x44] >= 153) {
-                        if (ioRam[0x41]&0x20)
-                        {
-                            requestInterrupt(LCD);
-                        }
-
-                        if (ioRam[0x44] >= 153)
-                        {
-                            // Don't change the mode. Scanline 0 is twice as 
-                            // long as normal - half of it identifies as being 
-                            // in the vblank period.
-                            ioRam[0x44] = 0;
-                            setEventCycles(scanlineCounter);
-                        }
-                        else {
-                            ioRam[0x41] &= ~3;
-                            ioRam[0x41] |= 2; // Set mode 2
-                            setEventCycles(scanlineCounter-mode2Cycles);
-                        }
-                    }
-                    else if (ioRam[0x44] == 144)
-                    {
-                        ioRam[0x41] &= ~3;
-                        ioRam[0x41] |= 1;
-
-                        requestInterrupt(VBLANK);
-                        if (ioRam[0x41]&0x10)
-                        {
-                            requestInterrupt(LCD);
-                        }
-
-                        fps++;
-                        drawScreen();
-                        updateInput();
-                    }
-                    if (ioRam[0x44] >= 144) {
-                        setEventCycles(scanlineCounter);
-                    }
-
-                    // LYC check
-                    if (ioRam[0x44] == ioRam[0x45])
-                    {
-                        ioRam[0x41] |= 4;
-                        if (ioRam[0x41]&0x40)
-                            requestInterrupt(LCD);
-                    }
-                    else
-                        ioRam[0x41] &= ~4;
-                }
-
+            if (ioRam[0x44] == 0 && (ioRam[0x41]&3) == 1) {
+                ioRam[0x41]++; // Set mode 2
+                scanlineCounter += 80<<doubleSpeed;
             }
             else {
-                setEventCycles(scanlineCounter);
+                ioRam[0x44]++;
+
+                if (ioRam[0x44] < 144 || ioRam[0x44] >= 153) {
+                    if (ioRam[0x41]&0x20)
+                    {
+                        requestInterrupt(LCD);
+                    }
+
+                    if (ioRam[0x44] >= 153)
+                    {
+                        // Don't change the mode. Scanline 0 is twice as 
+                        // long as normal - half of it identifies as being 
+                        // in the vblank period.
+                        ioRam[0x44] = 0;
+                        scanlineCounter += 456<<doubleSpeed;
+                    }
+                    else {
+                        ioRam[0x41] &= ~3;
+                        ioRam[0x41] |= 2; // Set mode 2
+                        scanlineCounter += 80<<doubleSpeed;
+                    }
+                }
+                else if (ioRam[0x44] == 144)
+                {
+                    ioRam[0x41] &= ~3;
+                    ioRam[0x41] |= 1;
+
+                    requestInterrupt(VBLANK);
+                    if (ioRam[0x41]&0x10)
+                    {
+                        requestInterrupt(LCD);
+                    }
+
+                    fps++;
+                    drawScreen();
+                    updateInput();
+                }
+                if (ioRam[0x44] >= 144) {
+                    scanlineCounter += 456<<doubleSpeed;
+                }
+
+                // LYC check
+                if (ioRam[0x44] == ioRam[0x45])
+                {
+                    ioRam[0x41] |= 4;
+                    if (ioRam[0x41]&0x40)
+                        requestInterrupt(LCD);
+                }
+                else
+                    ioRam[0x41] &= ~4;
             }
+
             break;
     }
+
+    setEventCycles(scanlineCounter);
 }
 
 inline void updateTimers(int cycles)
@@ -393,16 +384,12 @@ void setDoubleSpeed(int val) {
     if (val == 0) {
         if (doubleSpeed)
             scanlineCounter >>= 1;
-        mode2Cycles = 456 - 80;
-        mode3Cycles = 456 - 172 - 80;
         doubleSpeed = 0;
         ioRam[0x4D] &= ~0x80;
     }
     else {
         if (!doubleSpeed)
             scanlineCounter <<= 1;
-        mode2Cycles = (456 - 80)*2;
-        mode3Cycles = (456 - 172 - 80)*2;
         doubleSpeed = 1;
         ioRam[0x4D] |= 0x80;
     }
