@@ -265,6 +265,8 @@ void hblankHandler() ITCM_CODE;
 
 void hblankHandler()
 {
+    if (hblankDisabled)
+        return;
     int line = REG_VCOUNT+1;
     int gbLine = line-screenOffsY;
     if ((REG_DISPSTAT&3) != 2)
@@ -897,11 +899,6 @@ void drawScreen()
 
     winPosY = -1;
 
-    // Check we're actually done drawing the screen.
-    if (REG_VCOUNT >= screenOffsY+144) {
-        REG_DISPCNT |= DISPLAY_SPR_ACTIVE;
-    }
-
     updateTiles();
 }
 
@@ -953,6 +950,7 @@ void drawScanline(int scanline) ITCM_CODE;
 // Called after mode 2
 void drawScanline(int scanline)
 {
+    renderingState[scanline].modified = false;
     renderingState[scanline].mapsModified = false;
     renderingState[scanline].spritesModified = false;
     renderingState[scanline].bgPalettesModified = false;
@@ -1040,6 +1038,8 @@ void drawScanline(int scanline)
         }
     }
 }
+
+void drawScanline_P2(int scanline) ITCM_CODE;
 
 // Called after mode 3
 void drawScanline_P2(int scanline) {
@@ -1263,25 +1263,19 @@ void handleVideoRegister(u8 ioReg, u8 val) {
             ioRam[0x4a] = val;
             break;
         case 0x47:				// BG Palette (GB classic only)
-            ioRam[0x47] = val;
-            if (gbMode == GB)
-            {
+            if (gbMode == GB && ioRam[0x47] != val)
                 bgPalettesModified = true;
-            }
+            ioRam[0x47] = val;
             return;
         case 0x48:				// Spr Palette (GB classic only)
-            ioRam[0x48] = val;
-            if (gbMode == GB)
-            {
+            if (gbMode == GB && ioRam[0x48] != val)
                 sprPalettesModified = true;
-            }
+            ioRam[0x48] = val;
             return;
         case 0x49:				// Spr Palette (GB classic only)
-            ioRam[0x49] = val;
-            if (gbMode == GB)
-            {
+            if (gbMode == GB && ioRam[0x49] != val)
                 sprPalettesModified = true;
-            }
+            ioRam[0x49] = val;
             return;
         case 0x69:				// BG Palette Data (GBC only)
             {

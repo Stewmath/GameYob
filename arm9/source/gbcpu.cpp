@@ -367,10 +367,10 @@ int runOpcode(int cycles) {
                 writeMemory(readPC16_noinc(), gbRegs.af.b.h);
                 pcAddr += 2;
                 break;
-            case 0xF2:		// LD A, (C)	8
+            case 0xF2:		// LDH A, (C)	8
                 gbRegs.af.b.h = readIO(gbRegs.bc.b.l);
                 break;
-            case 0xE2:		// LD (C), A	8
+            case 0xE2:		// LDH (C), A	8
                 writeIO(gbRegs.bc.b.l, gbRegs.af.b.h);
                 break;
             case 0x3A:		// LDD A, (hl)	8

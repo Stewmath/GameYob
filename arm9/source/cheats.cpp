@@ -145,7 +145,7 @@ void applyGSCheats (void)
     int i;
     int compareBank;
 
-    for (i = 0; i < MAX_CHEATS; i++) {
+    for (i = 0; i < numCheats; i++) {
         if (slots[i] & SLOT_ENABLED && ((slots[i] & SLOT_TYPE_MASK) == SLOT_GAMESHARK)) {
             switch (cheats[i].bank & 0xf0) {
                 case 0x90:
