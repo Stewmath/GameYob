@@ -9,7 +9,7 @@ extern u8 bgPaletteData[0x40];
 extern u8 sprPaletteData[0x40];
 
 void drawScanline(int scanline);
-void drawScanlinePalettes(int scanline);
+void drawScanline_P2(int scanline);
 void drawScreen();
 
 void initGFX();

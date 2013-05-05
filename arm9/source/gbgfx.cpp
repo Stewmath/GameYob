@@ -950,6 +950,7 @@ void drawSprites(u8* data, int tall) {
 
 void drawScanline(int scanline) ITCM_CODE;
 
+// Called after mode 2
 void drawScanline(int scanline)
 {
     renderingState[scanline].mapsModified = false;
@@ -984,13 +985,6 @@ void drawScanline(int scanline)
     renderingState[scanline].mapsModified = true;
     lineModified = false;
 
-    bool winOn = (ioRam[0x40] & 0x20) && winX < 167 && ioRam[0x4a] < 144 && ioRam[0x4a] <= scanline;
-    renderingState[scanline].hofs = ioRam[0x43];
-    renderingState[scanline].vofs = ioRam[0x42];
-    renderingState[scanline].winX = winX;
-    renderingState[scanline].winPosY = winPosY;
-    renderingState[scanline].winY = ioRam[0x4a];
-
     int tileSigned,winMap,bgMap;
     if (ioRam[0x40] & 0x10)
         tileSigned = 0;
@@ -1005,7 +999,6 @@ void drawScanline(int scanline)
     else
         bgMap = 0;
 
-    renderingState[scanline].winOn = winOn;
     renderingState[scanline].spritesOn = ioRam[0x40] & 0x2;
 
     renderingState[scanline].bgMap = bgMap;
@@ -1048,9 +1041,20 @@ void drawScanline(int scanline)
     }
 }
 
-void drawScanlinePalettes(int scanline) {
+// Called after mode 3
+void drawScanline_P2(int scanline) {
     if (hblankDisabled || gfxMask)
         return;
+    if (renderingState[scanline].modified && renderingState[scanline].mapsModified) {
+        int winX = ioRam[0x4b];
+        bool winOn = (ioRam[0x40] & 0x20) && winX < 167 && ioRam[0x4a] < 144 && ioRam[0x4a] <= scanline;
+        renderingState[scanline].winOn = winOn;
+        renderingState[scanline].hofs = ioRam[0x43];
+        renderingState[scanline].vofs = ioRam[0x42];
+        renderingState[scanline].winX = winX;
+        renderingState[scanline].winPosY = winPosY;
+        renderingState[scanline].winY = ioRam[0x4a];
+    }
     bool palettesModified = false;
     if (scanline == 0) {
         renderingState[scanline].bgPalettesModified = true;

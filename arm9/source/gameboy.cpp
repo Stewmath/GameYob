@@ -270,7 +270,7 @@ inline void updateLCD(int cycles)
                     requestInterrupt(LCD);
                 }
 
-                drawScanlinePalettes(ioRam[0x44]);
+                drawScanline_P2(ioRam[0x44]);
                 if (updateHblankDMA()) {
                     extraCycles += 50;
                 }
