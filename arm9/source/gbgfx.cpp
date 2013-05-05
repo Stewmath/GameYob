@@ -282,7 +282,7 @@ void hblankHandler()
     drawLine(gbLine);
 }
 
-// Triggered on line 0
+// Triggered on line 227, end of vblank
 void vcountHandler() {
     drawLine(0);
 
@@ -591,7 +591,7 @@ void refreshScaleMode() {
     bgInitSub(3, BgType_Bmp16, BgSize_B16_256x256, 0, 0);
 
     switch(scaleMode) {
-        case 1:
+        case 1: // Aspect
             {
                 const double scaleFactor = (double)191/144 + 0.125/144;
                 BG2PA = (1<<8)/scaleFactor;
@@ -603,15 +603,15 @@ void refreshScaleMode() {
                 SCALE_BGY = 0;
                 break;
             }
-        case 2:
+        case 2: // Full
             {
-                const double scaleFactorX = (double)255/160 + 0.125/160;
+                const double scaleFactorX = (double)255/160;
                 const double scaleFactorY = (double)191/144 + 0.125/144;
                 BG2PA = (1<<8)/(scaleFactorX);
                 BG2PB = 0;
                 BG2PC = 0;
                 BG2PD = (1<<8)/(scaleFactorY);
-                SCALE_BGX = (1<<8)*(screenOffsX-(256-160*scaleFactorX)/2/(scaleFactorX));
+                SCALE_BGX = (1<<8)*(screenOffsX-(256-160*scaleFactorX)/2/(scaleFactorX) + 0.5);
                 SCALE_BGY = 0;
             }
             break;

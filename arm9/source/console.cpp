@@ -520,6 +520,7 @@ end:
     updateScreens();
 }
 
+PrintConsole blankConsole;
 void updateScreens() {
     swiWaitForVBlank();
 
@@ -534,7 +535,10 @@ void updateScreens() {
             lcdMainOnBottom();
         powerOn(backlights[!consoleScreen]);
 
-        consoleClear();
+        // Give it a dummy console so it won't write over bank C
+        consoleSelect(&blankConsole);
+        // Clear bank C since it used to be used for the console
+        memset(BG_GFX_SUB, 0, 256*144*2);
         refreshScaleMode();
     }
     else {
@@ -546,6 +550,7 @@ void updateScreens() {
         videoBgDisableSub(3);
         vramSetBankD(VRAM_D_MAIN_BG_0x06040000);
 
+        consoleSelect(NULL);
         consoleDemoInit();
         if (consoleScreen == 0)
             lcdMainOnBottom();
