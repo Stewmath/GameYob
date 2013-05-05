@@ -534,6 +534,7 @@ void updateScreens() {
             lcdMainOnBottom();
         powerOn(backlights[!consoleScreen]);
 
+        consoleClear();
         refreshScaleMode();
     }
     else {

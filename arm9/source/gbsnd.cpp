@@ -48,9 +48,9 @@ int chanToOut2[4];
 int sound[4] = {8,9,0,14};
 
 int pcmVals[16];
-u8 sampleData[0x20];
+u8* const sampleData = (u8*)memUncached(malloc(0x20));
 
-DutyCycle dutyIndex[4] = {DutyCycle_12, DutyCycle_25, DutyCycle_50, DutyCycle_75};
+const DutyCycle dutyIndex[4] = {DutyCycle_12, DutyCycle_25, DutyCycle_50, DutyCycle_75};
 int SO1Vol=0;
 int SO2Vol=0;
 

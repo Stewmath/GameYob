@@ -153,7 +153,9 @@ typedef struct
 // Games tend to modify the graphics in the middle of being drawn.
 // These changes are recorded and applied during DS hblank.
 
-inline void drawLine(int gbLine) {
+void drawLine(int gbLine) ITCM_CODE;
+
+void drawLine(int gbLine) {
     ScanlineStruct *state = &drawingState[gbLine];
 
     if (screenDisabled) {
@@ -270,32 +272,24 @@ void hblankHandler()
     if (hblankDisabled)
         return;
     int line = REG_VCOUNT+1;
-    int gbLine = line-screenOffsY;
     if ((REG_DISPSTAT&3) != 2)
-        gbLine--;
+        line--;
+    int gbLine = line-screenOffsY;
 
-    if (gbLine >= 144)
-        return;
-    if (gbLine <= 0) {
-        gbLine = 0;
-        if (lineCompleted[0])
-            return;
-
-        // These vram banks may have been allocated to arm7 for scaling stuff.
-        vramSetBankC(VRAM_C_SUB_BG);
-        if (sharedData->scalingOn)
-            vramSetBankD(VRAM_D_LCD);
-    }
-
-    if (gbLine != 0 && !lineCompleted[gbLine-1] && drawingState[gbLine-1].modified)
-        drawLine(gbLine-1);
-
-    lineCompleted[gbLine] = true;
-
-    if (!drawingState[gbLine].modified)
+    if (gbLine >= 144 || gbLine <= 0 || !drawingState[gbLine].modified)
         return;
 
     drawLine(gbLine);
+}
+
+// Triggered on line 0
+void vcountHandler() {
+    drawLine(0);
+
+    // These vram banks may have been allocated to arm7 for scaling stuff.
+    vramSetBankC(VRAM_C_SUB_BG);
+    if (sharedData->scalingOn)
+        vramSetBankD(VRAM_D_LCD);
 }
 
 bool shift=false;
@@ -410,13 +404,14 @@ void initGFX()
     setCustomBorder(customBordersEnabled);
     
     REG_DISPSTAT &= 0xFF;
-    REG_DISPSTAT |= (144+screenOffsY)<<8;
+    REG_DISPSTAT |= 227<<8;     // Set line 227 for vcount
 
-    //irqEnable(IRQ_VCOUNT);
+    irqEnable(IRQ_VCOUNT);
     irqEnable(IRQ_HBLANK);
     irqEnable(IRQ_VBLANK);
-    irqSet(IRQ_VBLANK, &vblankHandler);
+    irqSet(IRQ_VCOUNT, &vcountHandler);
     irqSet(IRQ_HBLANK, &hblankHandler);
+    irqSet(IRQ_VBLANK, &vblankHandler);
 
     memset(vram[0], 0, 0x2000);
     memset(vram[1], 0, 0x2000);
