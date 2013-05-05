@@ -1292,7 +1292,7 @@ void handleVideoRegister(u8 ioReg, u8 val) {
                 }
 
                 if (ioRam[0x68] & 0x80)
-                    ioRam[0x68]++;
+                    ioRam[0x68] = 0x80 | (ioRam[0x68]+1);
                 ioRam[0x69] = bgPaletteData[ioRam[0x68]&0x3F];
                 return;
             }
@@ -1305,7 +1305,7 @@ void handleVideoRegister(u8 ioReg, u8 val) {
                 }
 
                 if (ioRam[0x6A] & 0x80)
-                    ioRam[0x6A]++;
+                    ioRam[0x6A] = 0x80 | (ioRam[0x6A]+1);
                 ioRam[0x6B] = sprPaletteData[ioRam[0x6A]&0x3F];
                 return;
             }
