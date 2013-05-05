@@ -279,6 +279,11 @@ void hblankHandler()
     if (gbLine >= 144 || gbLine <= 0 || !drawingState[gbLine].modified)
         return;
 
+    if (drawingState[gbLine-1].modified && !lineCompleted[gbLine-1])
+        drawLine(gbLine-1);
+
+    lineCompleted[gbLine] = true;
+
     drawLine(gbLine);
 }
 
