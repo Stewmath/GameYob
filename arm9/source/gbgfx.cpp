@@ -276,11 +276,14 @@ void hblankHandler()
         line--;
     int gbLine = line-screenOffsY;
 
-    if (gbLine >= 144 || gbLine <= 0 || !drawingState[gbLine].modified)
+    if (gbLine >= 144 || gbLine <= 0)
         return;
 
     if (drawingState[gbLine-1].modified && !lineCompleted[gbLine-1])
         drawLine(gbLine-1);
+
+    if (!drawingState[gbLine].modified)
+        return;
 
     lineCompleted[gbLine] = true;
 
@@ -290,6 +293,7 @@ void hblankHandler()
 // Triggered on line 227, end of vblank
 void vcountHandler() {
     drawLine(0);
+    lineCompleted[0] = true;
 
     // These vram banks may have been allocated to arm7 for scaling stuff.
     vramSetBankC(VRAM_C_SUB_BG);
