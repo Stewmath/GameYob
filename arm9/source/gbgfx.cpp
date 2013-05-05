@@ -25,6 +25,13 @@ const int overlay_map_base[] = {5, 6};
 const int off_map_base = 7;
 const int border_map_base = 8;
 
+u16* const map[2] = {BG_MAP_RAM(map_base[0]), BG_MAP_RAM(map_base[1])};
+u16* const color0Map[2] = {BG_MAP_RAM(color0_map_base[0]), BG_MAP_RAM(color0_map_base[1])};
+u16* const overlayMap[2] = {BG_MAP_RAM(overlay_map_base[0]), BG_MAP_RAM(overlay_map_base[1])};
+u16* const offMap = BG_MAP_RAM(off_map_base);
+u16* const borderMap = BG_MAP_RAM(border_map_base);
+
+
 const int win_color0_priority = 3;
 const int win_priority = 2;
 
@@ -36,18 +43,8 @@ const int win_overlay_priority = 1;
 
 const int win_all_priority = 2;
 
-u16* map[2];
-u16* color0Map[2];
-u16* overlayMap[2];
-u16* offMap;
-u16* borderMap;
-
-u16 mapBuf[2][0x400];
-u16 color0MapBuf[2][0x400];
-u16 overlayMapBuf[2][0x400];
-
-int screenOffsX = 48;
-int screenOffsY = 24;
+const int screenOffsX = 48;
+const int screenOffsY = 24;
 
 int tileSize;
 
@@ -61,6 +58,10 @@ u16 changedTileQueue[0x300];
 bool changedTileInFrame[2][0x180];
 int changedTileInFrameQueueLength=0;
 u16 changedTileInFrameQueue[0x300];
+
+bool changedMap[2][0x400];
+int changedMapQueueLength[2];
+u16 changedMapQueue[2][0x400];
 
 bool bgPaletteModified[8];
 bool spritePaletteModified[8];
@@ -93,7 +94,8 @@ bool screenDisabled;
 void drawSprites(u8* data, int tallSprites);
 void drawTile(int tile, int bank);
 void updateTiles();
-void updateTileMap(int map, int i, u8 val);
+void updateTileMaps();
+void updateTileMap(int map, int i);
 void updateBgPalette(int paletteid, u8* data, u8 dmgPal);
 void updateSprPalette(int paletteid, u8* data, u8 dmgPal);
 
@@ -373,15 +375,6 @@ void initGFX()
     vramSetBankB(VRAM_B_MAIN_BG);
     vramSetBankE(VRAM_E_MAIN_SPRITE);
 
-    map[0] = BG_MAP_RAM(map_base[0]);
-    map[1] = BG_MAP_RAM(map_base[1]);
-    color0Map[0] = BG_MAP_RAM(color0_map_base[0]);
-    color0Map[1] = BG_MAP_RAM(color0_map_base[1]);
-    overlayMap[0] = BG_MAP_RAM(overlay_map_base[0]);
-    overlayMap[1] = BG_MAP_RAM(overlay_map_base[1]);
-    offMap = BG_MAP_RAM(off_map_base);
-    borderMap = BG_MAP_RAM(border_map_base);
-
     // Tile for "color0 maps", which contain only the gameboy's color 0.
     for (int i=0; i<16; i++) {
         BG_GFX[i] = 1 | (1<<4) | (1<<8) | (1<<12);
@@ -467,9 +460,11 @@ void refreshGFX() {
         drawTile(i, 1);
     }
     for (int i=0; i<0x400; i++) {
-        updateTileMap(0, i, vram[0][0x1800+i]);
-        updateTileMap(1, i, vram[0][0x1c00+i]);
+        updateTileMap(0, i);
+        updateTileMap(1, i);
     }
+    changedMapQueueLength[0] = 0;
+    changedMapQueueLength[1] = 0;
     for (int i=0; i<8; i++) {
         bgPaletteModified[i] = true;
         spritePaletteModified[i] = true;
@@ -515,8 +510,8 @@ void refreshSgbPalette() {
                     int realx = (((x+j)*8+hofs)&0xff)/8;
                     int realy = (((y-yLoop)*8+vofs+7)&0xff)/8;
                     int i = realy*32+realx;
-                    mapBuf[bgMap][i] &= ~(7<<12);
-                    mapBuf[bgMap][i] |= (palette<<12);
+                    map[bgMap][i] &= ~(7<<12);
+                    map[bgMap][i] |= (palette<<12);
                 }
             }
 
@@ -532,8 +527,8 @@ void refreshSgbPalette() {
 
                         if (realx >= 0 && realy >= 0 && realx < 32 && realy < 32) {
                             int i = realy*32+realx;
-                            mapBuf[winMap][i] &= ~(7<<12);
-                            mapBuf[winMap][i] |= (palette<<12);
+                            map[winMap][i] &= ~(7<<12);
+                            map[winMap][i] |= (palette<<12);
                         }
                     }
                 }
@@ -759,8 +754,16 @@ void setSgbMap(u8* src) {
     }
 }
 
-// Possibly doing twice the work necessary in gbc games, when writing to bank 0, then bank 1.
-void updateTileMap(int m, int i, u8 val) {
+void updateTileMaps() {
+    for (int m=0; m<2; m++) {
+        while (changedMapQueueLength[m] != 0) {
+            int tile = changedMapQueue[m][--changedMapQueueLength[m]];
+            updateTileMap(m, tile);
+        }
+    }
+}
+void updateTileMap(int m, int i) {
+    changedMap[m][i] = false;
     int mapAddr = (m ? 0x1c00+i : 0x1800+i);
     int tileNum = vram[0][mapAddr];
 
@@ -778,12 +781,12 @@ void updateTileMap(int m, int i, u8 val) {
         priority = !!(vram[1][mapAddr] & 0x80);
     }
     if (priority)
-        overlayMapBuf[m][i] = (tileNum+(bank*0x100)) | (paletteid<<12) | (flipX<<10) | (flipY<<11);
+        overlayMap[m][i] = (tileNum+(bank*0x100)) | (paletteid<<12) | (flipX<<10) | (flipY<<11);
     else {
-        overlayMapBuf[m][i] = 0x300;
+        overlayMap[m][i] = 0x300;
     }
-    mapBuf[m][i] = (tileNum+(bank*0x100)) | (paletteid<<12) | (flipX<<10) | (flipY<<11);
-    color0MapBuf[m][i] = paletteid<<12;
+    map[m][i] = (tileNum+(bank*0x100)) | (paletteid<<12) | (flipX<<10) | (flipY<<11);
+    color0Map[m][i] = paletteid<<12;
 }
 
 void drawTile(int tileNum, int bank) {
@@ -869,24 +872,11 @@ void drawScreen()
     if (sgbMode && !gfxMask)
         refreshSgbPalette();
 
-    DC_FlushRange(mapBuf[0], 0x400*2);
-    DC_FlushRange(mapBuf[1], 0x400*2);
-    DC_FlushRange(color0MapBuf[0], 0x400*2);
-    DC_FlushRange(color0MapBuf[1], 0x400*2);
-    DC_FlushRange(overlayMapBuf[0], 0x400*2);
-    DC_FlushRange(overlayMapBuf[1], 0x400*2);
-
     if (!(fastForwardMode || fastForwardKey))
         swiIntrWait(interruptWaitMode, IRQ_VBLANK);
 
     if (gfxMask)
         return;
-    dmaCopy(mapBuf[0], map[0], 0x400*2);
-    dmaCopy(mapBuf[1], map[1], 0x400*2);
-    dmaCopy(color0MapBuf[0], color0Map[0], 0x400*2);
-    dmaCopy(color0MapBuf[1], color0Map[1], 0x400*2);
-    dmaCopy(overlayMapBuf[0], overlayMap[0], 0x400*2);
-    dmaCopy(overlayMapBuf[1], overlayMap[1], 0x400*2);
 
     ScanlineStruct* tmp = renderingState;
     renderingState = drawingState;
@@ -900,6 +890,7 @@ void drawScreen()
     winPosY = -1;
 
     updateTiles();
+    updateTileMaps();
 }
 
 void drawSprites(u8* data, int tall) {
@@ -1118,10 +1109,11 @@ void writeVram(u16 addr, u8 val) {
     }
     else {
         int map = (addr-0x1800)/0x400;
-        if (map)
-            updateTileMap(map, addr-0x1c00, val);
-        else
-            updateTileMap(map, addr-0x1800, val);
+        int tile = addr&0x3ff;
+        if (!changedMap[map][tile]) {
+            changedMap[map][tile] = true;
+            changedMapQueue[map][changedMapQueueLength[map]++] = tile;
+        }
     }
 }
 void writeVram16(u16 dest, u16 src) {
@@ -1155,13 +1147,13 @@ void writeVram16(u16 dest, u16 src) {
         }
     }
     else {
+        int map = (dest-0x1800)/0x400;
         for (int i=0; i<16; i++) {
-            int addr = dest+i;
-            int map = (addr-0x1800)/0x400;
-            if (map)
-                updateTileMap(map, addr-0x1c00, vram[vramBank][src+i]);
-            else
-                updateTileMap(map, addr-0x1800, vram[vramBank][src+i]);
+            int tile = (dest+i)&0x3ff;
+            if (!changedMap[map][tile]) {
+                changedMap[map][tile] = true;
+                changedMapQueue[map][changedMapQueueLength[map]++] = tile;
+            }
         }
     }
 }
