@@ -1216,10 +1216,6 @@ void handleVideoRegister(u8 ioReg, u8 val) {
                 spritesModified = true;
             ioRam[0x40] = val;
             return;
-        case 0x41:
-            ioRam[0x41] &= 0x7;
-            ioRam[0x41] |= val&0xF8;
-            return;
         case 0x46:				// DMA
             {
                 u16 src = val << 8;

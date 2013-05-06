@@ -834,7 +834,6 @@ void writeIO(u8 ioReg, u8 val)
             handleSoundRegister(ioReg, val);
             return;
         case 0x40:
-        case 0x41:
         case 0x42:
         case 0x43:
         case 0x46:
@@ -847,9 +846,20 @@ void writeIO(u8 ioReg, u8 val)
         case 0x6B:
             handleVideoRegister(ioReg, val);
             return;
+        case 0x41:
+            ioRam[ioReg] &= 0x7;
+            ioRam[ioReg] |= val&0xF8;
+            checkLCD();
+            checkLYC(); // ??
+            return;
         case 0x44:
             //ioRam[0x44] = 0;
             printLog("LY Write %d\n", val);
+            return;
+        case 0x45:
+            ioRam[ioReg] = val;
+            checkLYC();
+            cyclesToExecute = 0;
             return;
         case 0x68:
             ioRam[ioReg] = val;

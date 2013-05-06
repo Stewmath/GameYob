@@ -35,6 +35,8 @@ void resetGameboy(); // This may be called even from the context of "runOpcode".
 void runEmul();
 void initLCD();
 void initGameboyMode();
+void checkLYC();
+void checkLCD();
 void updateLCD(int cycles);
 void updateTimers(int cycles);
 void handleInterrupts();

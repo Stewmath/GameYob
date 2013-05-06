@@ -62,7 +62,6 @@ inline void setEventCycles(int cycles) {
 
 // Called once every gameboy vblank
 void updateInput() {
-    printLog("%.4x\n", gbRegs.pc.w);
     if (resettingGameboy) {
         initializeGameboy();
         resettingGameboy = false;
@@ -228,12 +227,40 @@ void initGameboyMode() {
     }
 }
 
+void checkLYC() {
+    // LYC check
+    if (ioRam[0x44] == ioRam[0x45])
+    {
+        ioRam[0x41] |= 4;
+        if (ioRam[0x41]&0x40)
+            requestInterrupt(LCD);
+    }
+    else
+        ioRam[0x41] &= ~4;
+}
+
+void checkLCD() {
+    switch(ioRam[0x41]&3) {
+        case 0:
+            if (ioRam[0x41]&0x8)
+                requestInterrupt(LCD);
+            break;
+        case 1:
+            if (ioRam[0x41]&0x10)
+                requestInterrupt(LCD);
+            break;
+        case 2:
+            if (ioRam[0x41]&0x20)
+                requestInterrupt(LCD);
+            break;
+    }
+}
 
 inline void updateLCD(int cycles)
 {
     if (!(ioRam[0x40] & 0x80))		// If LCD is off
     {
-        scanlineCounter = 456*(doubleSpeed?2:1);;
+        scanlineCounter = 456*(doubleSpeed?2:1);
         ioRam[0x44] = 0;
         ioRam[0x41] &= 0xF8;
         // Normally timing is synchronized with gameboy's vblank. If the screen 
@@ -268,11 +295,6 @@ inline void updateLCD(int cycles)
             {
                 ioRam[0x41] &= ~3; // Set mode 0
                 scanlineCounter += 204<<doubleSpeed;
-
-                if (ioRam[0x41]&0x8)
-                {
-                    requestInterrupt(LCD);
-                }
 
                 drawScanline_P2(ioRam[0x44]);
                 if (updateHblankDMA()) {
@@ -330,21 +352,13 @@ inline void updateLCD(int cycles)
                 if (ioRam[0x44] >= 144) {
                     scanlineCounter += 456<<doubleSpeed;
                 }
-
-                // LYC check
-                if (ioRam[0x44] == ioRam[0x45])
-                {
-                    ioRam[0x41] |= 4;
-                    if (ioRam[0x41]&0x40)
-                        requestInterrupt(LCD);
-                }
-                else
-                    ioRam[0x41] &= ~4;
+                checkLYC();
             }
 
             break;
     }
 
+    checkLCD();
     setEventCycles(scanlineCounter);
 }
 

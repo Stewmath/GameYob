@@ -160,6 +160,9 @@ int handleInterrupts(unsigned int interruptTriggered)
     /* Clear the IF bit */
     ioRam[0x0F] &= ~(1<<irqNo);
 
+    if (irqNo == 1)
+        printLog("%x\n", ioRam[0x44]);
+
     /* The interrupt prologue takes 20 cycles, take it into account */
     return (20 << doubleSpeed);
 }
