@@ -272,6 +272,8 @@ inline void updateLCD(int cycles)
                 ioRam[0x41]++; // Set mode 3
                 scanlineCounter += 172<<doubleSpeed;
                 drawScanline(ioRam[0x44]);
+                if (ioRam[0x44] == 7 && gbRegs.pc.w <= 0x3bb0)
+                    printLog("%.4x\n", gbRegs.pc.w);
             }
             break;
         case 3:

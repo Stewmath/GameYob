@@ -161,7 +161,7 @@ int handleInterrupts(unsigned int interruptTriggered)
     ioRam[0x0F] &= ~(1<<irqNo);
 
     /* The interrupt prologue takes 20 cycles, take it into account */
-    return (20 << doubleSpeed);
+    return 20;
 }
 
 const u8 reg8Offsets[] = {
