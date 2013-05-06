@@ -163,7 +163,8 @@ void runEmul()
 
         int interruptTriggered = ioRam[0x0F] & ioRam[0xFF];
         if (interruptTriggered) {
-            extraCycles += runOpcode(4);    // Fix for Robocop 2, LEGO Racers
+            if (!halt)
+                extraCycles += runOpcode(4);    // Fix for Robocop 2, LEGO Racers
             extraCycles += handleInterrupts(interruptTriggered);
         }
     }
