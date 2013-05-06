@@ -63,18 +63,17 @@ bool changedMap[2][0x400];
 int changedMapQueueLength[2];
 u16 changedMapQueue[2][0x400];
 
-bool bgPaletteModified[8];
-bool spritePaletteModified[8];
-bool bgPalettesModified;
-bool sprPalettesModified;
-bool spritesModified;
-
 u8 bgPaletteData[0x40];
 u8 sprPaletteData[0x40];
 
 int winPosY=0;
 
-bool lineModified = false;
+bool lineModified;
+bool mapsModified;
+bool bgPalettesModified;
+bool sprPalettesModified;
+bool spritesModified;
+
 
 // Whether to wait for vblank if emulation is running behind schedule
 int interruptWaitMode=0;
@@ -469,12 +468,6 @@ void refreshGFX() {
     }
     changedMapQueueLength[0] = 0;
     changedMapQueueLength[1] = 0;
-    for (int i=0; i<8; i++) {
-        bgPaletteModified[i] = true;
-        spritePaletteModified[i] = true;
-    }
-    bgPalettesModified = true;
-    sprPalettesModified = true;
     lastScreenDisabled = !(ioRam[0x40] & 0x80);
     screenDisabled = lastScreenDisabled;
     /*
@@ -942,95 +935,18 @@ void drawSprites(u8* data, int tall) {
 
 void drawScanline(int scanline) ITCM_CODE;
 
+int winX;
 // Called after mode 2
 void drawScanline(int scanline)
 {
-    renderingState[scanline].modified = false;
-    renderingState[scanline].mapsModified = false;
-    renderingState[scanline].spritesModified = false;
-    renderingState[scanline].bgPalettesModified = false;
-    renderingState[scanline].sprPalettesModified = false;
-    if (hblankDisabled || gfxMask)
-        return;
-    int winX = ioRam[0x4b];
-    if (winPosY == -2)
-        winPosY = ioRam[0x44]-ioRam[0x4a];
-    else if (winX < 167 && ioRam[0x4a] <= scanline)
-        winPosY++;
-    if (scanline == 0)
-        spritesModified = true;
-    renderingState[scanline].spritesModified = spritesModified;
-    if (spritesModified) {
-        for (int i=0; i<0xa0; i++)
-            renderingState[scanline].spriteData[i] = hram[i];
-        renderingState[scanline].tallSprites = !!(ioRam[0x40]&4);
+    // This japanese game, "Fushigi no Dungeon - Fuurai no Shiren..." expects 
+    // writes to winX during mode 3 to take effect next scanline - at least, 
+    // when winX is changed from >=167 to <167 or vice versa. Maybe this should 
+    // be investigated further.
+    if (winX != ioRam[0x4b]) {
+        winX = ioRam[0x4b];
         lineModified = true;
-        spritesModified = false;
-    }
-    if (scanline == 0 || scanline == ioRam[0x4a])
-        lineModified = true;
-    else if (!lineModified) {
-        renderingState[scanline].modified = false;
-        return;
-    } 
-
-    renderingState[scanline].modified = true;
-    renderingState[scanline].mapsModified = true;
-    lineModified = false;
-
-    int tileSigned,winMap,bgMap;
-    if (ioRam[0x40] & 0x10)
-        tileSigned = 0;
-    else
-        tileSigned = 1;
-    if (ioRam[0x40] & 0x40)
-        winMap = 1;
-    else
-        winMap = 0;
-    if (ioRam[0x40] & 0x8)
-        bgMap = 1;
-    else
-        bgMap = 0;
-
-    renderingState[scanline].spritesOn = ioRam[0x40] & 0x2;
-
-    renderingState[scanline].bgMap = bgMap;
-    renderingState[scanline].winMap = winMap;
-
-    if (gbMode != CGB && !(ioRam[0x40] & 1)) {
-        renderingState[scanline].winColor0Cnt = BG_MAP_BASE(off_map_base) | 3;
-        renderingState[scanline].winCnt = BG_MAP_BASE(off_map_base) | 3;
-        renderingState[scanline].winOverlayCnt = BG_MAP_BASE(off_map_base) | 3;
-        renderingState[scanline].bgColor0Cnt = BG_MAP_BASE(off_map_base) | 3;
-        renderingState[scanline].bgCnt = BG_MAP_BASE(off_map_base) | 3;
-        renderingState[scanline].bgOverlayCnt = BG_MAP_BASE(off_map_base) | 3;
-    }
-    else {
-        bool priorityOn = gbMode == CGB && ioRam[0x40] & 1;
-
-        int winMapBase = map_base[winMap];
-        int bgMapBase = map_base[bgMap];
-
-        renderingState[scanline].tileSigned = tileSigned;
-
-        int tileBase = (tileSigned ? 6 : 4);
-
-        renderingState[scanline].winColor0Cnt = (BG_MAP_BASE(color0_map_base[winMap]) | BG_TILE_BASE(0) | win_color0_priority);
-        renderingState[scanline].winCnt = (BG_MAP_BASE(winMapBase) | BG_TILE_BASE(tileBase) | win_priority);
-        renderingState[scanline].bgColor0Cnt = (BG_MAP_BASE(color0_map_base[bgMap]) | BG_TILE_BASE(0) | bg_color0_priority);
-        renderingState[scanline].bgCnt = (BG_MAP_BASE(bgMapBase) | BG_TILE_BASE(tileBase) | bg_priority);
-
-        renderingState[scanline].winAllCnt = (BG_MAP_BASE(winMapBase) | BG_TILE_BASE(tileBase+4) | win_all_priority);
-
-        if (priorityOn) {
-            renderingState[scanline].winOverlayCnt = (BG_MAP_BASE(overlay_map_base[winMap]) | BG_TILE_BASE(tileBase) | win_overlay_priority);
-            renderingState[scanline].bgOverlayCnt = (BG_MAP_BASE(overlay_map_base[bgMap]) | BG_TILE_BASE(tileBase) | bg_overlay_priority);
-        }
-        else {
-            // Give these layers the same priority as the regular layers.
-            renderingState[scanline].winOverlayCnt = (BG_MAP_BASE(overlay_map_base[winMap]) | BG_TILE_BASE(tileBase) | win_priority);
-            renderingState[scanline].bgOverlayCnt = (BG_MAP_BASE(overlay_map_base[bgMap]) | BG_TILE_BASE(tileBase) | bg_priority);
-        }
+        mapsModified = true;
     }
 }
 
@@ -1038,10 +954,96 @@ void drawScanline_P2(int scanline) ITCM_CODE;
 
 // Called after mode 3
 void drawScanline_P2(int scanline) {
-    if (hblankDisabled || gfxMask)
+    if (winPosY == -2)
+        winPosY = ioRam[0x44]-ioRam[0x4a];
+    else if (winX < 167 && ioRam[0x4a] <= scanline)
+        winPosY++;
+
+    if (scanline == 0) {
+        lineModified = true;
+        bgPalettesModified = true;
+        sprPalettesModified = true;
+        spritesModified = true;
+        mapsModified = true;
+    }
+    else if (scanline == ioRam[0x4a]) { // First line of the window
+        lineModified = true;
+        mapsModified = true;
+    }
+    else if (!lineModified) {
+        renderingState[scanline].modified = false;
         return;
-    if (renderingState[scanline].modified && renderingState[scanline].mapsModified) {
-        int winX = ioRam[0x4b];
+    }
+
+    renderingState[scanline].modified = true;
+
+    renderingState[scanline].spritesModified = spritesModified;
+    if (spritesModified) {
+        for (int i=0; i<0xa0; i++)
+            renderingState[scanline].spriteData[i] = hram[i];
+        renderingState[scanline].tallSprites = !!(ioRam[0x40]&4);
+        spritesModified = false;
+    }
+
+    renderingState[scanline].mapsModified = mapsModified;
+    if (mapsModified) {
+        mapsModified = false;
+
+        int tileSigned,winMap,bgMap;
+        if (ioRam[0x40] & 0x10)
+            tileSigned = 0;
+        else
+            tileSigned = 1;
+        if (ioRam[0x40] & 0x40)
+            winMap = 1;
+        else
+            winMap = 0;
+        if (ioRam[0x40] & 0x8)
+            bgMap = 1;
+        else
+            bgMap = 0;
+
+        renderingState[scanline].spritesOn = ioRam[0x40] & 0x2;
+
+        renderingState[scanline].bgMap = bgMap;
+        renderingState[scanline].winMap = winMap;
+
+        if (gbMode != CGB && !(ioRam[0x40] & 1)) {
+            renderingState[scanline].winColor0Cnt = BG_MAP_BASE(off_map_base) | 3;
+            renderingState[scanline].winCnt = BG_MAP_BASE(off_map_base) | 3;
+            renderingState[scanline].winOverlayCnt = BG_MAP_BASE(off_map_base) | 3;
+            renderingState[scanline].bgColor0Cnt = BG_MAP_BASE(off_map_base) | 3;
+            renderingState[scanline].bgCnt = BG_MAP_BASE(off_map_base) | 3;
+            renderingState[scanline].bgOverlayCnt = BG_MAP_BASE(off_map_base) | 3;
+        }
+        else {
+            bool priorityOn = gbMode == CGB && ioRam[0x40] & 1;
+
+            int winMapBase = map_base[winMap];
+            int bgMapBase = map_base[bgMap];
+
+            renderingState[scanline].tileSigned = tileSigned;
+
+            int tileBase = (tileSigned ? 6 : 4);
+
+            renderingState[scanline].winColor0Cnt = (BG_MAP_BASE(color0_map_base[winMap]) | BG_TILE_BASE(0) | win_color0_priority);
+            renderingState[scanline].winCnt = (BG_MAP_BASE(winMapBase) | BG_TILE_BASE(tileBase) | win_priority);
+            renderingState[scanline].bgColor0Cnt = (BG_MAP_BASE(color0_map_base[bgMap]) | BG_TILE_BASE(0) | bg_color0_priority);
+            renderingState[scanline].bgCnt = (BG_MAP_BASE(bgMapBase) | BG_TILE_BASE(tileBase) | bg_priority);
+
+            renderingState[scanline].winAllCnt = (BG_MAP_BASE(winMapBase) | BG_TILE_BASE(tileBase+4) | win_all_priority);
+
+            if (priorityOn) {
+                renderingState[scanline].winOverlayCnt = (BG_MAP_BASE(overlay_map_base[winMap]) | BG_TILE_BASE(tileBase) | win_overlay_priority);
+                renderingState[scanline].bgOverlayCnt = (BG_MAP_BASE(overlay_map_base[bgMap]) | BG_TILE_BASE(tileBase) | bg_overlay_priority);
+            }
+            else {
+                // Give these layers the same priority as the regular layers.
+                renderingState[scanline].winOverlayCnt = (BG_MAP_BASE(overlay_map_base[winMap]) | BG_TILE_BASE(tileBase) | win_priority);
+                renderingState[scanline].bgOverlayCnt = (BG_MAP_BASE(overlay_map_base[bgMap]) | BG_TILE_BASE(tileBase) | bg_priority);
+            }
+        }
+
         bool winOn = (ioRam[0x40] & 0x20) && winX < 167 && ioRam[0x4a] < 144 && ioRam[0x4a] <= scanline;
         renderingState[scanline].winOn = winOn;
         renderingState[scanline].hofs = ioRam[0x43];
@@ -1050,44 +1052,27 @@ void drawScanline_P2(int scanline) {
         renderingState[scanline].winPosY = winPosY;
         renderingState[scanline].winY = ioRam[0x4a];
     }
-    bool palettesModified = false;
-    if (scanline == 0) {
-        renderingState[scanline].bgPalettesModified = true;
-        renderingState[scanline].sprPalettesModified = true;
+
+    renderingState[scanline].bgPalettesModified = bgPalettesModified;
+    if (bgPalettesModified) {
         bgPalettesModified = false;
-        sprPalettesModified = false;
-        palettesModified = true;
-    }
-    else {
-        renderingState[scanline].bgPalettesModified = bgPalettesModified;
-        renderingState[scanline].sprPalettesModified = sprPalettesModified;
-        if (bgPalettesModified) {
-            bgPalettesModified = false;
-            palettesModified = true;
-        }
-        if (sprPalettesModified) {
-            sprPalettesModified = false;
-            palettesModified = true;
-        }
-    }
-    if (!palettesModified)
-        return;
-
-    renderingState[scanline].modified = true;
-
-    if (renderingState[scanline].bgPalettesModified) {
+        renderingState[scanline].bgPal = ioRam[0x47];
         for (int i=0; i<0x40; i++) {
             renderingState[scanline].bgPaletteData[i] = bgPaletteData[i];
         }
     }
-    if (renderingState[scanline].sprPalettesModified) {
+
+    renderingState[scanline].sprPalettesModified = sprPalettesModified;
+    if (sprPalettesModified) {
+        sprPalettesModified = false;
+        renderingState[scanline].sprPal[0] = ioRam[0x48];
+        renderingState[scanline].sprPal[1] = ioRam[0x49];
         for (int i=0; i<0x40; i++) {
             renderingState[scanline].sprPaletteData[i] = sprPaletteData[i];
         }
     }
-    renderingState[scanline].bgPal = ioRam[0x47];
-    renderingState[scanline].sprPal[0] = ioRam[0x48];
-    renderingState[scanline].sprPal[1] = ioRam[0x49];
+
+    lineModified = false;
 }
 
 void writeVram(u16 addr, u8 val) {
@@ -1210,10 +1195,14 @@ void updateSprPalette(int paletteid, u8* data, u8 dmgPal) {
 void handleVideoRegister(u8 ioReg, u8 val) {
     switch(ioReg) {
         case 0x40:    // LCDC
-            if ((val & 0x7F) != (ioRam[0x40] & 0x7F))
+            if ((val & 0x7F) != (ioRam[0x40] & 0x7F)) {
                 lineModified = true;
-            if ((val&4) != (ioRam[0x40]&4))
+                mapsModified = true;
+            }
+            if ((val&4) != (ioRam[0x40]&4)) {
+                lineModified = true;
                 spritesModified = true;
+            }
             ioRam[0x40] = val;
             return;
         case 0x46:				// DMA
@@ -1228,6 +1217,7 @@ void handleVideoRegister(u8 ioReg, u8 val) {
                         spriteData[i] = val;
                     */
                 }
+                lineModified = true;
                 spritesModified = true;
 
                 //printLog("dma write %d\n", ioRam[0x44]);
@@ -1235,16 +1225,18 @@ void handleVideoRegister(u8 ioReg, u8 val) {
             }
         case 0x42:
         case 0x43:
-        case 0x4B:
-            {
-                if (val != ioRam[ioReg]) {
-                    ioRam[ioReg] = val;
-                    lineModified = true;
-                }
+            if (val != ioRam[ioReg]) {
+                ioRam[ioReg] = val;
+                lineModified = true;
+                mapsModified = true;
             }
             break;
-            // winY
-        case 0x4A:
+        case 0x4B: // winX
+            if (val != ioRam[ioReg]) {
+                ioRam[ioReg] = val;
+            }
+            break;
+        case 0x4A: // winY
             if (ioRam[0x44] >= 144 || val > ioRam[0x44])
                 winPosY = -1;
             else {
@@ -1252,21 +1244,28 @@ void handleVideoRegister(u8 ioReg, u8 val) {
                 winPosY = -2;
             }
             lineModified = true;
-            ioRam[0x4a] = val;
+            mapsModified = true;
+            ioRam[ioReg] = val;
             break;
         case 0x47:				// BG Palette (GB classic only)
-            if (gbMode == GB && ioRam[0x47] != val)
+            if (gbMode == GB && ioRam[0x47] != val) {
+                lineModified = true;
                 bgPalettesModified = true;
+            }
             ioRam[0x47] = val;
             return;
         case 0x48:				// Spr Palette (GB classic only)
-            if (gbMode == GB && ioRam[0x48] != val)
+            if (gbMode == GB && ioRam[0x48] != val) {
+                lineModified = true;
                 sprPalettesModified = true;
+            }
             ioRam[0x48] = val;
             return;
         case 0x49:				// Spr Palette (GB classic only)
-            if (gbMode == GB && ioRam[0x49] != val)
+            if (gbMode == GB && ioRam[0x49] != val) {
+                lineModified = true;
                 sprPalettesModified = true;
+            }
             ioRam[0x49] = val;
             return;
         case 0x69:				// BG Palette Data (GBC only)
@@ -1274,6 +1273,7 @@ void handleVideoRegister(u8 ioReg, u8 val) {
                 int index = ioRam[0x68] & 0x3F;
                 if (bgPaletteData[index] != val) {
                     bgPaletteData[index] = val;
+                    lineModified = true;
                     bgPalettesModified = true;
                 }
 
@@ -1287,6 +1287,7 @@ void handleVideoRegister(u8 ioReg, u8 val) {
                 int index = ioRam[0x6A] & 0x3F;
                 if (sprPaletteData[index] != val) {
                     sprPaletteData[index] = val;
+                    lineModified = true;
                     sprPalettesModified = true;
                 }
 
@@ -1302,5 +1303,6 @@ void handleVideoRegister(u8 ioReg, u8 val) {
 
 void writeHram(u16 addr, u8 val) {
     hram[addr&0x1ff] = val;
+    lineModified = true;
     spritesModified = true;
 }
