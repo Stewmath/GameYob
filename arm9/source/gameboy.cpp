@@ -239,23 +239,6 @@ void checkLYC() {
         ioRam[0x41] &= ~4;
 }
 
-void checkLCD() {
-    switch(ioRam[0x41]&3) {
-        case 0:
-            if (ioRam[0x41]&0x8)
-                requestInterrupt(LCD);
-            break;
-        case 1:
-            if (ioRam[0x41]&0x10)
-                requestInterrupt(LCD);
-            break;
-        case 2:
-            if (ioRam[0x41]&0x20)
-                requestInterrupt(LCD);
-            break;
-    }
-}
-
 inline void updateLCD(int cycles)
 {
     if (!(ioRam[0x40] & 0x80))		// If LCD is off
@@ -294,6 +277,10 @@ inline void updateLCD(int cycles)
         case 3:
             {
                 ioRam[0x41] &= ~3; // Set mode 0
+
+                if (ioRam[0x41]&0x8)
+                    requestInterrupt(LCD);
+
                 scanlineCounter += 204<<doubleSpeed;
 
                 drawScanline_P2(ioRam[0x44]);
@@ -331,19 +318,19 @@ inline void updateLCD(int cycles)
                     else {
                         ioRam[0x41] &= ~3;
                         ioRam[0x41] |= 2; // Set mode 2
+                        if (ioRam[0x41]&0x20)
+                            requestInterrupt(LCD);
                         scanlineCounter += 80<<doubleSpeed;
                     }
                 }
                 else if (ioRam[0x44] == 144)
                 {
                     ioRam[0x41] &= ~3;
-                    ioRam[0x41] |= 1;
+                    ioRam[0x41] |= 1;   // Set mode 1
 
                     requestInterrupt(VBLANK);
                     if (ioRam[0x41]&0x10)
-                    {
                         requestInterrupt(LCD);
-                    }
 
                     fps++;
                     drawScreen();
@@ -358,7 +345,6 @@ inline void updateLCD(int cycles)
             break;
     }
 
-    checkLCD();
     setEventCycles(scanlineCounter);
 }
 

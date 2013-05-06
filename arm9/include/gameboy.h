@@ -36,7 +36,6 @@ void runEmul();
 void initLCD();
 void initGameboyMode();
 void checkLYC();
-void checkLCD();
 void updateLCD(int cycles);
 void updateTimers(int cycles);
 void handleInterrupts();

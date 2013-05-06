@@ -849,8 +849,6 @@ void writeIO(u8 ioReg, u8 val)
         case 0x41:
             ioRam[ioReg] &= 0x7;
             ioRam[ioReg] |= val&0xF8;
-            checkLCD();
-            checkLYC(); // ??
             return;
         case 0x44:
             //ioRam[0x44] = 0;
