@@ -62,6 +62,7 @@ inline void setEventCycles(int cycles) {
 
 // Called once every gameboy vblank
 void updateInput() {
+    printLog("%.4x\n", gbRegs.pc.w);
     if (resettingGameboy) {
         initializeGameboy();
         resettingGameboy = false;
@@ -161,8 +162,10 @@ void runEmul()
         updateLCD(cycles);
 
         int interruptTriggered = ioRam[0x0F] & ioRam[0xFF];
-        if (interruptTriggered)
+        if (interruptTriggered) {
+            extraCycles += runOpcode(4);    // Fix for Robocop 2, LEGO Racers
             extraCycles += handleInterrupts(interruptTriggered);
+        }
     }
 }
 
