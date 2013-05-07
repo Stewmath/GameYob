@@ -256,7 +256,7 @@ char* startFileChooser() {
                     else {
                         // Copy the result to a new allocation, as the
                         // filename would become unavailable when freed.
-                        retval = (char*) malloc(sizeof(char*) * (strlen(filenames[fileSelection]) + 1));
+                        retval = (char*) malloc(sizeof(char) * (strlen(filenames[fileSelection]) + 1));
                         strcpy(retval, filenames[fileSelection]);
                         // free memory used for filenames in this dir
                         for (int i=0; i<numFiles; i++) {
