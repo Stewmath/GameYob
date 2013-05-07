@@ -76,7 +76,7 @@ void packetHandler(int packetID, int readlength)
                 // Internal clock receives a response from external clock
             case 56:
                 transferReady = true;
-                cyclesToExecute = 0;
+                cyclesToExecute = -1;
                 nifiSendid++;
                 break;
             default:

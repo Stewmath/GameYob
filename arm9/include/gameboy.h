@@ -30,6 +30,8 @@ extern bool sgbMode;
 
 extern bool probingForBorder;
 
+extern int interruptTriggered;
+
 void resetGameboy(); // This may be called even from the context of "runOpcode".
 
 void runEmul();
@@ -38,6 +40,5 @@ void initGameboyMode();
 void checkLYC();
 void updateLCD(int cycles);
 void updateTimers(int cycles);
-void handleInterrupts();
 void requestInterrupt(int id);
 void setDoubleSpeed(int val);

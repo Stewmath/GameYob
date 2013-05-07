@@ -131,7 +131,7 @@ void enableInterrupts()
 {
     ime = 1;
     if (ioRam[0x0f] & ioRam[0xff])
-        cyclesToExecute = 0;
+        cyclesToExecute = -1;
 }
 
 void disableInterrupts()
@@ -1242,7 +1242,6 @@ int runOpcode(int cycles) {
             case 0x76:		// HALT					4
                 halt = 1;
                 goto end;
-                break;
 
             case 0x10:		// STOP					4
                 if (ioRam[0x4D] & 1 && gbMode == CGB)
@@ -1261,7 +1260,7 @@ int runOpcode(int cycles) {
                 else
                 {
                     halt = 2;
-                    cyclesToExecute = 0;
+                    goto end;
                 }
                 pcAddr++;
                 break;

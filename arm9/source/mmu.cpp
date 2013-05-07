@@ -857,7 +857,7 @@ void writeIO(u8 ioReg, u8 val)
         case 0x45:
             ioRam[ioReg] = val;
             checkLYC();
-            cyclesToExecute = 0;
+            cyclesToExecute = -1;
             return;
         case 0x68:
             ioRam[ioReg] = val;
@@ -938,12 +938,12 @@ void writeIO(u8 ioReg, u8 val)
         case 0x0F:
             ioRam[ioReg] = val;
             if (val & ioRam[0xff])
-                cyclesToExecute = 0;
+                cyclesToExecute = -1;
             break;
         case 0xFF:
             ioRam[ioReg] = val;
             if (val & ioRam[0x0f])
-                cyclesToExecute = 0;
+                cyclesToExecute = -1;
             break;
         default:
             ioRam[ioReg] = val;

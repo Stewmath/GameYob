@@ -125,6 +125,10 @@ void runEmul()
             cycles = cyclesToEvent;
         else
             cycles = runOpcode(cyclesToEvent);
+
+        bool opTriggeredInterrupt = cyclesToExecute == -1;
+        cyclesToExecute = -1;
+
         cycles += extraCycles;
 
         cyclesToEvent = maxWaitCycles;
@@ -162,8 +166,18 @@ void runEmul()
 
         int interruptTriggered = ioRam[0x0F] & ioRam[0xFF];
         if (interruptTriggered) {
-            if (!halt)
-                extraCycles += runOpcode(4);    // Fix for Robocop 2, LEGO Racers
+
+            /* Hack to fix Robocop 2 and LEGO Racers, possibly others. 
+             * Interrupts can occur in the middle of an opcode. The result of 
+             * this is that said opcode can read the resulting state - most 
+             * importantly, it can read LY=144 before the vblank interrupt takes 
+             * over. This is a decent approximation of that effect.
+             * This has been known to break Megaman V boss intros, that's fixed 
+             * by the "opTriggeredInterrupt" stuff.
+             */
+            if (!halt && !opTriggeredInterrupt)
+                extraCycles += runOpcode(4);
+
             extraCycles += handleInterrupts(interruptTriggered);
         }
     }
@@ -383,7 +397,7 @@ void requestInterrupt(int id)
 {
     ioRam[0x0F] |= id;
     if (ioRam[0x0F] & ioRam[0xFF])
-        cyclesToExecute = 0;
+        cyclesToExecute = -1;
 }
 
 void setDoubleSpeed(int val) {
