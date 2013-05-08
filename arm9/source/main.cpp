@@ -149,6 +149,7 @@ int main(int argc, char* argv[])
 
     sharedData = (SharedData*)memUncached(malloc(sizeof(SharedData)));
     sharedData->scalingOn = false;
+    sharedData->fifosWaiting = 0;
     fifoSendAddress(FIFO_USER_03, (void*)memUncached((void*)sharedData));
 
     consoleOn = true;
