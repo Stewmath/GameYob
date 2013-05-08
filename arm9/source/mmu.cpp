@@ -55,12 +55,6 @@ u8 highram[0x1000];
 u8* const hram = highram+0xe00;
 u8* const ioRam = hram+0x100;
 
-u8 spriteData[0xA0]
-#ifdef DS
-DTCM_BSS
-#endif
-;
-
 int wramBank;
 int vramBank;
 
@@ -500,9 +494,7 @@ void initMMU()
             biosOn = true;
     }
     mapMemory();
-    memset(ioRam, 0, 0x100);
-
-    ioRam[0x55] = 0xff;
+    memset(hram, 0, 0x200); // Initializes sprites and IO registers
 
     writeIO(0x02, 0x00);
     writeIO(0x05, 0x00);
@@ -518,6 +510,8 @@ void initMMU()
     writeIO(0x4a, 0x00);
     writeIO(0x4b, 0x00);
     writeIO(0xff, 0x00);
+
+    ioRam[0x55] = 0xff;
 }
 
 void mapMemory() {

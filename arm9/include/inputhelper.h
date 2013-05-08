@@ -25,10 +25,7 @@ enum {
 #define UP			0x40
 #define DOWN		0x80
 
-// TODO: Figure out where all the memory is going! It should be possible to load 
-// 128 banks (2 megabytes) but it seemed to be running out of memory (soft-reset 
-// crashes hint this)
-#define MAX_LOADED_ROM_BANKS	100 /* 64 = 1 MiB */
+#define MAX_LOADED_ROM_BANKS	128 /* 64 = 1 MiB */
 
 extern u8 buttonsPressed;
 
