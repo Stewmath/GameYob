@@ -61,6 +61,7 @@ inline void setEventCycles(int cycles) {
 
 // Called once every gameboy vblank
 void updateInput() {
+    //printLog("PC %.4x, %.2x\n", gbRegs.pc.w, ioRam[0x40]);
     if (resettingGameboy) {
         initializeGameboy();
         resettingGameboy = false;
@@ -264,6 +265,7 @@ inline void updateLCD(int cycles)
             drawScreen();   // drawScreen recognizes the screen is disabled and makes it all white.
             updateInput();
         }
+        return;
     }
 
     scanlineCounter -= cycles;
