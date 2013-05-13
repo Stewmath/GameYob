@@ -26,8 +26,6 @@ bool timeOutput=true;
 bool fastForwardMode = false; // controlled by the menu
 bool fastForwardKey = false;  // only while its hotkey is pressed
 
-bool yellowHack;
-
 // ...what is phase? I think I made that up. Used for timing when the gameboy 
 // screen is off.
 int phaseCounter;
@@ -41,8 +39,9 @@ long periods[4];
 int gbMode;
 bool sgbMode;
 
+const int maxWaitCycles=10000;
 int cyclesToEvent;
-int maxWaitCycles;
+int cyclesSinceVblank=0;
 
 bool resettingGameboy = false;
 
@@ -134,6 +133,8 @@ void runEmul()
         cyclesToEvent = maxWaitCycles;
         extraCycles=0;
 
+        cyclesSinceVblank += cycles;
+
         if (serialCounter > 0) {
             serialCounter -= cycles;
             if (serialCounter <= 0) {
@@ -185,14 +186,6 @@ void runEmul()
 
 void initLCD()
 {
-    // Pokemon Yellow hack: I need to intentionally SLOW DOWN emulation for 
-    // Pikachu's pitch to sound right...
-    yellowHack = strcmp(getRomTitle(), "POKEMON YELLOW") == 0;
-    if (yellowHack && !(fastForwardMode || fastForwardKey))
-        maxWaitCycles = 50;
-    else
-        maxWaitCycles = 800;
-
     setDoubleSpeed(0);
 
     scanlineCounter = 456*(doubleSpeed?2:1);
@@ -267,6 +260,7 @@ inline void updateLCD(int cycles)
         if (phaseCounter <= 0) {
             fps++;
             phaseCounter += 456*153*(doubleSpeed?2:1);
+            cyclesSinceVblank=0;
             drawScreen();   // drawScreen recognizes the screen is disabled and makes it all white.
             updateInput();
         }
@@ -286,8 +280,6 @@ inline void updateLCD(int cycles)
                 ioRam[0x41]++; // Set mode 3
                 scanlineCounter += 172<<doubleSpeed;
                 drawScanline(ioRam[0x44]);
-                if (ioRam[0x44] == 7 && gbRegs.pc.w <= 0x3bb0)
-                    printLog("%.4x\n", gbRegs.pc.w);
             }
             break;
         case 3:
@@ -349,6 +341,7 @@ inline void updateLCD(int cycles)
                         requestInterrupt(LCD);
 
                     fps++;
+                    cyclesSinceVblank = -scanlineCounter;
                     drawScreen();
                     updateInput();
                 }

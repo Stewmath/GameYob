@@ -318,7 +318,7 @@ int runOpcode(int cycles) {
                 (*numberedGbReg((opcode>>3)&7)) = readMemory(gbRegs.hl.w);
                 break;
             case 0x77:		// LD (hl), A	8
-                writeMemory(gbRegs.hl.w, gbRegs.af.b.h);
+                writeMemory(gbRegs.hl.w, gbRegs.af.b.h, totalCycles);
                 break;
             case 0x70:		// LD (hl), B	8
             case 0x71:		// LD (hl), C	8
@@ -326,10 +326,10 @@ int runOpcode(int cycles) {
             case 0x73:		// LD (hl), E	8
             case 0x74:		// LD (hl), H	8
             case 0x75:		// LD (hl), L	8
-                writeMemory(gbRegs.hl.w, *numberedGbReg(opcode&7));
+                writeMemory(gbRegs.hl.w, *numberedGbReg(opcode&7), totalCycles);
                 break;
             case 0x36:		// LD (hl), n	12
-                writeMemory(gbRegs.hl.w, readPC_noinc());
+                writeMemory(gbRegs.hl.w, readPC_noinc(), totalCycles);
                 pcAddr++;
                 break;
             case 0x0A:		// LD A, (BC)	8
@@ -343,35 +343,35 @@ int runOpcode(int cycles) {
                 pcAddr += 2;
                 break;
             case 0x02:		// LD (BC), A	8
-                writeMemory(gbRegs.bc.w, gbRegs.af.b.h);
+                writeMemory(gbRegs.bc.w, gbRegs.af.b.h, totalCycles);
                 break;
             case 0x12:		// LD (de), A	8
-                writeMemory(gbRegs.de.w, gbRegs.af.b.h);
+                writeMemory(gbRegs.de.w, gbRegs.af.b.h, totalCycles);
                 break;
             case 0xEA:		// LD (nn), A	16
-                writeMemory(readPC16_noinc(), gbRegs.af.b.h);
+                writeMemory(readPC16_noinc(), gbRegs.af.b.h, totalCycles);
                 pcAddr += 2;
                 break;
             case 0xF2:		// LDH A, (C)	8
                 gbRegs.af.b.h = readIO(gbRegs.bc.b.l);
                 break;
             case 0xE2:		// LDH (C), A	8
-                writeIO(gbRegs.bc.b.l, gbRegs.af.b.h);
+                writeIO(gbRegs.bc.b.l, gbRegs.af.b.h, totalCycles);
                 break;
             case 0x3A:		// LDD A, (hl)	8
                 gbRegs.af.b.h = readMemory(gbRegs.hl.w--);
                 break;
             case 0x32:		// LDD (hl), A	8
-                writeMemory(gbRegs.hl.w--, gbRegs.af.b.h);
+                writeMemory(gbRegs.hl.w--, gbRegs.af.b.h, totalCycles);
                 break;
             case 0x2A:		// LDI A, (hl)	8
                 gbRegs.af.b.h = readMemory(gbRegs.hl.w++);
                 break;
             case 0x22:		// LDI (hl), A	8
-                writeMemory(gbRegs.hl.w++, gbRegs.af.b.h);
+                writeMemory(gbRegs.hl.w++, gbRegs.af.b.h, totalCycles);
                 break;
             case 0xE0:		// LDH (n), A   12
-                writeIO(readPC_noinc(), gbRegs.af.b.h);
+                writeIO(readPC_noinc(), gbRegs.af.b.h, totalCycles);
                 pcAddr++;
                 break;
             case 0xF0:		// LDH A, (n)   12
@@ -415,8 +415,8 @@ int runOpcode(int cycles) {
             case 0x08:		// LD (nn), SP	20
                 {
                     int val = readPC16();
-                    writeMemory(val, locSP & 0xFF);
-                    writeMemory(val+1, (locSP) >> 8);
+                    writeMemory(val, locSP & 0xFF, totalCycles);
+                    writeMemory(val+1, (locSP) >> 8, totalCycles);
                     break;
                 }
             case 0xF5:		// PUSH AF
@@ -426,16 +426,16 @@ int runOpcode(int cycles) {
                 // Some games use the stack in exotic ways.
                 // Better to use writeMemory than quickWrite.
             case 0xC5:		// PUSH BC			16
-                writeMemory(--locSP, gbRegs.bc.b.h);
-                writeMemory(--locSP, gbRegs.bc.b.l);
+                writeMemory(--locSP, gbRegs.bc.b.h, totalCycles);
+                writeMemory(--locSP, gbRegs.bc.b.l, totalCycles);
                 break;
             case 0xD5:		// PUSH de			16
-                writeMemory(--locSP, gbRegs.de.b.h);
-                writeMemory(--locSP, gbRegs.de.b.l);
+                writeMemory(--locSP, gbRegs.de.b.h, totalCycles);
+                writeMemory(--locSP, gbRegs.de.b.l, totalCycles);
                 break;
             case 0xE5:		// PUSH hl			16
-                writeMemory(--locSP, gbRegs.hl.b.h);
-                writeMemory(--locSP, gbRegs.hl.b.l);
+                writeMemory(--locSP, gbRegs.hl.b.h, totalCycles);
+                writeMemory(--locSP, gbRegs.hl.b.l, totalCycles);
                 break;
             case 0xF1:		// POP AF				12
                 locF = quickRead(locSP++) & 0xF0;
@@ -1022,7 +1022,7 @@ int runOpcode(int cycles) {
             case 0x34:		// INC (hl)		12
                 {
                     u8 val = readMemory(gbRegs.hl.w)+1;
-                    writeMemory(gbRegs.hl.w, val);
+                    writeMemory(gbRegs.hl.w, val, totalCycles);
                     if (val == 0)
                         setZFlag();
                     else
@@ -1073,7 +1073,7 @@ int runOpcode(int cycles) {
             case 0x35:		// deC (hl)			12
                 {
                     u8 val = readMemory(gbRegs.hl.w)-1;
-                    writeMemory(gbRegs.hl.w, val);
+                    writeMemory(gbRegs.hl.w, val, totalCycles);
                     if (val == 0)
                         setZFlag();
                     else
@@ -1636,7 +1636,7 @@ int runOpcode(int cycles) {
                             int val2 = val >> 4;
                             val <<= 4;
                             val |= val2;
-                            writeMemory(gbRegs.hl.w, val);
+                            writeMemory(gbRegs.hl.w, val, totalCycles);
                             if (val == 0)
                                 setZFlag();
                             else
@@ -1712,7 +1712,7 @@ int runOpcode(int cycles) {
                                 clearZFlag();
                             clearNFlag();
                             clearHFlag();
-                            writeMemory(gbRegs.hl.w, val2);
+                            writeMemory(gbRegs.hl.w, val2, totalCycles);
                             break;
 
                         }
@@ -1776,7 +1776,7 @@ int runOpcode(int cycles) {
                                 clearZFlag();
                             clearNFlag();
                             clearHFlag();
-                            writeMemory(gbRegs.hl.w, val2);
+                            writeMemory(gbRegs.hl.w, val2, totalCycles);
                             break;
                         }
                     case 0x0F:		// RRC A					8
@@ -1845,7 +1845,7 @@ int runOpcode(int cycles) {
                                 clearZFlag();
                             clearNFlag();
                             clearHFlag();
-                            writeMemory(gbRegs.hl.w, val2);
+                            writeMemory(gbRegs.hl.w, val2, totalCycles);
                             break;
                         }
 
@@ -1909,7 +1909,7 @@ int runOpcode(int cycles) {
                                 clearZFlag();
                             clearNFlag();
                             clearHFlag();
-                            writeMemory(gbRegs.hl.w, val2);
+                            writeMemory(gbRegs.hl.w, val2, totalCycles);
                             break;
                         }
 
@@ -1971,7 +1971,7 @@ int runOpcode(int cycles) {
                                 clearZFlag();
                             clearNFlag();
                             clearHFlag();
-                            writeMemory(gbRegs.hl.w, val2);
+                            writeMemory(gbRegs.hl.w, val2, totalCycles);
                             break;
                         }
 
@@ -2035,7 +2035,7 @@ int runOpcode(int cycles) {
                                 clearZFlag();
                             clearNFlag();
                             clearHFlag();
-                            writeMemory(gbRegs.hl.w, val);
+                            writeMemory(gbRegs.hl.w, val, totalCycles);
                             break;
                         }
 
@@ -2093,7 +2093,7 @@ int runOpcode(int cycles) {
                                 clearZFlag();
                             clearNFlag();
                             clearHFlag();
-                            writeMemory(gbRegs.hl.w, val);
+                            writeMemory(gbRegs.hl.w, val, totalCycles);
                             break;
                         }
 
@@ -2304,7 +2304,7 @@ int runOpcode(int cycles) {
                         {
                             int val = readMemory(gbRegs.hl.w);
                             val |= 1;
-                            writeMemory(gbRegs.hl.w, val);
+                            writeMemory(gbRegs.hl.w, val, totalCycles);
                             break;
                         }
                     case 0xC7:		// SET 0, A
@@ -2332,7 +2332,7 @@ int runOpcode(int cycles) {
                         {
                             int val = readMemory(gbRegs.hl.w);
                             val |= 2;
-                            writeMemory(gbRegs.hl.w, val);
+                            writeMemory(gbRegs.hl.w, val, totalCycles);
                             break;
                         }
                     case 0xCF:		// SET 1, A
@@ -2360,7 +2360,7 @@ int runOpcode(int cycles) {
                         {
                             int val = readMemory(gbRegs.hl.w);
                             val |= 4;
-                            writeMemory(gbRegs.hl.w, val);
+                            writeMemory(gbRegs.hl.w, val, totalCycles);
                             break;
                         }
                     case 0xD7:		// SET 2, A
@@ -2388,7 +2388,7 @@ int runOpcode(int cycles) {
                         {
                             int val = readMemory(gbRegs.hl.w);
                             val |= 8;
-                            writeMemory(gbRegs.hl.w, val);
+                            writeMemory(gbRegs.hl.w, val, totalCycles);
                             break;
                         }
                     case 0xDF:		// SET 3, A
@@ -2416,7 +2416,7 @@ int runOpcode(int cycles) {
                         {
                             int val = readMemory(gbRegs.hl.w);
                             val |= 0x10;
-                            writeMemory(gbRegs.hl.w, val);
+                            writeMemory(gbRegs.hl.w, val, totalCycles);
                             break;
                         }
                     case 0xE7:		// SET 4, A
@@ -2444,7 +2444,7 @@ int runOpcode(int cycles) {
                         {
                             int val = readMemory(gbRegs.hl.w);
                             val |= 0x20;
-                            writeMemory(gbRegs.hl.w, val);
+                            writeMemory(gbRegs.hl.w, val, totalCycles);
                             break;
                         }
                     case 0xEF:		// SET 5, A
@@ -2472,7 +2472,7 @@ int runOpcode(int cycles) {
                         {
                             int val = readMemory(gbRegs.hl.w);
                             val |= 0x40;
-                            writeMemory(gbRegs.hl.w, val);
+                            writeMemory(gbRegs.hl.w, val, totalCycles);
                             break;
                         }
                     case 0xF7:		// SET 6, A
@@ -2500,7 +2500,7 @@ int runOpcode(int cycles) {
                         {
                             int val = readMemory(gbRegs.hl.w);
                             val |= 0x80;
-                            writeMemory(gbRegs.hl.w, val);
+                            writeMemory(gbRegs.hl.w, val, totalCycles);
                             break;
                         }
                     case 0xFF:		// SET 7, A
@@ -2529,7 +2529,7 @@ int runOpcode(int cycles) {
                         {
                             int val = readMemory(gbRegs.hl.w);
                             val &= 0xFE;
-                            writeMemory(gbRegs.hl.w, val);
+                            writeMemory(gbRegs.hl.w, val, totalCycles);
                             break;
                         }
                     case 0x87:		// RES 0, A
@@ -2557,7 +2557,7 @@ int runOpcode(int cycles) {
                         {
                             int val = readMemory(gbRegs.hl.w);
                             val &= 0xFD;
-                            writeMemory(gbRegs.hl.w, val);
+                            writeMemory(gbRegs.hl.w, val, totalCycles);
                             break;
                         }
                     case 0x8F:		// RES 1, A
@@ -2585,7 +2585,7 @@ int runOpcode(int cycles) {
                         {
                             int val = readMemory(gbRegs.hl.w);
                             val &= 0xFB;
-                            writeMemory(gbRegs.hl.w, val);
+                            writeMemory(gbRegs.hl.w, val, totalCycles);
                             break;
                         }
                     case 0x97:		// RES 2, A
@@ -2613,7 +2613,7 @@ int runOpcode(int cycles) {
                         {
                             int val = readMemory(gbRegs.hl.w);
                             val &= 0xF7;
-                            writeMemory(gbRegs.hl.w, val);
+                            writeMemory(gbRegs.hl.w, val, totalCycles);
                             break;
                         }
                     case 0x9F:		// RES 3, A
@@ -2641,7 +2641,7 @@ int runOpcode(int cycles) {
                         {
                             int val = readMemory(gbRegs.hl.w);
                             val &= 0xEF;
-                            writeMemory(gbRegs.hl.w, val);
+                            writeMemory(gbRegs.hl.w, val, totalCycles);
                             break;
                         }
                     case 0xA7:		// RES 4, A
@@ -2669,7 +2669,7 @@ int runOpcode(int cycles) {
                         {
                             int val = readMemory(gbRegs.hl.w);
                             val &= 0xDF;
-                            writeMemory(gbRegs.hl.w, val);
+                            writeMemory(gbRegs.hl.w, val, totalCycles);
                             break;
                         }
                     case 0xAF:		// RES 5, A
@@ -2697,7 +2697,7 @@ int runOpcode(int cycles) {
                         {
                             int val = readMemory(gbRegs.hl.w);
                             val &= 0xBF;
-                            writeMemory(gbRegs.hl.w, val);
+                            writeMemory(gbRegs.hl.w, val, totalCycles);
                             break;
                         }
                     case 0xB7:		// RES 6, A
@@ -2725,7 +2725,7 @@ int runOpcode(int cycles) {
                         {
                             int val = readMemory(gbRegs.hl.w);
                             val &= 0x7F;
-                            writeMemory(gbRegs.hl.w, val);
+                            writeMemory(gbRegs.hl.w, val, totalCycles);
                             break;
                         }
                     case 0xBF:		// RES 7, A

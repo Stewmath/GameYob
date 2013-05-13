@@ -678,10 +678,10 @@ u8 readIO(u8 ioReg)
 }
 
 #ifdef DS
-void writeMemory(u16 addr, u8 val) ITCM_CODE;
+void writeMemory(u16 addr, u8 val, const int cycles) ITCM_CODE;
 #endif
 
-void writeMemory(u16 addr, u8 val)
+void writeMemory(u16 addr, u8 val, const int cycles)
 {
     switch (addr >> 12)
     {
@@ -700,7 +700,7 @@ void writeMemory(u16 addr, u8 val)
             return;
         case 0xF:
             if (addr >= 0xFF00)
-                writeIO(addr & 0xFF, val);
+                writeIO(addr & 0xFF, val, cycles);
             else if (addr >= 0xFE00)
                 writeHram(addr&0x1ff, val);
             else // Echo area
@@ -734,10 +734,10 @@ void nifiTimeoutFunc() {
 }
 
 #ifdef DS
-void writeIO(u8 ioReg, u8 val) ITCM_CODE;
+void writeIO(u8 ioReg, u8 val, const int cycles) ITCM_CODE;
 #endif
 
-void writeIO(u8 ioReg, u8 val)
+void writeIO(u8 ioReg, u8 val, const int cycles)
 {
     switch (ioReg)
     {
@@ -825,7 +825,7 @@ void writeIO(u8 ioReg, u8 val)
         case 0x3D:
         case 0x3E:
         case 0x3F:
-            handleSoundRegister(ioReg, val);
+            handleSoundRegister(ioReg, val, cycles);
             return;
         case 0x40:
         case 0x42:

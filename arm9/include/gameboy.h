@@ -15,18 +15,17 @@ extern long periods[4];
 
 extern int doubleSpeed;
 extern int cyclesToEvent;
-extern int maxWaitCycles;
 
 extern bool fastForwardMode;
 extern bool fastForwardKey;
-
-extern bool yellowHack;
 
 extern bool fpsOutput;
 extern bool timeOutput;
 
 extern int gbMode;
 extern bool sgbMode;
+
+extern int cyclesSinceVblank;
 
 extern bool probingForBorder;
 

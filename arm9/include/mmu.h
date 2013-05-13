@@ -24,8 +24,8 @@ void initMMU();
 void mapMemory();
 u8 readMemory(u16 addr);
 u8 readIO(u8 ioReg);
-void writeMemory(u16 addr, u8 val);
-void writeIO(u8 ioReg, u8 val);
+void writeMemory(u16 addr, u8 val, const int cycles=0);
+void writeIO(u8 ioReg, u8 val, const int cycles=0);
 
 bool updateHblankDMA();
 void latchClock();

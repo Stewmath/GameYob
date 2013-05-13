@@ -1,5 +1,3 @@
-#include "common.h"
-
 void selectRom();
 void initializeGameboy();
 void initializeGameboyFirstTime();

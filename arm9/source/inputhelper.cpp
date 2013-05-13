@@ -18,6 +18,7 @@
 #include "gbgfx.h"
 #include "gbsnd.h"
 #include "cheats.h"
+#include "common.h"
 
 FILE* romFile=NULL;
 char filename[100];
@@ -715,12 +716,10 @@ void handleEvents()
     }
     fastForwardKey = keyPressed(keys[KEY_FAST_FORWARD]);
 
-    if (yellowHack) {
-        if (fastForwardKey || fastForwardMode)
-            maxWaitCycles = 800;
-        else
-            maxWaitCycles = 50;
-    }
+    if (fastForwardKey || fastForwardMode)
+        sharedData->hyperSound = false;
+    else
+        sharedData->hyperSound = hyperSound;
 }
 
 const int STATE_VERSION = 3;

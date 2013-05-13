@@ -5,11 +5,22 @@
 #include "main.h"
 #include "gameboy.h"
 #include "gbsnd.h"
+#include "common.h"
+#include "gbcpu.h"
 
 #define CHAN_1 1
 #define CHAN_2 2
 #define CHAN_3 4
 #define CHAN_4 8
+
+inline bool FIFO_START(int bytes) {
+    return true;
+    if (sharedData->fifosWaiting+bytes < 128) {
+        sharedData->fifosWaiting += bytes;
+        return true;
+    }
+    return false;
+}
 
 inline void setChan1() {ioRam[0x26] |= 1;}
 inline void clearChan1() {ioRam[0x26] &= ~1;}
@@ -21,9 +32,9 @@ inline void setChan4() {ioRam[0x26] |= 8;}
 inline void clearChan4() {ioRam[0x26] &= ~8;}
 
 bool soundDisabled=false;
+bool hyperSound=false;
+
 int chanEnabled[] = {1,1,1,1};
-// Global volume
-int soundMultiplier = 4;
 
 double chan4FreqRatio;
 int chan4Width;
@@ -31,102 +42,128 @@ int chan1SweepTime;
 int chan1SweepCounter;
 int chan1SweepDir;
 int chan1SweepAmount;
-int chanDuty[2];
 int chanLen[4];
 int chanLenCounter[4];
 int chanUseLen[4];
 u32 chanFreq[4];
 // Frequency converted
-u32 chanRealFreq[4];
-int chanOn;
 int chanVol[4];
 int chanEnvDir[4];
 int chanEnvCounter[4];
 int chanEnvSweep[4];
-int chanToOut1[4];
-int chanToOut2[4];
+bool chanToOut1[4];
+bool chanToOut2[4];
 int sound[4] = {8,9,0,14};
 
 int pcmVals[16];
 u8* const sampleData = (u8*)memUncached(malloc(0x20));
 
 const DutyCycle dutyIndex[4] = {DutyCycle_12, DutyCycle_25, DutyCycle_50, DutyCycle_75};
-int SO1Vol=0;
-int SO2Vol=0;
 
-void setSoundVolume(int i);
+void refreshSoundVolume(int i, bool send=false, int cycles=0);
 void refreshSoundFreq(int i);
 void updateSoundSample(int byte);
 
-void playPSG(int channel, DutyCycle cycle, u32 freq, u8 volume, u8 pan){
-    if (freq > 0xffff) {
-        //printLog("Bad PSG frequency %x\n", freq);
-        freq = 0xffff;
+inline void synchronizeSound(int cycles) {
+    if (sharedData->hyperSound) {
+        sharedData->cycles = (cyclesSinceVblank+cycles+extraCycles)>>doubleSpeed;
+        while (sharedData->cycles != -1);
     }
-    FifoMessage msg;
+}
 
-    msg.type = SOUND_PSG_MESSAGE;
-    msg.SoundPsg.dutyCycle = cycle;
-    msg.SoundPsg.freq = freq;
-    msg.SoundPsg.volume = volume;
-    msg.SoundPsg.pan = pan;
-    msg.SoundPsg.channel = channel;
+void sendStartMessage(int i, int cycles) {
+    if (true || !sharedData->updatingSound) {
+        sharedData->updatingSound = true;
+        synchronizeSound(cycles);
+        fifoSendValue32(FIFO_USER_01, GBSND_START_COMMAND<<28 | i);
+    }
+}
 
-    fifoSendDatamsg(FIFO_USER_01, sizeof(msg), (u8*)&msg);
+void sendUpdateMessage(int i) {
+    if (true || !sharedData->updatingSound) {
+        sharedData->updatingSound = true;
+        if (i == -1)
+            i = 4;
+        fifoSendValue32(FIFO_USER_01, GBSND_UPDATE_COMMAND<<28 | i);
+    }
+}
+
+void sendGlobalVolumeMessage(int cycles) {
+    synchronizeSound(cycles);
+    fifoSendValue32(FIFO_USER_01, GBSND_MASTER_VOLUME_COMMAND<<28);
+}
+
+void refreshSoundPan(int i) {
+    if (chanToOut1[i] && chanToOut2[i])
+        sharedData->chanPan[i] = 64;
+    else if (chanToOut1[i])
+        sharedData->chanPan[i] = 127;
+    else if (chanToOut2[i])
+        sharedData->chanPan[i] = 0;
+    else {
+        sharedData->chanPan[i] = 128;   // Special signal
+    }
 
     /*
-	while(!fifoCheckValue32(FIFO_USER_01));
-    int useless = fifoGetValue32(FIFO_USER_01);
-    */
-}
-void playSample(int channel, const void* data, SoundFormat format, u32 dataSize, u32 freq, u8 volume, u8 pan, bool loop, u16 loopPoint){ 
-    if (freq > 0xffff) {
-        //printLog("Bad sample frequency %x\n", freq);
-        freq = 0xffff;
+    if ((sharedData->chanOn & (1<<i)) && FIFO_START(VALUE32_SIZE)) {
+        fifoSendValue32(FIFO_USER_01, GBSND_PAN_COMMAND<<28 | sound[i]<<24 | chanPan[i]);
     }
-    FifoMessage msg;
-
-    msg.type = SOUND_PLAY_MESSAGE;
-    msg.SoundPlay.data = data;
-    msg.SoundPlay.freq = freq;
-    msg.SoundPlay.volume = volume;
-    msg.SoundPlay.pan = pan;
-    msg.SoundPlay.loop = loop;
-    msg.SoundPlay.format = format;
-    msg.SoundPlay.loopPoint = loopPoint;
-    msg.SoundPlay.dataSize = dataSize >> 2;
-    msg.SoundPlay.channel = channel;
-
-    fifoSendDatamsg(FIFO_USER_01, sizeof(msg), (u8*)&msg);
-
-    /*
-	while(!fifoCheckValue32(FIFO_USER_01));
-    int useless = fifoGetValue32(FIFO_USER_01);
     */
 }
-void playNoise(int channel, u32 freq, u8 volume, u8 pan){
-    if (freq > 0xffff) {
-        //printLog("Bad noise frequency %x\n", freq);
-        freq = 0xffff;
+
+void refreshSoundVolume(int i, bool send, int cycles)
+{
+    if (!(sharedData->chanOn & (1<<i)) || !chanEnabled[i])
+    {
+        /*
+        if (FIFO_START(VALUE32_SIZE)) {
+            fifoSendValue32(FIFO_USER_01, GBSND_KILL_COMMAND<<28 | sound[i]<<24);
+        }
+        */
+        return;
     }
-    FifoMessage msg;
-
-    msg.type = SOUND_NOISE_MESSAGE;
-    msg.SoundPsg.freq = freq;
-    msg.SoundPsg.volume = volume;
-    msg.SoundPsg.pan = pan;
-    msg.SoundPsg.channel = channel;
-
-    fifoSendDatamsg(FIFO_USER_01, sizeof(msg), (u8*)&msg);
-
-    /*
-	while(!fifoCheckValue32(FIFO_USER_01));
-    int useless = fifoGetValue32(FIFO_USER_01);
-    */
+    int volume = chanVol[i];
+    if (send && sharedData->chanRealVol[i] != volume) {
+        if (true || !sharedData->updatingSound) {
+            sharedData->updatingSound = true;
+            synchronizeSound(cycles);
+            fifoSendValue32(FIFO_USER_01, GBSND_VOLUME_COMMAND<<28 | i);
+        }
+    }
+    sharedData->chanRealVol[i] = volume;
 }
+
+void refreshSoundFreq(int i) {
+    int freq=0;
+    if (i <= 1) {
+        freq = 131072/(2048-chanFreq[i])*8;
+    }
+    else if (i == 2) {
+        freq = 65536/(2048-chanFreq[i])*32;
+    }
+    else if (i == 3) {
+        freq = (int)(524288 / chan4FreqRatio) >> (chanFreq[i]+1);
+    }
+    /*
+    if (send && (sharedData->chanOn & (1<<i)) && sharedData->chanRealFreq[i] != freq) {
+        if (FIFO_START(VALUE32_SIZE)) {
+            fifoSendValue32(FIFO_USER_01, GBSND_FREQ_COMMAND<<28 | sound[i]<<24 | (freq&0xffffff));
+        }
+    }
+    */
+    sharedData->chanRealFreq[i] = freq;
+}
+
+void refreshSoundDuty(int i) {
+    if ((sharedData->chanOn & (1<<i)) && FIFO_START(VALUE32_SIZE)) {
+        //fifoSendValue32(FIFO_USER_01, GBSND_DUTY_COMMAND<<28 | sound[i]<<24 | dutyIndex[chanDuty[i]]);
+    }
+}
+
 
 void initSND()
 {
+    sharedData->sampleData = sampleData;
     for (int i=0x27; i<=0x2f; i++)
         ioRam[i] = 0xff;
 
@@ -161,7 +198,7 @@ void initSND()
 
 void refreshSND() {
     soundEnable();
-    chanOn = 0;
+    sharedData->chanOn = 0;
 
     // Ordering note: Writing a byte to FF26 with bit 7 set enables writes to
     // the other registers. With bit 7 unset, writes are ignored.
@@ -183,40 +220,6 @@ void disableChannel(int i) {
     chanEnabled[i] = false;
 }
 
-void setSoundVolume(int i)
-{
-    if (!(chanOn & (1<<i)) || !chanEnabled[i])
-    {
-        soundSetVolume(sound[i], 0);
-        return;
-    }
-    int volume = 0;
-    if (chanToOut1[i])
-        volume += chanVol[i]*SO1Vol;
-    if (chanToOut2[i])
-        volume += chanVol[i]*SO2Vol;
-    if (sound[i] != -1) {
-        soundSetVolume(sound[i], volume/2);
-    }
-}
-
-void refreshSoundFreq(int i) {
-    if (i == 2) {
-        chanRealFreq[2] = 65536/(2048-chanFreq[2])*32;
-        if (chanRealFreq[2] > 0xffff) {
-            //printLog("Bad sample frequency %x\n", chanRealFreq[2]);
-            chanRealFreq[2] = 0xffff;
-        }
-    }
-    else if (i == 3) {
-        chanRealFreq[3] = (int)(524288 / chan4FreqRatio) >> (chanFreq[3]+1);
-        if (chanRealFreq[3] > 0xffff) {
-            //printLog("Bad noise frequency %x\n", chanRealFreq[3]);
-            chanRealFreq[3] = 0xffff;
-        }
-    }
-    soundSetFreq(sound[i], chanRealFreq[i]);
-}
 
 void updateSoundSample(int byte) {
     u8 sample = ioRam[0x30+byte];
@@ -230,8 +233,7 @@ void updateSound(int cycles)
 {
     if (soundDisabled)
         return;
-    bool changedVol[4];
-    memset(changedVol, 0, sizeof(changedVol));
+    bool changed=false;
     if (doubleSpeed)
         cycles >>= 1;
     if (chan1SweepTime != 0)
@@ -243,21 +245,19 @@ void updateSound(int cycles)
             chanFreq[0] += (chanFreq[0]>>chan1SweepAmount)*chan1SweepDir;
             if (chanFreq[0] > 0x7FF)
             {
-                chanOn &= ~CHAN_1;
+                sharedData->chanOn &= ~CHAN_1;
                 clearChan1();
-                changedVol[0] = true;
                 chanFreq[0] = 0x7ff;
             }
             else {
-                chanRealFreq[0] = 131072/(2048-chanFreq[0])*8;
-                soundSetFreq(sound[0], chanRealFreq[0]);
+                refreshSoundFreq(0);
             }
-
+            changed = true;
         }
     }
     for (int i=0; i<4; i++)
     {
-        if (i != 2 && chanOn & (1<<i))
+        if (i != 2 && sharedData->chanOn & (1<<i))
         {
             if (chanEnvSweep[i] != 0)
             {
@@ -270,20 +270,21 @@ void updateSound(int cycles)
                         chanVol[i] = 0;
                     if (chanVol[i] > 0xF)
                         chanVol[i] = 0xF;
-                    changedVol[i] = true;
+                    changed = true;
+                    refreshSoundVolume(i);
                 }
             }
         }
     }
     for (int i=0; i<4; i++)
     {
-        if ((chanOn & (1<<i)) && chanUseLen[i])
+        if ((sharedData->chanOn & (1<<i)) && chanUseLen[i])
         {
             chanLenCounter[i] -= cycles;
             if (chanLenCounter[i] <= 0)
             {
-                chanOn &= ~(1<<i);
-                changedVol[i] = true;
+                sharedData->chanOn &= ~(1<<i);
+                changed = true;
                 if (i==0)
                     clearChan1();
                 else if (i == 1)
@@ -294,12 +295,12 @@ void updateSound(int cycles)
                     clearChan4();
             }
         }
-        if (changedVol[i])
-            setSoundVolume(i);
     }
+    if (changed)
+        sendUpdateMessage(-1);
 }
 
-void handleSoundRegister(u8 ioReg, u8 val)
+void handleSoundRegister(u8 ioReg, u8 val, int cycles)
 {
     if (soundDisabled)
         return;
@@ -325,9 +326,9 @@ void handleSoundRegister(u8 ioReg, u8 val)
             {
                 chanLen[0] = val&0x3F;
                 chanLenCounter[0] = (64-chanLen[0])*clockSpeed/256;
-                chanDuty[0] = val>>6;
-                playPSG(sound[0], dutyIndex[chanDuty[0]], chanRealFreq[0], 0, 64);
-                setSoundVolume(0);
+                sharedData->chanDuty[0] = val>>6;
+                refreshSoundDuty(0);
+                sendUpdateMessage(0);
                 ioRam[0x11] = val;
                 break;
             }
@@ -339,39 +340,41 @@ void handleSoundRegister(u8 ioReg, u8 val)
             else
                 chanEnvDir[0] = -1;
             chanEnvSweep[0] = val&0x7;
-            setSoundVolume(0);
+            refreshSoundVolume(0, true, cycles);
             ioRam[0x12] = val;
             break;
             // Frequency (low)
         case 0x13:
             chanFreq[0] &= 0x700;
             chanFreq[0] |= val;
-            chanRealFreq[0] = 131072/(2048-chanFreq[0])*8;
-            soundSetFreq(sound[0], chanRealFreq[0]);
+            refreshSoundFreq(0);
+            sendUpdateMessage(0);
             ioRam[0x13] = val;
             break;
             // Frequency (high)
         case 0x14:
+            chanFreq[0] &= 0xFF;
+            chanFreq[0] |= (val&0x7)<<8;
+            refreshSoundFreq(0);
             if (val & 0x80)
             {
                 chanLenCounter[0] = (64-chanLen[0])*clockSpeed/256;
-                chanOn |= CHAN_1;
+                sharedData->chanOn |= CHAN_1;
                 chanVol[0] = ioRam[0x12]>>4;
                 if (chan1SweepTime != 0)
                     chan1SweepCounter = clockSpeed/(128/chan1SweepTime);
-                playPSG(sound[0], dutyIndex[chanDuty[0]], 0, 0, 64);
                 setChan1();
+
+                refreshSoundVolume(0, false);
+                sendStartMessage(0, cycles);
             }
+            else
+                sendUpdateMessage(0);
+
             if (val & 0x40)
                 chanUseLen[0] = 1;
             else
                 chanUseLen[0] = 0;
-            chanFreq[0] &= 0xFF;
-            chanFreq[0] |= (val&0x7)<<8;
-            chanRealFreq[0] = 131072/(2048-chanFreq[0])*8;
-            soundSetFreq(sound[0], chanRealFreq[0]);
-
-            setSoundVolume(0);
 
             ioRam[0x14] = val;
             break;
@@ -380,9 +383,8 @@ void handleSoundRegister(u8 ioReg, u8 val)
         case 0x16:
             chanLen[1] = val&0x3F;
             chanLenCounter[1] = (64-chanLen[1])*clockSpeed/256;
-            chanDuty[1] = val>>6;
-            playPSG(sound[1], dutyIndex[chanDuty[1]], chanRealFreq[1], 0, 64);
-            setSoundVolume(1);
+            sharedData->chanDuty[1] = val>>6;
+            sendUpdateMessage(1);
             ioRam[0x16] = val;
             break;
             // Envelope
@@ -393,37 +395,40 @@ void handleSoundRegister(u8 ioReg, u8 val)
             else
                 chanEnvDir[1] = -1;
             chanEnvSweep[1] = val&0x7;
-            setSoundVolume(1);
+            refreshSoundVolume(1, true, cycles);
             ioRam[0x17] = val;
             break;
             // Frequency (low)
         case 0x18:
             chanFreq[1] &= 0x700;
             chanFreq[1] |= val;
-            chanRealFreq[1] = 131072/(2048-chanFreq[1])*8;
-            soundSetFreq(sound[1], chanRealFreq[1]);
+
+            refreshSoundFreq(1);
+            sendUpdateMessage(1);
             ioRam[0x18] = val;
             break;
             // Frequency (high)
         case 0x19:
+            chanFreq[1] &= 0xFF;
+            chanFreq[1] |= (val&0x7)<<8;
+            refreshSoundFreq(1);
             if (val & 0x80)
             {
                 chanLenCounter[1] = (64-chanLen[1])*clockSpeed/256;
-                chanOn |= CHAN_2;
+                sharedData->chanOn |= CHAN_2;
                 chanVol[1] = ioRam[0x17]>>4;
-                playPSG(sound[1], dutyIndex[chanDuty[1]], 0, 0, 64);
                 setChan2();
+
+                refreshSoundVolume(1, false);
+                sendStartMessage(1, cycles);
             }
+            else
+                sendUpdateMessage(1);
             if (val & 0x40)
                 chanUseLen[1] = 1;
             else
                 chanUseLen[1] = 0;
-            chanFreq[1] &= 0xFF;
-            chanFreq[1] |= (val&0x7)<<8;
-            chanRealFreq[1] = 131072/(2048-chanFreq[1])*8;
-            soundSetFreq(sound[1], chanRealFreq[1]);
 
-            setSoundVolume(1);
             ioRam[0x19] = val;
             break;
             // CHANNEL 3
@@ -431,14 +436,14 @@ void handleSoundRegister(u8 ioReg, u8 val)
         case 0x1A:
             if ((val & 0x80) == 0)
             {
-                chanOn &= ~CHAN_3;
+                sharedData->chanOn &= ~CHAN_3;
                 clearChan3();
             }
             else {
-                chanOn |= CHAN_3;
+                sharedData->chanOn |= CHAN_3;
                 setChan3();
             }
-            setSoundVolume(2);
+            sendUpdateMessage(2);
             ioRam[0x1a] = val | 0x7f;
             break;
             // Length
@@ -465,7 +470,7 @@ void handleSoundRegister(u8 ioReg, u8 val)
                         chanVol[2] = 15>>2;
                         break;
                 }
-                setSoundVolume(2);
+                refreshSoundVolume(2, true, cycles);
                 ioRam[0x1c] = val | 0x9f;
                 break;
             }
@@ -474,30 +479,32 @@ void handleSoundRegister(u8 ioReg, u8 val)
             chanFreq[2] &= 0xFF00;
             chanFreq[2] |= val;
             refreshSoundFreq(2);
+            sendUpdateMessage(2);
             ioRam[0x1d] = val;
             break;
             // Frequency (high)
         case 0x1E:
             chanFreq[2] &= 0xFF;
             chanFreq[2] |= (val&7)<<8;
+            refreshSoundFreq(2);
             if (val & 0x80)
             {
-                chanOn |= CHAN_3;
+                sharedData->chanOn |= CHAN_3;
                 chanLenCounter[2] = (256-chanLen[2])*clockSpeed/256;
-                playSample(sound[2], sampleData, SoundFormat_8Bit, 0x20, 0, 0, 64, true, 0);
-                setSoundVolume(2);
                 setChan3();
+
+                refreshSoundVolume(2, false);
+                printLog("VOL %d\n", sharedData->chanRealVol[2]);
+                sendStartMessage(2, cycles);
+            }
+            else {
+                sendUpdateMessage(2);
             }
             if (val & 0x40)
-            {
                 chanUseLen[2] = 1;
-            }
             else
-            {
                 chanUseLen[2] = 0;
-            }
             ioRam[0x1e] = val;
-            refreshSoundFreq(2);
             break;
             // CHANNEL 4
             // Length
@@ -514,7 +521,7 @@ void handleSoundRegister(u8 ioReg, u8 val)
             else
                 chanEnvDir[3] = -1;
             chanEnvSweep[3] = val&0x7;
-            setSoundVolume(3);
+            refreshSoundVolume(3, true);
             ioRam[0x21] = val;
             break;
             // Frequency
@@ -525,6 +532,7 @@ void handleSoundRegister(u8 ioReg, u8 val)
                 chan4FreqRatio = 0.5;
             chan4Width = !!(val&0x8);
             refreshSoundFreq(3);
+            sendUpdateMessage(3);
             ioRam[0x22] = val;
             break;
             // Start
@@ -532,26 +540,34 @@ void handleSoundRegister(u8 ioReg, u8 val)
             if (val&0x80)
             {
                 chanLenCounter[3] = (64-chanLen[3])*clockSpeed/256;
-                chanOn |= CHAN_4;
+                sharedData->chanOn |= CHAN_4;
                 setChan4();
-                playNoise(sound[3], 0, 0, 64);
-                refreshSoundFreq(3);
+                chanVol[3] = ioRam[0x21]>>4;
+                refreshSoundVolume(3, false);
+                sendStartMessage(3, cycles);
             }
-            setSoundVolume(3);
             chanUseLen[3] = !!(val&0x40);
             ioRam[0x23] = val | 0x3f;
             break;
             // GENERAL REGISTERS
         case 0x24:
-            SO1Vol = val&0x7;
-            SO2Vol = (val>>4)&0x7;
-            {
-                int i;
-                for (i=0; i<4; i++)
-                {
-                    setSoundVolume(i);
-                }
+            /*
+            if (sharedData->SO1Vol > (val&0x7))
+                makePop(sharedData->SO1Vol-(val&0x7));
+            else
+                makePop((val&0x7)-sharedData->SO1Vol);
+                */
+            if (sharedData->SO1Vol != (val&0x7)) {
+                sharedData->SO1Vol = val&0x7;
+                sendGlobalVolumeMessage(cycles);
             }
+            sharedData->SO2Vol = (val>>4)&0x7;
+            /*
+            for (int i=0; i<4; i++)
+            {
+                refreshSoundVolume(i, true, cycles);
+            }
+            */
             ioRam[0x24] = val;
             break;
         case 0x25:
@@ -563,13 +579,9 @@ void handleSoundRegister(u8 ioReg, u8 val)
             chanToOut2[1] = !!(val&0x20);
             chanToOut2[2] = !!(val&0x40);
             chanToOut2[3] = !!(val&0x80);
-            {
-                int i;
-                for (i=0; i<4; i++)
-                {
-                    setSoundVolume(i);
-                }
-            }
+            for (int i=0; i<4; i++)
+                refreshSoundPan(i);
+            sendUpdateMessage(-1);
             ioRam[0x25] = val;
             break;
         case 0x26:
@@ -577,7 +589,7 @@ void handleSoundRegister(u8 ioReg, u8 val)
             ioRam[0x26] |= val&0x80;
             if (!(val&0x80))
             {
-                chanOn = 0;
+                sharedData->chanOn = 0;
                 clearChan1();
                 clearChan2();
                 clearChan3();
@@ -585,7 +597,8 @@ void handleSoundRegister(u8 ioReg, u8 val)
                 for (int reg = 0x10; reg <= 0x25; reg++)
                     ioRam[reg] = 0;
                 for (int i=0; i<4; i++)
-                    setSoundVolume(i);
+                    refreshSoundVolume(i);
+                sendUpdateMessage(-1);
             }
             break;
         case 0x30:

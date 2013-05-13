@@ -42,7 +42,14 @@ extern bool sleepIsEnabled;
 
 volatile SharedData* sharedData;
 
+extern int cycles;
+
+void updateChannel(int c);
+
 void VblankHandler(void) {
+    int i;
+    sharedData->frameFlip_DS = !sharedData->frameFlip_DS;
+    cycles = 0;
         do {
             if (!sharedData->scalingOn)
                 goto scaling_end;
@@ -52,6 +59,10 @@ void VblankHandler(void) {
         sharedData->scaleTransferReady = 0;
 
 scaling_end:
+        /*
+        for (i=0; i<4; i++)
+            updateChannel(i);
+            */
     Wifi_Update();
 }
 

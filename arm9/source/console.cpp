@@ -9,6 +9,7 @@
 #include "nifi.h"
 #include "cheats.h"
 #include "gbgfx.h"
+#include "common.h"
 
 const int screenTileWidth = 32;
 const int backlights[] = {PM_BACKLIGHT_TOP, PM_BACKLIGHT_BOTTOM};
@@ -246,6 +247,10 @@ void setRumbleFunc(int value) {
         rumbleInserted = 0; //No rumble found
 }
 
+void hyperSoundFunc(int value) {
+    hyperSound = value;
+}
+
 struct MenuOption {
     const char* name;
     void (*function)(int);
@@ -278,7 +283,7 @@ ConsoleSubMenu menuList[] = {
     },
     {
         "Settings",
-        7,
+        8,
         {
             {"Key Config", keyConfigFunc, 0, {}, 0},
             {"Manage Cheats", cheatFunc, 0, {}, 0},
@@ -286,6 +291,7 @@ ConsoleSubMenu menuList[] = {
             {"Console Output", consoleOutputFunc, 4, {"Off","Time","FPS+Time","Debug"}, 0},
             {"NiFi", nifiEnableFunc, 2, {"Off","On"}, 0},
             {"Rumble Pak", setRumbleFunc, 4, {"Off","Low","Mid","High"}, 2},
+            {"PCM Sound Fix", hyperSoundFunc, 2, {"Off","On"}, 0},
             {"Save Settings", saveSettingsFunc, 0, {}, 0}
         }
     },

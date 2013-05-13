@@ -872,6 +872,10 @@ void drawScreen()
     if (!(fastForwardMode || fastForwardKey))
         swiIntrWait(interruptWaitMode, IRQ_VBLANK);
 
+    sharedData->frameFlip_Gameboy = !sharedData->frameFlip_Gameboy;
+    if (REG_VCOUNT == 192)
+        sharedData->frameFlip_DS = sharedData->frameFlip_Gameboy;
+
     if (gfxMask)
         return;
 
