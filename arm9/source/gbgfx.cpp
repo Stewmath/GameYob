@@ -63,8 +63,8 @@ bool changedMap[2][0x400];
 int changedMapQueueLength[2];
 u16 changedMapQueue[2][0x400];
 
-u8 bgPaletteData[0x40];
-u8 sprPaletteData[0x40];
+u8 bgPaletteData[0x40] ALIGN(4);
+u8 sprPaletteData[0x40] ALIGN(4);
 
 int winPosY=0;
 
@@ -96,10 +96,13 @@ void updateTiles();
 void updateTileMaps();
 void updateTileMap(int map, int i);
 void updateBgPalette(int paletteid, u8* data, u8 dmgPal);
+void updateBgPalette_GBC(int paletteid, u8* data);
 void updateSprPalette(int paletteid, u8* data, u8 dmgPal);
 
 bool lineCompleted[144];
 typedef struct {
+    u8 bgPaletteData[0x40] ALIGN(4);
+    u8 sprPaletteData[0x40] ALIGN(4);
     bool modified;
     bool mapsModified;
     u8 hofs;
@@ -118,8 +121,6 @@ typedef struct {
     u8 bgMap,winMap;
     bool spritesOn;
     bool tileSigned;
-    u8 bgPaletteData[0x40];
-    u8 sprPaletteData[0x40];
     u8 bgPal;
     u8 sprPal[2];
     bool bgPalettesModified;
@@ -127,6 +128,7 @@ typedef struct {
     bool spritesModified;
     u8 spriteData[0xa0];
     int tallSprites;
+    int bgHash;
 } ScanlineStruct;
 
 ScanlineStruct scanlineBuffers[2][144];
@@ -237,13 +239,13 @@ void drawLine(int gbLine) {
     }
 
     if (state->bgPalettesModified) {
-        if (gbMode == GB) {
-            for (int i=0; i<4; i++)
-                updateBgPalette(i, state->bgPaletteData, state->bgPal);
+        if (gbMode == CGB) {
+            for (int i=0; i<8; i++)
+                updateBgPalette_GBC(i, state->bgPaletteData);
         }
         else {
-            for (int i=0; i<8; i++) {
-                updateBgPalette(i, state->bgPaletteData, 0);
+            for (int i=0; i<4; i++) {
+                updateBgPalette(i, state->bgPaletteData, state->bgPal);
             }
         }
     }
@@ -958,6 +960,8 @@ void drawScanline_P2(int scanline) ITCM_CODE;
 
 // Called after mode 3
 void drawScanline_P2(int scanline) {
+    if (hblankDisabled)
+        return;
     if (winPosY == -2)
         winPosY = ioRam[0x44]-ioRam[0x4a];
     else if (winX < 167 && ioRam[0x4a] <= scanline)
@@ -1061,8 +1065,20 @@ void drawScanline_P2(int scanline) {
     if (bgPalettesModified) {
         bgPalettesModified = false;
         renderingState[scanline].bgPal = ioRam[0x47];
-        for (int i=0; i<0x40; i++) {
-            renderingState[scanline].bgPaletteData[i] = bgPaletteData[i];
+
+        // Hash is helpful for more-or-less static screens using tons of colours.
+        int hash=0;
+        for (int i=0; i<0x10; i++) {
+            hash = ((hash << 5) + hash) + ((int*)bgPaletteData)[i];
+        }
+
+        if (renderingState[scanline].bgHash != hash ||
+                scanline == 0) {    // Just to be safe in case of hash collision
+
+            renderingState[scanline].bgHash = hash;
+            for (int i=0; i<0x40; i++) {
+                renderingState[scanline].bgPaletteData[i] = bgPaletteData[i];
+            }
         }
     }
 
@@ -1172,14 +1188,17 @@ void updateTiles() {
 
 void updateBgPalette(int paletteid, u8* data, u8 dmgPal) {
     for (int i=0; i<4; i++) {
-        int id;
-        if (gbMode == GB)
-            id = (dmgPal>>(i*2))&3;
-        else
-            id = i;
+        int id = (dmgPal>>(i*2))&3;
 
         BG_PALETTE[((paletteid)*16)+i+1] = data[(paletteid*8)+(id*2)] | data[(paletteid*8)+(id*2)+1]<<8;
     }
+}
+
+void updateBgPalette_GBC(int paletteid, u8* data) {
+    u16* dest = BG_PALETTE+paletteid*16+1;
+    u16* src = ((u16*)data)+paletteid*4;
+    for (int i=0; i<4; i++)
+        *(dest++) = *(src++);
 }
 void updateSprPalette(int paletteid, u8* data, u8 dmgPal) {
     int src = paletteid;
@@ -1199,7 +1218,7 @@ void updateSprPalette(int paletteid, u8* data, u8 dmgPal) {
 void handleVideoRegister(u8 ioReg, u8 val) {
     switch(ioReg) {
         case 0x40:    // LCDC
-            if ((val & 0x7F) != (ioRam[0x40] & 0x7F)) {
+            if ((val & 0x7B) != (ioRam[0x40] & 0x7B)) {
                 lineModified = true;
                 mapsModified = true;
             }
@@ -1211,15 +1230,12 @@ void handleVideoRegister(u8 ioReg, u8 val) {
             return;
         case 0x46:				// DMA
             {
-                u16 src = val << 8;
-                int i;
-                for (i=0; i<0xA0; i++) {
-                    u8 val = readMemory(src+i);
+                int src = val << 8;
+                u8* mem = memory[src>>12];
+                src &= 0xfff;
+                for (int i=0; i<0xA0; i++) {
+                    u8 val = mem[src++];
                     hram[i] = val;
-                    /*
-                    if (ioRam[0x44] >= 144 || ioRam[0x44] <= 1)
-                        spriteData[i] = val;
-                    */
                 }
                 lineModified = true;
                 spritesModified = true;
