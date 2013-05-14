@@ -4,6 +4,7 @@
 extern int interruptWaitMode;
 extern int scaleMode;
 extern int scaleFilter;
+extern int loadedBorderType;
 
 extern u8 bgPaletteData[0x40];
 extern u8 sprPaletteData[0x40];
@@ -17,7 +18,7 @@ void initGFXPalette();
 void refreshGFX();
 void refreshSgbPalette();
 
-void setCustomBorder(bool enabled);
+void checkBorder();
 void refreshScaleMode();
 void setGFXMask(int mask);
 void setSgbTiles(u8* src, u8 flags);
@@ -27,3 +28,9 @@ void writeVram(u16 addr, u8 val);
 void writeVram16(u16 addr, u16 src);
 void writeHram(u16 addr, u8 val);
 void handleVideoRegister(u8 ioReg, u8 val);
+
+enum {
+    BORDER_NONE=0,
+    BORDER_SGB,
+    BORDER_CUSTOM
+};  // Use with loadedBorderType

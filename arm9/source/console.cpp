@@ -166,10 +166,12 @@ void setScaleFilterFunc(int value) {
 
 void customBorderEnableFunc(int value) {
     customBordersEnabled = value;
+    checkBorder();
 }
 
 void sgbBorderEnableFunc(int value) {
     sgbBordersEnabled = value;
+    checkBorder();
 }
 
 void vblankWaitFunc(int value) {

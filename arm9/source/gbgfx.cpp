@@ -10,11 +10,7 @@
 #include "console.h"
 #include "common.h"
 
-enum {
-    BORDER_NONE=0,
-    BORDER_SGB,
-    BORDER_CUSTOM
-};
+#define BACKDROP_COLOUR RGB15(0,0,0)
 
 const int spr_priority = 2;
 const int spr_priority_low = 3;
@@ -411,7 +407,7 @@ void initGFX()
     videoSetMode(MODE_3_2D | DISPLAY_BG0_ACTIVE | DISPLAY_BG1_ACTIVE | DISPLAY_BG2_ACTIVE | DISPLAY_BG3_ACTIVE |
             DISPLAY_WIN0_ON | DISPLAY_WIN1_ON | DISPLAY_SPR_ACTIVE | DISPLAY_SPR_1D);
 
-    setCustomBorder(customBordersEnabled);
+    checkBorder();
     
     REG_DISPSTAT &= 0xFF;
     REG_DISPSTAT |= 227<<8;     // Set line 227 for vcount
@@ -536,24 +532,29 @@ void refreshSgbPalette() {
     }
 }
 
-void setCustomBorder(bool enabled) {
-    if (loadedBorderType == BORDER_CUSTOM && !customBordersEnabled)
+void checkBorder() {
+    int lastBorder = loadedBorderType;
+    if (nukeBorder) {
         loadedBorderType = BORDER_NONE;
-    if (loadedBorderType == BORDER_SGB && !sgbBordersEnabled)
-        loadedBorderType = BORDER_NONE;
-
-    if (!nukeBorder && loadedBorderType != BORDER_NONE) {
-        goto end; // Don't overwrite the border when "reset" is selected.
+        nukeBorder = false;
+    }
+    else {
+        if (loadedBorderType == BORDER_CUSTOM && (!customBordersEnabled || scaleMode != 0))
+            loadedBorderType = BORDER_NONE;
+        if (loadedBorderType == BORDER_SGB) {
+            if (!sgbBordersEnabled)
+                loadedBorderType = BORDER_NONE;
+            else
+                goto end;   // SGB borders are preferred to custom borders, when enabled
+        }
     }
 
-    if (enabled) {
-        if (loadedBorderType == BORDER_CUSTOM)
+    if (customBordersEnabled && scaleMode == 0 && (!sgbMode || !sgbBordersEnabled)) {
+        if (lastBorder == BORDER_CUSTOM)  // Check if already loaded
             return;
-        if (loadBorder("/border.bmp") == 1)
+        else if (loadBorder("/border.bmp") == 1)
             loadedBorderType = BORDER_NONE;
     }
-    else
-        loadedBorderType = BORDER_NONE;
 
 end:
 
@@ -572,22 +573,23 @@ end:
     }
     else if (loadedBorderType == BORDER_SGB) {
         REG_DISPCNT &= ~7; // Mode 0
+        REG_BG3CNT = BG_MAP_BASE(border_map_base) | BG_TILE_BASE(12);
+        REG_BG3HOFS = 0;
+        REG_BG3VOFS = -(screenOffsY-40);
         videoBgEnable(3);
     }
     else if (loadedBorderType == BORDER_NONE) {
-        BG_PALETTE[0] = 0; // Reset backdrop (SGB borders use the backdrop)
+        BG_PALETTE[0] = BACKDROP_COLOUR; // Reset backdrop (SGB borders use the backdrop)
     }
 }
 void refreshScaleMode() {
     int BG2PA,BG2PB,BG2PC,BG2PD;
 
+    checkBorder();
     if (scaleMode == 0) {
         return;
     }
 
-    if (loadedBorderType == BORDER_CUSTOM) {
-        setCustomBorder(false);
-    }
     videoSetModeSub(MODE_5_2D);
     videoBgDisableSub(0);
     videoBgDisableSub(1);
@@ -668,8 +670,8 @@ void setSgbTiles(u8* src, u8 flags) {
     if (!sgbBordersEnabled)
         return;
     if (gfxMask != 0) {
-        videoBgDisable(3);
-        BG_PALETTE[0] = 0;
+        loadedBorderType = BORDER_NONE;
+        checkBorder();
     }
     int index=0,srcIndex=0;
     if (flags&1)
@@ -720,10 +722,6 @@ void setSgbTiles(u8* src, u8 flags) {
 void setSgbMap(u8* src) {
     if (!sgbBordersEnabled)
         return;
-    if (gfxMask != 0) {
-        videoBgDisable(3);
-        BG_PALETTE[0] = 0;
-    }
     for (int i=0; i<32*32; i++) {
         u16 val = ((u16*)src)[i];
         int tile = val&0xff;
@@ -736,14 +734,8 @@ void setSgbMap(u8* src) {
     DC_FlushRange(src+0x800, 0x80);
     dmaCopy(src+0x800, BG_PALETTE+8*16, 0x80);
 
-    if (loadedBorderType != BORDER_SGB)
-        videoBgDisable(3);
     loadedBorderType = BORDER_SGB;
-    REG_BG3CNT = BG_MAP_BASE(border_map_base) | BG_TILE_BASE(12);
-    REG_BG3HOFS = 0;
-    REG_BG3VOFS = -(screenOffsY-40);
-    REG_DISPCNT &= ~7; // Mode 0
-    videoBgEnable(3);
+    checkBorder();
 
     BG_PALETTE[0] = bgPaletteData[0] | bgPaletteData[1]<<8;
     if (probingForBorder) {

@@ -595,18 +595,18 @@ u8 readMemory(u16 addr)
 {
     int area = addr>>13;
     if (area & 0x04) { // Addr >= 0x8000
-        /* Check if in range a000-bfff */
-        if (area == 0xa/2) {
-            /* Check if there's an handler for this mbc */
-            if (readFunc != NULL)
-                return readFunc(addr);
-        }
-        else if (area == 0xe/2) {
+        if (area == 0xe/2) {
             if (addr >= 0xff00)
                 return readIO(addr&0xff);
             // Check for echo area
             else if (addr < 0xfe00)
                 addr -= 0x2000;
+        }
+        /* Check if in range a000-bfff */
+        else if (area == 0xa/2) {
+            /* Check if there's an handler for this mbc */
+            if (readFunc != NULL)
+                return readFunc(addr);
         }
     }
 
