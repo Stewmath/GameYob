@@ -9,9 +9,9 @@ typedef struct SharedData {
     // Sound stuff
     bool hyperSound;
     int cycles;
+    int dsCycles;
     bool frameFlip_Gameboy;
     bool frameFlip_DS;
-    bool updatingSound;
 
     int SO1Vol, SO2Vol;
     u8 chanRealVol[4];
@@ -19,6 +19,7 @@ typedef struct SharedData {
     u8 chanPan[4];
     int chanDuty[2];
     int chanOn;
+    u32 message;
     u8* sampleData;
 
 } SharedData;
@@ -66,8 +67,10 @@ enum {
     GBSND_START_COMMAND,
     GBSND_VOLUME_COMMAND,
     GBSND_MASTER_VOLUME_COMMAND,
-    GBSND_KILL_COMMAND
+    GBSND_KILL_COMMAND,
+    GBSND_CHECK_COMMAND
 };
 
 #define VALUE32_SIZE 16
 extern volatile SharedData* sharedData;
+

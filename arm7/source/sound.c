@@ -20,31 +20,6 @@ const int dutyIndex[4] = {0, 1, 3, 5};
 
 u8 popSample[4];
 
-volatile int cycles=0;
-
-volatile u8 newVolume=0;
-volatile int channelChanged=0;
-volatile bool volumeChangeReady=false;
-
-void timerCallback() {
-    if (sharedData->hyperSound) {
-        cycles+=SOUND_RESOLUTION;
-        if (sharedData->cycles != -1) {
-            bool doit=false;
-            if (sharedData->frameFlip_Gameboy == sharedData->frameFlip_DS) {
-                if (cycles >= sharedData->cycles)
-                    doit = true;
-            }
-            else {
-                doit = true;
-            }
-            if (doit) {
-                sharedData->cycles = -1;
-            }
-        }
-    }
-}
-
 void setChannelVolume(int c) {
     int channel = channels[c];
     int volume = sharedData->chanRealVol[c]*2;
@@ -56,21 +31,6 @@ void setChannelVolume(int c) {
 
     SCHANNEL_CR(channel) &= ~0xff;
     SCHANNEL_CR(channel) |= volume;
-}
-
-void startChannel(int c) {
-    int channel = channels[c];
-    if (c == 2) {
-        SCHANNEL_SOURCE(channel) = (u32)sharedData->sampleData;
-        SCHANNEL_REPEAT_POINT(channel) = 0;
-        SCHANNEL_LENGTH(channel) = 0x20>>2;
-        SCHANNEL_CR(channel) = SCHANNEL_ENABLE | (0 << 29) | SOUND_REPEAT;
-    }
-    else {
-        SCHANNEL_CR(channel) = SCHANNEL_ENABLE | (3 << 29);
-    }
-
-    updateChannel(c);
 }
 void updateChannel(int c) {
     int channel = channels[c];
@@ -96,6 +56,21 @@ void updateChannel(int c) {
     setChannelVolume(c);
 }
 
+
+void startChannel(int c) {
+    int channel = channels[c];
+    if (c == 2) {
+        SCHANNEL_SOURCE(channel) = (u32)sharedData->sampleData;
+        SCHANNEL_REPEAT_POINT(channel) = 0;
+        SCHANNEL_LENGTH(channel) = 0x20>>2;
+        SCHANNEL_CR(channel) = SCHANNEL_ENABLE | (0 << 29) | SOUND_REPEAT;
+    }
+    else {
+        SCHANNEL_CR(channel) = SCHANNEL_ENABLE | (3 << 29);
+    }
+
+    updateChannel(c);
+}
 void gameboySoundDataHandler(int bytes, void *user_data) {
     GbSndMessage msg;
 
@@ -139,19 +114,19 @@ void gameboySoundDataHandler(int bytes, void *user_data) {
         default:
             return;
     }
-
-    sharedData->fifosWaiting -= sizeof(GbSndMessage);
-	//fifoSendValue32(FIFO_USER_01, (u32)channel);
 }
 
-void gameboySoundCommandHandler(u32 command, void* userdata) {
-
+void doCommand(u32 command) {
 	int cmd = command>>28;
     int channel = (command>>24)&0xf;
 	int data = command & 0xFFFFFF;
 	
     switch(cmd) {
 
+        case GBSND_CHECK_COMMAND:
+            //sharedData->cycles = -1;
+            gameboySoundCommandHandler(sharedData->message, 0);
+            break;
         case GBSND_UPDATE_COMMAND:
             if (data == 4) {
                 int i;
@@ -160,27 +135,27 @@ void gameboySoundCommandHandler(u32 command, void* userdata) {
             }
             else
                 updateChannel(data);
-            sharedData->updatingSound = false;
             break;
 
         case GBSND_START_COMMAND:
             startChannel(data);
-            sharedData->updatingSound = false;
             break;
 
         case GBSND_VOLUME_COMMAND:
             setChannelVolume(data);
-            sharedData->updatingSound = false;
             break;
 
         case GBSND_MASTER_VOLUME_COMMAND:
             {
+                // TODO: when SO1Vol != SO2Vol
+                /*
                 int bias = (sharedData->SO1Vol-sharedData->SO2Vol)*0x200/7+0x200;
                 if (bias == 0x400)
                     bias = 0x3ff;
+                    */
                 REG_SOUNDCNT &= ~0x7f;
-                REG_SOUNDCNT |= sharedData->SO1Vol*16*0x200/bias;
-                REG_SOUNDBIAS = bias;
+                REG_SOUNDCNT |= sharedData->SO1Vol*16;
+                //REG_SOUNDBIAS = bias;
             }
             break;
 
@@ -191,7 +166,29 @@ void gameboySoundCommandHandler(u32 command, void* userdata) {
         default:
             return;
     }
-    sharedData->fifosWaiting -= VALUE32_SIZE;
+}
+
+void gameboySoundCommandHandler(u32 command, void* userdata) {
+    doCommand(command);
+    sharedData->fifosWaiting--;
+}
+
+void timerCallback() {
+    sharedData->dsCycles+=SOUND_RESOLUTION;
+    if (sharedData->cycles != -1) {
+        bool doit=false;
+        if (sharedData->frameFlip_Gameboy == sharedData->frameFlip_DS) {
+            if (sharedData->dsCycles >= sharedData->cycles)
+                doit = true;
+        }
+        else {
+            doit = true;
+        }
+        if (doit) {
+            sharedData->cycles = -1;
+            doCommand(sharedData->message);
+        }
+    }
 }
 
 void installGameboySoundFIFO() {
@@ -201,7 +198,6 @@ void installGameboySoundFIFO() {
     sharedData->fifosWaiting = 0;
     sharedData->frameFlip_DS = 0;
     sharedData->frameFlip_Gameboy = 0;
-    sharedData->updatingSound = false;
     timerStart(1, ClockDivider_1, TIMER_FREQ(4194304/SOUND_RESOLUTION), timerCallback);
 
     // Continuously play this channel.

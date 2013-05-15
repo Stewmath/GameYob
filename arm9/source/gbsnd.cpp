@@ -60,37 +60,39 @@ u8* const sampleData = (u8*)memUncached(malloc(0x20));
 
 const DutyCycle dutyIndex[4] = {DutyCycle_12, DutyCycle_25, DutyCycle_50, DutyCycle_75};
 
-void refreshSoundVolume(int i, bool send=false, int cycles=0);
+void refreshSoundVolume(int i, bool send=false);
 void refreshSoundFreq(int i);
 void updateSoundSample(int byte);
 
-inline void synchronizeSound(int cycles) {
-    if (sharedData->hyperSound) {
-        sharedData->cycles = (cyclesSinceVblank+cycles+extraCycles)>>doubleSpeed;
+inline void synchronizeSound() {
+    int cycles = (cyclesSinceVblank+extraCycles)>>doubleSpeed;
+    if (sharedData->hyperSound && !(sharedData->frameFlip_Gameboy != sharedData->frameFlip_DS || sharedData->dsCycles >= cycles)) {
+        sharedData->cycles = cycles;
         while (sharedData->cycles != -1);
+    }
+    else {
+        //if (sharedData->fifosWaiting < 6) {
+            sharedData->fifosWaiting++;
+            fifoSendValue32(FIFO_USER_01, sharedData->message);
+        //}
     }
 }
 
-void sendStartMessage(int i, int cycles) {
-    if (true || !sharedData->updatingSound) {
-        sharedData->updatingSound = true;
-        synchronizeSound(cycles);
-        fifoSendValue32(FIFO_USER_01, GBSND_START_COMMAND<<28 | i);
-    }
+void sendStartMessage(int i) {
+    sharedData->message = GBSND_START_COMMAND<<28 | i;
+    synchronizeSound();
 }
 
 void sendUpdateMessage(int i) {
-    if (true || !sharedData->updatingSound) {
-        sharedData->updatingSound = true;
-        if (i == -1)
-            i = 4;
-        fifoSendValue32(FIFO_USER_01, GBSND_UPDATE_COMMAND<<28 | i);
-    }
+    if (i == -1)
+        i = 4;
+    sharedData->message = GBSND_UPDATE_COMMAND<<28 | i;
+    synchronizeSound();
 }
 
-void sendGlobalVolumeMessage(int cycles) {
-    synchronizeSound(cycles);
-    fifoSendValue32(FIFO_USER_01, GBSND_MASTER_VOLUME_COMMAND<<28);
+void sendGlobalVolumeMessage() {
+    sharedData->message = GBSND_MASTER_VOLUME_COMMAND<<28;
+    synchronizeSound();
 }
 
 void refreshSoundPan(int i) {
@@ -111,7 +113,7 @@ void refreshSoundPan(int i) {
     */
 }
 
-void refreshSoundVolume(int i, bool send, int cycles)
+void refreshSoundVolume(int i, bool send)
 {
     if (!(sharedData->chanOn & (1<<i)) || !chanEnabled[i])
     {
@@ -124,13 +126,12 @@ void refreshSoundVolume(int i, bool send, int cycles)
     }
     int volume = chanVol[i];
     if (send && sharedData->chanRealVol[i] != volume) {
-        if (true || !sharedData->updatingSound) {
-            sharedData->updatingSound = true;
-            synchronizeSound(cycles);
-            fifoSendValue32(FIFO_USER_01, GBSND_VOLUME_COMMAND<<28 | i);
-        }
+        sharedData->chanRealVol[i] = volume;
+        sharedData->message = GBSND_VOLUME_COMMAND<<28 | i;
+        synchronizeSound();
     }
-    sharedData->chanRealVol[i] = volume;
+    else
+        sharedData->chanRealVol[i] = volume;
 }
 
 void refreshSoundFreq(int i) {
@@ -300,7 +301,7 @@ void updateSound(int cycles)
         sendUpdateMessage(-1);
 }
 
-void handleSoundRegister(u8 ioReg, u8 val, int cycles)
+void handleSoundRegister(u8 ioReg, u8 val)
 {
     if (soundDisabled)
         return;
@@ -340,7 +341,7 @@ void handleSoundRegister(u8 ioReg, u8 val, int cycles)
             else
                 chanEnvDir[0] = -1;
             chanEnvSweep[0] = val&0x7;
-            refreshSoundVolume(0, true, cycles);
+            refreshSoundVolume(0, true);
             ioRam[0x12] = val;
             break;
             // Frequency (low)
@@ -366,7 +367,7 @@ void handleSoundRegister(u8 ioReg, u8 val, int cycles)
                 setChan1();
 
                 refreshSoundVolume(0, false);
-                sendStartMessage(0, cycles);
+                sendStartMessage(0);
             }
             else
                 sendUpdateMessage(0);
@@ -395,7 +396,7 @@ void handleSoundRegister(u8 ioReg, u8 val, int cycles)
             else
                 chanEnvDir[1] = -1;
             chanEnvSweep[1] = val&0x7;
-            refreshSoundVolume(1, true, cycles);
+            refreshSoundVolume(1, true);
             ioRam[0x17] = val;
             break;
             // Frequency (low)
@@ -420,7 +421,7 @@ void handleSoundRegister(u8 ioReg, u8 val, int cycles)
                 setChan2();
 
                 refreshSoundVolume(1, false);
-                sendStartMessage(1, cycles);
+                sendStartMessage(1);
             }
             else
                 sendUpdateMessage(1);
@@ -470,7 +471,7 @@ void handleSoundRegister(u8 ioReg, u8 val, int cycles)
                         chanVol[2] = 15>>2;
                         break;
                 }
-                refreshSoundVolume(2, true, cycles);
+                refreshSoundVolume(2, true);
                 ioRam[0x1c] = val | 0x9f;
                 break;
             }
@@ -495,7 +496,7 @@ void handleSoundRegister(u8 ioReg, u8 val, int cycles)
 
                 refreshSoundVolume(2, false);
                 printLog("VOL %d\n", sharedData->chanRealVol[2]);
-                sendStartMessage(2, cycles);
+                sendStartMessage(2);
             }
             else {
                 sendUpdateMessage(2);
@@ -544,30 +545,18 @@ void handleSoundRegister(u8 ioReg, u8 val, int cycles)
                 setChan4();
                 chanVol[3] = ioRam[0x21]>>4;
                 refreshSoundVolume(3, false);
-                sendStartMessage(3, cycles);
+                sendStartMessage(3);
             }
             chanUseLen[3] = !!(val&0x40);
             ioRam[0x23] = val | 0x3f;
             break;
             // GENERAL REGISTERS
         case 0x24:
-            /*
-            if (sharedData->SO1Vol > (val&0x7))
-                makePop(sharedData->SO1Vol-(val&0x7));
-            else
-                makePop((val&0x7)-sharedData->SO1Vol);
-                */
             if (sharedData->SO1Vol != (val&0x7)) {
                 sharedData->SO1Vol = val&0x7;
-                sendGlobalVolumeMessage(cycles);
+                sendGlobalVolumeMessage();
             }
             sharedData->SO2Vol = (val>>4)&0x7;
-            /*
-            for (int i=0; i<4; i++)
-            {
-                refreshSoundVolume(i, true, cycles);
-            }
-            */
             ioRam[0x24] = val;
             break;
         case 0x25:

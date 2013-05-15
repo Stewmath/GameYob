@@ -8,6 +8,6 @@ void refreshSND();
 void enableChannel(int i);
 void disableChannel(int i);
 void updateSound(int cycles);
-void handleSoundRegister(u8 ioReg, u8 val, const int cycles=0);
+void handleSoundRegister(u8 ioReg, u8 val);
 void updateSoundSample();
 void handleSDLCallback(void* userdata, u8* buffer, int len);

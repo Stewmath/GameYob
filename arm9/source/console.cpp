@@ -520,8 +520,11 @@ void displayConsole() {
         }
     }
 end:
-    if (!soundDisabled)
+    if (!soundDisabled) {
         soundEnable();
+        // Apparently master volume needs to be reset when enabling sound
+        fifoSendValue32(FIFO_USER_01, GBSND_MASTER_VOLUME_COMMAND<<28);
+    }
     consoleClear();
     consoleOn = false;
 

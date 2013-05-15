@@ -117,6 +117,7 @@ void initializeGameboy() {
         // enter the console on resume
         advanceFrame = true;
     }
+    updateScreens();
 }
 
 void initializeGameboyFirstTime() {

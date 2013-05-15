@@ -42,14 +42,12 @@ extern bool sleepIsEnabled;
 
 volatile SharedData* sharedData;
 
-extern int cycles;
-
 void updateChannel(int c);
 
 void VblankHandler(void) {
     int i;
     sharedData->frameFlip_DS = !sharedData->frameFlip_DS;
-    cycles = 0;
+    sharedData->dsCycles = 0;
         do {
             if (!sharedData->scalingOn)
                 goto scaling_end;
