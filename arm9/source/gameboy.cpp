@@ -61,28 +61,22 @@ inline void setEventCycles(int cycles) {
     }
 }
 
-extern FILE* saveFile;
 bool saving=false;
-extern char savename[];
-extern int numWrites;
 // Called once every gameboy vblank
 void updateInput() {
     if (probingForBorder)
         return;
 
+    // Currently this code which checks autosaving is pointless,
+    // except for its debug output.
     if (saveModified) {
         saving = true;
         saveModified = false;
     }
-    else if (saving) {
-        fflush(saveFile);
-        printLog("SAVE %d\n", numWrites);
-        numWrites = 0;
+    else if (saving) { // This executes when a full frame has passed since sram was last written to.
+        printLog("SAVE %d\n", numSaveWrites);
+        numSaveWrites = 0;
         saving = false;
-        /*
-        fclose(saveFile);
-        saveFile = fopen(savename, "w");
-        */
     }
 
     if (cheatsEnabled)

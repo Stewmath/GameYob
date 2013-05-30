@@ -51,7 +51,7 @@ bool suspendStateExists;
 
 void initInput()
 {
-    fatInitDefault();
+    fatInit(0, true); // Set cache size to zero for autosaving to work
     chdir("/lameboy"); // Default rom directory
 }
 
@@ -493,7 +493,6 @@ int loadSave()
     if (saveFile != NULL)
         fclose(saveFile);
     saveFile = NULL;
-    int i;
     // unload previous save
     if (externRam != NULL) {
         for (int i=0; i<numRamBanks; i++) 
@@ -530,17 +529,22 @@ int loadSave()
         return 0;
 
     externRam = (u8**)malloc(numRamBanks*sizeof(u8*));
-    for (i=0; i<numRamBanks; i++)
+    for (int i=0; i<numRamBanks; i++)
         externRam[i] = (u8*)malloc(0x2000*sizeof(u8));
 
     // Now load the data.
     saveFile = fopen(savename, "r+b");
     if (!saveFile) {
-        printLog("Couldn't open file \"%s\".\n", savename);
-        return 1;
+        // Create the file if it didn't exist
+        saveFile = fopen(savename, "w");
+        fseek(saveFile, numRamBanks*0x2000-1, SEEK_SET);
+        fputc(0, saveFile);
+        fclose(saveFile);
+
+        saveFile = fopen(savename, "r+b");
     }
 
-    for (i=0; i<numRamBanks; i++)
+    for (int i=0; i<numRamBanks; i++)
         fread(externRam[i], 1, 0x2000, saveFile);
 
     switch (MBC) {
@@ -554,30 +558,20 @@ int loadSave()
 
 int saveGame()
 {
-    FILE* file;
-    int i;
-
-    if (numRamBanks == 0)
+    if (numRamBanks == 0 || saveFile == NULL)
         return 0;
 
-    file = fopen(savename, "w");
+    fseek(saveFile, 0, SEEK_SET);
 
-    if (!file) {
-        printLog("There was an error while saving.\n");
-        return 1;
-    }
-
-    for (i=0; i<numRamBanks; i++)
-        fwrite(externRam[i], 1, 0x2000, file);
+    for (int i=0; i<numRamBanks; i++)
+        fwrite(externRam[i], 1, 0x2000, saveFile);
 
     switch (MBC) {
         case MBC3:
         case HUC3:
-            fwrite(&gbClock, 1, sizeof(gbClock), file);
+            fwrite(&gbClock, 1, sizeof(gbClock), saveFile);
             break;
     }
-
-    fclose(file);
 
     return 0;
 }

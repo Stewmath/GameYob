@@ -35,6 +35,8 @@ extern u8 buttonsPressed;
 extern bool suspendStateExists;
 extern bool advanceFrame;
 
+extern FILE* saveFile;
+
 void initInput();
 
 void startKeyConfigChooser();

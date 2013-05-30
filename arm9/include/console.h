@@ -11,6 +11,7 @@ extern bool gbaModeOption;
 extern int sgbModeOption;
 extern bool customBordersEnabled;
 extern bool sgbBordersEnabled;
+extern bool autoSavingEnabled;
 
 void initConsole();
 

@@ -9,6 +9,7 @@
 #include "main.h"
 #include "nifi.h"
 #include "sgb.h"
+#include "console.h"
 #ifdef DS
 #include <nds.h>
 #endif
@@ -80,6 +81,11 @@ u16 dmaSource;
 u16 dmaDest;
 u16 dmaLength;
 int dmaMode;
+
+// Autosaving stuff
+bool saveModified=false;
+int numSaveWrites=0;
+
 
 /* MBC flags */
 bool ramEnabled;
@@ -204,16 +210,15 @@ const mbcRead mbcReads[] = {
 };
 
 
-extern FILE* saveFile;
-bool saveModified=false;
-int numWrites=0;
 void writeSram(u16 addr, u8 val) {
     if (externRam[currentRamBank][addr] != val) {
         externRam[currentRamBank][addr] = val;
-        fseek(saveFile, currentRamBank*0x2000+addr, SEEK_SET);
-        fputc(val, saveFile);
-        saveModified = true;
-        numWrites++;
+        if (autoSavingEnabled) {
+            fseek(saveFile, currentRamBank*0x2000+addr, SEEK_SET);
+            fputc(val, saveFile);
+            saveModified = true;
+            numSaveWrites++;
+        }
     }
 }
 
