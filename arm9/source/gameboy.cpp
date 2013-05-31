@@ -74,8 +74,6 @@ void updateInput() {
     if (probingForBorder)
         return;
 
-    // Currently this code which checks autosaving is pointless,
-    // except for its debug output.
     if (saveModified) {
         wroteToSramThisFrame = true;
         saveModified = false;
