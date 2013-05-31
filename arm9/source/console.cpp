@@ -46,7 +46,8 @@ extern bool __dsimode;
 
 void suspendFunc(int value) {
     printConsoleMessage("Suspending...");
-    saveGame();
+    if (!autoSavingEnabled)
+        saveGame();
     saveState(-1);
     printMessage[0] = '\0';
     selectRom();
@@ -54,7 +55,8 @@ void suspendFunc(int value) {
 }
 void exitFunc(int value) {
     printConsoleMessage("Saving...");
-    saveGame();
+    if (!autoSavingEnabled)
+        saveGame();
     printMessage[0] = '\0';
     selectRom();
     quitConsole = true;
