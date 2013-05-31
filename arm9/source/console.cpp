@@ -65,9 +65,6 @@ void exitNoSaveFunc(int value) {
     selectRom();
     quitConsole = true;
 }
-void fastForwardFunc(int value) {
-    fastForwardMode = (value == 1);
-}
 void consoleOutputFunc(int value) {
     if (value == 0) {
         fpsOutput = false;
@@ -294,11 +291,10 @@ ConsoleSubMenu menuList[] = {
     },
     {
         "Settings",
-        9,
+        8,
         {
             {"Key Config", keyConfigFunc, 0, {}, 0},
             {"Manage Cheats", cheatFunc, 0, {}, 0},
-            {"Fast Forward", fastForwardFunc, 2, {"Off","On"}, 0},
             {"Console Output", consoleOutputFunc, 4, {"Off","Time","FPS+Time","Debug"}, 0},
             {"NiFi", nifiEnableFunc, 2, {"Off","On"}, 0},
             {"Rumble Pak", setRumbleFunc, 4, {"Off","Low","Mid","High"}, 2},
@@ -391,6 +387,7 @@ bool isConsoleEnabled() {
 }
 
 void displayConsole() {
+    fastForwardMode = false;
     advanceFrame = 0;
     consoleOn = true;
     quitConsole = false;

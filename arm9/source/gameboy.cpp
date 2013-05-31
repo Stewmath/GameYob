@@ -177,6 +177,7 @@ void runEmul()
             transferReady = false;
         }
         updateTimers(cycles);
+
         soundCycles += cycles>>doubleSpeed;
         if (soundCycles >= cyclesToSoundEvent) {
             cyclesToSoundEvent = 6000;
