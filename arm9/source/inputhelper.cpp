@@ -884,5 +884,9 @@ int loadState(int num) {
     refreshGFX();
     refreshSND();
 
+
+    if (autoSavingEnabled)
+        saveGame(); // Synchronize save file on disk with file in ram
+
     return 0;
 }
