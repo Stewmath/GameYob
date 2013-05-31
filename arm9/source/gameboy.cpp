@@ -1,3 +1,5 @@
+#include "libfat_fake.h"
+
 #include <nds.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -47,6 +49,8 @@ bool resettingGameboy = false;
 
 bool probingForBorder=false;
 
+bool wroteToSramThisFrame=false;
+
 
 inline void setEventCycles(int cycles) {
     if (cycles < cyclesToEvent) {
@@ -69,6 +73,23 @@ void updateInput() {
 
     if (probingForBorder)
         return;
+
+    // Currently this code which checks autosaving is pointless,
+    // except for its debug output.
+    if (saveModified) {
+        wroteToSramThisFrame = true;
+        saveModified = false;
+    }
+    else if (wroteToSramThisFrame) { // This executes when a full frame has passed since sram was last written to.
+        printLog("SAVE %d\n", numSaveWrites);
+        numSaveWrites = 0;
+        wroteToSramThisFrame = false;
+
+        // This involves things from libfat which aren't normally visible
+        devoptab_t* devops = (devoptab_t*)GetDeviceOpTab ("sd");
+        PARTITION* partition = (PARTITION*)devops->deviceData;
+        _FAT_cache_flush(partition->cache); // Flush the cache manually
+    }
 
     if (cheatsEnabled)
         applyGSCheats();

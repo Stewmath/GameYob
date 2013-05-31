@@ -31,6 +31,8 @@ int sgbModeOption=false;
 bool customBordersEnabled;
 bool sgbBordersEnabled;
 
+bool autoSavingEnabled;
+
 extern int interruptWaitMode;
 extern bool windowDisabled;
 extern bool hblankDisabled;
@@ -249,8 +251,14 @@ void setRumbleFunc(int value) {
         rumbleInserted = 0; //No rumble found
 }
 
+<<<<<<< HEAD
 void hyperSoundFunc(int value) {
     hyperSound = value;
+=======
+void setAutoSaveFunc(int value) {
+    autoSavingEnabled = value;
+    saveGame(); // Synchronizes save file with filesystem
+>>>>>>> autosaving
 }
 
 struct MenuOption {
@@ -285,7 +293,7 @@ ConsoleSubMenu menuList[] = {
     },
     {
         "Settings",
-        8,
+        9,
         {
             {"Key Config", keyConfigFunc, 0, {}, 0},
             {"Manage Cheats", cheatFunc, 0, {}, 0},
@@ -294,6 +302,7 @@ ConsoleSubMenu menuList[] = {
             {"NiFi", nifiEnableFunc, 2, {"Off","On"}, 0},
             {"Rumble Pak", setRumbleFunc, 4, {"Off","Low","Mid","High"}, 2},
             {"PCM Sound Fix", hyperSoundFunc, 2, {"Off","On"}, 0},
+            {"Autosaving", setAutoSaveFunc, 2, {"Off","On"}, 0},
             {"Save Settings", saveSettingsFunc, 0, {}, 0}
         }
     },
