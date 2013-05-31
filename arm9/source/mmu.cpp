@@ -209,6 +209,15 @@ void writeSram(u16 addr, u8 val) {
     }
 }
 
+void writeClockStruct() {
+    if (autoSavingEnabled) {
+        fseek(saveFile, numRamBanks*0x2000, SEEK_SET);
+        fwrite(&gbClock, 1, sizeof(gbClock), saveFile);
+        saveModified = true;
+    }
+}
+
+
 /* MBC Write handlers */
 
 /* MBC0 */
@@ -295,22 +304,37 @@ void m3w(u16 addr, u8 val)
 
             switch (rtcReg) {
                 case 0x8:
-                    gbClock.mbc3.s = val;
+                    if (gbClock.mbc3.s != val) {
+                        gbClock.mbc3.s = val;
+                        writeClockStruct();
+                    }
                     return;
                 case 0x9:
-                    gbClock.mbc3.m = val;
+                    if (gbClock.mbc3.m != val) {
+                        gbClock.mbc3.m = val;
+                        writeClockStruct();
+                    }
                     return;
                 case 0xA:
-                    gbClock.mbc3.h = val;
+                    if (gbClock.mbc3.h != val) {
+                        gbClock.mbc3.h = val;
+                        writeClockStruct();
+                    }
                     return;
                 case 0xB:
-                    gbClock.mbc3.d &= 0x100;
-                    gbClock.mbc3.d |= val;
+                    if ((gbClock.mbc3.d&0xff) != val) {
+                        gbClock.mbc3.d &= 0x100;
+                        gbClock.mbc3.d |= val;
+                        writeClockStruct();
+                    }
                     return;
                 case 0xC:
-                    gbClock.mbc3.d &= 0xFF;
-                    gbClock.mbc3.d |= (val&1)<<8;
-                    gbClock.mbc3.ctrl = val;
+                    if (gbClock.mbc3.ctrl != val) {
+                        gbClock.mbc3.d &= 0xFF;
+                        gbClock.mbc3.d |= (val&1)<<8;
+                        gbClock.mbc3.ctrl = val;
+                        writeClockStruct();
+                    }
                     return;
                 default:
                     if (numRamBanks)
