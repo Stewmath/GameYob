@@ -495,7 +495,6 @@ void handleSoundRegister(u8 ioReg, u8 val)
                 setChan3();
 
                 refreshSoundVolume(2, false);
-                printLog("VOL %d\n", sharedData->chanRealVol[2]);
                 sendStartMessage(2);
             }
             else {
