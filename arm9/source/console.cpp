@@ -251,14 +251,13 @@ void setRumbleFunc(int value) {
         rumbleInserted = 0; //No rumble found
 }
 
-<<<<<<< HEAD
 void hyperSoundFunc(int value) {
     hyperSound = value;
-=======
+}
+
 void setAutoSaveFunc(int value) {
     autoSavingEnabled = value;
     saveGame(); // Synchronizes save file with filesystem
->>>>>>> autosaving
 }
 
 struct MenuOption {
