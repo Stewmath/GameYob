@@ -463,6 +463,12 @@ int loadProgram(char* f)
     siprintf(nameBuf, "%s.cht", basename);
     loadCheats(nameBuf);
 
+
+    if (numRomBanks <= MAX_LOADED_ROM_BANKS) {
+        fclose(romFile);
+        romFile = NULL;
+    }
+
     cyclesToEvent = 1;
     return 0;
 }
