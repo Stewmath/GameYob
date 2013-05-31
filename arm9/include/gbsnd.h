@@ -3,6 +3,8 @@
 extern bool soundDisabled;
 extern bool hyperSound;
 
+extern int cyclesToSoundEvent;
+
 void initSND();
 void refreshSND();
 void enableChannel(int i);

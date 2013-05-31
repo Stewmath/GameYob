@@ -33,6 +33,7 @@ extern int interruptTriggered;
 
 void resetGameboy(); // This may be called even from the context of "runOpcode".
 
+void setEventCycles(int cycles);
 void runEmul();
 void initLCD();
 void initGameboyMode();

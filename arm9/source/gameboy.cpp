@@ -52,7 +52,7 @@ bool probingForBorder=false;
 bool wroteToSramThisFrame=false;
 
 
-inline void setEventCycles(int cycles) {
+void setEventCycles(int cycles) {
     if (cycles < cyclesToEvent) {
         cyclesToEvent = cycles;
         /*
@@ -177,17 +177,18 @@ void runEmul()
             transferReady = false;
         }
         updateTimers(cycles);
-        soundCycles += cycles;
-        if (soundCycles >= 6666) {
+        soundCycles += cycles>>doubleSpeed;
+        if (soundCycles >= cyclesToSoundEvent) {
+            cyclesToSoundEvent = 6000;
             updateSound(soundCycles);
             soundCycles = 0;
         }
+        setEventCycles(cyclesToSoundEvent);
 
         updateLCD(cycles);
 
         int interruptTriggered = ioRam[0x0F] & ioRam[0xFF];
         if (interruptTriggered) {
-
             /* Hack to fix Robocop 2 and LEGO Racers, possibly others. 
              * Interrupts can occur in the middle of an opcode. The result of 
              * this is that said opcode can read the resulting state - most 
