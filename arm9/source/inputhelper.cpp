@@ -380,7 +380,6 @@ int loadProgram(char* f)
         fread(rom[i], 1, 0x4000, romFile);
         if (i != 0)
             lastBanksUsed.push_back(i);
-        applyGGCheats(i);
     }
 
     strcpy(basename, filename);

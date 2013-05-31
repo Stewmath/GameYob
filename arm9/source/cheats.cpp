@@ -32,8 +32,7 @@ bool addCheat (const char *str)
     if (i == MAX_CHEATS)
         return false;
     /* Mark as used and clear it */
-    slots[i] &= ~(SLOT_ENABLED | SLOT_TYPE_MASK);
-    slots[i] |= SLOT_USED;
+    slots[i] = SLOT_USED;
 
     len = strlen(str);
     if (len > 11)
@@ -184,12 +183,12 @@ void loadCheats(const char* filename) {
             if (spacePos != NULL) {
                 *spacePos = '\0';
                 if (strlen(spacePos+1) >= 1 && addCheat(line)) {
-                    toggleCheat(numCheats, *(spacePos+1) == '1');
                     strncpy(cheats[numCheats].name, spacePos+2, MAX_CHEAT_NAME_LEN);
                     cheats[numCheats].name[MAX_CHEAT_NAME_LEN] = '\0';
                     char c;
                     while ((c = cheats[numCheats].name[strlen(cheats[numCheats].name)-1]) == '\n' || c == '\r')
                         cheats[numCheats].name[strlen(cheats[numCheats].name)-1] = '\0';
+                    toggleCheat(numCheats, *(spacePos+1) == '1');
                     numCheats++;
                 }
             }
