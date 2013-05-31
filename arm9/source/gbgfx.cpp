@@ -606,7 +606,7 @@ void refreshScaleMode() {
                 BG2PD = (1<<8)/scaleFactor;
                 int x = (256-160*scaleFactor)/2;
                 SCALE_BGX = (1<<8)*(screenOffsX-x/scaleFactor+0.5);
-                SCALE_BGY = 0;
+                SCALE_BGY = 1<<7; // 0.5
                 break;
             }
         case 2: // Full
@@ -618,7 +618,7 @@ void refreshScaleMode() {
                 BG2PC = 0;
                 BG2PD = (1<<8)/(scaleFactorY);
                 SCALE_BGX = (1<<8)*(screenOffsX-(256-160*scaleFactorX)/2/(scaleFactorX) + 0.5);
-                SCALE_BGY = 0;
+                SCALE_BGY = 1<<7; // 0.5
             }
             break;
         default:
