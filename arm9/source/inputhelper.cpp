@@ -51,7 +51,7 @@ bool suspendStateExists;
 
 void initInput()
 {
-    fatInit(0, true); // Set cache size to zero for autosaving to work
+    fatInitDefault();
     chdir("/lameboy"); // Default rom directory
 }
 
