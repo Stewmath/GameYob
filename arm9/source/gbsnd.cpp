@@ -311,8 +311,10 @@ void updateSound(int cycles)
                 setSoundEventCycles(chanLenCounter[i]);
         }
     }
+    /*
     if (changed)
         sendUpdateMessage(-1);
+        */
 }
 
 void handleSoundRegister(u8 ioReg, u8 val)

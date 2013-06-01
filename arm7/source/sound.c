@@ -26,10 +26,6 @@ u8 noiseSample[] = { 0x80, 0x80, 0x80, 0x80, 0x80, 0, 0x80, 0x80, 0x80, 0x80, 0x
 void setChannelVolume(int c) {
     int channel = channels[c];
 
-    if (!sharedData->chanEnabled[c]) {
-        SCHANNEL_CR(channel) &= ~SCHANNEL_ENABLE;
-        return;
-    }
     int volume = sharedData->chanRealVol[c]*2;
     if (sharedData->chanPan[c] >= 128)
         volume = 0;
@@ -68,6 +64,10 @@ void updateChannel(int c) {
 void startChannel(int c) {
     int channel = channels[c];
     SCHANNEL_CR(channel) &= ~SCHANNEL_ENABLE;
+
+    if (!sharedData->chanEnabled[c])
+        return;
+
     if (c == 2) {
         SCHANNEL_SOURCE(channel) = (u32)sharedData->sampleData;
         SCHANNEL_REPEAT_POINT(channel) = 0;
@@ -150,8 +150,9 @@ void doCommand(u32 command) {
         case GBSND_UPDATE_COMMAND:
             if (data == 4) {
                 int i;
-                for (i=0; i<4; i++)
+                for (i=0; i<4; i++) {
                     updateChannel(i);
+                }
             }
             else
                 updateChannel(data);
