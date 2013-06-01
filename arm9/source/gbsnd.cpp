@@ -36,8 +36,6 @@ bool hyperSound=false;
 
 int cyclesToSoundEvent=0;
 
-int chanEnabled[] = {1,1,1,1};
-
 double chan4FreqRatio;
 int chan1SweepTime;
 int chan1SweepCounter;
@@ -116,7 +114,7 @@ void refreshSoundPan(int i) {
 
 void refreshSoundVolume(int i, bool send)
 {
-    if (!(sharedData->chanOn & (1<<i)) || !chanEnabled[i])
+    if (!(sharedData->chanOn & (1<<i)) || !sharedData->chanEnabled[i])
     {
         /*
         if (FIFO_START(VALUE32_SIZE)) {
@@ -216,10 +214,12 @@ void refreshSND() {
 }
 
 void enableChannel(int i) {
-    chanEnabled[i] = true;
+    sharedData->chanEnabled[i] = true;
+    if (!sharedData->chanEnabled[i])
+        sendStartMessage(i); // Actually stops the channel if necessary
 }
 void disableChannel(int i) {
-    chanEnabled[i] = false;
+    sharedData->chanEnabled[i] = false;
 }
 
 
@@ -564,7 +564,6 @@ void handleSoundRegister(u8 ioReg, u8 val)
             break;
             // Frequency
         case 0x22:
-            printLog("Noise freq %.2x\n", val);
             chanFreq[3] = val>>4;
             chan4FreqRatio = val&0x7;
             if (chan4FreqRatio == 0)

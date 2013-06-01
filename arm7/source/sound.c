@@ -25,6 +25,11 @@ u8 noiseSample[] = { 0x80, 0x80, 0x80, 0x80, 0x80, 0, 0x80, 0x80, 0x80, 0x80, 0x
 
 void setChannelVolume(int c) {
     int channel = channels[c];
+
+    if (!sharedData->chanEnabled[c]) {
+        SCHANNEL_CR(channel) &= ~SCHANNEL_ENABLE;
+        return;
+    }
     int volume = sharedData->chanRealVol[c]*2;
     if (sharedData->chanPan[c] >= 128)
         volume = 0;

@@ -19,6 +19,7 @@ typedef struct SharedData {
     u8 chanPan[4];
     int chanDuty[2];
     u8 chanOn;
+    bool chanEnabled[4];
     bool lfsr7Bit;
     u32 message;
     u8* sampleData;
