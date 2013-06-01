@@ -281,7 +281,6 @@ void updateSound(int cycles)
                         chanVol[i] = 0xF;
                     changed = true;
                     refreshSoundVolume(i);
-                    sendUpdateMessage(i);
                 }
                 if (chanVol[i] != 0 && chanVol[i] != 0xF)
                     setSoundEventCycles(chanEnvCounter[i]);
@@ -305,16 +304,13 @@ void updateSound(int cycles)
                     clearChan3();
                 else
                     clearChan4();
-                sendUpdateMessage(i);
             }
             else
                 setSoundEventCycles(chanLenCounter[i]);
         }
     }
-    /*
     if (changed)
         sendUpdateMessage(-1);
-        */
 }
 
 void handleSoundRegister(u8 ioReg, u8 val)
