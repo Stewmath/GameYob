@@ -20,6 +20,8 @@ const int dutyIndex[4] = {0, 1, 3, 5};
 
 u8 popSample[4];
 
+bool currentLfsr;
+
 // Use this with the 7-bit lfsr
 u8 noiseSample[] = { 0x80, 0x80, 0x80, 0x80, 0x80, 0, 0x80, 0x80, 0x80, 0x80, 0x80, 0, 0, 0x80, 0x80, 0x80, 0x80, 0, 0x80, 0, 0x80, 0x80, 0x80, 0, 0, 0, 0, 0x80, 0x80, 0, 0x80, 0x80, 0x80, 0, 0x80, 0, 0, 0x80, 0x80, 0, 0, 0, 0x80, 0, 0x80, 0, 0x80, 0x80, 0, 0, 0, 0, 0, 0x80, 0, 0x80, 0x80, 0x80, 0x80, 0, 0, 0, 0x80, 0x80, 0x80, 0, 0x80, 0x80, 0, 0x80, 0x80, 0, 0, 0x80, 0, 0, 0x80, 0, 0x80, 0, 0, 0x80, 0, 0, 0, 0, 0x80, 0, 0, 0x80, 0x80, 0x80, 0, 0, 0x80, 0, 0x80, 0x80, 0, 0x80, 0, 0, 0, 0x80, 0, 0, 0, 0x80, 0x80, 0, 0, 0x80, 0x80, 0, 0x80, 0, 0x80, 0, 0x80, 0, 0, 0, 0, 0, 0, 0, 0x80};
 
@@ -32,6 +34,9 @@ void setChannelVolume(int c) {
     else if (sharedData->chanPan[c] == 64) {
         volume *= 2;   // DS divides sound by 2 for each speaker; gameboy doesn't
     }
+
+    if (c == 3 && sharedData->lfsr7Bit)
+        volume *= 2;
 
     SCHANNEL_CR(channel) &= ~0xff;
     SCHANNEL_CR(channel) |= volume;
@@ -54,6 +59,8 @@ void updateChannel(int c) {
         SCHANNEL_CR(channel) |= SOUND_PAN(sharedData->chanPan[c]);
     }
     else if (c == 3) {
+        if (currentLfsr != sharedData->lfsr7Bit)
+            startChannel(c);
         SCHANNEL_CR(channel) &= ~(SOUND_PAN(127));
         SCHANNEL_CR(channel) |= SOUND_PAN(sharedData->chanPan[c]);
     }
@@ -75,6 +82,7 @@ void startChannel(int c) {
         SCHANNEL_CR(channel) = (0 << 29) | SOUND_REPEAT;
     }
     else if (c == 3) {
+        currentLfsr = sharedData->lfsr7Bit;
         if (sharedData->lfsr7Bit) {
             SCHANNEL_SOURCE(channel) = noiseSample;
             SCHANNEL_REPEAT_POINT(channel) = 0;
