@@ -39,7 +39,6 @@ int cyclesToSoundEvent=0;
 int chanEnabled[] = {1,1,1,1};
 
 double chan4FreqRatio;
-int chan4Width;
 int chan1SweepTime;
 int chan1SweepCounter;
 int chan1SweepDir;
@@ -282,6 +281,7 @@ void updateSound(int cycles)
                         chanVol[i] = 0xF;
                     changed = true;
                     refreshSoundVolume(i);
+                    sendUpdateMessage(i);
                 }
                 if (chanVol[i] != 0 && chanVol[i] != 0xF)
                     setSoundEventCycles(chanEnvCounter[i]);
@@ -305,6 +305,7 @@ void updateSound(int cycles)
                     clearChan3();
                 else
                     clearChan4();
+                sendUpdateMessage(i);
             }
             else
                 setSoundEventCycles(chanLenCounter[i]);
@@ -563,11 +564,12 @@ void handleSoundRegister(u8 ioReg, u8 val)
             break;
             // Frequency
         case 0x22:
+            printLog("Noise freq %.2x\n", val);
             chanFreq[3] = val>>4;
             chan4FreqRatio = val&0x7;
             if (chan4FreqRatio == 0)
                 chan4FreqRatio = 0.5;
-            chan4Width = !!(val&0x8);
+            sharedData->lfsr7Bit = val&0x8;
             refreshSoundFreq(3);
             sendUpdateMessage(3);
             ioRam[0x22] = val;

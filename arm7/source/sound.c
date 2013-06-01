@@ -20,6 +20,9 @@ const int dutyIndex[4] = {0, 1, 3, 5};
 
 u8 popSample[4];
 
+// Use this with the 7-bit lfsr
+u8 noiseSample[] = { 0x80, 0x80, 0x80, 0x80, 0x80, 0, 0x80, 0x80, 0x80, 0x80, 0x80, 0, 0, 0x80, 0x80, 0x80, 0x80, 0, 0x80, 0, 0x80, 0x80, 0x80, 0, 0, 0, 0, 0x80, 0x80, 0, 0x80, 0x80, 0x80, 0, 0x80, 0, 0, 0x80, 0x80, 0, 0, 0, 0x80, 0, 0x80, 0, 0x80, 0x80, 0, 0, 0, 0, 0, 0x80, 0, 0x80, 0x80, 0x80, 0x80, 0, 0, 0, 0x80, 0x80, 0x80, 0, 0x80, 0x80, 0, 0x80, 0x80, 0, 0, 0x80, 0, 0, 0x80, 0, 0x80, 0, 0, 0x80, 0, 0, 0, 0, 0x80, 0, 0, 0x80, 0x80, 0x80, 0, 0, 0x80, 0, 0x80, 0x80, 0, 0x80, 0, 0, 0, 0x80, 0, 0, 0, 0x80, 0x80, 0, 0, 0x80, 0x80, 0, 0x80, 0, 0x80, 0, 0x80, 0, 0, 0, 0, 0, 0, 0, 0x80};
+
 void setChannelVolume(int c) {
     int channel = channels[c];
     int volume = sharedData->chanRealVol[c]*2;
@@ -59,17 +62,29 @@ void updateChannel(int c) {
 
 void startChannel(int c) {
     int channel = channels[c];
+    SCHANNEL_CR(channel) &= ~SCHANNEL_ENABLE;
     if (c == 2) {
         SCHANNEL_SOURCE(channel) = (u32)sharedData->sampleData;
         SCHANNEL_REPEAT_POINT(channel) = 0;
         SCHANNEL_LENGTH(channel) = 0x20>>2;
-        SCHANNEL_CR(channel) = SCHANNEL_ENABLE | (0 << 29) | SOUND_REPEAT;
+        SCHANNEL_CR(channel) = (0 << 29) | SOUND_REPEAT;
+    }
+    else if (c == 3) {
+        if (sharedData->lfsr7Bit) {
+            SCHANNEL_SOURCE(channel) = noiseSample;
+            SCHANNEL_REPEAT_POINT(channel) = 0;
+            SCHANNEL_LENGTH(channel) = 128>>2;
+            SCHANNEL_CR(channel) = (0 << 29) | SOUND_REPEAT;
+        }
+        else
+            SCHANNEL_CR(channel) = (3 << 29);
     }
     else {
-        SCHANNEL_CR(channel) = SCHANNEL_ENABLE | (3 << 29);
+        SCHANNEL_CR(channel) = (3 << 29);
     }
 
     updateChannel(c);
+    SCHANNEL_CR(channel) |= SCHANNEL_ENABLE;
 }
 void gameboySoundDataHandler(int bytes, void *user_data) {
     GbSndMessage msg;
