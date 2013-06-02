@@ -22,8 +22,15 @@ u8 popSample[4];
 
 bool currentLfsr;
 
-// Use this with the 7-bit lfsr
-u8 noiseSample[] = { 0x80, 0x80, 0x80, 0x80, 0x80, 0, 0x80, 0x80, 0x80, 0x80, 0x80, 0, 0, 0x80, 0x80, 0x80, 0x80, 0, 0x80, 0, 0x80, 0x80, 0x80, 0, 0, 0, 0, 0x80, 0x80, 0, 0x80, 0x80, 0x80, 0, 0x80, 0, 0, 0x80, 0x80, 0, 0, 0, 0x80, 0, 0x80, 0, 0x80, 0x80, 0, 0, 0, 0, 0, 0x80, 0, 0x80, 0x80, 0x80, 0x80, 0, 0, 0, 0x80, 0x80, 0x80, 0, 0x80, 0x80, 0, 0x80, 0x80, 0, 0, 0x80, 0, 0, 0x80, 0, 0x80, 0, 0, 0x80, 0, 0, 0, 0, 0x80, 0, 0, 0x80, 0x80, 0x80, 0, 0, 0x80, 0, 0x80, 0x80, 0, 0x80, 0, 0, 0, 0x80, 0, 0, 0, 0x80, 0x80, 0, 0, 0x80, 0x80, 0, 0x80, 0, 0x80, 0, 0x80, 0, 0, 0, 0, 0, 0, 0, 0x80};
+// Use this with the 7-bit lfsr.
+u8 lfsr7NoiseSample[] = { 0x80, 0x80, 0x80, 0x80, 0x80, 0, 0x80, 0x80, 0x80, 0x80, 0x80, 0, 0, 0x80, 0x80, 0x80, 0x80, 0, 0x80, 0, 0x80, 0x80, 0x80, 0, 0, 0, 0, 0x80, 0x80, 0, 0x80, 0x80, 0x80, 0, 0x80, 0, 0, 0x80, 0x80, 0, 0, 0, 0x80, 0, 0x80, 0, 0x80, 0x80, 0, 0, 0, 0, 0, 0x80, 0, 0x80, 0x80, 0x80, 0x80, 0, 0, 0, 0x80, 0x80, 0x80, 0, 0x80, 0x80, 0, 0x80, 0x80, 0, 0, 0x80, 0, 0, 0x80, 0, 0x80, 0, 0, 0x80, 0, 0, 0, 0, 0x80, 0, 0, 0x80, 0x80, 0x80, 0, 0, 0x80, 0, 0x80, 0x80, 0, 0x80, 0, 0, 0, 0x80, 0, 0, 0, 0x80, 0x80, 0, 0, 0x80, 0x80, 0, 0x80, 0, 0x80, 0, 0x80, 0, 0, 0, 0, 0, 0, 0, 0x80};
+
+// Use this with the 15-bit lfsr.
+// noise.h is huge. Like, 32 kilobytes of white noise.
+// I wasn't satisfied with the ds's noise channel in some situations, like when 
+// the maku tree disappears in Oracle of Ages.
+// If the arm7 binary hits its size limit, this may need to be reworked.
+#include "noise.h"
 
 void setChannelVolume(int c) {
     int channel = channels[c];
@@ -35,7 +42,7 @@ void setChannelVolume(int c) {
         volume *= 2;   // DS divides sound by 2 for each speaker; gameboy doesn't
     }
 
-    if (c == 3 && sharedData->lfsr7Bit)
+    if (c == 3) // Noise channel
         volume *= 2;
 
     SCHANNEL_CR(channel) &= ~0xff;
@@ -84,15 +91,17 @@ void startChannel(int c) {
     else if (c == 3) {
         currentLfsr = sharedData->lfsr7Bit;
         if (sharedData->lfsr7Bit) {
-            SCHANNEL_SOURCE(channel) = noiseSample;
-            SCHANNEL_REPEAT_POINT(channel) = 0;
+            SCHANNEL_SOURCE(channel) = (u32)lfsr7NoiseSample;
             SCHANNEL_LENGTH(channel) = 128>>2;
-            SCHANNEL_CR(channel) = (0 << 29) | SOUND_REPEAT;
         }
-        else
-            SCHANNEL_CR(channel) = (3 << 29);
+        else {
+            SCHANNEL_SOURCE(channel) = (u32)lfsr15NoiseSample;
+            SCHANNEL_LENGTH(channel) = 32768>>2;
+        }
+        SCHANNEL_REPEAT_POINT(channel) = 0;
+        SCHANNEL_CR(channel) = (0 << 29) | SOUND_REPEAT;
     }
-    else {
+    else { // PSG channels
         SCHANNEL_CR(channel) = (3 << 29);
     }
 
