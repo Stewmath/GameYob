@@ -534,6 +534,8 @@ void handleSoundRegister(u8 ioReg, u8 val)
 
                 refreshSoundVolume(2, false);
                 sendStartMessage(2);
+                
+                printLog("PLAY 2\n");
             }
             else {
                 sendUpdateMessage(2);

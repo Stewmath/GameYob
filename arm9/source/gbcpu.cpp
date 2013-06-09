@@ -356,6 +356,8 @@ int runOpcode(int cycles) {
                 gbRegs.af.b.h = readIO(gbRegs.bc.b.l);
                 break;
             case 0xE2:		// LDH (C), A	8
+                if (getPC()-1 == 0x3a7d && gbRegs.bc.b.h == 0x1e && (gbRegs.af.b.h & 0x80))
+                    printLog("HERE\n");
                 writeIO(gbRegs.bc.b.l, gbRegs.af.b.h);
                 break;
             case 0x3A:		// LDD A, (hl)	8
