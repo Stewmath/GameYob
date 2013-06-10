@@ -308,6 +308,7 @@ void sgbPctTrn(int block) {
     u8* data = (u8*)malloc(0x1000);
     doVramTransfer(data);
     setSgbMap(data);
+    free(data);
 }
 
 void sgbAttrTrn(int block) {
