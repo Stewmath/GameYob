@@ -4,7 +4,7 @@
 typedef struct SharedData {
     u8 scalingOn;
     u8 scaleTransferReady;
-    int fifosWaiting;
+    volatile int fifosWaiting;
 
     // Sound stuff
     bool hyperSound;

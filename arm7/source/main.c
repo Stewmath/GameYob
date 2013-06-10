@@ -53,7 +53,7 @@ void VblankHandler(void) {
                 goto scaling_end;
         } while (!sharedData->scaleTransferReady);
         // Copy from vram bank D to C
-        dmaCopyWordsAsynch(3, (u16*)0x06000000+24*256, (u16*)0x06020000, 256*144*2);
+        dmaCopyWords(3, (u16*)0x06000000+24*256, (u16*)0x06020000, 256*144*2);
         sharedData->scaleTransferReady = 0;
 
 scaling_end:

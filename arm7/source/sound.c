@@ -207,8 +207,8 @@ void doCommand(u32 command) {
 }
 
 void gameboySoundCommandHandler(u32 command, void* userdata) {
+    sharedData->fifosWaiting = 0;
     doCommand(command);
-    sharedData->fifosWaiting--;
 }
 
 void timerCallback() {

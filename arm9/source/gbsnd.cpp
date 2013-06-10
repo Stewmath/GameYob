@@ -13,15 +13,6 @@
 #define CHAN_3 4
 #define CHAN_4 8
 
-inline bool FIFO_START(int bytes) {
-    return true;
-    if (sharedData->fifosWaiting+bytes < 128) {
-        sharedData->fifosWaiting += bytes;
-        return true;
-    }
-    return false;
-}
-
 inline void setChan1() {ioRam[0x26] |= 1;}
 inline void clearChan1() {ioRam[0x26] &= ~1;}
 inline void setChan2() {ioRam[0x26] |= 2;}
@@ -65,12 +56,18 @@ void updateSoundSample(int byte);
 
 inline void synchronizeSound() {
     int cycles = (cyclesSinceVblank+extraCycles)>>doubleSpeed;
-    if (sharedData->hyperSound && !(sharedData->frameFlip_Gameboy != sharedData->frameFlip_DS || sharedData->dsCycles >= cycles)) {
+    if (sharedData->hyperSound && 
+            (!sharedData->scalingOn || !sharedData->scaleTransferReady) && // Scale transfer eats up a lot of arm7's time
+            !(sharedData->frameFlip_Gameboy != sharedData->frameFlip_DS || sharedData->dsCycles >= cycles)) {
         sharedData->cycles = cycles;
-        while (sharedData->cycles != -1);
+        while (sharedData->cycles != -1) {
+            if (sharedData->scaleTransferReady)
+                goto sendByFifo;
+        }
     }
     else {
-        //if (sharedData->fifosWaiting < 6) {
+sendByFifo:
+        //if (sharedData->fifosWaiting < 16) {
             sharedData->fifosWaiting++;
             fifoSendValue32(FIFO_USER_01, sharedData->message);
         //}
@@ -85,6 +82,8 @@ void sendStartMessage(int i) {
 void sendUpdateMessage(int i) {
     if (i == -1)
         i = 4;
+    else if (!(sharedData->chanOn & (1<<i)))
+        return;
     sharedData->message = GBSND_UPDATE_COMMAND<<28 | i;
     synchronizeSound();
 }
@@ -155,7 +154,7 @@ void refreshSoundFreq(int i) {
 }
 
 void refreshSoundDuty(int i) {
-    if ((sharedData->chanOn & (1<<i)) && FIFO_START(VALUE32_SIZE)) {
+    if ((sharedData->chanOn & (1<<i))) {
         //fifoSendValue32(FIFO_USER_01, GBSND_DUTY_COMMAND<<28 | sound[i]<<24 | dutyIndex[chanDuty[i]]);
     }
 }
@@ -167,7 +166,7 @@ void initSND()
     for (int i=0x27; i<=0x2f; i++)
         ioRam[i] = 0xff;
 
-    ioRam[0x26] = 0xf1;
+    ioRam[0x26] = 0xf0;
 
     ioRam[0x10] = 0x80;
     ioRam[0x11] = 0xBF;
@@ -211,6 +210,15 @@ void refreshSND() {
         else
             handleSoundRegister(i, ioRam[i]);
     }
+
+    if (ioRam[0x26] & 1)
+        handleSoundRegister(0x14, ioRam[0x14]|0x80);
+    if (ioRam[0x26] & 2)
+        handleSoundRegister(0x19, ioRam[0x19]|0x80);
+    if (ioRam[0x26] & 4)
+        handleSoundRegister(0x1e, ioRam[0x1e]|0x80);
+    if (ioRam[0x26] & 8)
+        handleSoundRegister(0x23, ioRam[0x23]|0x80);
 }
 
 void enableChannel(int i) {
