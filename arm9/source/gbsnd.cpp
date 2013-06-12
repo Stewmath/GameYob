@@ -82,8 +82,6 @@ void sendStartMessage(int i) {
 void sendUpdateMessage(int i) {
     if (i == -1)
         i = 4;
-    else if (!(sharedData->chanOn & (1<<i)))
-        return;
     sharedData->message = GBSND_UPDATE_COMMAND<<28 | i;
     synchronizeSound();
 }
@@ -632,8 +630,6 @@ void handleSoundRegister(u8 ioReg, u8 val)
                 clearChan4();
                 for (int reg = 0x10; reg <= 0x25; reg++)
                     ioRam[reg] = 0;
-                for (int i=0; i<4; i++)
-                    refreshSoundVolume(i);
                 sendUpdateMessage(-1);
             }
             break;

@@ -52,7 +52,7 @@ bool suspendStateExists;
 
 void initInput()
 {
-    fatInitDefault();
+    fatInit(2, true);
     chdir("/lameboy"); // Default rom directory
 }
 
