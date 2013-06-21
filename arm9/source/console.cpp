@@ -279,14 +279,14 @@ ConsoleSubMenu menuList[] = {
         "Options",
         8,
         {
-            {"Suspend", suspendFunc, 0, {}, 0},
+            {"Save & Exit", exitFunc, 0, {}, 0},
+            {"Reset", resetFunc, 0, {}, 0},
             {"State Slot", stateSelectFunc, 10, {"0","1","2","3","4","5","6","7","8","9"}, 0},
             {"Save State", stateSaveFunc, 0, {}, 0},
             {"Load State", stateLoadFunc, 0, {}, 0},
-            {"Reset", resetFunc, 0, {}, 0},
             {"Quit to Launcher/Reboot", returnToLauncherFunc, 0, {}, 0},
             {"Exit without saving", exitNoSaveFunc, 0, {}, 0},
-            {"Save & Exit", exitFunc, 0, {}, 0},
+            {"Suspend", suspendFunc, 0, {}, 0}
         }
     },
     {
@@ -296,21 +296,11 @@ ConsoleSubMenu menuList[] = {
             {"Key Config", keyConfigFunc, 0, {}, 0},
             {"Manage Cheats", cheatFunc, 0, {}, 0},
             {"Console Output", consoleOutputFunc, 4, {"Off","Time","FPS+Time","Debug"}, 0},
-            {"NiFi", nifiEnableFunc, 2, {"Off","On"}, 0},
+            {"Wireless Link", nifiEnableFunc, 2, {"Off","On"}, 0},
             {"Rumble Pak", setRumbleFunc, 4, {"Off","Low","Mid","High"}, 2},
             {"PCM Sound Fix", hyperSoundFunc, 2, {"Off","On"}, 0},
             {"Autosaving", setAutoSaveFunc, 2, {"Off","On"}, 0},
             {"Save Settings", saveSettingsFunc, 0, {}, 0}
-        }
-    },
-    {
-        "GB Modes",
-        4,
-        {
-            {"GBC Bios", biosEnableFunc, 3, {"Off","GB Only","On"}, 1},
-            {"GBC Mode", gameboyModeFunc, 3, {"Off","If Needed","On"}, 2},
-            {"GBC on GBA", gbaModeFunc, 2, {"Off","On"}, 0},
-            {"SGB Mode", sgbModeFunc, 3, {"Off","Prefer GBC","Prefer SGB"}, 1}
         }
     },
     {
@@ -322,6 +312,16 @@ ConsoleSubMenu menuList[] = {
             {"Scale Filter", setScaleFilterFunc, 3, {"Off","Filter A","Filter B"}, 1},
             {"Custom Border", customBorderEnableFunc, 2, {"Off","On"}, 1},
             {"SGB Borders", sgbBorderEnableFunc, 2, {"Off","On"}, 1}
+        }
+    },
+    {
+        "GB Modes",
+        4,
+        {
+            {"GBC Bios", biosEnableFunc, 3, {"Off","GB Only","On"}, 1},
+            {"GBC Mode", gameboyModeFunc, 3, {"Off","If Needed","On"}, 2},
+            {"Detect GBA", gbaModeFunc, 2, {"Off","On"}, 0},
+            {"SGB Mode", sgbModeFunc, 3, {"Off","Prefer GBC","Prefer SGB"}, 1}
         }
     },
     {
