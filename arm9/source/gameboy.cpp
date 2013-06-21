@@ -25,7 +25,7 @@ time_t lastRawTime;
 int fps;
 bool fpsOutput=true;
 bool timeOutput=true;
-bool fastForwardMode = false; // controlled by the menu
+bool fastForwardMode = false; // controlled by the toggle hotkey
 bool fastForwardKey = false;  // only while its hotkey is pressed
 
 // ...what is phase? I think I made that up. Used for timing when the gameboy 
@@ -41,7 +41,7 @@ long periods[4];
 int gbMode;
 bool sgbMode;
 
-const int maxWaitCycles=10000;
+const int maxWaitCycles=1000000;
 int cyclesToEvent;
 int cyclesSinceVblank=0;
 
@@ -176,11 +176,12 @@ void runEmul()
             packetData = -1;
             transferReady = false;
         }
+
         updateTimers(cycles);
 
         soundCycles += cycles>>doubleSpeed;
         if (soundCycles >= cyclesToSoundEvent) {
-            cyclesToSoundEvent = 6000;
+            cyclesToSoundEvent = 10000;
             updateSound(soundCycles);
             soundCycles = 0;
         }
@@ -257,7 +258,6 @@ void initGameboyMode() {
 }
 
 void checkLYC() {
-    // LYC check
     if (ioRam[0x44] == ioRam[0x45])
     {
         ioRam[0x41] |= 4;
@@ -325,14 +325,14 @@ inline void updateLCD(int cycles)
                 // fall through to next case
             }
         case 1:
-            if (ioRam[0x44] == 0 && (ioRam[0x41]&3) == 1) {
+            if (ioRam[0x44] == 0 && (ioRam[0x41]&3) == 1) { // End of vblank
                 ioRam[0x41]++; // Set mode 2
                 scanlineCounter += 80<<doubleSpeed;
             }
             else {
                 ioRam[0x44]++;
 
-                if (ioRam[0x44] < 144 || ioRam[0x44] >= 153) {
+                if (ioRam[0x44] < 144 || ioRam[0x44] >= 153) { // Not vblank
                     if (ioRam[0x41]&0x20)
                     {
                         requestInterrupt(LCD);
@@ -346,7 +346,7 @@ inline void updateLCD(int cycles)
                         ioRam[0x44] = 0;
                         scanlineCounter += 456<<doubleSpeed;
                     }
-                    else {
+                    else { // End of hblank
                         ioRam[0x41] &= ~3;
                         ioRam[0x41] |= 2; // Set mode 2
                         if (ioRam[0x41]&0x20)
@@ -354,7 +354,7 @@ inline void updateLCD(int cycles)
                         scanlineCounter += 80<<doubleSpeed;
                     }
                 }
-                else if (ioRam[0x44] == 144)
+                else if (ioRam[0x44] == 144) // Beginning of vblank
                 {
                     ioRam[0x41] &= ~3;
                     ioRam[0x41] |= 1;   // Set mode 1
@@ -382,7 +382,7 @@ inline void updateLCD(int cycles)
 
 inline void updateTimers(int cycles)
 {
-    if (ioRam[0x07] & 0x4)
+    if (ioRam[0x07] & 0x4) // Timers enabled
     {
         timerCounter -= cycles;
         while (timerCounter <= 0)
@@ -397,6 +397,10 @@ inline void updateTimers(int cycles)
             else
                 ioRam[0x05] = (u8)sum;
         }
+        // Set cycles until the timer will trigger an interrupt.
+        // Reads from [0xff05] may be inaccurate.
+        // However Castlevania and Alone in the Dark are extremely slow 
+        // if this is updated each time [0xff05] is changed.
         setEventCycles(timerCounter+timerPeriod*(255-ioRam[0x05]));
     }
     dividerCounter -= cycles;
