@@ -194,7 +194,7 @@ void windowEnableFunc(int value) {
 }
 void soundEnableFunc(int value) {
     soundDisabled = !value;
-    soundDisable();
+    fifoSendValue32(FIFO_USER_01, GBSND_MUTE_COMMAND<<28);
 }
 void advanceFrameFunc(int value) {
     advanceFrame = true;
@@ -392,7 +392,9 @@ void displayConsole() {
     consoleOn = true;
     quitConsole = false;
 
-    soundDisable();
+    // Set volume to zero
+    fifoSendValue32(FIFO_USER_01, GBSND_MUTE_COMMAND<<28);
+
     doRumble(0);
     updateScreens();
 
@@ -528,8 +530,7 @@ void displayConsole() {
     }
 end:
     if (!soundDisabled) {
-        soundEnable();
-        // Apparently master volume needs to be reset when enabling sound
+        // Unmute
         fifoSendValue32(FIFO_USER_01, GBSND_MASTER_VOLUME_COMMAND<<28);
     }
     consoleClear();

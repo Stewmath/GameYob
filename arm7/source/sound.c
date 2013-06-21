@@ -1,10 +1,3 @@
-/* This code is basically a few reimplementations of sound code from libnds.
- * Using FIFO channel USER_01, sound commands are passed the same as in libnds, 
- * except the channel is passed from the arm9 side. This is because random 
- * crashes occured when arm9 needed to wait for a response from arm7... 
- * apparently in some cases, a response was never received.
- */
-
 #include <nds/arm7/audio.h>
 #include <nds/ipc.h>
 #include <nds/fifocommon.h>
@@ -206,6 +199,10 @@ void doCommand(u32 command) {
 
         case GBSND_KILL_COMMAND:
             SCHANNEL_CR(channel) &= ~SCHANNEL_ENABLE;
+            break;
+
+        case GBSND_MUTE_COMMAND:
+            REG_SOUNDCNT &= ~0x7f;
             break;
 
         default:

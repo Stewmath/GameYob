@@ -42,17 +42,23 @@ int chanEnvCounter[4];
 int chanEnvSweep[4];
 bool chanToOut1[4];
 bool chanToOut2[4];
-int sound[4] = {8,9,0,14};
 
 int pcmVals[16];
 u8* const sampleData = (u8*)memUncached(malloc(0x20));
 
 const DutyCycle dutyIndex[4] = {DutyCycle_12, DutyCycle_25, DutyCycle_50, DutyCycle_75};
 
+
+int channelsToUpdate;
+int channelsToStart;
+
+
 void refreshSoundVolume(int i, bool send=false);
 void refreshSoundFreq(int i);
 void updateSoundSample(int byte);
 
+// If PCM Sound Fix is enabled, enter a loop until exactly the right moment at 
+// which the sound should be updated.
 inline void synchronizeSound() {
     int cycles = (cyclesSinceVblank+extraCycles)>>doubleSpeed;
     if (sharedData->hyperSound && 
