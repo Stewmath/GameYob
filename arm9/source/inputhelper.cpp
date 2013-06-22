@@ -719,10 +719,14 @@ void handleEvents()
     if (keyJustPressed(keys[KEY_FAST_FORWARD_TOGGLE]))
         fastForwardMode = !fastForwardMode;
 
-    if (fastForwardKey || fastForwardMode)
+    if (fastForwardKey || fastForwardMode) {
         sharedData->hyperSound = false;
-    else
+        basicSound = true;
+    }
+    else {
         sharedData->hyperSound = hyperSound;
+        basicSound = false;
+    }
 }
 
 const int STATE_VERSION = 3;

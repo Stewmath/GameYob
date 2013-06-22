@@ -26,52 +26,14 @@ typedef struct SharedData {
 
 } SharedData;
 
-typedef struct GbSndMessage {
-	u16 type;
-
-    u8 channel;
-	union {
-		struct {
-			const void* data;
-			u32 dataSize;
-			u16 loopPoint;
-			int freq;
-			u8 volume;
-			u8 pan;
-			bool loop;
-			u8 format;
-		} SoundPlay;
-
-		struct {
-			int freq;
-			u8 dutyCycle;
-			u8 volume;
-			u8 pan;
-		} SoundPsg;
-
-        struct {
-            u8 volume;
-            int freq;
-        } SoundModify;
-	};
-} ALIGN(4) GbSndMessage;
-
-enum {
-    GBSND_PLAY_MESSAGE=0,
-    GBSND_PSG_MESSAGE,
-    GBSND_NOISE_MESSAGE,
-    GBSND_MODIFY_MESSAGE,
-    GBSND_KILL_MESSAGE
-};
-
 enum {
     GBSND_UPDATE_COMMAND=0,
     GBSND_START_COMMAND,
     GBSND_VOLUME_COMMAND,
     GBSND_MASTER_VOLUME_COMMAND,
     GBSND_KILL_COMMAND,
-    GBSND_CHECK_COMMAND,
-    GBSND_MUTE_COMMAND
+    GBSND_MUTE_COMMAND,
+    GBSND_HYPERSOUND_ENABLE_COMMAND
 };
 
 #define VALUE32_SIZE 16

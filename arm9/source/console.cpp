@@ -252,6 +252,7 @@ void setRumbleFunc(int value) {
 
 void hyperSoundFunc(int value) {
     hyperSound = value;
+    fifoSendValue32(FIFO_USER_01, GBSND_HYPERSOUND_ENABLE_COMMAND<<28 | hyperSound);
 }
 
 void setAutoSaveFunc(int value) {

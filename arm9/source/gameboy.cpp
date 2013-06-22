@@ -285,6 +285,7 @@ inline void updateLCD(int cycles)
             cyclesSinceVblank=0;
             drawScreen();   // drawScreen recognizes the screen is disabled and makes it all white.
             updateInput();
+            vblankUpdateSound();
         }
         return;
     }
@@ -367,6 +368,7 @@ inline void updateLCD(int cycles)
                     cyclesSinceVblank = -scanlineCounter;
                     drawScreen();
                     updateInput();
+                    vblankUpdateSound();
                 }
                 if (ioRam[0x44] >= 144) {
                     scanlineCounter += 456<<doubleSpeed;

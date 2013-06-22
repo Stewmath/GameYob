@@ -32,6 +32,27 @@ u8 lfsr7NoiseSample[] ALIGN(4)= {
 // If the arm7 binary hits its size limit, this may need to be reworked.
 #include "noise.h"
 
+
+// Callback for hyperSound / PCM Fix, which works with arm9 to synchronize sound
+void timerCallback() {
+    sharedData->dsCycles+=SOUND_RESOLUTION;
+    if (sharedData->cycles != -1) {
+        bool doit=false;
+        if (sharedData->frameFlip_Gameboy == sharedData->frameFlip_DS) {
+            if (sharedData->dsCycles >= sharedData->cycles)
+                doit = true;
+        }
+        else {
+            doit = true;
+        }
+        if (doit) {
+            sharedData->cycles = -1;
+            doCommand(sharedData->message);
+        }
+    }
+}
+
+
 void setChannelVolume(int c) {
     int channel = channels[c];
 
@@ -108,49 +129,12 @@ void startChannel(int c) {
     updateChannel(c);
     SCHANNEL_CR(channel) |= SCHANNEL_ENABLE;
 }
-void gameboySoundDataHandler(int bytes, void *user_data) {
-    GbSndMessage msg;
 
-    fifoGetDatamsg(FIFO_USER_01, bytes, (u8*)&msg);
-
-    u8 channel = msg.channel;
-
-    switch(msg.type) {
-        case GBSND_PLAY_MESSAGE:
-            SCHANNEL_SOURCE(channel) = (u32)msg.SoundPlay.data;
-            SCHANNEL_REPEAT_POINT(channel) = msg.SoundPlay.loopPoint;
-            SCHANNEL_LENGTH(channel) = msg.SoundPlay.dataSize;
-            SCHANNEL_TIMER(channel) = SOUND_FREQ(msg.SoundPlay.freq);
-            SCHANNEL_CR(channel) = SCHANNEL_ENABLE | SOUND_VOL(msg.SoundPlay.volume) | 
-                SOUND_PAN(msg.SoundPlay.pan) | (msg.SoundPlay.format << 29) | (msg.SoundPlay.loop ? SOUND_REPEAT : SOUND_ONE_SHOT);
-            break;
-
-        case GBSND_PSG_MESSAGE:
-            SCHANNEL_CR(channel) = SCHANNEL_ENABLE | msg.SoundPsg.volume | 
-                SOUND_PAN(msg.SoundPsg.pan) | (3 << 29) | (msg.SoundPsg.dutyCycle << 24);
-            SCHANNEL_TIMER(channel) = SOUND_FREQ(msg.SoundPsg.freq);
-            break;
-
-        case GBSND_NOISE_MESSAGE:
-            SCHANNEL_CR(channel) = SCHANNEL_ENABLE | msg.SoundPsg.volume | SOUND_PAN(msg.SoundPsg.pan) | (3 << 29);
-            SCHANNEL_TIMER(channel) = SOUND_FREQ(msg.SoundPsg.freq);
-            break;
-
-        case GBSND_MODIFY_MESSAGE:
-            SCHANNEL_TIMER(channel) = SOUND_FREQ(msg.SoundModify.freq);
-            if ((SCHANNEL_CR(channel)&0xff) != msg.SoundModify.volume) {
-                SCHANNEL_CR(channel) &= ~0xff;
-                SCHANNEL_CR(channel) |= msg.SoundModify.volume;
-            }
-            break;
-
-        case GBSND_KILL_MESSAGE:
-            SCHANNEL_CR(channel) &= ~SCHANNEL_ENABLE;
-            break;
-
-        default:
-            return;
-    }
+void setHyperSound(int enabled) {
+    if (enabled)
+        timerStart(1, ClockDivider_1, TIMER_FREQ(4194304/SOUND_RESOLUTION), timerCallback);
+    else
+        timerStop(1);
 }
 
 void doCommand(u32 command) {
@@ -160,10 +144,6 @@ void doCommand(u32 command) {
 	
     switch(cmd) {
 
-        case GBSND_CHECK_COMMAND:
-            //sharedData->cycles = -1;
-            gameboySoundCommandHandler(sharedData->message, 0);
-            break;
         case GBSND_UPDATE_COMMAND:
             if (data == 4) {
                 int i;
@@ -190,10 +170,12 @@ void doCommand(u32 command) {
                 int bias = (sharedData->SO1Vol-sharedData->SO2Vol)*0x200/7+0x200;
                 if (bias == 0x400)
                     bias = 0x3ff;
+                REG_SOUNDBIAS = bias;
                     */
-                REG_SOUNDCNT &= ~0x7f;
-                REG_SOUNDCNT |= sharedData->SO1Vol*16;
-                //REG_SOUNDBIAS = bias;
+                if (sharedData->SO1Vol*16 != (REG_SOUNDCNT & 0x7f)) {
+                    REG_SOUNDCNT &= ~0x7f;
+                    REG_SOUNDCNT |= sharedData->SO1Vol*16;
+                }
             }
             break;
 
@@ -203,6 +185,10 @@ void doCommand(u32 command) {
 
         case GBSND_MUTE_COMMAND:
             REG_SOUNDCNT &= ~0x7f;
+            break;
+
+        case GBSND_HYPERSOUND_ENABLE_COMMAND:
+            setHyperSound(data);
             break;
 
         default:
@@ -215,32 +201,13 @@ void gameboySoundCommandHandler(u32 command, void* userdata) {
     doCommand(command);
 }
 
-void timerCallback() {
-    sharedData->dsCycles+=SOUND_RESOLUTION;
-    if (sharedData->cycles != -1) {
-        bool doit=false;
-        if (sharedData->frameFlip_Gameboy == sharedData->frameFlip_DS) {
-            if (sharedData->dsCycles >= sharedData->cycles)
-                doit = true;
-        }
-        else {
-            doit = true;
-        }
-        if (doit) {
-            sharedData->cycles = -1;
-            doCommand(sharedData->message);
-        }
-    }
-}
-
 void installGameboySoundFIFO() {
-    fifoSetDatamsgHandler(FIFO_USER_01, gameboySoundDataHandler, 0);
     fifoSetValue32Handler(FIFO_USER_01, gameboySoundCommandHandler, 0);
     sharedData->cycles = -1;
     sharedData->fifosWaiting = 0;
     sharedData->frameFlip_DS = 0;
     sharedData->frameFlip_Gameboy = 0;
-    timerStart(1, ClockDivider_1, TIMER_FREQ(4194304/SOUND_RESOLUTION), timerCallback);
+    setHyperSound(1);
 
     // Continuously play this channel.
     // By simply existing, this allows for games to adjust global volume to make 

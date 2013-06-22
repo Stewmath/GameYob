@@ -1,3 +1,16 @@
+// Okay so, there are 3 ways sound can be handled here.
+//
+// If "hyperSound" (aka "PCM Sound Fix") is enabled, each piece of sound is 
+// synchronized with ds hardware. This allows for very accurate emulation of 
+// sound effects like Pikachu.
+//
+// If "hyperSound" is not enabled, sound is not synchronized to the cycle, it is 
+// simply played as soon as it is computed.
+//
+// If "basicSound" is enabled, sound is updated only at vblank. I did not find 
+// this adequate to use except when fast-forwarding, to prevent fifo crashing 
+// issues.
+
 #include <nds.h>
 #include <nds/fifomessages.h>
 #include <time.h>
@@ -23,7 +36,15 @@ inline void setChan4() {ioRam[0x26] |= 8;}
 inline void clearChan4() {ioRam[0x26] &= ~8;}
 
 bool soundDisabled=false;
+
+// NOTE: Don't check this variable to see if hyperSound is enabled.
+// Check sharedData->hyperSound instead.
+// It is enabled or disabled depending on the situation.
+// For instance, disabled when fast forwarding.
 bool hyperSound=false;
+// Use basicSound when fast-forwarding to prevent FIFO overflows.
+// It's not selectable normally.
+bool basicSound=false;
 
 int cyclesToSoundEvent=0;
 
@@ -48,10 +69,9 @@ u8* const sampleData = (u8*)memUncached(malloc(0x20));
 
 const DutyCycle dutyIndex[4] = {DutyCycle_12, DutyCycle_25, DutyCycle_50, DutyCycle_75};
 
-
-int channelsToUpdate;
+// Use this with basicSound to remember the channels which have been enabled 
+// this frame.
 int channelsToStart;
-
 
 void refreshSoundVolume(int i, bool send=false);
 void refreshSoundFreq(int i);
@@ -59,11 +79,13 @@ void updateSoundSample(int byte);
 
 // If PCM Sound Fix is enabled, enter a loop until exactly the right moment at 
 // which the sound should be updated.
+// NOTE: scale transfer, which is done by arm7, tends to interfere with this.
 inline void synchronizeSound() {
     int cycles = (cyclesSinceVblank+extraCycles)>>doubleSpeed;
-    if (sharedData->hyperSound && 
+    if (sharedData->hyperSound &&
             (!sharedData->scalingOn || !sharedData->scaleTransferReady) && // Scale transfer eats up a lot of arm7's time
             !(sharedData->frameFlip_Gameboy != sharedData->frameFlip_DS || sharedData->dsCycles >= cycles)) {
+
         sharedData->cycles = cycles;
         while (sharedData->cycles != -1) {
             if (sharedData->scaleTransferReady)
@@ -72,28 +94,35 @@ inline void synchronizeSound() {
     }
     else {
 sendByFifo:
-        //if (sharedData->fifosWaiting < 16) {
-            sharedData->fifosWaiting++;
-            fifoSendValue32(FIFO_USER_01, sharedData->message);
-        //}
+        sharedData->fifosWaiting++;
+        fifoSendValue32(FIFO_USER_01, sharedData->message);
     }
 }
 
 void sendStartMessage(int i) {
-    sharedData->message = GBSND_START_COMMAND<<28 | i;
-    synchronizeSound();
+    if (!basicSound) {
+        sharedData->message = GBSND_START_COMMAND<<28 | i;
+        synchronizeSound();
+    }
+    else {
+        channelsToStart |= (1<<i);
+    }
 }
 
 void sendUpdateMessage(int i) {
     if (i == -1)
         i = 4;
-    sharedData->message = GBSND_UPDATE_COMMAND<<28 | i;
-    synchronizeSound();
+    if (!basicSound) {
+        sharedData->message = GBSND_UPDATE_COMMAND<<28 | i;
+        synchronizeSound();
+    }
 }
 
 void sendGlobalVolumeMessage() {
-    sharedData->message = GBSND_MASTER_VOLUME_COMMAND<<28;
-    synchronizeSound();
+    if (!basicSound) {
+        sharedData->message = GBSND_MASTER_VOLUME_COMMAND<<28;
+        synchronizeSound();
+    }
 }
 
 void refreshSoundPan(int i) {
@@ -118,15 +147,10 @@ void refreshSoundVolume(int i, bool send)
 {
     if (!(sharedData->chanOn & (1<<i)) || !sharedData->chanEnabled[i])
     {
-        /*
-        if (FIFO_START(VALUE32_SIZE)) {
-            fifoSendValue32(FIFO_USER_01, GBSND_KILL_COMMAND<<28 | sound[i]<<24);
-        }
-        */
         return;
     }
     int volume = chanVol[i];
-    if (send && sharedData->chanRealVol[i] != volume) {
+    if (send && !basicSound && sharedData->chanRealVol[i] != volume) {
         sharedData->chanRealVol[i] = volume;
         sharedData->message = GBSND_VOLUME_COMMAND<<28 | i;
         synchronizeSound();
@@ -200,6 +224,9 @@ void initSND()
 
 void refreshSND() {
     soundEnable();
+    if (soundDisabled)
+        return;
+
     sharedData->chanOn = 0;
 
     // Ordering note: Writing a byte to FF26 with bit 7 set enables writes to
@@ -226,8 +253,6 @@ void refreshSND() {
 
 void enableChannel(int i) {
     sharedData->chanEnabled[i] = true;
-    if (!sharedData->chanEnabled[i])
-        sendStartMessage(i); // Actually stops the channel if necessary
 }
 void disableChannel(int i) {
     sharedData->chanEnabled[i] = false;
@@ -320,8 +345,26 @@ void updateSound(int cycles)
                 setSoundEventCycles(chanLenCounter[i]);
         }
     }
-    if (changed)
-        sendUpdateMessage(-1);
+    if (changed) {
+        if (hyperSound)
+            sendUpdateMessage(-1);
+        else {
+            // Force immediate update, even though hyperSound isn't on.
+            fifoSendValue32(FIFO_USER_01, GBSND_UPDATE_COMMAND<<28 | 4);
+        }
+    }
+}
+
+void vblankUpdateSound() {
+    if (basicSound) {
+        for (int i=0; i<4; i++) {
+            if (channelsToStart & (1<<i))
+                fifoSendValue32(FIFO_USER_01, GBSND_START_COMMAND<<28 | i);
+        }
+        fifoSendValue32(FIFO_USER_01, GBSND_UPDATE_COMMAND<<28 | 4); // Update all channels
+        fifoSendValue32(FIFO_USER_01, GBSND_MASTER_VOLUME_COMMAND<<28); // Update master volume
+    }
+    channelsToStart = 0;
 }
 
 void handleSoundRegister(u8 ioReg, u8 val)
@@ -360,7 +403,7 @@ void handleSoundRegister(u8 ioReg, u8 val)
                 ioRam[0x11] = val;
                 break;
             }
-            // Envelope
+            // Envelope / Volume
         case 0x12:
             chanVol[0] = val>>4;
             if (val & 0x8)
@@ -379,7 +422,7 @@ void handleSoundRegister(u8 ioReg, u8 val)
             sendUpdateMessage(0);
             ioRam[0x13] = val;
             break;
-            // Frequency (high)
+            // Start / Frequency (high)
         case 0x14:
             chanFreq[0] &= 0xFF;
             chanFreq[0] |= (val&0x7)<<8;
@@ -423,7 +466,7 @@ void handleSoundRegister(u8 ioReg, u8 val)
             sendUpdateMessage(1);
             ioRam[0x16] = val;
             break;
-            // Envelope
+            // Volume / Envelope
         case 0x17:
             chanVol[1] = val>>4;
             if (val & 0x8)
@@ -443,7 +486,7 @@ void handleSoundRegister(u8 ioReg, u8 val)
             sendUpdateMessage(1);
             ioRam[0x18] = val;
             break;
-            // Frequency (high)
+            // Start / Frequency (high)
         case 0x19:
             chanFreq[1] &= 0xFF;
             chanFreq[1] |= (val&0x7)<<8;
@@ -524,7 +567,7 @@ void handleSoundRegister(u8 ioReg, u8 val)
             sendUpdateMessage(2);
             ioRam[0x1d] = val;
             break;
-            // Frequency (high)
+            // Start / Frequency (high)
         case 0x1E:
             chanFreq[2] &= 0xFF;
             chanFreq[2] |= (val&7)<<8;
@@ -562,7 +605,7 @@ void handleSoundRegister(u8 ioReg, u8 val)
                 setSoundEventCycles(chanLenCounter[3]);
             ioRam[0x20] = val;
             break;
-            // Volume
+            // Volume / Envelope
         case 0x21:
             chanVol[3] = val>>4;
             if (val & 0x8)

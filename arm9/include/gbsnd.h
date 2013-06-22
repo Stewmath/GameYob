@@ -2,6 +2,7 @@
 
 extern bool soundDisabled;
 extern bool hyperSound;
+extern bool basicSound;
 
 extern int cyclesToSoundEvent;
 
@@ -10,6 +11,7 @@ void refreshSND();
 void enableChannel(int i);
 void disableChannel(int i);
 void updateSound(int cycles);
+void vblankUpdateSound(); // Sound is send to arm7 each vblank, if basicSound == true
 void handleSoundRegister(u8 ioReg, u8 val);
 void updateSoundSample();
 void handleSDLCallback(void* userdata, u8* buffer, int len);
