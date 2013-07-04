@@ -299,7 +299,7 @@ ConsoleSubMenu menuList[] = {
             {"Console Output", consoleOutputFunc, 4, {"Off","Time","FPS+Time","Debug"}, 0},
             {"Wireless Link", nifiEnableFunc, 2, {"Off","On"}, 0},
             {"Rumble Pak", setRumbleFunc, 4, {"Off","Low","Mid","High"}, 2},
-            {"PCM Sound Fix", hyperSoundFunc, 2, {"Off","On"}, 0},
+            {"Sound Fix", hyperSoundFunc, 2, {"Off","On"}, 0},
             {"Autosaving", setAutoSaveFunc, 2, {"Off","On"}, 0},
             {"Save Settings", saveSettingsFunc, 0, {}, 0}
         }

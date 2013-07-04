@@ -1,6 +1,6 @@
 // Okay so, there are 3 ways sound can be handled here.
 //
-// If "hyperSound" (aka "PCM Sound Fix") is enabled, each piece of sound is 
+// If "hyperSound" (aka "Sound Fix") is enabled, each piece of sound is 
 // synchronized with ds hardware. This allows for very accurate emulation of 
 // sound effects like Pikachu.
 //
@@ -69,16 +69,12 @@ u8* const sampleData = (u8*)memUncached(malloc(0x20));
 
 const DutyCycle dutyIndex[4] = {DutyCycle_12, DutyCycle_25, DutyCycle_50, DutyCycle_75};
 
-// Use this with basicSound to remember the channels which have been enabled 
-// this frame.
-int channelsToStart;
-
 void refreshSoundVolume(int i, bool send=false);
 void refreshSoundFreq(int i);
 void updateSoundSample(int byte);
 
-// If PCM Sound Fix is enabled, enter a loop until exactly the right moment at 
-// which the sound should be updated.
+// If Sound Fix is enabled, enter a loop until exactly the right moment at which 
+// the sound should be updated.
 // NOTE: scale transfer, which is done by arm7, tends to interfere with this.
 inline void synchronizeSound() {
     int cycles = (cyclesSinceVblank+extraCycles)>>doubleSpeed;
@@ -89,7 +85,7 @@ inline void synchronizeSound() {
         sharedData->cycles = cycles;
         while (sharedData->cycles != -1) {
             if (sharedData->scaleTransferReady)
-                goto sendByFifo;
+                goto sendByFifo; // Is arm7 doing the scale transfer? If so ABORT
         }
     }
     else {
@@ -105,7 +101,7 @@ void sendStartMessage(int i) {
         synchronizeSound();
     }
     else {
-        channelsToStart |= (1<<i);
+        sharedData->channelsToStart |= (1<<i);
     }
 }
 
@@ -169,6 +165,7 @@ void refreshSoundFreq(int i) {
     }
     else if (i == 3) {
         freq = (int)(524288 / chan4FreqRatio) >> (chanFreq[i]+1);
+        printLog("%.2x: Freq %x\n", ioRam[0x22], freq);
     }
     /*
     if (send && (sharedData->chanOn & (1<<i)) && sharedData->chanRealFreq[i] != freq) {
@@ -357,14 +354,8 @@ void updateSound(int cycles)
 
 void vblankUpdateSound() {
     if (basicSound) {
-        for (int i=0; i<4; i++) {
-            if (channelsToStart & (1<<i))
-                fifoSendValue32(FIFO_USER_01, GBSND_START_COMMAND<<28 | i);
-        }
-        fifoSendValue32(FIFO_USER_01, GBSND_UPDATE_COMMAND<<28 | 4); // Update all channels
-        fifoSendValue32(FIFO_USER_01, GBSND_MASTER_VOLUME_COMMAND<<28); // Update master volume
+        fifoSendValue32(FIFO_USER_01, GBSND_UPDATE_VBLANK_COMMAND<<28);
     }
-    channelsToStart = 0;
 }
 
 void handleSoundRegister(u8 ioReg, u8 val)
@@ -618,6 +609,7 @@ void handleSoundRegister(u8 ioReg, u8 val)
             break;
             // Frequency
         case 0x22:
+            ioRam[0x22] = val;
             chanFreq[3] = val>>4;
             chan4FreqRatio = val&0x7;
             if (chan4FreqRatio == 0)
@@ -625,7 +617,6 @@ void handleSoundRegister(u8 ioReg, u8 val)
             sharedData->lfsr7Bit = val&0x8;
             refreshSoundFreq(3);
             sendUpdateMessage(3);
-            ioRam[0x22] = val;
             break;
             // Start
         case 0x23:
