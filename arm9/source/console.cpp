@@ -194,6 +194,7 @@ void windowEnableFunc(int value) {
 }
 void soundEnableFunc(int value) {
     soundDisabled = !value;
+    sharedData->fifosSent++;
     fifoSendValue32(FIFO_USER_01, GBSND_MUTE_COMMAND<<28);
 }
 void advanceFrameFunc(int value) {
@@ -252,6 +253,7 @@ void setRumbleFunc(int value) {
 
 void hyperSoundFunc(int value) {
     hyperSound = value;
+    sharedData->fifosSent++;
     fifoSendValue32(FIFO_USER_01, GBSND_HYPERSOUND_ENABLE_COMMAND<<28 | hyperSound);
 }
 
@@ -394,6 +396,7 @@ void displayConsole() {
     quitConsole = false;
 
     // Set volume to zero
+    sharedData->fifosSent++;
     fifoSendValue32(FIFO_USER_01, GBSND_MUTE_COMMAND<<28);
 
     doRumble(0);
@@ -532,6 +535,7 @@ void displayConsole() {
 end:
     if (!soundDisabled) {
         // Unmute
+        sharedData->fifosSent++;
         fifoSendValue32(FIFO_USER_01, GBSND_MASTER_VOLUME_COMMAND<<28);
     }
     consoleClear();

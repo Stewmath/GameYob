@@ -78,7 +78,7 @@ void updateChannel(int c) {
         return;
     }
 
-    SCHANNEL_TIMER(channel) = 0xffff^(0x1000000/sharedData->chanRealFreq[c]);
+    SCHANNEL_TIMER(channel) = SOUND_FREQ(sharedData->chanRealFreq[c]);
     if (c < 2) {
         SCHANNEL_CR(channel) &= ~(SOUND_PAN(127) | 7<<24);
         SCHANNEL_CR(channel) |= SOUND_PAN(sharedData->chanPan[c]) | (dutyIndex[sharedData->chanDuty[c]] << 24);
@@ -210,14 +210,15 @@ void doCommand(u32 command) {
 }
 
 void gameboySoundCommandHandler(u32 command, void* userdata) {
-    sharedData->fifosWaiting = 0;
+    sharedData->fifosReceived++;
     doCommand(command);
 }
 
 void installGameboySoundFIFO() {
     fifoSetValue32Handler(FIFO_USER_01, gameboySoundCommandHandler, 0);
     sharedData->cycles = -1;
-    sharedData->fifosWaiting = 0;
+    sharedData->fifosSent = 0;
+    sharedData->fifosReceived = 0;
     sharedData->frameFlip_DS = 0;
     sharedData->frameFlip_Gameboy = 0;
     setHyperSound(1);

@@ -69,6 +69,17 @@ u8* const sampleData = (u8*)memUncached(malloc(0x20));
 
 const DutyCycle dutyIndex[4] = {DutyCycle_12, DutyCycle_25, DutyCycle_50, DutyCycle_75};
 
+// If this many fifo commands have been sent but not received, skip further 
+// commands. This helps prevent crashing.
+#define MAX_FIFOS_WAITING 60
+
+inline void FIFO_SEND(u32 message) {
+    if (sharedData->fifosSent-sharedData->fifosReceived < MAX_FIFOS_WAITING) {
+        sharedData->fifosSent++;
+        fifoSendValue32(FIFO_USER_01, message);
+    }
+}
+
 void refreshSoundVolume(int i, bool send=false);
 void refreshSoundFreq(int i);
 void updateSoundSample(int byte);
@@ -90,8 +101,7 @@ inline void synchronizeSound() {
     }
     else {
 sendByFifo:
-        sharedData->fifosWaiting++;
-        fifoSendValue32(FIFO_USER_01, sharedData->message);
+        FIFO_SEND(sharedData->message);
     }
 }
 
@@ -131,12 +141,6 @@ void refreshSoundPan(int i) {
     else {
         sharedData->chanPan[i] = 128;   // Special signal
     }
-
-    /*
-    if ((sharedData->chanOn & (1<<i)) && FIFO_START(VALUE32_SIZE)) {
-        fifoSendValue32(FIFO_USER_01, GBSND_PAN_COMMAND<<28 | sound[i]<<24 | chanPan[i]);
-    }
-    */
 }
 
 void refreshSoundVolume(int i, bool send)
@@ -145,7 +149,9 @@ void refreshSoundVolume(int i, bool send)
     {
         return;
     }
+
     int volume = chanVol[i];
+
     if (send && !basicSound && sharedData->chanRealVol[i] != volume) {
         sharedData->chanRealVol[i] = volume;
         sharedData->message = GBSND_VOLUME_COMMAND<<28 | i;
@@ -165,21 +171,13 @@ void refreshSoundFreq(int i) {
     }
     else if (i == 3) {
         freq = (int)(524288 / chan4FreqRatio) >> (chanFreq[i]+1);
-        printLog("%.2x: Freq %x\n", ioRam[0x22], freq);
+        //printLog("%.2x: Freq %x\n", ioRam[0x22], freq);
     }
-    /*
-    if (send && (sharedData->chanOn & (1<<i)) && sharedData->chanRealFreq[i] != freq) {
-        if (FIFO_START(VALUE32_SIZE)) {
-            fifoSendValue32(FIFO_USER_01, GBSND_FREQ_COMMAND<<28 | sound[i]<<24 | (freq&0xffffff));
-        }
-    }
-    */
     sharedData->chanRealFreq[i] = freq;
 }
 
 void refreshSoundDuty(int i) {
     if ((sharedData->chanOn & (1<<i))) {
-        //fifoSendValue32(FIFO_USER_01, GBSND_DUTY_COMMAND<<28 | sound[i]<<24 | dutyIndex[chanDuty[i]]);
     }
 }
 
@@ -347,14 +345,17 @@ void updateSound(int cycles)
             sendUpdateMessage(-1);
         else {
             // Force immediate update, even though hyperSound isn't on.
-            fifoSendValue32(FIFO_USER_01, GBSND_UPDATE_COMMAND<<28 | 4);
+            FIFO_SEND(GBSND_UPDATE_COMMAND<<28 | 4);
         }
     }
 }
 
 void vblankUpdateSound() {
+    // This debug stuff helps when debugging Pokemon Diamond
+    //printLog("%d\n", sharedData->fifosSent-sharedData->fifosReceived);
+
     if (basicSound) {
-        fifoSendValue32(FIFO_USER_01, GBSND_UPDATE_VBLANK_COMMAND<<28);
+        FIFO_SEND(GBSND_UPDATE_VBLANK_COMMAND<<28);
     }
 }
 

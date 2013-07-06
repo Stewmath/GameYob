@@ -4,7 +4,7 @@
 typedef struct SharedData {
     u8 scalingOn;
     u8 scaleTransferReady;
-    volatile int fifosWaiting;
+    int fifosSent, fifosReceived;
 
     // Sound stuff
     bool hyperSound;
@@ -38,7 +38,8 @@ enum {
     GBSND_MASTER_VOLUME_COMMAND,
     GBSND_KILL_COMMAND,
     GBSND_MUTE_COMMAND,
-    GBSND_HYPERSOUND_ENABLE_COMMAND
+    GBSND_HYPERSOUND_ENABLE_COMMAND,
+    GBSND_DUMMY_COMMAND
 };
 
 #define VALUE32_SIZE 16
