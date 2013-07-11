@@ -34,8 +34,8 @@ u8 lfsr7NoiseSample[] ALIGN(4) = {
 #include "noise.h"
 
 
-// Callback for hyperSound / PCM Fix, which works with arm9 to synchronize sound 
-// to the cycle.
+// Callback for hyperSound / Sound Fix, which works with arm9 to synchronize 
+// sound to the cycle.
 void timerCallback() {
     sharedData->dsCycles+=SOUND_RESOLUTION;
     if (sharedData->cycles != -1) {
@@ -75,12 +75,11 @@ void updateChannel(int c) {
     int channel = channels[c];
 
     if (!(sharedData->chanOn & (1<<c))) {
-        SCHANNEL_CR(channel) &= ~SCHANNEL_ENABLE;
+        SCHANNEL_CR(channel) &= ~0x7f; // Set volume to zero
         return;
     }
 
-    //SCHANNEL_TIMER(channel) = SOUND_FREQ(sharedData->chanRealFreq[c]);
-    SCHANNEL_TIMER(channel) = (0xffff^(0x1000000/sharedData->chanRealFreq[c])) + 1;
+    SCHANNEL_TIMER(channel) = SOUND_FREQ(sharedData->chanRealFreq[c]);
     if (c < 2) {
         SCHANNEL_CR(channel) &= ~(SOUND_PAN(127) | 7<<24);
         SCHANNEL_CR(channel) |= SOUND_PAN(sharedData->chanPan[c]) | (dutyIndex[sharedData->chanDuty[c]] << 24);
@@ -101,7 +100,7 @@ void updateChannel(int c) {
 
 void startChannel(int c) {
     int channel = channels[c];
-    SCHANNEL_CR(channel) &= ~SCHANNEL_ENABLE;
+    SCHANNEL_CR(channel) &= ~0x7f;
 
     if (!sharedData->chanEnabled[c])
         return;
