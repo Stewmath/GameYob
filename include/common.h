@@ -42,6 +42,5 @@ enum {
     GBSND_DUMMY_COMMAND
 };
 
-#define VALUE32_SIZE 16
 extern volatile SharedData* sharedData;
 

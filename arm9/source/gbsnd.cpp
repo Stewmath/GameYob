@@ -94,7 +94,7 @@ inline void synchronizeSound() {
             !(sharedData->frameFlip_Gameboy != sharedData->frameFlip_DS || sharedData->dsCycles >= cycles)) {
 
         sharedData->cycles = cycles;
-        while (sharedData->cycles != -1) {
+        while (sharedData->cycles != -1) { // Wait for arm7 to set sharedData->cycles.
             if (sharedData->scaleTransferReady)
                 goto sendByFifo; // Is arm7 doing the scale transfer? If so ABORT
         }
@@ -107,7 +107,7 @@ sendByFifo:
 
 void sendStartMessage(int i) {
     if (!basicSound) {
-        sharedData->message = GBSND_START_COMMAND<<28 | i;
+        sharedData->message = GBSND_START_COMMAND<<20 | i;
         synchronizeSound();
     }
     else {
@@ -119,14 +119,14 @@ void sendUpdateMessage(int i) {
     if (i == -1)
         i = 4;
     if (!basicSound) {
-        sharedData->message = GBSND_UPDATE_COMMAND<<28 | i;
+        sharedData->message = GBSND_UPDATE_COMMAND<<20 | i;
         synchronizeSound();
     }
 }
 
 void sendGlobalVolumeMessage() {
     if (!basicSound) {
-        sharedData->message = GBSND_MASTER_VOLUME_COMMAND<<28;
+        sharedData->message = GBSND_MASTER_VOLUME_COMMAND<<20;
         synchronizeSound();
     }
 }
@@ -154,7 +154,7 @@ void refreshSoundVolume(int i, bool send)
 
     if (send && !basicSound && sharedData->chanRealVol[i] != volume) {
         sharedData->chanRealVol[i] = volume;
-        sharedData->message = GBSND_VOLUME_COMMAND<<28 | i;
+        sharedData->message = GBSND_VOLUME_COMMAND<<20 | i;
         synchronizeSound();
     }
     else

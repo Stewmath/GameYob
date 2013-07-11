@@ -11,7 +11,7 @@
 int channels[4] = {8,9,0,14};
 const int dutyIndex[4] = {0, 1, 3, 5};
 
-u8 popSample[4];
+u8 backgroundSample[16];
 
 bool currentLfsr;
 
@@ -24,6 +24,7 @@ u8 lfsr7NoiseSample[] ALIGN(4) = {
 0x80, 0x80, 0x80, 0x80, 0x80, 0, 0x80, 0x80, 0x80, 0x80, 0x80, 0, 0, 0x80, 0x80, 0x80, 0x80, 0, 0x80, 0, 0x80, 0x80, 0x80, 0, 0, 0, 0, 0x80, 0x80, 0, 0x80, 0x80, 0x80, 0, 0x80, 0, 0, 0x80, 0x80, 0, 0, 0, 0x80, 0, 0x80, 0, 0x80, 0x80, 0, 0, 0, 0, 0, 0x80, 0, 0x80, 0x80, 0x80, 0x80, 0, 0, 0, 0x80, 0x80, 0x80, 0, 0x80, 0x80, 0, 0x80, 0x80, 0, 0, 0x80, 0, 0, 0x80, 0, 0x80, 0, 0, 0x80, 0, 0, 0, 0, 0x80, 0, 0, 0x80, 0x80, 0x80, 0, 0, 0x80, 0, 0x80, 0x80, 0, 0x80, 0, 0, 0, 0x80, 0, 0, 0, 0x80, 0x80, 0, 0, 0x80, 0x80, 0, 0x80, 0, 0x80, 0, 0x80, 0, 0, 0, 0, 0, 0, 0, 0x80,
 0x80, 0x80, 0x80, 0x80, 0x80, 0, 0x80, 0x80, 0x80, 0x80, 0x80, 0, 0, 0x80, 0x80, 0x80, 0x80, 0, 0x80, 0, 0x80, 0x80, 0x80, 0, 0, 0, 0, 0x80, 0x80, 0, 0x80, 0x80, 0x80, 0, 0x80, 0, 0, 0x80, 0x80, 0, 0, 0, 0x80, 0, 0x80, 0, 0x80, 0x80, 0, 0, 0, 0, 0, 0x80, 0, 0x80, 0x80, 0x80, 0x80, 0, 0, 0, 0x80, 0x80, 0x80, 0, 0x80, 0x80, 0, 0x80, 0x80, 0, 0, 0x80, 0, 0, 0x80, 0, 0x80, 0, 0, 0x80, 0, 0, 0, 0, 0x80, 0, 0, 0x80, 0x80, 0x80, 0, 0, 0x80, 0, 0x80, 0x80, 0, 0x80, 0, 0, 0, 0x80, 0, 0, 0, 0x80, 0x80, 0, 0, 0x80, 0x80, 0, 0x80, 0, 0x80, 0, 0x80, 0, 0, 0, 0, 0, 0, 0, 0x80
 };
+
 
 // Use this with the 15-bit lfsr.
 // noise.h is huge. Like, 32 kilobytes of white noise.
@@ -78,7 +79,8 @@ void updateChannel(int c) {
         return;
     }
 
-    SCHANNEL_TIMER(channel) = SOUND_FREQ(sharedData->chanRealFreq[c]);
+    //SCHANNEL_TIMER(channel) = SOUND_FREQ(sharedData->chanRealFreq[c]);
+    SCHANNEL_TIMER(channel) = (0xffff^(0x1000000/sharedData->chanRealFreq[c])) + 1;
     if (c < 2) {
         SCHANNEL_CR(channel) &= ~(SOUND_PAN(127) | 7<<24);
         SCHANNEL_CR(channel) |= SOUND_PAN(sharedData->chanPan[c]) | (dutyIndex[sharedData->chanDuty[c]] << 24);
@@ -149,9 +151,8 @@ void setHyperSound(int enabled) {
 }
 
 void doCommand(u32 command) {
-	int cmd = command>>28;
-    int channel = (command>>24)&0xf;
-	int data = command & 0xFFFFFF;
+	int cmd = (command>>20)&0xf;
+	int data = command & 0xFFFF;
     int i;
 	
     switch(cmd) {
@@ -193,7 +194,7 @@ void doCommand(u32 command) {
             break;
 
         case GBSND_KILL_COMMAND:
-            SCHANNEL_CR(channel) &= ~SCHANNEL_ENABLE;
+            //SCHANNEL_CR(channel) &= ~SCHANNEL_ENABLE;
             break;
 
         case GBSND_MUTE_COMMAND:
@@ -227,12 +228,12 @@ void installGameboySoundFIFO() {
     // By simply existing, this allows for games to adjust global volume to make 
     // certain complex sound effects - even when all other channels are muted.
     int i;
-    for (i=0; i<4; i++)
-        popSample[i] = 0x7f;
+    for (i=0; i<16; i++)
+        backgroundSample[i] = 0x7f;
 
-    SCHANNEL_SOURCE(1) = (u32)popSample;
+    SCHANNEL_SOURCE(1) = (u32)backgroundSample;
     SCHANNEL_REPEAT_POINT(1) = 0;
-    SCHANNEL_LENGTH(1) = 4>>2;
+    SCHANNEL_LENGTH(1) = 16>>2;
     SCHANNEL_CR(1) = SCHANNEL_ENABLE | SOUND_VOL(0xff) | 
         SOUND_PAN(64) | (0 << 29) | SOUND_REPEAT;
 }
