@@ -57,10 +57,6 @@ void VblankHandler(void) {
         sharedData->scaleTransferReady = 0;
 
 scaling_end:
-        /*
-        for (i=0; i<4; i++)
-            updateChannel(i);
-            */
     Wifi_Update();
 }
 

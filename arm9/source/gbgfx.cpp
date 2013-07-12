@@ -303,11 +303,11 @@ void vblankHandler()
 {
     if (!consoleOn) {
         if (sharedData->scalingOn) {
-            // Capture the main display into bank D
+            // Capture the main display into vram bank D
             REG_DISPCAPCNT = 15 | 3<<16 | 0<<18 | 3<<20 | 0<<29 | 1<<31;
 
-            // Leave the DMA copying for arm7
-            //dmaCopyWordsAsynch(0, (u8*)0x06860000, (u8*)0x06200000, 192*256*2);
+            // Leave the DMA copying for arm7.
+            //dmaCopyWordsAsynch(0, (u16*)0x06860000+24*256, (u16*)0x06200000, 144*256*2);
             vramSetBankD(VRAM_D_ARM7_0x06000000);
             vramSetBankC(VRAM_C_ARM7_0x06020000);
             sharedData->scaleTransferReady = true;
