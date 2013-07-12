@@ -309,10 +309,10 @@ ConsoleSubMenu menuList[] = {
         {
             {"Key Config", keyConfigFunc, 0, {}, 0},
             {"Manage Cheats", cheatFunc, 0, {}, 0},
+            {"Sound Timing Fix", hyperSoundFunc, 2, {"Off","On"}, 0},
             {"Console Output", consoleOutputFunc, 4, {"Off","Time","FPS+Time","Debug"}, 0},
             {"Wireless Link", nifiEnableFunc, 2, {"Off","On"}, 0},
             {"Rumble Pak", setRumbleFunc, 4, {"Off","Low","Mid","High"}, 2},
-            {"Sound Fix", hyperSoundFunc, 2, {"Off","On"}, 0},
             {"Autosaving", setAutoSaveFunc, 2, {"Off","On"}, 0},
             {"Save Settings", saveSettingsFunc, 0, {}, 0}
         }
@@ -323,7 +323,7 @@ ConsoleSubMenu menuList[] = {
         {
             {"Game Screen", setScreenFunc, 2, {"Top","Bottom"}, 0},
             {"Scaling", setScaleModeFunc, 3, {"Off","Aspect","Full"}, 0},
-            {"Scale Filter", setScaleFilterFunc, 3, {"Off","Filter A","Filter B"}, 1},
+            {"Scale Filter", setScaleFilterFunc, 2, {"Off","On"}, 1},
             {"Custom Border", customBorderEnableFunc, 2, {"Off","On"}, 1},
             {"SGB Borders", sgbBorderEnableFunc, 2, {"Off","On"}, 1}
         }

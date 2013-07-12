@@ -639,10 +639,6 @@ void refreshScaleMode() {
         REG_BG3X_SUB = SCALE_BGX;
         REG_BG3Y_SUB = SCALE_BGY;
     }
-    else if (scaleFilter == 2) {
-        REG_BG3X_SUB = SCALE_BGX + (1<<6);
-        REG_BG3Y_SUB = SCALE_BGY + (1<<6);
-    }
     else {
         REG_BG3X_SUB = SCALE_BGX;
         REG_BG3Y_SUB = SCALE_BGY;
