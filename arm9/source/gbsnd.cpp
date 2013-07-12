@@ -154,8 +154,8 @@ void refreshSoundFreq(int i) {
     }
     else if (i == 3) {
         freq = (int)(524288 / chan4FreqRatio) >> (chanFreq[i]+1);
-        //printLog("%.2x: Freq %x\n", ioRam[0x22], freq);
     }
+    //printLog("%.2x: Freq %x\n", ioRam[0x22], freq);
     sharedData->chanRealFreq[i] = freq;
 }
 
