@@ -204,6 +204,16 @@ void advanceFrameFunc(int value) {
 void romInfoFunc(int value) {
     printRomInfo();
 }
+void versionInfoFunc(int value) {
+    consoleClear();
+    iprintf("GameYob %s\n", VERSION_STRING);
+    while (true) {
+        swiWaitForVBlank();
+        readKeys();
+        if (keyJustPressed(KEY_A) || keyJustPressed(KEY_B))
+            break;
+    }
+}
 
 void setChanEnabled(int chan, int value) {
     if (value == 0)
@@ -330,7 +340,7 @@ ConsoleSubMenu menuList[] = {
     },
     {
         "Debug",
-        6,
+        7,
         {
             {"Wait for Vblank", vblankWaitFunc, 2, {"Off","On"}, 0},
             {"Hblank", hblankEnableFunc, 2, {"Off","On"}, 1},
@@ -338,6 +348,7 @@ ConsoleSubMenu menuList[] = {
             {"Sound", soundEnableFunc, 2, {"Off","On"}, 1},
             {"Advance Frame", advanceFrameFunc, 0, {}, 0},
             {"ROM Info", romInfoFunc, 0, {}, 0},
+            {"Version Info", versionInfoFunc, 0, {}, 0}
         }
     },
     {
