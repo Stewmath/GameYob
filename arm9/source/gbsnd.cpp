@@ -1,4 +1,4 @@
-// Okay so, there are 3 ways sound can be handled here.
+// There are 2 ways sound can be handled here.
 //
 // If "hyperSound" (aka "Sound Fix") is enabled, each piece of sound is 
 // synchronized with ds hardware. This allows for very accurate emulation of 
@@ -6,10 +6,6 @@
 //
 // If "hyperSound" is not enabled, sound is not synchronized to the cycle, it is 
 // simply played as soon as it is computed.
-//
-// If "basicSound" is enabled, sound is updated only at vblank. I did not find 
-// this adequate to use except when fast-forwarding, to prevent fifo crashing 
-// issues.
 
 #include <nds.h>
 #include <nds/fifomessages.h>
@@ -38,13 +34,9 @@ inline void clearChan4() {ioRam[0x26] &= ~8;}
 bool soundDisabled=false;
 
 // NOTE: Don't check this variable to see if hyperSound is enabled.
-// Check sharedData->hyperSound instead.
-// It is enabled or disabled depending on the situation.
-// For instance, disabled when fast forwarding.
+// Check sharedData->hyperSound instead. It is enabled or disabled depending on 
+// the situation. For instance, it is disabled when fast forwarding.
 bool hyperSound=false;
-// Use basicSound when fast-forwarding to prevent FIFO overflows.
-// It's not selectable normally.
-bool basicSound=false;
 
 int cyclesToSoundEvent=0;
 
@@ -106,29 +98,20 @@ sendByFifo:
 }
 
 void sendStartMessage(int i) {
-    if (!basicSound) {
-        sharedData->message = GBSND_START_COMMAND<<20 | i;
-        synchronizeSound();
-    }
-    else {
-        sharedData->channelsToStart |= (1<<i);
-    }
+    sharedData->message = GBSND_START_COMMAND<<20 | i;
+    synchronizeSound();
 }
 
 void sendUpdateMessage(int i) {
     if (i == -1)
         i = 4;
-    if (!basicSound) {
-        sharedData->message = GBSND_UPDATE_COMMAND<<20 | i;
-        synchronizeSound();
-    }
+    sharedData->message = GBSND_UPDATE_COMMAND<<20 | i;
+    synchronizeSound();
 }
 
 void sendGlobalVolumeMessage() {
-    if (!basicSound) {
-        sharedData->message = GBSND_MASTER_VOLUME_COMMAND<<20;
-        synchronizeSound();
-    }
+    sharedData->message = GBSND_MASTER_VOLUME_COMMAND<<20;
+    synchronizeSound();
 }
 
 void refreshSoundPan(int i) {
@@ -152,7 +135,7 @@ void refreshSoundVolume(int i, bool send)
 
     int volume = chanVol[i];
 
-    if (send && !basicSound && sharedData->chanRealVol[i] != volume) {
+    if (send && sharedData->chanRealVol[i] != volume) {
         sharedData->chanRealVol[i] = volume;
         sharedData->message = GBSND_VOLUME_COMMAND<<20 | i;
         synchronizeSound();
@@ -353,10 +336,6 @@ void updateSound(int cycles)
 void vblankUpdateSound() {
     // This debug stuff helps when debugging Pokemon Diamond
     //printLog("%d\n", sharedData->fifosSent-sharedData->fifosReceived);
-
-    if (basicSound) {
-        FIFO_SEND(GBSND_UPDATE_VBLANK_COMMAND<<28);
-    }
 }
 
 void handleSoundRegister(u8 ioReg, u8 val)

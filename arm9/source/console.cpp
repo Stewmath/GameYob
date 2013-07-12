@@ -282,7 +282,7 @@ struct MenuOption {
     int selection;
 };
 struct ConsoleSubMenu {
-    char *name;
+    const char *name;
     int numOptions;
     MenuOption options[10];
 };

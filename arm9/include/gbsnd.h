@@ -2,7 +2,6 @@
 
 extern bool soundDisabled;
 extern bool hyperSound;
-extern bool basicSound;
 
 extern int cyclesToSoundEvent;
 

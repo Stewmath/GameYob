@@ -721,11 +721,9 @@ void handleEvents()
 
     if (fastForwardKey || fastForwardMode) {
         sharedData->hyperSound = false;
-        basicSound = true;
     }
     else {
         sharedData->hyperSound = hyperSound;
-        basicSound = false;
     }
 }
 

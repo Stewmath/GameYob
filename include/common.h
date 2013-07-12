@@ -23,16 +23,11 @@ typedef struct SharedData {
     bool lfsr7Bit;
     u8* sampleData;
 
-    // Use this with basicSound to remember the channels which have been enabled 
-    // this frame.
-    int channelsToStart;
-
     u32 message;
 } SharedData;
 
 enum {
-    GBSND_UPDATE_VBLANK_COMMAND=0,
-    GBSND_UPDATE_COMMAND,
+    GBSND_UPDATE_COMMAND=0,
     GBSND_START_COMMAND,
     GBSND_VOLUME_COMMAND,
     GBSND_MASTER_VOLUME_COMMAND,

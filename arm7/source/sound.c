@@ -156,19 +156,6 @@ void doCommand(u32 command) {
 	
     switch(cmd) {
 
-        // This is used when "basicSound" is enabled.
-        case GBSND_UPDATE_VBLANK_COMMAND:
-            for (i=0; i<4; i++) {
-                if (sharedData->channelsToStart & (1<<i))
-                    startChannel(i);
-
-                updateChannel(i);
-            }
-            updateMasterVolume();
-            sharedData->channelsToStart = 0;
-            break;
-
-
         case GBSND_UPDATE_COMMAND:
             if (data == 4) {
                 int i;
