@@ -74,7 +74,7 @@ void setChannelVolume(int c) {
 void updateChannel(int c) {
     int channel = channels[c];
 
-    if (!(sharedData->chanOn & (1<<c))) {
+    if (!(sharedData->chanOn & (1<<c)) || !sharedData->chanEnabled[c]) {
         SCHANNEL_CR(channel) &= ~0x7f; // Set volume to zero
         return;
     }
