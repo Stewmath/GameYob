@@ -59,7 +59,7 @@ void initInput()
 enum {
     KEY_NONE,
     KEY_GB_A, KEY_GB_B, KEY_GB_LEFT, KEY_GB_RIGHT, KEY_GB_UP, KEY_GB_DOWN, KEY_GB_START, KEY_GB_SELECT,
-    KEY_MENU, KEY_SAVE, KEY_AUTO_GB_A, KEY_AUTO_GB_B, KEY_FAST_FORWARD, KEY_FAST_FORWARD_TOGGLE
+    KEY_MENU, KEY_SAVE, KEY_GB_AUTO_A, KEY_GB_AUTO_B, KEY_FAST_FORWARD, KEY_FAST_FORWARD_TOGGLE
 };
 const char* gbKeyNames[] = {"-","A","B","Left","Right","Up","Down","Start","Select",
     "Menu","Save","Autofire A","Autofire B", "Fast Forward", "FF Toggle"};
@@ -628,7 +628,7 @@ char* getRomTitle() {
     return romTitle;
 }
 
-const char *mbcName[] = {"ROM","MBC1","MBC2","MBC3","MBC5","HUC3","HUC1"};
+const char *mbcName[] = {"ROM","MBC1","MBC2","MBC3","MBC4","MBC5","MBC7","HUC3","HUC1"};
 
 void printRomInfo() {
     consoleClear();
@@ -689,8 +689,8 @@ void handleEvents()
             requestInterrupt(JOYPAD);
     }
 
-    if (keyPressed(keys[KEY_AUTO_GB_A])) {
-        if (autoFireCounterA == 0) {
+    if (keyPressed(keys[KEY_GB_AUTO_A])) {
+        if (autoFireCounterA <= 0) {
             buttonsPressed &= (0xFF ^ BUTTONA);
             if (!(ioRam[0x00] & 0x20))
                 requestInterrupt(JOYPAD);
@@ -698,8 +698,8 @@ void handleEvents()
         }
         autoFireCounterA--;
     }
-    if (keyPressed(keys[KEY_AUTO_GB_B])) {
-        if (autoFireCounterB == 0) {
+    if (keyPressed(keys[KEY_GB_AUTO_B])) {
+        if (autoFireCounterB <= 0) {
             buttonsPressed &= (0xFF ^ BUTTONB);
             if (!(ioRam[0x00] & 0x20))
                 requestInterrupt(JOYPAD);
