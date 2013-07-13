@@ -176,11 +176,7 @@ void sgbBorderEnableFunc(int value) {
 }
 
 void vblankWaitFunc(int value) {
-    // For SOME REASON it crashes in dsi mode when it's zero.
-    if (__dsimode)
-        interruptWaitMode = 1;
-    else
-        interruptWaitMode = value;
+    interruptWaitMode = value;
 }
 void hblankEnableFunc(int value) {
     hblankDisabled = !value;

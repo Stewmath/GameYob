@@ -42,8 +42,7 @@ const int win_all_priority = 2;
 const int screenOffsX = 48;
 const int screenOffsY = 24;
 
-int tileSize;
-
+bool didVblank=false;
 // Frame counter. Incremented each vblank.
 u16 frame=0;
 
@@ -301,6 +300,7 @@ void vcountHandler() {
 bool shift=false;
 void vblankHandler()
 {
+    didVblank = true;
     if (!consoleOn) {
         if (sharedData->scalingOn) {
             // Capture the main display into vram bank D
@@ -859,8 +859,17 @@ void drawScreen()
     if (sgbMode && !gfxMask)
         refreshSgbPalette();
 
-    if (!(fastForwardMode || fastForwardKey))
-        swiIntrWait(interruptWaitMode, IRQ_VBLANK);
+    if (!(fastForwardMode || fastForwardKey)) {
+        if (interruptWaitMode == 1) // Wait for Vblank.
+            swiWaitForVBlank();
+        else { // Continue if we've passed vblank.
+            // This is essentially equivalent to using swiIntrWait(0, ...),
+            // but swiIntrWait doesn't seem to work properly in dsi mode.
+            if (!didVblank)
+                swiWaitForVBlank();
+        }
+    }
+    didVblank = false;
 
     sharedData->frameFlip_Gameboy = !sharedData->frameFlip_Gameboy;
     if (REG_VCOUNT == 192)
