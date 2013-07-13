@@ -164,8 +164,8 @@ int main() {
 
     fifoInit();
 
-    while (!fifoCheckAddress(FIFO_USER_03));
-    sharedData = (SharedData*)fifoGetAddress(FIFO_USER_03);
+    while (!fifoCheckValue32(FIFO_USER_03));
+    sharedData = (SharedData*)(fifoGetValue32(FIFO_USER_03) | 0x02000000);
 
     SetYtrigger(80);
 

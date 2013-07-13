@@ -150,7 +150,7 @@ int main(int argc, char* argv[])
 
     sharedData = (SharedData*)memUncached(malloc(sizeof(SharedData)));
     sharedData->scalingOn = false;
-    fifoSendAddress(FIFO_USER_03, (void*)memUncached((void*)sharedData));
+    fifoSendValue32(FIFO_USER_03, ((u32)sharedData)&0x00ffffff);
 
     consoleOn = true;
     initConsole();
