@@ -143,7 +143,7 @@ void updateMasterVolume() {
 
 void setHyperSound(int enabled) {
     if (enabled)
-        timerStart(1, ClockDivider_1, TIMER_FREQ(4194300/SOUND_RESOLUTION), timerCallback);
+        timerStart(1, ClockDivider_1, TIMER_FREQ(4194304/SOUND_RESOLUTION), timerCallback);
     else
         timerStop(1);
 }

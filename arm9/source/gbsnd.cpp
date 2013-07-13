@@ -336,6 +336,7 @@ void updateSound(int cycles)
 void vblankUpdateSound() {
     // This debug stuff helps when debugging Pokemon Diamond
     //printLog("%d\n", sharedData->fifosSent-sharedData->fifosReceived);
+    printLog("%d\n", sharedData->chanOn & (1<<2));
 }
 
 void handleSoundRegister(u8 ioReg, u8 val)
@@ -493,10 +494,6 @@ void handleSoundRegister(u8 ioReg, u8 val)
                 sharedData->chanOn &= ~CHAN_3;
                 clearChan3();
             }
-            else {
-                sharedData->chanOn |= CHAN_3;
-                setChan3();
-            }
             sendUpdateMessage(2);
             ioRam[0x1a] = val | 0x7f;
             break;
@@ -559,6 +556,7 @@ void handleSoundRegister(u8 ioReg, u8 val)
 
                 refreshSoundVolume(2, false);
                 sendStartMessage(2);
+                printLog("PLAY 2\n");
             }
             else {
                 sendUpdateMessage(2);
