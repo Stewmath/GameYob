@@ -27,22 +27,14 @@ extern bool advanceFrame;
 
 volatile SharedData* sharedData;
 
+// This is used to signal sleep mode starting or ending.
 void fifoValue32Handler(u32 value, void* user_data) {
-    static bool wasInConsole;
-    static bool oldSoundDisabled;
-    if (value == 1) {
-        wasInConsole = isConsoleEnabled();
-        oldSoundDisabled = soundDisabled;
-        enterConsole();
-        soundDisabled = true;
+    if (value == 1) { // Entering sleep
     }
-    else {
+    else { // Exiting sleep
+        // Time isn't incremented properly in sleep mode, compensate here.
         time(&rawTime);
         lastRawTime = rawTime;
-        soundDisabled = false;
-        if (!wasInConsole)
-            exitConsole();
-        soundDisabled = oldSoundDisabled;
     }
 }
 

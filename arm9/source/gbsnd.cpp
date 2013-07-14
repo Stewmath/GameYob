@@ -154,8 +154,8 @@ void refreshSoundFreq(int i) {
     }
     else if (i == 3) {
         freq = (int)(524288 / chan4FreqRatio) >> (chanFreq[i]+1);
+        //printLog("%.2x: Freq %x\n", ioRam[0x22], freq);
     }
-    //printLog("%.2x: Freq %x\n", ioRam[0x22], freq);
     sharedData->chanRealFreq[i] = freq;
 }
 
@@ -339,7 +339,6 @@ void updateSound(int cycles)
 void vblankUpdateSound() {
     // This debug stuff helps when debugging Pokemon Diamond
     //printLog("%d\n", sharedData->fifosSent-sharedData->fifosReceived);
-    printLog("%d\n", sharedData->chanOn & (1<<2));
 }
 
 void handleSoundRegister(u8 ioReg, u8 val)
@@ -496,10 +495,7 @@ void handleSoundRegister(u8 ioReg, u8 val)
             {
                 sharedData->chanOn &= ~CHAN_3;
                 clearChan3();
-                printLog("2 OFF\n");
             }
-            else
-                printLog("2 ON\n");
             sendUpdateMessage(2);
             ioRam[0x1a] = val | 0x7f;
             break;
@@ -562,7 +558,6 @@ void handleSoundRegister(u8 ioReg, u8 val)
 
                 refreshSoundVolume(2, false);
                 sendStartMessage(2);
-                printLog("PLAY 2\n");
             }
             else {
                 sendUpdateMessage(2);
