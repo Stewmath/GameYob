@@ -18,6 +18,7 @@
 #include "gbgfx.h"
 #include "gbsnd.h"
 #include "cheats.h"
+#include "sgb.h"
 #include "common.h"
 
 FILE* romFile=NULL;
@@ -474,21 +475,21 @@ int loadProgram(char* f)
 }
 
 void loadRomBank() {
-    if (numRomBanks <= MAX_LOADED_ROM_BANKS || currentRomBank == 0 || bankSlotIDs[currentRomBank] != -1)
+    if (numRomBanks <= MAX_LOADED_ROM_BANKS || romBank == 0 || bankSlotIDs[romBank] != -1)
         return;
     int bankToUnload = lastBanksUsed.back();
     lastBanksUsed.pop_back();
     int slot = bankSlotIDs[bankToUnload];
     bankSlotIDs[bankToUnload] = -1;
-    bankSlotIDs[currentRomBank] = slot;
-    rom[currentRomBank] = romBankSlots[slot];
+    bankSlotIDs[romBank] = slot;
+    rom[romBank] = romBankSlots[slot];
 
-    fseek(romFile, 0x4000*currentRomBank, SEEK_SET);
-    fread(rom[currentRomBank], 1, 0x4000, romFile);
+    fseek(romFile, 0x4000*romBank, SEEK_SET);
+    fread(rom[romBank], 1, 0x4000, romFile);
 
-    lastBanksUsed.insert(lastBanksUsed.begin(), currentRomBank);
+    lastBanksUsed.insert(lastBanksUsed.begin(), romBank);
 
-    applyGGCheats(currentRomBank);
+    applyGGCheats(romBank);
 }
 
 bool bankLoaded(int bank) {
@@ -727,7 +728,7 @@ void handleEvents()
     }
 }
 
-const int STATE_VERSION = 3;
+const int STATE_VERSION = 4;
 
 struct StateStruct {
     // version
@@ -749,6 +750,15 @@ struct StateStruct {
     // v3
     bool ramEnabled;
     // MBC-specific stuff
+    // v4
+    //  bool sgbMode;
+    //  If sgbMode == true:
+    //   int sgbPacketLength;
+    //   int sgbPacketsTransferred;
+    //   int sgbPacketBit;
+    //   u8 sgbCommand;
+    //   u8 gfxMask;
+    //   u8[20*18] sgbMap;
 };
 
 void saveState(int num) {
@@ -773,7 +783,7 @@ void saveState(int num) {
     state.doubleSpeed = doubleSpeed;
     state.biosOn = biosOn;
     state.gbMode = gbMode;
-    state.romBank = currentRomBank;
+    state.romBank = romBank;
     state.ramBank = currentRamBank;
     state.wramBank = wramBank;
     state.vramBank = vramBank;
@@ -794,12 +804,10 @@ void saveState(int num) {
     fwrite((char*)hram, 1, 0x200, outFile);
     for (int i=0; i<numRamBanks; i++)
         fwrite((char*)externRam[i], 1, 0x2000, outFile);
+
     fwrite((char*)&state, 1, sizeof(StateStruct), outFile);
 
     switch (MBC) {
-        case MBC3:
-            fwrite(&rtcReg,    1, sizeof(char), outFile);
-            break;
         case HUC3:
             fwrite(&HuC3Mode,  1, sizeof(u8), outFile);
             fwrite(&HuC3Value, 1, sizeof(u8), outFile);
@@ -807,6 +815,15 @@ void saveState(int num) {
             break;
     }
 
+    fwrite(&sgbMode, 1, sizeof(bool), outFile);
+    if (sgbMode) {
+        fwrite(&sgbPacketLength, 1, sizeof(int), outFile);
+        fwrite(&sgbPacketsTransferred, 1, sizeof(int), outFile);
+        fwrite(&sgbPacketBit, 1, sizeof(int), outFile);
+        fwrite(&sgbCommand, 1, sizeof(u8), outFile);
+        fwrite(&gfxMask, 1, sizeof(u8), outFile);
+        fwrite(sgbMap, 1, sizeof(sgbMap), outFile);
+    }
 
     fclose(outFile);
 }
@@ -850,7 +867,12 @@ int loadState(int num) {
     if (version >= 3) {
         switch (MBC) {
             case MBC3:
-                fread(&rtcReg,    1, sizeof(char), inFile);
+                if (version == 3) {
+                    u8 rtcReg;
+                    fread(&rtcReg, 1, sizeof(u8), inFile);
+                    if (rtcReg != 0)
+                        currentRamBank = rtcReg;
+                }
                 break;
             case HUC3:
                 fread(&HuC3Mode,  1, sizeof(u8), inFile);
@@ -859,6 +881,17 @@ int loadState(int num) {
                 break;
         }
     }
+
+    fread(&sgbMode, 1, sizeof(bool), inFile);
+    if (sgbMode) {
+        fread(&sgbPacketLength, 1, sizeof(int), inFile);
+        fread(&sgbPacketsTransferred, 1, sizeof(int), inFile);
+        fread(&sgbPacketBit, 1, sizeof(int), inFile);
+        fread(&sgbCommand, 1, sizeof(u8), inFile);
+        fread(&gfxMask, 1, sizeof(u8), inFile);
+        fread(sgbMap, 1, sizeof(sgbMap), inFile);
+    }
+
 
     fclose(inFile);
     if (num == -1) {
@@ -874,7 +907,7 @@ int loadState(int num) {
     if (!biosExists)
         biosOn = false;
     gbMode = state.gbMode;
-    currentRomBank = state.romBank;
+    romBank = state.romBank;
     currentRamBank = state.ramBank;
     wramBank = state.wramBank;
     vramBank = state.vramBank;
@@ -898,7 +931,7 @@ int loadState(int num) {
 
 
     if (autoSavingEnabled)
-        saveGame(); // Synchronize save file on disk with file in ram
+        saveGame(); // Synchronize save file on sd with file in ram
 
     return 0;
 }

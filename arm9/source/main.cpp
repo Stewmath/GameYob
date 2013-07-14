@@ -79,6 +79,8 @@ void initGBCMode() {
     }
 }
 void initializeGameboy() {
+    sgbMode = false;
+
     switch(gbcModeOption) {
         case 0: // GB
             initGBMode();

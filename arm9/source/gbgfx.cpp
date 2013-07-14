@@ -75,11 +75,11 @@ int interruptWaitMode=0;
 bool windowDisabled = false;
 bool hblankDisabled = false;
 
-int gfxMask;
-int loadedBorderType;
-
 int scaleMode;
 int scaleFilter=1;
+int loadedBorderType;
+u8 gfxMask;
+
 int SCALE_BGX, SCALE_BGY;
 
 bool lastScreenDisabled;
@@ -468,6 +468,7 @@ void refreshGFX() {
     changedMapQueueLength[1] = 0;
     lastScreenDisabled = !(ioRam[0x40] & 0x80);
     screenDisabled = lastScreenDisabled;
+    winPosY = -1;
     /*
     for (int i=0; i<0xa0; i++)
         spriteData[i] = hram[i];
@@ -1241,6 +1242,7 @@ void handleVideoRegister(u8 ioReg, u8 val) {
                 lineModified = true;
                 spritesModified = true;
 
+                ioRam[ioReg] = val;
                 //printLog("dma write %d\n", ioRam[0x44]);
                 return;
             }

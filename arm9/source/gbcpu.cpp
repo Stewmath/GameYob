@@ -110,11 +110,8 @@ void initCPU()
 {
     gbRegs.sp.w = 0xFFFE;
     ime = 1;			// Correct default value?
-
     halt = 0;
-    setDoubleSpeed(0);
 
-    sgbMode = false;
     if (biosOn)
     {
         gbRegs.pc.w = 0;

@@ -64,7 +64,7 @@ int memoryModel;
 
 bool rockmanMapper;
 
-int currentRomBank;
+int romBank;
 int currentRamBank;
 
 u16 dmaSource;
@@ -80,8 +80,6 @@ int numSaveWrites=0;
 /* MBC flags */
 bool ramEnabled;
 
-char rtcReg;
-
 u8   HuC3Mode;
 u8   HuC3Value;
 u8   HuC3Shift;
@@ -95,12 +93,12 @@ mbcRead readFunc;
 void refreshRomBank(int bank) 
 {
     if (bank < numRomBanks) {
-        currentRomBank = bank;
+        romBank = bank;
         loadRomBank(); 
-        memory[0x4] = rom[currentRomBank];
-        memory[0x5] = rom[currentRomBank]+0x1000;
-        memory[0x6] = rom[currentRomBank]+0x2000;
-        memory[0x7] = rom[currentRomBank]+0x3000; 
+        memory[0x4] = rom[romBank];
+        memory[0x5] = rom[romBank]+0x1000;
+        memory[0x6] = rom[romBank]+0x2000;
+        memory[0x7] = rom[romBank]+0x3000; 
     }
 }
 
@@ -174,22 +172,20 @@ u8 m3r (u16 addr) {
     if (!ramEnabled)
         return 0xff;
 
-    if (rtcReg > 0) {
-        switch (rtcReg) {
-            case 0x8:
-                return gbClock.mbc3.s;
-            case 0x9:
-                return gbClock.mbc3.m;
-            case 0xA:
-                return gbClock.mbc3.h;
-            case 0xB:
-                return gbClock.mbc3.d&0xff;
-            case 0xC:
-                return gbClock.mbc3.ctrl;
-        }
+    switch (currentRamBank) { // Check for RTC register
+        case 0x8:
+            return gbClock.mbc3.s;
+        case 0x9:
+            return gbClock.mbc3.m;
+        case 0xA:
+            return gbClock.mbc3.h;
+        case 0xB:
+            return gbClock.mbc3.d&0xff;
+        case 0xC:
+            return gbClock.mbc3.ctrl;
+        default: // Not an RTC register
+            return memory[addr>>12][addr&0xfff];
     }
-
-    return memory[addr>>12][addr&0xfff];
 }
 
 const mbcRead mbcReads[] = { 
@@ -286,11 +282,10 @@ void m3w(u16 addr, u8 val)
         case 0x5:
             /* The RTC register is selected by writing values 0x8-0xc, ram banks
              * are selected by values 0x0-0x3 */
-            rtcReg = -1;
             if (val <= 0x3)
                 refreshRamBank(val);
-            else
-                rtcReg = val;
+            else if (val >= 8 && val <= 0xc)
+                currentRamBank = val;
             break;
         case 0x6: /* 6000 - 7fff */
         case 0x7:
@@ -302,7 +297,7 @@ void m3w(u16 addr, u8 val)
             if (!ramEnabled)
                 break;
 
-            switch (rtcReg) {
+            switch (currentRamBank) { // Check for RTC register
                 case 0x8:
                     if (gbClock.mbc3.s != val) {
                         gbClock.mbc3.s = val;
@@ -336,7 +331,7 @@ void m3w(u16 addr, u8 val)
                         writeClockStruct();
                     }
                     return;
-                default:
+                default: // Not an RTC register
                     if (numRamBanks)
                         writeSram(addr&0x1fff, val);
             }
@@ -359,7 +354,7 @@ void m1w (u16 addr, u8 val) {
             if (rockmanMapper)
                 newBank = ((val > 0xf) ? val - 8 : val);
             else
-                newBank = (currentRomBank & 0xe0) | val;
+                newBank = (romBank & 0xe0) | val;
             refreshRomBank((newBank) ? newBank : 1);
             break;
         case 0x4: /* 4000 - 5fff */
@@ -367,7 +362,7 @@ void m1w (u16 addr, u8 val) {
             val &= 3;
             /* ROM mode */
             if (memoryModel == 0) {
-                newBank = (currentRomBank & 0x1F) | (val<<5);
+                newBank = (romBank & 0x1F) | (val<<5);
                 refreshRomBank((newBank) ? newBank : 1);
             }
             /* RAM mode */
@@ -428,10 +423,10 @@ void m5w (u16 addr, u8 val) {
             ramEnabled = ((val & 0xf) == 0xa);
             break;
         case 0x2: /* 2000 - 3fff */
-            refreshRomBank((currentRomBank & 0x100) |  val);
+            refreshRomBank((romBank & 0x100) |  val);
             break;
         case 0x3:
-            refreshRomBank((currentRomBank & 0xff ) | (val&1) << 8);
+            refreshRomBank((romBank & 0xff ) | (val&1) << 8);
             break;
         case 0x4: /* 4000 - 5fff */
         case 0x5:
@@ -511,6 +506,7 @@ void initMMU()
 {
     wramBank = 1;
     vramBank = 0;
+    romBank = 1;
     memoryModel = 0;
     dmaSource=0;
     dmaDest=0;
@@ -520,8 +516,6 @@ void initMMU()
     initSGB();
 
     ramEnabled = false;
-
-    rtcReg = -1;
 
     HuC3Value = 0;
     HuC3Shift = 0;
@@ -565,7 +559,7 @@ void mapMemory() {
     memory[0x1] = rom[0]+0x1000;
     memory[0x2] = rom[0]+0x2000;
     memory[0x3] = rom[0]+0x3000;
-    refreshRomBank(1);
+    refreshRomBank(romBank);
     refreshVramBank();
     refreshRamBank(0);
     memory[0xc] = wram[0];

@@ -71,7 +71,7 @@ extern int vramBank;
 extern int MBC;
 extern int memoryModel;
 extern bool hasClock;
-extern int currentRomBank;
+extern int romBank;
 extern int currentRamBank;
 
 extern u16 dmaSource;
