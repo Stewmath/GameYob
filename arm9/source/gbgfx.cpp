@@ -919,8 +919,12 @@ void drawSprites(u8* data, int tall) {
             else
             {
                 if (sgbMode) {
-                    int yPos = (y < 0 ? 0 : y/8);
-                    int xPos = (x < 0 ? 0 : x/8);
+                    int yPos, xPos;
+                    xPos = (x < 0 ? 0 : x/8);
+                    if (tall)
+                        yPos = (y < -7 ? 0 : (y+7)/8);
+                    else
+                        yPos = (y < -3 ? 0 : (y+3)/8);
                     int sgbPalette = sgbMap[yPos*20 + xPos]&3;
                     paletteid = sgbPalette+(!!(data[spriteNum+3] & 0x10))*4;
                 }
