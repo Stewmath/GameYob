@@ -167,7 +167,10 @@ void refreshSoundDuty(int i) {
 
 void initSND()
 {
-    sharedData->sampleData = sampleData;
+    // Send the cached mirror to preserve dsi compatibility.
+    // Because of this, on arm9, always use the local sampleData which is 
+    // uncached.
+    sharedData->sampleData = (u8*)memCached(sampleData);
     for (int i=0x27; i<=0x2f; i++)
         ioRam[i] = 0xff;
 
@@ -493,7 +496,10 @@ void handleSoundRegister(u8 ioReg, u8 val)
             {
                 sharedData->chanOn &= ~CHAN_3;
                 clearChan3();
+                printLog("2 OFF\n");
             }
+            else
+                printLog("2 ON\n");
             sendUpdateMessage(2);
             ioRam[0x1a] = val | 0x7f;
             break;

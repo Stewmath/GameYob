@@ -305,7 +305,7 @@ ConsoleSubMenu menuList[] = {
         {
             {"Key Config", keyConfigFunc, 0, {}, 0},
             {"Manage Cheats", cheatFunc, 0, {}, 0},
-            {"Sound Timing Fix", hyperSoundFunc, 2, {"Off","On"}, 0},
+            {"Sound Timing Fix", hyperSoundFunc, 2, {"Off","On"}, 1},
             {"Console Output", consoleOutputFunc, 4, {"Off","Time","FPS+Time","Debug"}, 0},
             {"Wireless Link", nifiEnableFunc, 2, {"Off","On"}, 0},
             {"Rumble Pak", setRumbleFunc, 4, {"Off","Low","Mid","High"}, 2},
