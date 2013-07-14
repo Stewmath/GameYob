@@ -333,7 +333,7 @@ inline void updateLCD(int cycles)
             else {
                 ioRam[0x44]++;
 
-                if (ioRam[0x44] < 144 || ioRam[0x44] >= 153) { // Not vblank
+                if (ioRam[0x44] < 144 || ioRam[0x44] >= 153) { // Not in vblank
                     if (ioRam[0x41]&0x20)
                     {
                         requestInterrupt(LCD);
@@ -355,25 +355,28 @@ inline void updateLCD(int cycles)
                         scanlineCounter += 80<<doubleSpeed;
                     }
                 }
-                else if (ioRam[0x44] == 144) // Beginning of vblank
-                {
-                    ioRam[0x41] &= ~3;
-                    ioRam[0x41] |= 1;   // Set mode 1
 
-                    requestInterrupt(VBLANK);
-                    if (ioRam[0x41]&0x10)
-                        requestInterrupt(LCD);
-
-                    fps++;
-                    cyclesSinceVblank = -scanlineCounter;
-                    drawScreen();
-                    updateInput();
-                    vblankUpdateSound();
-                }
-                if (ioRam[0x44] >= 144) {
-                    scanlineCounter += 456<<doubleSpeed;
-                }
                 checkLYC();
+
+                if (ioRam[0x44] >= 144) { // In vblank
+                    scanlineCounter += 456<<doubleSpeed;
+
+                    if (ioRam[0x44] == 144) // Beginning of vblank
+                    {
+                        ioRam[0x41] &= ~3;
+                        ioRam[0x41] |= 1;   // Set mode 1
+
+                        requestInterrupt(VBLANK);
+                        if (ioRam[0x41]&0x10)
+                            requestInterrupt(LCD);
+
+                        fps++;
+                        cyclesSinceVblank = scanlineCounter - (456<<doubleSpeed);
+                        drawScreen();
+                        updateInput();
+                        vblankUpdateSound();
+                    }
+                }
             }
 
             break;
