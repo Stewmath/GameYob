@@ -40,3 +40,4 @@ enum {
 
 extern volatile SharedData* sharedData;
 
+extern bool __dsimode;

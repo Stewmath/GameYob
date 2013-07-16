@@ -37,7 +37,6 @@ void installGameboySoundFIFO();
 
 void sdmmcMsgHandler(int bytes, void *user_data);
 void sdmmcValueHandler(u32 value, void* user_data);
-extern int __dsimode;
 extern bool sleepIsEnabled;
 
 volatile SharedData* sharedData;

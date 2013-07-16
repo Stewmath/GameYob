@@ -42,8 +42,6 @@ extern int halt;
 extern int rumbleInserted;
 extern int rumbleStrength;
 
-extern bool __dsimode;
-
 void suspendFunc(int value) {
     printConsoleMessage("Suspending...");
     if (!autoSavingEnabled)

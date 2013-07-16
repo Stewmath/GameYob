@@ -864,10 +864,14 @@ void drawScreen()
         if (interruptWaitMode == 1) // Wait for Vblank.
             swiWaitForVBlank();
         else { // Continue if we've passed vblank.
-            // This is essentially equivalent to using swiIntrWait(0, ...),
-            // but swiIntrWait doesn't seem to work properly in dsi mode.
-            if (!didVblank)
-                swiWaitForVBlank();
+            if (__dsimode) {
+                // This is essentially equivalent to using swiIntrWait(0, ...),
+                // but swiIntrWait doesn't seem to work properly in dsi mode.
+                if (!didVblank)
+                    swiWaitForVBlank();
+            }
+            else
+                swiIntrWait(0, IRQ_VBLANK);
         }
     }
     didVblank = false;

@@ -20,7 +20,6 @@
 #include "cheats.h"
 #include "common.h"
 
-extern bool __dsimode;
 extern time_t rawTime;
 extern time_t lastRawTime;
 extern bool advanceFrame;
