@@ -1,3 +1,20 @@
+Version 0.4:
+
+- New Icon by Corbin Davenport
+- Implemented Super Gameboy support
+- Implemented scaling (for those who don't like borders)
+- Implemented custom borders (for those who don't like scaling)
+- Implemented autosaving (causes lag in some games; off by default)
+- Added "Detect GBA" option to access the advance shop in the Oracle games
+- Added Fast Forward toggle button
+- Added "Sound Fix" option for very accurate sound timing; it may use more power.
+- Added Rumble Pak Support for Ez-3in1 and Warioware Twisted carts (thanks to windwakr)
+- Added support for Gameshark and Game Genie codes (thanks to LemonBoy)
+- Support for Rockman 8, HuC1/HuC3 mappers and Robopon games (thanks to LemonBoy)
+- Second screen's backlight is disabled when not needed to save power
+- (partial) Stereo sound emulation
+- More improvements to emulation & sound accuracy
+
 Version 0.3:
 
 - Surpasses Lameboy in speed by about 10 FPS, thanks to optimizations by Nebuleon and myself
