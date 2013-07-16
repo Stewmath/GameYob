@@ -53,8 +53,6 @@ int chanVol[4];
 int chanEnvDir[4];
 int chanEnvCounter[4];
 int chanEnvSweep[4];
-bool chanToOut1[4];
-bool chanToOut2[4];
 
 int pcmVals[16];
 u8* const sampleData = (u8*)memUncached(malloc(0x20));
@@ -115,11 +113,11 @@ void sendGlobalVolumeMessage() {
 }
 
 void refreshSoundPan(int i) {
-    if (chanToOut1[i] && chanToOut2[i])
+    if ((sharedData->chanOutput & (1<<i)) && (sharedData->chanOutput & (1<<(i+4))))
         sharedData->chanPan[i] = 64;
-    else if (chanToOut1[i])
+    else if (sharedData->chanOutput & (1<<i))
         sharedData->chanPan[i] = 127;
-    else if (chanToOut2[i])
+    else if (sharedData->chanOutput & (1<<(i+4)))
         sharedData->chanPan[i] = 0;
     else {
         sharedData->chanPan[i] = 128;   // Special signal
@@ -613,25 +611,20 @@ void handleSoundRegister(u8 ioReg, u8 val)
             break;
             // GENERAL REGISTERS
         case 0x24:
-            if (sharedData->SO1Vol != (val&0x7)) {
-                sharedData->SO1Vol = val&0x7;
+            if ((sharedData->volControl&0x7) != (val&0x7)) {
+                sharedData->volControl = val;
                 sendGlobalVolumeMessage();
             }
-            sharedData->SO2Vol = (val>>4)&0x7;
+            else
+                sharedData->volControl = val;
             ioRam[0x24] = val;
             break;
         case 0x25:
-            chanToOut1[0] = !!(val&0x1);
-            chanToOut1[1] = !!(val&0x2);
-            chanToOut1[2] = !!(val&0x4);
-            chanToOut1[3] = !!(val&0x8);
-            chanToOut2[0] = !!(val&0x10);
-            chanToOut2[1] = !!(val&0x20);
-            chanToOut2[2] = !!(val&0x40);
-            chanToOut2[3] = !!(val&0x80);
+            sharedData->chanOutput = val;
             for (int i=0; i<4; i++)
                 refreshSoundPan(i);
             sendUpdateMessage(-1);
+            sendGlobalVolumeMessage();
             ioRam[0x25] = val;
             break;
         case 0x26:

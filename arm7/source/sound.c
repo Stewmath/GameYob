@@ -128,17 +128,31 @@ void startChannel(int c) {
     }
 
     updateChannel(c);
+
     SCHANNEL_CR(channel) |= SCHANNEL_ENABLE;
 }
 
 void updateMasterVolume() {
-    {
-        // TODO: when SO1Vol != SO2Vol
-        if (sharedData->SO1Vol*16 != (REG_SOUNDCNT & 0x7f)) {
-            REG_SOUNDCNT &= ~0x7f;
-            REG_SOUNDCNT |= sharedData->SO1Vol*16;
-        }
+    // TODO: when SO1Vol != SO2Vol
+    int SO1Vol = sharedData->volControl & 7;
+    if (SO1Vol*16 != (REG_SOUNDCNT & 0x7f)) {
+        REG_SOUNDCNT &= ~0x7f;
+        REG_SOUNDCNT |= SO1Vol*16;
     }
+
+    /*
+    int vol=0;
+    int i;
+    for (i=0; i<4; i++) {
+        if (sharedData->chanOutput & ((1<<i) | (1<<(i+4))) )
+            vol += 0x20;
+    }
+    if (vol == 0x80)
+        vol = 0x7f;
+        */
+    SCHANNEL_CR(1) &= ~0x7f;
+    if (sharedData->chanOutput)
+        SCHANNEL_CR(1) |= 0x7f;
 }
 
 void setHyperSound(int enabled) {
@@ -157,7 +171,6 @@ void doCommand(u32 command) {
 
         case GBSND_UPDATE_COMMAND:
             if (data == 4) {
-                int i;
                 for (i=0; i<4; i++) {
                     updateChannel(i);
                 }
@@ -183,7 +196,10 @@ void doCommand(u32 command) {
             break;
 
         case GBSND_MUTE_COMMAND:
-            REG_SOUNDCNT &= ~0x7f;
+            // This does not touch the "background hum" to prevent clicking.
+            for (i=0; i<4; i++) {
+                SCHANNEL_CR(channels[i]) &= ~0x7f;
+            }
             break;
 
         case GBSND_HYPERSOUND_ENABLE_COMMAND:
@@ -209,16 +225,19 @@ void installGameboySoundFIFO() {
     sharedData->frameFlip_Gameboy = 0;
     setHyperSound(1);
 
-    // Continuously play this channel.
-    // By simply existing, this allows for games to adjust global volume to make 
-    // certain complex sound effects - even when all other channels are muted.
     int i;
     for (i=0; i<16; i++)
         backgroundSample[i] = 0x7f;
 
+    // The gameboy produces a sort of background "hum".
+    // By simply existing, this allows for games to adjust global volume to make 
+    // certain complex sound effects - even when all other channels are muted.
+    // Eg. Warlocked, Perfect Dark.
+    // This is the cause of "clicking" in certain games. It exists to an extent 
+    // on real gameboys as well.
     SCHANNEL_SOURCE(1) = (u32)backgroundSample;
     SCHANNEL_REPEAT_POINT(1) = 0;
     SCHANNEL_LENGTH(1) = 16>>2;
-    SCHANNEL_CR(1) = SCHANNEL_ENABLE | SOUND_VOL(0xff) | 
+    SCHANNEL_CR(1) = SCHANNEL_ENABLE | SOUND_VOL(0) | 
         SOUND_PAN(64) | (0 << 29) | SOUND_REPEAT;
 }

@@ -544,7 +544,7 @@ end:
     if (!soundDisabled) {
         // Unmute
         sharedData->fifosSent++;
-        fifoSendValue32(FIFO_USER_01, GBSND_MASTER_VOLUME_COMMAND<<20);
+        fifoSendValue32(FIFO_USER_01, GBSND_UPDATE_COMMAND<<20 | 4);
     }
     consoleClear();
     consoleOn = false;

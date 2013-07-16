@@ -13,7 +13,8 @@ typedef struct SharedData {
     bool frameFlip_Gameboy;
     bool frameFlip_DS;
 
-    int SO1Vol, SO2Vol;
+    u8 volControl; // NR50
+    u8 chanOutput; // NR51
     u8 chanRealVol[4];
     int chanRealFreq[4];
     u8 chanPan[4];
