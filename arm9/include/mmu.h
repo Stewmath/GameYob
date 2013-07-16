@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include "global.h"
 
+
+// Be careful changing this; it affects save state compatibility.
 struct clockStruct
 {
     union {

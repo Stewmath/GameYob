@@ -880,17 +880,19 @@ int loadState(int num) {
                 fread(&HuC3Shift, 1, sizeof(u8), inFile);
                 break;
         }
-    }
 
-    fread(&sgbMode, 1, sizeof(bool), inFile);
-    if (sgbMode) {
-        fread(&sgbPacketLength, 1, sizeof(int), inFile);
-        fread(&sgbPacketsTransferred, 1, sizeof(int), inFile);
-        fread(&sgbPacketBit, 1, sizeof(int), inFile);
-        fread(&sgbCommand, 1, sizeof(u8), inFile);
-        fread(&gfxMask, 1, sizeof(u8), inFile);
-        fread(sgbMap, 1, sizeof(sgbMap), inFile);
+        fread(&sgbMode, 1, sizeof(bool), inFile);
+        if (sgbMode) {
+            fread(&sgbPacketLength, 1, sizeof(int), inFile);
+            fread(&sgbPacketsTransferred, 1, sizeof(int), inFile);
+            fread(&sgbPacketBit, 1, sizeof(int), inFile);
+            fread(&sgbCommand, 1, sizeof(u8), inFile);
+            fread(&gfxMask, 1, sizeof(u8), inFile);
+            fread(sgbMap, 1, sizeof(sgbMap), inFile);
+        }
     }
+    else
+        sgbMode = false;
 
 
     fclose(inFile);
@@ -919,6 +921,8 @@ int loadState(int num) {
     dividerCounter = state.dividerCounter;
     serialCounter = state.serialCounter;
     ramEnabled = state.ramEnabled;
+    if (version < 3)
+        ramEnabled = true;
 
     transferReady = false;
     timerPeriod = periods[ioRam[0x07]&0x3];

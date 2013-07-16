@@ -520,6 +520,9 @@ void initMMU()
     HuC3Value = 0;
     HuC3Shift = 0;
 
+    /* Rockman8 by Yang Yang uses a silghtly different MBC1 variant */
+    rockmanMapper = !strcmp(getRomTitle(), "ROCKMAN 99");
+
     readFunc = mbcReads[MBC];
     writeFunc = mbcWrites[MBC];
 
@@ -560,15 +563,12 @@ void mapMemory() {
     memory[0x2] = rom[0]+0x2000;
     memory[0x3] = rom[0]+0x3000;
     refreshRomBank(romBank);
+    refreshRamBank(currentRamBank);
     refreshVramBank();
-    refreshRamBank(0);
     memory[0xc] = wram[0];
     refreshWramBank();
     memory[0xe] = wram[0];
     memory[0xf] = highram;
-
-    /* Rockman8 by Yang Yang uses a silghtly different MBC1 variant */
-    rockmanMapper = !strcmp(getRomTitle(), "ROCKMAN 99");
 
     dmaSource = (ioRam[0x51]<<8) | (ioRam[0x52]);
     dmaSource &= 0xFFF0;
