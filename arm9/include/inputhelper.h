@@ -35,6 +35,7 @@ extern bool advanceFrame;
 extern FILE* saveFile;
 
 void initInput();
+void flushFatCache();
 
 void startKeyConfigChooser();
 void readConfigFile();

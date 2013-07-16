@@ -1,5 +1,3 @@
-#include "libfat_fake.h"
-
 #include <nds.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -83,10 +81,7 @@ void updateInput() {
         numSaveWrites = 0;
         wroteToSramThisFrame = false;
 
-        // This involves things from libfat which aren't normally visible
-        devoptab_t* devops = (devoptab_t*)GetDeviceOpTab ("sd");
-        PARTITION* partition = (PARTITION*)devops->deviceData;
-        _FAT_cache_flush(partition->cache); // Flush the cache manually
+        flushFatCache();
     }
 
     if (cheatsEnabled)

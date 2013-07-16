@@ -8,6 +8,7 @@
 #include <dirent.h>
 #include <unistd.h>
 
+#include "libfat_fake.h"
 #include "inputhelper.h"
 #include "mmu.h"
 #include "gameboy.h"
@@ -55,6 +56,13 @@ void initInput()
 {
     fatInit(2, true);
     chdir("/lameboy"); // Default rom directory
+}
+
+void flushFatCache() {
+    // This involves things from libfat which aren't normally visible
+    devoptab_t* devops = (devoptab_t*)GetDeviceOpTab ("sd");
+    PARTITION* partition = (PARTITION*)devops->deviceData;
+    _FAT_cache_flush(partition->cache); // Flush the cache manually
 }
 
 enum {
@@ -580,6 +588,8 @@ int saveGame()
             fwrite(&gbClock, 1, sizeof(gbClock), saveFile);
             break;
     }
+
+    flushFatCache();
 
     return 0;
 }
