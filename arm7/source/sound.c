@@ -140,7 +140,10 @@ void updateMasterVolume() {
         REG_SOUNDCNT |= SO1Vol*16;
     }
 
-    /*
+    // Each sound channel enabled in NR51 adds a bit of a "background tone".
+    // I'm not really sure if this behaviour is correct.
+    // I'm trying to strike a balance between the "Warlocked/Perfect Dark/Alone 
+    // in the Dark" sound effects, and the annoying clicking in some games.
     int vol=0;
     int i;
     for (i=0; i<4; i++) {
@@ -149,10 +152,9 @@ void updateMasterVolume() {
     }
     if (vol == 0x80)
         vol = 0x7f;
-        */
     SCHANNEL_CR(1) &= ~0x7f;
     if (sharedData->chanOutput)
-        SCHANNEL_CR(1) |= 0x7f;
+        SCHANNEL_CR(1) |= vol;
 }
 
 void setHyperSound(int enabled) {
