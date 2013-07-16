@@ -85,8 +85,10 @@ inline void synchronizeSound() {
 
         sharedData->cycles = cycles;
         while (sharedData->cycles != -1) { // Wait for arm7 to set sharedData->cycles.
-            if (sharedData->scaleTransferReady)
-                goto sendByFifo; // Is arm7 doing the scale transfer? If so ABORT
+            if (sharedData->scaleTransferReady) { // Is arm7 doing the scale transfer? If so ABORT
+                sharedData->cycles = -1;
+                goto sendByFifo;
+            }
         }
     }
     else {

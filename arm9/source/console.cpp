@@ -403,7 +403,7 @@ void displayConsole() {
 
     // Set volume to zero
     sharedData->fifosSent++;
-    fifoSendValue32(FIFO_USER_01, GBSND_MUTE_COMMAND<<20);
+    fifoSendValue32(FIFO_USER_01, GBSND_MUTE_COMMAND<<20 | 1);
 
     doRumble(0);
     updateScreens(); // Enable backlight if necessary
@@ -542,7 +542,7 @@ end:
     if (!soundDisabled) {
         // Unmute
         sharedData->fifosSent++;
-        fifoSendValue32(FIFO_USER_01, GBSND_UPDATE_COMMAND<<20 | 4);
+        fifoSendValue32(FIFO_USER_01, GBSND_MUTE_COMMAND<<20 | 0);
     }
     consoleClear();
     consoleOn = false;
