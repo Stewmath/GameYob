@@ -81,7 +81,18 @@ void updateInput() {
         numSaveWrites = 0;
         wroteToSramThisFrame = false;
 
+        fseek(saveFile, autosaveStart, SEEK_SET);
+
+        for (int i=autosaveStart/0x2000; i<=autosaveEnd/0x2000; i++) {
+            int start = (i == autosaveStart/0x2000 ? autosaveStart : i*0x2000);
+            int end = (i == autosaveEnd/0x2000 ? autosaveEnd+1 : (i+1)*0x2000);
+            fwrite(externRam[i]+(start&0x1fff), 1, end-start, saveFile);
+        }
+
         flushFatCache();
+
+        autosaveStart = -1;
+        autosaveEnd = -1;
     }
 
     if (cheatsEnabled)

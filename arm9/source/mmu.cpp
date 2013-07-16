@@ -75,6 +75,8 @@ int dmaMode;
 // Autosaving stuff
 bool saveModified=false;
 int numSaveWrites=0;
+int autosaveStart = -1;
+int autosaveEnd = -1;
 
 
 /* MBC flags */
@@ -197,9 +199,22 @@ void writeSram(u16 addr, u8 val) {
     if (externRam[currentRamBank][addr] != val) {
         externRam[currentRamBank][addr] = val;
         if (autoSavingEnabled) {
+            /*
             fseek(saveFile, currentRamBank*0x2000+addr, SEEK_SET);
             fputc(val, saveFile);
+            */
+            int pos = addr + currentRamBank*0x2000;
             saveModified = true;
+            if (autosaveStart == -1) {
+                autosaveStart = pos;
+                autosaveEnd = pos;
+            }
+            else {
+                if (pos < autosaveStart)
+                    autosaveStart = pos;
+                if (pos > autosaveEnd)
+                    autosaveEnd = pos;
+            }
             numSaveWrites++;
         }
     }

@@ -82,4 +82,6 @@ extern u16 dmaLength;
 extern int dmaMode;
 
 extern bool saveModified;
+extern int autosaveStart;
+extern int autosaveEnd;
 extern int numSaveWrites;
