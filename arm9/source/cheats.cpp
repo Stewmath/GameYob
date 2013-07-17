@@ -30,6 +30,8 @@ bool addCheat (const char *str)
 
     // Clear all flags
     cheats[i].flags = 0;
+    cheats[i].patchedBanks = std::vector<int>();
+    cheats[i].patchedValues = std::vector<int>();
 
     len = strlen(str);
     strncpy(cheats[i].cheatString, str, 12);
@@ -82,7 +84,7 @@ void toggleCheat (int i, bool enabled)
 {
     if (enabled) {
         cheats[i].flags |= FLAG_ENABLED;
-        if (cheats[i].flags & (FLAG_GAMEGENIE | FLAG_GAMEGENIE1)) {
+        if ((cheats[i].flags & FLAG_TYPE_MASK) != FLAG_GAMESHARK) {
             for (int j=0; j<numRomBanks; j++) {
                 if (isBankLoaded(j))
                     applyGGCheatsToBank(j);
