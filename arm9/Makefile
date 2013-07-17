@@ -48,7 +48,8 @@ LIBS	:=	-lfat -ldsnifi9 -lnds9
 # include and lib
 #---------------------------------------------------------------------------------
 LIBDIRS	:=	$(LIBNDS) $(CURDIR) ../
- 
+
+
 #---------------------------------------------------------------------------------
 # no real need to edit anything past this point unless you need to add additional
 # rules for different file extensions
@@ -102,6 +103,7 @@ clean:
 	@echo clean ...
 	@rm -fr $(BUILD) *.elf *.nds* *.bin 
  
+
  
 #---------------------------------------------------------------------------------
 else
@@ -112,6 +114,12 @@ else
 $(ARM9ELF)	:	$(OFILES)
 	@echo linking $(notdir $@)
 	@$(LD)  $(LDFLAGS) $(OFILES) $(LIBPATHS) $(LIBS) -o $@
+
+
+# Always rebuild version.cpp
+.FORCE:
+version.o: .FORCE
+
 
 #---------------------------------------------------------------------------------
 # you need a rule like this for each extension you use as binary data 

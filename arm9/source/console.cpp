@@ -11,6 +11,10 @@
 #include "gbgfx.h"
 #include "common.h"
 
+
+void versionInfoFunc(int value); // Defined in version.cpp
+
+
 const int screenTileWidth = 32;
 const int backlights[] = {PM_BACKLIGHT_TOP, PM_BACKLIGHT_BOTTOM};
 
@@ -197,16 +201,6 @@ void advanceFrameFunc(int value) {
 }
 void romInfoFunc(int value) {
     printRomInfo();
-}
-void versionInfoFunc(int value) {
-    consoleClear();
-    iprintf("GameYob %s\n", VERSION_STRING);
-    while (true) {
-        swiWaitForVBlank();
-        readKeys();
-        if (keyJustPressed(KEY_A) || keyJustPressed(KEY_B))
-            break;
-    }
 }
 
 void setChanEnabled(int chan, int value) {
