@@ -6,6 +6,7 @@
 typedef struct cheat_t {
     char name[MAX_CHEAT_NAME_LEN+1];
     char cheatString[12];
+    u8 flags;
     u8  data;
     u16 address;
     union {
@@ -18,25 +19,22 @@ typedef struct cheat_t {
 
 
 #define MAX_CHEATS      100 
-#define SLOT_ENABLED    (1<<0)
-#define SLOT_USED       (1<<1)
-#define SLOT_TYPE_MASK  (3<<2)
-#define SLOT_GAMEGENIE  (1<<2)
-#define SLOT_GAMEGENIE1 (2<<2)
-#define SLOT_GAMESHARK  (3<<2)
+#define FLAG_ENABLED    (1<<0)
+#define FLAG_TYPE_MASK  (3<<2)
+#define FLAG_GAMEGENIE  (1<<2)
+#define FLAG_GAMEGENIE1 (2<<2)
+#define FLAG_GAMESHARK  (3<<2)
 
 extern bool cheatsEnabled;
 extern cheat_t cheats[MAX_CHEATS];
-extern u8   slots[MAX_CHEATS];
 extern int numCheats;
 
 void enableCheats(bool enable);
 bool addCheat(const char *str);
-void removeCheat(int i);
 void toggleCheat(int i, bool enabled);
 
 void unapplyGGCheat(int cheat);
-void applyGGCheats(int romBank);
+void applyGGCheatsToBank(int romBank);
 
 void applyGSCheats(void);
 

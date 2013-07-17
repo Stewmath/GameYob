@@ -51,7 +51,7 @@ void forceReleaseKey(int key);
 void loadBios(const char* filename);
 int loadProgram(char* filename);
 void loadRomBank();
-bool bankLoaded(int bank);
+bool isBankLoaded(int bank);
 int loadSave();
 int saveGame();
 char* getRomTitle();

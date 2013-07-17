@@ -497,10 +497,10 @@ void loadRomBank() {
 
     lastBanksUsed.insert(lastBanksUsed.begin(), romBank);
 
-    applyGGCheats(romBank);
+    applyGGCheatsToBank(romBank);
 }
 
-bool bankLoaded(int bank) {
+bool isBankLoaded(int bank) {
     return bankSlotIDs[bank] != -1;
 }
 
