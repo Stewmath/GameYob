@@ -656,8 +656,10 @@ void printRomInfo() {
 }
 
 int autoFireCounterA=0,autoFireCounterB=0;
-void handleEvents()
+void updateInput()
 {
+    readKeys();
+
     buttonsPressed = 0xff;
     if (keyPressed(keys[KEY_GB_UP])) {
         buttonsPressed &= (0xFF ^ UP);

@@ -336,7 +336,7 @@ void updateSound(int cycles)
     }
 }
 
-void vblankUpdateSound() {
+void soundUpdateVBlank() {
     // This debug stuff helps when debugging Pokemon Diamond
     //printLog("%d\n", sharedData->fifosSent-sharedData->fifosReceived);
 }

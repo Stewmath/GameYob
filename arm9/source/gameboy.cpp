@@ -61,9 +61,12 @@ void setEventCycles(int cycles) {
     }
 }
 
-// Called once every gameboy vblank
-void updateInput() {
-    //printLog("PC %.4x, %.2x\n", gbRegs.pc.w, ioRam[0x40]);
+// This is called 60 times per second, even if the lcd is off.
+void gameboyUpdateVBlank() {
+    drawScreen();
+    soundUpdateVBlank();
+    updateInput();
+
     if (resettingGameboy) {
         initializeGameboy();
         resettingGameboy = false;
@@ -72,6 +75,7 @@ void updateInput() {
     if (probingForBorder)
         return;
 
+    // Check autosaving stuff
     if (saveModified) {
         wroteToSramThisFrame = true;
         saveModified = false;
@@ -98,8 +102,6 @@ void updateInput() {
     if (cheatsEnabled)
         applyGSCheats();
 
-    readKeys();
-    handleEvents();		// Input mostly
     if (!consoleDebugOutput && (rawTime > lastRawTime))
     {
         consoleClear();
@@ -289,9 +291,9 @@ inline void updateLCD(int cycles)
             fps++;
             phaseCounter += 456*153*(doubleSpeed?2:1);
             cyclesSinceVblank=0;
-            drawScreen();   // drawScreen recognizes the screen is disabled and makes it all white.
-            updateInput();
-            vblankUpdateSound();
+            // Though not technically vblank, this is a good time to check for 
+            // input and whatnot.
+            gameboyUpdateVBlank();
         }
         return;
     }
@@ -378,9 +380,7 @@ inline void updateLCD(int cycles)
 
                         fps++;
                         cyclesSinceVblank = scanlineCounter - (456<<doubleSpeed);
-                        drawScreen();
-                        updateInput();
-                        vblankUpdateSound();
+                        gameboyUpdateVBlank();
                     }
                 }
             }

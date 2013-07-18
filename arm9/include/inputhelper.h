@@ -57,7 +57,7 @@ int saveGame();
 char* getRomTitle();
 void printRomInfo();
 
-void handleEvents();
+void updateInput();
 
 void saveState(int num);
 int loadState(int num);
