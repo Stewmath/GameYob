@@ -56,9 +56,10 @@ void suspendFunc(int value) {
     quitConsole = true;
 }
 void exitFunc(int value) {
-    printConsoleMessage("Saving...");
-    if (!autoSavingEnabled)
+    if (!autoSavingEnabled) {
+        printConsoleMessage("Saving...");
         saveGame();
+    }
     printMessage[0] = '\0';
     selectRom();
     quitConsole = true;

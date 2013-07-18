@@ -347,6 +347,21 @@ int loadBorder(const char* filename) {
         return 1;
     }
 
+    // Set up background
+    if (loadedBorderType != BORDER_CUSTOM) {
+        REG_DISPCNT &= ~7;
+        REG_DISPCNT |= 3; // Mode 3
+        REG_BG3CNT = BG_MAP_BASE(16) | BG_BMP16_256x256;
+        REG_BG3X = 0;
+        REG_BG3Y = 0;
+        REG_BG3PA = 1<<8;
+        REG_BG3PB = 0;
+        REG_BG3PC = 0;
+        REG_BG3PD = 1<<8;
+        videoBgEnable(3);
+    }
+
+    // Start loading
     fseek(file, 0xe, SEEK_SET);
     u8 pixelStart = (u8)fgetc(file) + 0xe;
     fseek(file, pixelStart, SEEK_SET);
@@ -536,7 +551,8 @@ void refreshSgbPalette() {
 void checkBorder() {
     int lastBorder = loadedBorderType;
     if (nukeBorder) {
-        loadedBorderType = BORDER_NONE;
+        if (loadedBorderType == BORDER_SGB)
+            loadedBorderType = BORDER_NONE;
         nukeBorder = false;
     }
     else {
@@ -550,29 +566,14 @@ void checkBorder() {
         }
     }
 
-    if (customBordersEnabled && scaleMode == 0 && (!sgbMode || !sgbBordersEnabled)) {
-        if (lastBorder == BORDER_CUSTOM)  // Check if already loaded
-            return;
-        else if (loadBorder("/border.bmp") == 1)
+    if (customBordersEnabled && scaleMode == 0 && loadedBorderType == BORDER_NONE && lastBorder != BORDER_CUSTOM) {
+        if (loadBorder("/border.bmp") != 0)
             loadedBorderType = BORDER_NONE;
     }
 
 end:
 
-    videoBgDisable(3);
-    if (loadedBorderType == BORDER_CUSTOM) {
-        REG_DISPCNT &= ~7;
-        REG_DISPCNT |= 3; // Mode 3
-        REG_BG3CNT = BG_MAP_BASE(16) | BG_BMP16_256x256;
-        REG_BG3X = 0;
-        REG_BG3Y = 0;
-        REG_BG3PA = 1<<8;
-        REG_BG3PB = 0;
-        REG_BG3PC = 0;
-        REG_BG3PD = 1<<8;
-        videoBgEnable(3);
-    }
-    else if (loadedBorderType == BORDER_SGB) {
+    if (loadedBorderType == BORDER_SGB) {
         REG_DISPCNT &= ~7; // Mode 0
         REG_BG3CNT = BG_MAP_BASE(border_map_base) | BG_TILE_BASE(12);
         REG_BG3HOFS = 0;
@@ -580,6 +581,7 @@ end:
         videoBgEnable(3);
     }
     else if (loadedBorderType == BORDER_NONE) {
+        videoBgDisable(3);
         BG_PALETTE[0] = BACKDROP_COLOUR; // Reset backdrop (SGB borders use the backdrop)
     }
 }
@@ -667,8 +669,8 @@ void setSgbTiles(u8* src, u8 flags) {
     if (!sgbBordersEnabled)
         return;
     if (gfxMask != 0) {
-        loadedBorderType = BORDER_NONE;
-        checkBorder();
+        BG_PALETTE[0] = BACKDROP_COLOUR;
+        videoBgDisable(3);
     }
     int index=0,srcIndex=0;
     if (flags&1)

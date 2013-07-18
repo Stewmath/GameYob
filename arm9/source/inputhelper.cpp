@@ -719,8 +719,10 @@ void handleEvents()
         autoFireCounterB--;
     }
 
-    if (keyJustPressed(keys[KEY_SAVE]))
-        saveGame();
+    if (keyJustPressed(keys[KEY_SAVE])) {
+        if (!autoSavingEnabled)
+            saveGame();
+    }
     if (advanceFrame || keyJustPressed(keys[KEY_MENU] | KEY_TOUCH)) {
         advanceFrame = 0;
         displayConsole();
