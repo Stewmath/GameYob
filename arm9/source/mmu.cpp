@@ -522,6 +522,8 @@ void initMMU()
     wramBank = 1;
     vramBank = 0;
     romBank = 1;
+    currentRamBank = 0;
+
     memoryModel = 0;
     dmaSource=0;
     dmaDest=0;
