@@ -36,6 +36,8 @@ inline u8 quickReadIO(u8 addr) {
 inline u16 quickRead16(u16 addr) {
     return quickRead(addr)|(quickRead(addr+1)<<8);
 }
+
+// Currently unused because this can actually overwrite the rom, in rare cases
 inline void quickWrite(u16 addr, u8 val) {
     memory[addr>>12][addr&0xFFF] = val;
 }
@@ -147,8 +149,8 @@ int handleInterrupts(unsigned int interruptTriggered)
 
     ime = 0;
 
-    quickWrite(--gbRegs.sp.w, gbRegs.pc.b.h);
-    quickWrite(--gbRegs.sp.w, gbRegs.pc.b.l);
+    writeMemory(--gbRegs.sp.w, gbRegs.pc.b.h);
+    writeMemory(--gbRegs.sp.w, gbRegs.pc.b.l);
 
     /* __builtin_ffs returns the first bit set plus one */
     int irqNo = __builtin_ffs(interruptTriggered) - 1;
@@ -417,8 +419,8 @@ int runOpcode(int cycles) {
                     break;
                 }
             case 0xF5:		// PUSH AF
-                quickWrite(--locSP, gbRegs.af.b.h);
-                quickWrite(--locSP, locF);
+                writeMemory(--locSP, gbRegs.af.b.h);
+                writeMemory(--locSP, locF);
                 break;
                 // Some games use the stack in exotic ways.
                 // Better to use writeMemory than writeMemory.
@@ -1403,8 +1405,8 @@ int runOpcode(int cycles) {
             case 0xCD:		// CALL nn			24
                 {
                     int val = getPC() + 2;
-                    quickWrite(--locSP, (val) >> 8);
-                    quickWrite(--locSP, (val & 0xFF));
+                    writeMemory(--locSP, (val) >> 8);
+                    writeMemory(--locSP, (val & 0xFF));
                     setPC(readPC16_noinc());
                     break;
                 }
@@ -1412,8 +1414,8 @@ int runOpcode(int cycles) {
                 if (!zeroSet())
                 {
                     int val = getPC() + 2;
-                    quickWrite(--locSP, (val) >> 8);
-                    quickWrite(--locSP, (val & 0xFF));
+                    writeMemory(--locSP, (val) >> 8);
+                    writeMemory(--locSP, (val & 0xFF));
                     setPC(readPC16_noinc());
                     break;
                 }
@@ -1426,8 +1428,8 @@ int runOpcode(int cycles) {
                 if (zeroSet())
                 {
                     int val = getPC() + 2;
-                    quickWrite(--locSP, (val) >> 8);
-                    quickWrite(--locSP, (val & 0xFF));
+                    writeMemory(--locSP, (val) >> 8);
+                    writeMemory(--locSP, (val & 0xFF));
                     setPC(readPC16_noinc());
                     break;
                 }
@@ -1440,8 +1442,8 @@ int runOpcode(int cycles) {
                 if (!carrySet())
                 {
                     int val = getPC() + 2;
-                    quickWrite(--locSP, (val) >> 8);
-                    quickWrite(--locSP, (val & 0xFF));
+                    writeMemory(--locSP, (val) >> 8);
+                    writeMemory(--locSP, (val & 0xFF));
                     setPC(readPC16_noinc());
                     break;
                 }
@@ -1454,8 +1456,8 @@ int runOpcode(int cycles) {
                 if (carrySet())
                 {
                     int val = getPC() + 2;
-                    quickWrite(--locSP, (val) >> 8);
-                    quickWrite(--locSP, (val & 0xFF));
+                    writeMemory(--locSP, (val) >> 8);
+                    writeMemory(--locSP, (val & 0xFF));
                     setPC(readPC16_noinc());
                     break;
                 }
@@ -1468,64 +1470,64 @@ int runOpcode(int cycles) {
             case 0xC7:		// RST 00H			16
                 {
                     u16 val = getPC();
-                    quickWrite(--locSP, (val) >> 8);
-                    quickWrite(--locSP, (val & 0xFF));
+                    writeMemory(--locSP, (val) >> 8);
+                    writeMemory(--locSP, (val & 0xFF));
                     setPC(0x0);
                 }
                 break;
             case 0xCF:		// RST 08H			16
                 {
                     u16 val = getPC();
-                    quickWrite(--locSP, (val) >> 8);
-                    quickWrite(--locSP, (val & 0xFF));
+                    writeMemory(--locSP, (val) >> 8);
+                    writeMemory(--locSP, (val & 0xFF));
                     setPC(0x8);
                     break;
                 }
             case 0xD7:		// RST 10H			16
                 {
                     u16 val = getPC();
-                    quickWrite(--locSP, (val) >> 8);
-                    quickWrite(--locSP, (val & 0xFF));
+                    writeMemory(--locSP, (val) >> 8);
+                    writeMemory(--locSP, (val & 0xFF));
                     setPC(0x10);
                 }
                 break;
             case 0xDF:		// RST 18H			16
                 {
                     u16 val = getPC();
-                    quickWrite(--locSP, (val) >> 8);
-                    quickWrite(--locSP, (val & 0xFF));
+                    writeMemory(--locSP, (val) >> 8);
+                    writeMemory(--locSP, (val & 0xFF));
                     setPC(0x18);
                 }
                 break;
             case 0xE7:		// RST 20H			16
                 {
                     u16 val = getPC();
-                    quickWrite(--locSP, (val) >> 8);
-                    quickWrite(--locSP, (val & 0xFF));
+                    writeMemory(--locSP, (val) >> 8);
+                    writeMemory(--locSP, (val & 0xFF));
                     setPC(0x20);
                 }
                 break;
             case 0xEF:		// RST 28H			16
                 {
                     u16 val = getPC();
-                    quickWrite(--locSP, (val) >> 8);
-                    quickWrite(--locSP, (val & 0xFF));
+                    writeMemory(--locSP, (val) >> 8);
+                    writeMemory(--locSP, (val & 0xFF));
                     setPC(0x28);
                 }
                 break;
             case 0xF7:		// RST 30H			16
                 {
                     u16 val = getPC();
-                    quickWrite(--locSP, (val) >> 8);
-                    quickWrite(--locSP, (val & 0xFF));
+                    writeMemory(--locSP, (val) >> 8);
+                    writeMemory(--locSP, (val & 0xFF));
                     setPC(0x30);
                 }
                 break;
             case 0xFF:		// RST 38H			16
                 {
                     u16 val = getPC();
-                    quickWrite(--locSP, (val) >> 8);
-                    quickWrite(--locSP, (val & 0xFF));
+                    writeMemory(--locSP, (val) >> 8);
+                    writeMemory(--locSP, (val & 0xFF));
                     setPC(0x38);
                 }
                 break;
