@@ -724,6 +724,8 @@ u8 readIO(u8 ioReg)
         case 0x2E:
         case 0x2F:
             return 0xFF;
+        case 0x70: // wram register
+            return ioRam[ioReg] | 0xf8;
         default:
             return ioRam[ioReg];
     }
