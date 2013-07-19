@@ -194,6 +194,32 @@ void sgbAttrBlock(int block) {
     }
 }
 
+void sgbAttrLin(int block) {
+    int index = 0;
+    if (block == 0) {
+        cmdData.numDataSets = sgbPacket[1];
+        index = 2;
+    }
+    while (cmdData.numDataSets > 0 && index < 16) {
+        u8 dat = sgbPacket[index++];
+        cmdData.numDataSets--;
+
+        int line = dat&0x1f;
+        int pal = (dat>>5)&3;
+
+        if (dat&0x80) { // Horizontal
+            for (int i=0; i<20; i++) {
+                sgbMap[i+line*20] = pal;
+            }
+        }
+        else { // Vertical
+            for (int i=0; i<18; i++) {
+                sgbMap[line+i*20] = pal;
+            }
+        }
+    }
+}
+
 void sgbAttrDiv(int block) {
     int p0 = (sgbPacket[1]>>2)&3;
     int p1 = (sgbPacket[1]>>4)&3;
@@ -329,7 +355,7 @@ void sgbMask(int block) {
 }
 
 void (*sgbCommands[])(int) = {
-    sgbPalXX,sgbPalXX,sgbPalXX,sgbPalXX,sgbAttrBlock,NULL,sgbAttrDiv,sgbAttrChr,
+    sgbPalXX,sgbPalXX,sgbPalXX,sgbPalXX,sgbAttrBlock,sgbAttrLin,sgbAttrDiv,sgbAttrChr,
     NULL,NULL,sgbPalSet,sgbPalTrn,NULL,NULL,NULL,sgbDataSnd,
     NULL,sgbMltReq,NULL,sgbChrTrn,sgbPctTrn,sgbAttrTrn,sgbAttrSet,sgbMask,
     NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL
