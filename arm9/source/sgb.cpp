@@ -14,8 +14,9 @@ u8* sgbPalettes = vram[1]; // Borrow vram bank 1. We don't need it in sgb mode.
 u8* sgbAttrFiles = vram[1]+0x1000;
 u8 sgbMap[20*18];
 
-int numControllers;
-int selectedController;
+u8 numControllers;
+u8 selectedController;
+u8 buttonsChecked;
 
 // Data for various different commands
 struct CmdData {
@@ -40,6 +41,7 @@ void initSGB() {
     selectedController=0;
     sgbPacketBit = -1;
     sgbPacketsTransferred = 0;
+    buttonsChecked = 0;
 
     memset(sgbMap, 0, 20*18);
 }
@@ -335,6 +337,7 @@ void (*sgbCommands[])(int) = {
 
 void sgbHandleP1(u8 val) {
     if ((val&0x30) == 0) {
+        // Start packet transfer
         sgbPacketBit = 0;
         ioRam[0x00] = 0xcf;
         return;
@@ -381,13 +384,20 @@ void sgbHandleP1(u8 val) {
     }
     else {
         if ((val&0x30) == 0x30) {
-            selectedController++;
-            if (selectedController >= numControllers)
-                selectedController = 0;
+            if (buttonsChecked == 3) {
+                selectedController++;
+                if (selectedController >= numControllers)
+                    selectedController = 0;
+                buttonsChecked = 0;
+            }
             ioRam[0x00] = 0xff - selectedController;
-            //printLog("0x00 = %.2x\n", ioRam[0x00]);
         }
-        else
+        else {
             ioRam[0x00] = val|0xcf;
+            if ((val&0x30) == 0x10)
+                buttonsChecked |= 1;
+            else if ((val&0x30) == 0x20)
+                buttonsChecked |= 2;
+        }
     }
 }
