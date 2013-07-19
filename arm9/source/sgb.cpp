@@ -262,6 +262,7 @@ void sgbAttrChr(int block) {
             }
         }
         index++;
+        cmdData.numDataSets--;
     }
 }
 
@@ -369,13 +370,7 @@ void sgbHandleP1(u8 val) {
             }
             if (sgbCommands[sgbCommand] != 0)
                 sgbCommands[sgbCommand](sgbPacketsTransferred);
-            /*
-            if (sgbCommand == 4) {
-                for (int i=0; i<16; i++)
-                    printLog("%.2x ", sgbPacket[i]);
-                printLog("\n");
-            }
-            */
+
             sgbPacketBit = -1;
             sgbPacketsTransferred++;
             if (sgbPacketsTransferred == sgbPacketLength) {
@@ -385,7 +380,7 @@ void sgbHandleP1(u8 val) {
         }
     }
     else {
-        if ((val&0x30) == 0x30 && (ioRam[0x00]&0x30) != 0x30) {
+        if ((val&0x30) == 0x30) {
             selectedController++;
             if (selectedController >= numControllers)
                 selectedController = 0;

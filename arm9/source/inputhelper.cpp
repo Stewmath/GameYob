@@ -530,9 +530,6 @@ int loadSave()
         case 3:
             numRamBanks = 4;
             break;
-        case 4:
-            numRamBanks = 16;
-            break;
         default:
             printLog("Invalid RAM bank number: %x\nDefaulting to 4 banks\n", ramSize);
             numRamBanks = 4;
