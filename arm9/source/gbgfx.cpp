@@ -12,9 +12,6 @@
 
 #define BACKDROP_COLOUR RGB15(0,0,0)
 
-const int spr_priority = 2;
-const int spr_priority_low = 3;
-
 const int map_base[] = {1, 2};
 const int color0_map_base[] = {3, 4};
 const int overlay_map_base[] = {5, 6};
@@ -28,6 +25,9 @@ u16* const offMap = BG_MAP_RAM(off_map_base);
 u16* const borderMap = BG_MAP_RAM(border_map_base);
 
 
+const int spr_priority = 2;
+const int spr_priority_low = 3;
+
 const int win_color0_priority = 3;
 const int win_priority = 2;
 
@@ -37,10 +37,16 @@ const int bg_priority = 2;
 const int bg_overlay_priority = 1;
 const int win_overlay_priority = 1;
 
+const int bg_all_priority = 2;
 const int win_all_priority = 2;
 
 const int screenOffsX = 48;
 const int screenOffsY = 24;
+
+// If the game is using the GBC's priority bit for tiles, the corresponding 
+// variable is set. This helps with layer management.
+int usingTilePriority[2];
+
 
 bool didVblank=false;
 // Frame counter. Incremented each vblank.
@@ -77,13 +83,14 @@ bool hblankDisabled = false;
 
 int scaleMode;
 int scaleFilter=1;
-int loadedBorderType;
 u8 gfxMask;
+volatile int loadedBorderType; // This is read from hblank
 
 int SCALE_BGX, SCALE_BGY;
 
 bool lastScreenDisabled;
 bool screenDisabled;
+
 
 void drawSprites(u8* data, int tallSprites);
 void drawTile(int tile, int bank);
@@ -109,6 +116,7 @@ typedef struct {
     u16 bgColor0Cnt;
     u16 bgCnt;
     u16 bgOverlayCnt;
+    u16 bgAllCnt;
     u16 winColor0Cnt;   // Contains color 0 only
     u16 winCnt;         // Contains colors 1-3
     u16 winOverlayCnt;  // Contains colors 1-3, only for 'priority' tiles
@@ -157,7 +165,10 @@ void drawLine(int gbLine) {
     if (screenDisabled) {
         REG_DISPCNT &= ~DISPLAY_SPR_ACTIVE;
         REG_BG0CNT = BG_MAP_BASE(off_map_base);
-        WIN_IN |= 7<<8;
+        if (loadedBorderType)
+            WIN_IN |= 7<<8;
+        else
+            WIN_IN |= 15<<8;
         return;
     }
     if (state->mapsModified) {
@@ -171,8 +182,20 @@ void drawLine(int gbLine) {
         int bgLayers,winLayers;
         if (useWin) {
             if (state->winX > 7) {
-                winLayers = 1;
-                bgLayers = 2;
+                if (loadedBorderType == BORDER_NONE) {
+                    winLayers = 2;
+                    bgLayers = 2;
+                }
+                else {
+                    if (usingTilePriority[state->bgMap]) {
+                        winLayers = 1;
+                        bgLayers = 2;
+                    }
+                    else {
+                        winLayers = 1;
+                        bgLayers = 2;
+                    }
+                }
             }
             else {
                 winLayers = 3;
@@ -182,7 +205,7 @@ void drawLine(int gbLine) {
         else {
             winLayers = 0;
             bgLayers = 3;
-            WIN_IN |= 7;
+            WIN_IN |= (loadedBorderType ? 7 : 15);
             WIN0_X0 = screenOffsX;
             WIN0_Y0 = screenOffsY;
         }
@@ -190,47 +213,119 @@ void drawLine(int gbLine) {
         if (winLayers != 0) {
             int whofs = -(state->winX-7)-screenOffsX;
             int wvofs = -(gbLine-state->winPosY)-screenOffsY;
-            if (winLayers == 1) {
+            if (gbMode == GB) {
+                // In GB mode, BG and Window share the backdrop color.
+                // So they don't need their own dedicated layers.
+                BG_CNT(layer) = state->winCnt;
+                BG_HOFS(layer) = whofs;
+                BG_VOFS(layer++) = wvofs;
+            }
+            else if (winLayers == 1) {
                 BG_CNT(layer) = state->winAllCnt;
                 BG_HOFS(layer) = whofs;
                 BG_VOFS(layer++) = wvofs;
             }
-            else {
+            else if (winLayers == 2) {
+                if (usingTilePriority[state->winMap]) {
+                    // Apply tile priority bit.
+                    BG_CNT(layer) = state->winAllCnt;
+                    BG_HOFS(layer) = whofs;
+                    BG_VOFS(layer++) = wvofs;
+                    BG_CNT(layer) = state->winOverlayCnt;
+                    BG_HOFS(layer) = whofs;
+                    BG_VOFS(layer++) = wvofs;
+                }
+                else {
+                    // Apply sprite priority bit.
+                    BG_CNT(layer) = state->winColor0Cnt;
+                    BG_HOFS(layer) = whofs;
+                    BG_VOFS(layer++) = wvofs;
+                    BG_CNT(layer) = state->winCnt;
+                    BG_HOFS(layer) = whofs;
+                    BG_VOFS(layer++) = wvofs;
+                }
+            }
+            else { // winLayers == 3
                 BG_CNT(layer) = state->winColor0Cnt;
                 BG_HOFS(layer) = whofs;
                 BG_VOFS(layer++) = wvofs;
                 BG_CNT(layer) = state->winCnt;
                 BG_HOFS(layer) = whofs;
                 BG_VOFS(layer++) = wvofs;
-                if (winLayers >= 3) {
-                    BG_CNT(layer) = state->winOverlayCnt;
-                    BG_HOFS(layer) = whofs;
-                    BG_VOFS(layer++) = wvofs;
-                }
+                BG_CNT(layer) = state->winOverlayCnt;
+                BG_HOFS(layer) = whofs;
+                BG_VOFS(layer++) = wvofs;
             }
+
             if (state->winX <= 7)
                 WIN0_X0 = screenOffsX;
             else
                 WIN0_X0 = state->winX-7+screenOffsX;
-            WIN_IN |= 7<<8;
-            for (int i=0; i<layer; i++)
+            WIN_IN |= (loadedBorderType ? 7 : 15)<<8;
+            WIN_IN &= ~15;
+            for (int i=0; i<layer; i++) {
                 WIN_IN &= ~(1<<(8+i));
+                WIN_IN |= 1<<i;
+            }
         }
-        if (bgLayers > 1) {
+        if (bgLayers != 0) {
             int hofs = state->hofs-screenOffsX;
             int vofs = state->vofs-screenOffsY;
-            BG_CNT(layer) = state->bgColor0Cnt;
-            BG_HOFS(layer) = hofs;
-            BG_VOFS(layer++) = vofs;
-            BG_CNT(layer) = state->bgCnt;
-            BG_HOFS(layer) = hofs;
-            BG_VOFS(layer++) = vofs;
-            if (bgLayers >= 3) {
-                BG_CNT(layer) = state->bgOverlayCnt;
+            if (gbMode == GB) {
+                BG_CNT(layer) = state->bgCnt;
                 BG_HOFS(layer) = hofs;
                 BG_VOFS(layer++) = vofs;
             }
+            else {
+                if (bgLayers >= 3) {
+                    BG_CNT(layer) = state->bgColor0Cnt;
+                    BG_HOFS(layer) = hofs;
+                    BG_VOFS(layer++) = vofs;
+                    BG_CNT(layer) = state->bgCnt;
+                    BG_HOFS(layer) = hofs;
+                    BG_VOFS(layer++) = vofs;
+                    BG_CNT(layer) = state->bgOverlayCnt;
+                    BG_HOFS(layer) = hofs;
+                    BG_VOFS(layer++) = vofs;
+                }
+                else if (bgLayers == 2) { // not enough for both priority bits.
+                    if (usingTilePriority[state->bgMap]) {
+                        // Apply tile priority bit.
+                        BG_CNT(layer) = state->bgAllCnt;
+                        BG_HOFS(layer) = hofs;
+                        BG_VOFS(layer++) = vofs;
+                        BG_CNT(layer) = state->bgOverlayCnt;
+                        BG_HOFS(layer) = hofs;
+                        BG_VOFS(layer++) = vofs;
+                    }
+                    else {
+                        // Apply sprite priority bit.
+                        BG_CNT(layer) = state->bgColor0Cnt;
+                        BG_HOFS(layer) = hofs;
+                        BG_VOFS(layer++) = vofs;
+                        BG_CNT(layer) = state->bgCnt;
+                        BG_HOFS(layer) = hofs;
+                        BG_VOFS(layer++) = vofs;
+                    }
+                }
+                else { // bgLayers == 1
+                    BG_CNT(layer) = state->bgAllCnt;
+                    BG_HOFS(layer) = hofs;
+                    BG_VOFS(layer++) = vofs;
+                }
+            }
         }
+        if (gbMode == GB) {
+            // This layer provides the backdrop for both BG and Window.
+            WIN_IN |= (1<<layer); // Must be displayed over window
+            BG_CNT(layer) = state->winColor0Cnt;
+            BG_HOFS(layer) = 0;
+            BG_VOFS(layer++) = 0;
+        }
+        for (int i=0; i<layer; i++)
+            videoBgEnable(i);
+        while (layer < (loadedBorderType ? 3 : 4))
+            videoBgDisable(layer++);
     }
 
     if (state->bgPalettesModified) {
@@ -347,20 +442,6 @@ int loadBorder(const char* filename) {
         return 1;
     }
 
-    // Set up background
-    if (loadedBorderType != BORDER_CUSTOM) {
-        REG_DISPCNT &= ~7;
-        REG_DISPCNT |= 3; // Mode 3
-        REG_BG3CNT = BG_MAP_BASE(16) | BG_BMP16_256x256;
-        REG_BG3X = 0;
-        REG_BG3Y = 0;
-        REG_BG3PA = 1<<8;
-        REG_BG3PB = 0;
-        REG_BG3PC = 0;
-        REG_BG3PD = 1<<8;
-        videoBgEnable(3);
-    }
-
     // Start loading
     fseek(file, 0xe, SEEK_SET);
     u8 pixelStart = (u8)fgetc(file) + 0xe;
@@ -379,8 +460,19 @@ int loadBorder(const char* filename) {
 
     fclose(file);
 
-    loadedBorderType = BORDER_CUSTOM;
     return 0;
+}
+
+// This just sets up the background
+void loadSGBBorder() {
+    loadedBorderType = BORDER_SGB;
+    WIN_IN &= ~(8 | 8<<8);
+    WIN_OUT = 1<<3;
+    REG_DISPCNT &= ~7; // Mode 0
+    REG_BG3CNT = BG_MAP_BASE(border_map_base) | BG_TILE_BASE(12);
+    REG_BG3HOFS = 0;
+    REG_BG3VOFS = -(screenOffsY-40);
+    videoBgEnable(3);
 }
 
 
@@ -419,7 +511,8 @@ void initGFX()
     WIN0_X1 = screenOffsX+160;
     WIN0_Y1 = screenOffsY+144;
 
-    videoSetMode(MODE_3_2D | DISPLAY_BG0_ACTIVE | DISPLAY_BG1_ACTIVE | DISPLAY_BG2_ACTIVE | DISPLAY_BG3_ACTIVE |
+    int mode = (loadedBorderType == BORDER_CUSTOM ? MODE_3_2D : MODE_0_2D);
+    videoSetMode(mode | DISPLAY_BG0_ACTIVE | DISPLAY_BG1_ACTIVE | DISPLAY_BG2_ACTIVE | DISPLAY_BG3_ACTIVE |
             DISPLAY_WIN0_ON | DISPLAY_WIN1_ON | DISPLAY_SPR_ACTIVE | DISPLAY_SPR_1D);
 
     checkBorder();
@@ -484,10 +577,17 @@ void refreshGFX() {
     lastScreenDisabled = !(ioRam[0x40] & 0x80);
     screenDisabled = lastScreenDisabled;
     winPosY = -1;
-    /*
-    for (int i=0; i<0xa0; i++)
-        spriteData[i] = hram[i];
-    */
+
+    usingTilePriority[0] = 0;
+    usingTilePriority[1] = 0;
+    for (int i=0x1800; i<0x1c00; i++) {
+        if (vram[1][i] & 0x80)
+            usingTilePriority[0]++;
+    }
+    for (int i=0x1c00; i<0x2000; i++) {
+        if (vram[1][i] & 0x80)
+            usingTilePriority[1]++;
+    }
 }
 
 // SGB palettes can't quite be perfect because SGB doesn't (necessarily) align 
@@ -548,41 +648,70 @@ void refreshSgbPalette() {
     }
 }
 
+// This function is a bit finicky since the hblank interrupt reads 
+// loadedBorderType.
 void checkBorder() {
-    int lastBorder = loadedBorderType;
+    int lastBorderType = loadedBorderType;
+    int nextBorderType = loadedBorderType;
+
     if (nukeBorder) {
-        if (loadedBorderType == BORDER_SGB)
-            loadedBorderType = BORDER_NONE;
+        if (nextBorderType == BORDER_SGB)
+            nextBorderType = BORDER_NONE;
         nukeBorder = false;
     }
-    else {
-        if (loadedBorderType == BORDER_CUSTOM && (!customBordersEnabled || scaleMode != 0))
-            loadedBorderType = BORDER_NONE;
-        if (loadedBorderType == BORDER_SGB) {
-            if (!sgbBordersEnabled)
-                loadedBorderType = BORDER_NONE;
-            else
-                goto end;   // SGB borders are preferred to custom borders, when enabled
+    if (nextBorderType == BORDER_CUSTOM && (!customBordersEnabled || scaleMode != 0))
+        nextBorderType = BORDER_NONE;
+    if (nextBorderType == BORDER_SGB) {
+        if (!sgbBordersEnabled)
+            nextBorderType = BORDER_NONE;
+        else {
+            nextBorderType = BORDER_SGB;
         }
     }
 
-    if (customBordersEnabled && scaleMode == 0 && loadedBorderType == BORDER_NONE && lastBorder != BORDER_CUSTOM) {
-        if (loadBorder("/border.bmp") != 0)
-            loadedBorderType = BORDER_NONE;
+    if (customBordersEnabled && scaleMode == 0 && nextBorderType == BORDER_NONE) {
+        nextBorderType = BORDER_CUSTOM;
     }
 
 end:
+    if (loadedBorderType == nextBorderType)
+        return;
+    videoBgDisable(3);
+    loadedBorderType = nextBorderType;
 
-    if (loadedBorderType == BORDER_SGB) {
+    if (nextBorderType == BORDER_NONE) {
+        WIN_IN |= 8 | 8<<8;
+        WIN_OUT = 0;
         REG_DISPCNT &= ~7; // Mode 0
-        REG_BG3CNT = BG_MAP_BASE(border_map_base) | BG_TILE_BASE(12);
-        REG_BG3HOFS = 0;
-        REG_BG3VOFS = -(screenOffsY-40);
-        videoBgEnable(3);
-    }
-    else if (loadedBorderType == BORDER_NONE) {
-        videoBgDisable(3);
         BG_PALETTE[0] = BACKDROP_COLOUR; // Reset backdrop (SGB borders use the backdrop)
+    }
+    else {
+        WIN_IN &= ~(8 | 8<<8);
+        WIN_OUT = 1<<3;
+        if (nextBorderType == BORDER_SGB) {
+            loadSGBBorder();
+        }
+        else if (nextBorderType == BORDER_CUSTOM) {
+            if (lastBorderType != BORDER_CUSTOM) { // Don't reload if it's already loaded
+                if (loadBorder("/border.bmp") != 0) {
+                    nextBorderType = BORDER_NONE;
+                    goto end;
+                }
+
+                // Set up background
+                REG_DISPCNT &= ~7;
+                REG_DISPCNT |= 3; // Mode 3
+                REG_BG3CNT = BG_MAP_BASE(16) | BG_BMP16_256x256;
+                REG_BG3X = 0;
+                REG_BG3Y = 0;
+                REG_BG3PA = 1<<8;
+                REG_BG3PB = 0;
+                REG_BG3PC = 0;
+                REG_BG3PD = 1<<8;
+            }
+        }
+        swiWaitForVBlank();
+        videoBgEnable(3);
     }
 }
 void refreshScaleMode() {
@@ -655,6 +784,7 @@ void refreshScaleMode() {
 void setGFXMask(int mask) {
     if (gfxMask == mask)
         return;
+    printLog("Mask %d\n", mask);
     gfxMask = mask;
     if (gfxMask == 0) {
         refreshGFX();
@@ -668,9 +798,9 @@ void setGFXMask(int mask) {
 void setSgbTiles(u8* src, u8 flags) {
     if (!sgbBordersEnabled)
         return;
-    if (gfxMask != 0) {
-        BG_PALETTE[0] = BACKDROP_COLOUR;
+    if (gfxMask != 0 && loadedBorderType != BORDER_NONE) {
         videoBgDisable(3);
+        BG_PALETTE[0] = BACKDROP_COLOUR;
     }
     int index=0,srcIndex=0;
     if (flags&1)
@@ -733,8 +863,7 @@ void setSgbMap(u8* src) {
     DC_FlushRange(src+0x800, 0x80);
     dmaCopy(src+0x800, BG_PALETTE+8*16, 0x80);
 
-    loadedBorderType = BORDER_SGB;
-    checkBorder();
+    loadSGBBorder();
 
     BG_PALETTE[0] = bgPaletteData[0] | bgPaletteData[1]<<8;
     if (probingForBorder) {
@@ -1048,6 +1177,7 @@ void drawScanline_P2(int scanline) {
             renderingState[scanline].bgCnt = (BG_MAP_BASE(bgMapBase) | BG_TILE_BASE(tileBase) | bg_priority);
 
             renderingState[scanline].winAllCnt = (BG_MAP_BASE(winMapBase) | BG_TILE_BASE(tileBase+4) | win_all_priority);
+            renderingState[scanline].bgAllCnt = (BG_MAP_BASE(bgMapBase) | BG_TILE_BASE(tileBase+4) | bg_all_priority);
 
             if (priorityOn) {
                 renderingState[scanline].winOverlayCnt = (BG_MAP_BASE(overlay_map_base[winMap]) | BG_TILE_BASE(tileBase) | win_overlay_priority);
@@ -1104,7 +1234,8 @@ void drawScanline_P2(int scanline) {
 }
 
 void writeVram(u16 addr, u8 val) {
-    if (vram[vramBank][addr] == val)
+    u8 old = vram[vramBank][addr];
+    if (old == val)
         return;
     vram[vramBank][addr] = val;
 
@@ -1127,6 +1258,12 @@ void writeVram(u16 addr, u8 val) {
     else {
         int map = (addr-0x1800)/0x400;
         int tile = addr&0x3ff;
+        if (vramBank == 1) {
+            if ((val&0x80) && !(old&0x80))
+                usingTilePriority[map]++;
+            else if (!(val&0x80) && (old&0x80))
+                usingTilePriority[map]--;
+        }
         if (!changedMap[map][tile]) {
             changedMap[map][tile] = true;
             changedMapQueue[map][changedMapQueueLength[map]++] = tile;
@@ -1134,13 +1271,23 @@ void writeVram(u16 addr, u8 val) {
     }
 }
 void writeVram16(u16 dest, u16 src) {
+    bool writingToMapFlags = (vramBank == 1 && dest >= 0x1800);
     bool changed=false;
     u8* page = memory[src>>12];
     int offset = src&0xfff;
+
     for (int i=0; i<16; i++) {
         u8 val = page[offset++];
         if (vram[vramBank][dest] != val) {
             changed = true;
+            if (writingToMapFlags) {
+                u8 old = vram[vramBank][dest];
+                int map = (dest-0x1800)/0x400;
+                if ((val&0x80) && !(old&0x80))
+                    usingTilePriority[map]++;
+                else if (!(val&0x80) && (old&0x80))
+                    usingTilePriority[map]--;
+            }
             vram[vramBank][dest] = val;
         }
         dest++;
@@ -1148,6 +1295,7 @@ void writeVram16(u16 dest, u16 src) {
     if (!changed)
         return;
     dest -= 16;
+
     if (dest < 0x1800) {
         int tileNum = dest/16;
         if (ioRam[0x44] < 144) {

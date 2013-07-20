@@ -1,0 +1,52 @@
+In non-GBC mode, I need only 3 background layers. One is a solid color (I could 
+use the backdrop but it's used for SGB borders). Then there's the bg and window 
+layers with color 0 excluded. Sprites with low priority are placed between the 
+"backdrop" and the bg/window layers.
+
+In GBC mode, I'd need 6 layers total. Bg & Window each need:
+1: A layer with color 0 of each tile
+2: A layer with colors 1-3 of each tile
+3: A layer with colors 1-3 of high-priority tiles
+Low-priority sprites are placed between 1 and 2. Normal-priority sprites are 
+placed between 2 and 3.
+
+Layers are dynamically allocated. If bg & window are not on the same line, 
+everything's fine. If they are on the same line, they are each allocated 2 
+layers. It detects 
+whether high-priority tiles are necessary. If so it uses:
+1. A layer with colors 0-3 of each tile
+2. A layer with colors 1-3 of high-priority tiles
+Or, if it doesn't use high-priority tiles, satisfy low-priority sprites:
+1. A layer with color 0 of each tile
+2. A layer with colors 1-3 of each tile
+However, if there is a border enabled, there aren't enough layers to do this 
+properly.
+
+Both of the ds's "windows" are used.
+0: Masks the gameboy window layer so that it doesn't loop around the screen, and 
+separates the window from the background.
+1: Masks everything to show only the 160x144 region of the gameboy screen.
+
+
+Bg and Window can use "signed" or "unsigned" tile numbering. In one vram bank, 
+there are 0x180 tiles total. Signed and Unsigned tile numbering overlap for 0x80 
+tiles. In gbc mode there is a second bank, bringing the total number of 
+tiles to 0x300.
+I separate signed and unsigned tiles entirely, with a bit of duplication of 
+effort. Tiles in bank 1 are placed right after tiles in bank 0. That's 0x200 
+tiles each for signed and unsigned. It's easy to just modify the BG registers to 
+switch from one set of tiles to another with this setup.
+
+In most cases, gb color 0 corresponds to ds color 1, because of how the DS 
+handles the backdrop. By default I refer to gb colors.
+
+Map of vram for tiles:
+Base 0: First tile is color 0 for all those "color 0" layers
+Base 4: Unsigned tiles, bank 0 (colors 1-3)
+Base 5: Unsigned tiles, bank 1 (colors 1-3)
+Base 6: Signed tiles, bank 0 (colors 1-3)
+Base 7: Signed tiles, bank 1 (colors 1-3)
+Base 8: Unsigned tiles, bank 0 (colors 0-3)
+Base 9: Unsigned tiles, bank 1 (colors 0-3)
+Base 10: Signed tiles, bank 0 (colors 0-3)
+Base 11: Signed tiles, bank 1 (colors 0-3)
