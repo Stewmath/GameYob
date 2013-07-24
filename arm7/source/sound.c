@@ -10,6 +10,7 @@
 
 int channels[4] = {8,9,0,14};
 const int dutyIndex[4] = {0, 1, 3, 5};
+u32 schannelCR[4];
 
 u8 backgroundSample[16];
 
@@ -54,7 +55,7 @@ void timerCallback() {
 }
 
 
-void setChannelVolume(int c) {
+void setChannelVolume(int c, bool write) {
     int channel = channels[c];
 
     int volume = sharedData->chanRealVol[c]*2;
@@ -67,10 +68,12 @@ void setChannelVolume(int c) {
     if (c == 3) // Noise channel
         volume *= 2;
 
-    SCHANNEL_CR(channel) &= ~0x7f;
-    SCHANNEL_CR(channel) |= volume;
+    schannelCR[c] &= ~0x7f;
+    schannelCR[c] |= volume;
+    if (write)
+        SCHANNEL_CR(channel) = schannelCR[c];
 }
-void updateChannel(int c) {
+void updateChannel(int c, bool write) {
     int channel = channels[c];
 
     if (!(sharedData->chanOn & (1<<c)) || !sharedData->chanEnabled[c]) {
@@ -80,35 +83,36 @@ void updateChannel(int c) {
 
     SCHANNEL_TIMER(channel) = SOUND_FREQ(sharedData->chanRealFreq[c]);
     if (c < 2) {
-        SCHANNEL_CR(channel) &= ~(SOUND_PAN(127) | 7<<24);
-        SCHANNEL_CR(channel) |= SOUND_PAN(sharedData->chanPan[c]) | (dutyIndex[sharedData->chanDuty[c]] << 24);
+        schannelCR[c] &= ~(SOUND_PAN(127) | 7<<24);
+        schannelCR[c] |= SOUND_PAN(sharedData->chanPan[c]) | (dutyIndex[sharedData->chanDuty[c]] << 24);
     }
     else if (c == 2) {
-        SCHANNEL_CR(channel) &= ~(SOUND_PAN(127));
-        SCHANNEL_CR(channel) |= SOUND_PAN(sharedData->chanPan[c]);
+        schannelCR[c] &= ~(SOUND_PAN(127));
+        schannelCR[c] |= SOUND_PAN(sharedData->chanPan[c]);
     }
     else if (c == 3) {
         if (currentLfsr != sharedData->lfsr7Bit)
             startChannel(c);
-        SCHANNEL_CR(channel) &= ~(SOUND_PAN(127));
-        SCHANNEL_CR(channel) |= SOUND_PAN(sharedData->chanPan[c]);
+        schannelCR[c] &= ~(SOUND_PAN(127));
+        schannelCR[c] |= SOUND_PAN(sharedData->chanPan[c]);
     }
-    setChannelVolume(c);
+    setChannelVolume(c, write);
 }
 
 
 void startChannel(int c) {
     int channel = channels[c];
-    SCHANNEL_CR(channel) = 0;
 
-    if (!sharedData->chanEnabled[c])
+    if (!sharedData->chanEnabled[c]) {
+        SCHANNEL_CR(channel) = 0;
         return;
+    }
 
     if (c == 2) {
         SCHANNEL_SOURCE(channel) = (u32)sharedData->sampleData;
         SCHANNEL_REPEAT_POINT(channel) = 0;
         SCHANNEL_LENGTH(channel) = 0x20>>2;
-        SCHANNEL_CR(channel) = (0 << 29) | SOUND_REPEAT;
+        schannelCR[c] = (0 << 29) | SOUND_REPEAT;
     }
     else if (c == 3) {
         currentLfsr = sharedData->lfsr7Bit;
@@ -121,23 +125,24 @@ void startChannel(int c) {
             SCHANNEL_LENGTH(channel) = 32768>>2;
         }
         SCHANNEL_REPEAT_POINT(channel) = 0;
-        SCHANNEL_CR(channel) = (0 << 29) | SOUND_REPEAT;
+        schannelCR[c] = (0 << 29) | SOUND_REPEAT;
     }
     else { // PSG channels
-        SCHANNEL_CR(channel) = (3 << 29);
+        schannelCR[c] = (3 << 29);
     }
 
-    updateChannel(c);
+    updateChannel(c, false);
 
-    SCHANNEL_CR(channel) |= SCHANNEL_ENABLE;
+    schannelCR[c] |= SCHANNEL_ENABLE;
+    SCHANNEL_CR(channel) = schannelCR[c];
 }
 
 void updateMasterVolume() {
     // TODO: when SO1Vol != SO2Vol
     int SO1Vol = sharedData->volControl & 7;
-    if (SO1Vol*16 != (REG_SOUNDCNT & 0x7f)) {
+    if (SO1Vol*18 != (REG_SOUNDCNT & 0x7f)) {
         REG_SOUNDCNT &= ~0x7f;
-        REG_SOUNDCNT |= SO1Vol*16;
+        REG_SOUNDCNT |= SO1Vol*18;
     }
 
     // Each sound channel enabled in NR51 adds a bit of a "background tone".
@@ -174,11 +179,11 @@ void doCommand(u32 command) {
         case GBSND_UPDATE_COMMAND:
             if (data == 4) {
                 for (i=0; i<4; i++) {
-                    updateChannel(i);
+                    updateChannel(i, true);
                 }
             }
             else
-                updateChannel(data);
+                updateChannel(data, true);
             break;
 
         case GBSND_START_COMMAND:
@@ -186,7 +191,7 @@ void doCommand(u32 command) {
             break;
 
         case GBSND_VOLUME_COMMAND:
-            setChannelVolume(data);
+            setChannelVolume(data, true);
             break;
 
         case GBSND_MASTER_VOLUME_COMMAND:
