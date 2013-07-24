@@ -70,13 +70,16 @@ void setChannelVolume(int c, bool write) {
 
     schannelCR[c] &= ~0x7f;
     schannelCR[c] |= volume;
-    if (write)
-        SCHANNEL_CR(channel) = schannelCR[c];
+    if (write) {
+        SCHANNEL_CR(channel) &= ~0x7f;
+        SCHANNEL_CR(channel) |= volume;
+    }
 }
 void updateChannel(int c, bool write) {
     int channel = channels[c];
 
     if (!(sharedData->chanOn & (1<<c)) || !sharedData->chanEnabled[c]) {
+        schannelCR[c] &= ~0x7f;
         SCHANNEL_CR(channel) &= ~0x7f; // Set volume to zero
         return;
     }
@@ -95,6 +98,10 @@ void updateChannel(int c, bool write) {
             startChannel(c);
         schannelCR[c] &= ~(SOUND_PAN(127));
         schannelCR[c] |= SOUND_PAN(sharedData->chanPan[c]);
+    }
+    if (write) {
+        SCHANNEL_CR(channel) &= ~(SOUND_PAN(127) | 7<<24);
+        SCHANNEL_CR(channel) |= (schannelCR[c] & (SOUND_PAN(127) | 7<<24));
     }
     setChannelVolume(c, write);
 }
@@ -115,6 +122,8 @@ void startChannel(int c) {
         schannelCR[c] = (0 << 29) | SOUND_REPEAT;
     }
     else if (c == 3) {
+        SCHANNEL_CR(channel) = 0; // Why does this help? It seems to make other channels worse.
+
         currentLfsr = sharedData->lfsr7Bit;
         if (sharedData->lfsr7Bit) {
             SCHANNEL_SOURCE(channel) = (u32)lfsr7NoiseSample;
@@ -133,8 +142,7 @@ void startChannel(int c) {
 
     updateChannel(c, false);
 
-    schannelCR[c] |= SCHANNEL_ENABLE;
-    SCHANNEL_CR(channel) = schannelCR[c];
+    SCHANNEL_CR(channel) = schannelCR[c] | SCHANNEL_ENABLE;
 }
 
 void updateMasterVolume() {
