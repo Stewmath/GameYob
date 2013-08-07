@@ -405,19 +405,30 @@ void displayConsole() {
 
     while (!quitConsole) {
         consoleClear();
+		int pos=0;
         int nameStart = (32-strlen(menuList[menu].name)-2)/2;
         if (option == -1)
             nameStart-=2;
-        for (int i=0; i<nameStart; i++)
+		iprintf("<");
+		pos++;
+        for (; pos<nameStart; pos++)
             iprintf(" ");
-        if (option == -1)
+        if (option == -1) {
             iprintf("* ");
+			pos += 2;
+		}
         iprintf("[");
         iprintf(menuList[menu].name);
         iprintf("]");
-        if (option == -1)
+		pos += 2 + strlen(menuList[menu].name);
+        if (option == -1) {
             iprintf(" *");
-        iprintf("\n\n");
+			pos += 2;
+		}
+		for (; pos < 31; pos++)
+			iprintf(" ");
+		iprintf(">");
+        iprintf("\n");
 
         for (int i=0; i<menuList[menu].numOptions; i++) {
             if (menuList[menu].options[i].numValues == 0) {
