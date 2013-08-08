@@ -95,8 +95,10 @@ void returnToLauncherFunc(int value) {
 }
 
 void nifiEnableFunc(int value) {
-    if (value)
+    if (value) {
+		printConsoleMessage("Warning: link emulation sucks.");
         enableNifi();
+	}
     else
         disableNifi();
 }
