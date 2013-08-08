@@ -86,7 +86,7 @@ void toggleCheat (int i, bool enabled)
         cheats[i].flags |= FLAG_ENABLED;
         if ((cheats[i].flags & FLAG_TYPE_MASK) != FLAG_GAMESHARK) {
             for (int j=0; j<numRomBanks; j++) {
-                if (isBankLoaded(j))
+                if (isRomBankLoaded(j))
                     applyGGCheatsToBank(j);
             }
         }
@@ -101,8 +101,8 @@ void unapplyGGCheat(int cheat) {
     if ((cheats[cheat].flags & FLAG_TYPE_MASK) != FLAG_GAMESHARK) {
         for (unsigned int i=0; i<cheats[cheat].patchedBanks.size(); i++) {
             int bank = cheats[cheat].patchedBanks[i];
-            if (isBankLoaded(bank)) {
-                rom[bank][cheats[cheat].address&0x3fff] = cheats[cheat].patchedValues[i];
+            if (isRomBankLoaded(bank)) {
+                getRomBank(bank)[cheats[cheat].address&0x3fff] = cheats[cheat].patchedValues[i];
             }
         }
         cheats[cheat].patchedBanks = std::vector<int>();
@@ -111,18 +111,19 @@ void unapplyGGCheat(int cheat) {
 }
 
 void applyGGCheatsToBank(int bank) {
+	u8* bankPtr = getRomBank(bank);
     for (int i=0; i<numCheats; i++) {
         if (cheats[i].flags & FLAG_ENABLED && ((cheats[i].flags & FLAG_TYPE_MASK) != FLAG_GAMESHARK)) {
 
             int bankSlot = cheats[i].address/0x4000;
             if ((bankSlot == 0 && bank == 0) || (bankSlot == 1 && bank != 0)) {
                 int address = cheats[i].address&0x3fff;
-                if (((cheats[i].flags & FLAG_TYPE_MASK) == FLAG_GAMEGENIE1 || rom[bank][address] == cheats[i].compare) && 
+                if (((cheats[i].flags & FLAG_TYPE_MASK) == FLAG_GAMEGENIE1 || bankPtr[address] == cheats[i].compare) && 
                         find(cheats[i].patchedBanks.begin(), cheats[i].patchedBanks.end(), bank) == cheats[i].patchedBanks.end()) {
 
                     cheats[i].patchedBanks.push_back(bank);
-                    cheats[i].patchedValues.push_back(rom[bank][address]);
-                    rom[bank][address] = cheats[i].data;
+                    cheats[i].patchedValues.push_back(bankPtr[address]);
+                    bankPtr[address] = cheats[i].data;
                 }
             }
         }

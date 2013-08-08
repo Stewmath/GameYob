@@ -245,7 +245,7 @@ void initGameboyMode() {
         case 0: // GB
             gbRegs.af.b.h = 0x01;
             gbMode = GB;
-            if (rom[0][0x143] == 0x80 || rom[0][0x143] == 0xC0)
+            if (romSlot0[0x143] == 0x80 || romSlot1[0x143] == 0xC0)
                 // Init the palette in case the bios overwrote it, since it 
                 // assumed it was starting in GBC mode.
                 initGFXPalette();

@@ -47,7 +47,6 @@ u8* memory[0x10]
 DTCM_BSS
 #endif
 ;
-u8* rom[MAX_ROM_BANKS];
 u8 vram[2][0x2000];
 u8** externRam = NULL;
 u8 wram[8][0x1000];
@@ -97,10 +96,10 @@ void refreshRomBank(int bank)
     if (bank < numRomBanks) {
         romBank = bank;
         loadRomBank(); 
-        memory[0x4] = rom[romBank];
-        memory[0x5] = rom[romBank]+0x1000;
-        memory[0x6] = rom[romBank]+0x2000;
-        memory[0x7] = rom[romBank]+0x3000; 
+        memory[0x4] = romSlot1;
+        memory[0x5] = romSlot1+0x1000;
+        memory[0x6] = romSlot1+0x2000;
+        memory[0x7] = romSlot1+0x3000; 
     }
 }
 
@@ -575,10 +574,10 @@ void mapMemory() {
     if (biosOn)
         memory[0x0] = bios;
     else
-        memory[0x0] = rom[0];
-    memory[0x1] = rom[0]+0x1000;
-    memory[0x2] = rom[0]+0x2000;
-    memory[0x3] = rom[0]+0x3000;
+        memory[0x0] = romSlot0;
+    memory[0x1] = romSlot0+0x1000;
+    memory[0x2] = romSlot0+0x2000;
+    memory[0x3] = romSlot0+0x3000;
     refreshRomBank(romBank);
     refreshRamBank(currentRamBank);
     refreshVramBank();
@@ -932,7 +931,7 @@ void writeIO(u8 ioReg, u8 val)
             // Special register, used by the gameboy bios
         case 0x50:
             biosOn = 0;
-            memory[0x0] = rom[0];
+            memory[0x0] = romSlot0;
             initGameboyMode();
             return;
         case 0x55: // CGB DMA

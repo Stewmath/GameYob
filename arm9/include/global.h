@@ -14,4 +14,3 @@ typedef unsigned short u16;
 typedef unsigned int u32;
 
 extern const int clockSpeed; 
-const int MAX_ROM_BANKS = 0x200;

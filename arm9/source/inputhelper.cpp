@@ -46,16 +46,28 @@ int repeatTimer=0;
 
 bool advanceFrame=false;
 
-u8 romBankSlots[MAX_LOADED_ROM_BANKS][0x4000];
-int bankSlotIDs[MAX_ROM_BANKS];
+u8* romSlot0;
+u8* romSlot1;
+int maxLoadedRomBanks;
+int numLoadedRomBanks;
+u8* romBankSlots = NULL; // Each 0x4000 bytes = one slot
+int bankSlotIDs[MAX_ROM_BANKS]; // Keeps track of which bank occupies which slot
 std::vector<int> lastBanksUsed;
 
 bool suspendStateExists;
 
 void initInput()
 {
-    fatInit(2, true);
+    //fatInit(2, true);
+	fatInitDefault();
     chdir("/lameboy"); // Default rom directory
+
+	if (__dsimode)
+		maxLoadedRomBanks = 512; // 8 megabytes
+	else
+		maxLoadedRomBanks = 128; // 2 megabytes
+
+	romBankSlots = (u8*)malloc(maxLoadedRomBanks*0x4000);
 }
 
 void flushFatCache() {
@@ -371,23 +383,25 @@ int loadProgram(char* f)
     // First calculate the size
     fseek(romFile, 0, SEEK_END);
     numRomBanks = ftell(romFile)/0x4000;
-
     rewind(romFile);
+
+	if (numRomBanks <= maxLoadedRomBanks)
+		numLoadedRomBanks = numRomBanks;
+	else
+		numLoadedRomBanks = maxLoadedRomBanks;
+
+	romSlot0 = romBankSlots;
+	romSlot1 = romBankSlots + 0x4000;
 
     for (int i=0; i<numRomBanks; i++) {
         bankSlotIDs[i] = -1;
     }
 
-    int banksToLoad = numRomBanks;
-    if (numRomBanks > MAX_LOADED_ROM_BANKS)
-        banksToLoad = MAX_LOADED_ROM_BANKS;
-
     lastBanksUsed = std::vector<int>();
-    for (int i=0; i<banksToLoad; i++)
+    for (int i=0; i<numLoadedRomBanks; i++)
     {
-        rom[i] = romBankSlots[i];
         bankSlotIDs[i] = i;
-        fread(rom[i], 1, 0x4000, romFile);
+        fread(romBankSlots+0x4000*i, 1, 0x4000, romFile);
         if (i != 0)
             lastBanksUsed.push_back(i);
     }
@@ -397,16 +411,16 @@ int loadProgram(char* f)
     strcpy(savename, basename);
     strcat(savename, ".sav");
 
-    cgbFlag = rom[0][0x143];
-    romSize = rom[0][0x148];
-    ramSize = rom[0][0x149];
-    mapper  = rom[0][0x147];
+    cgbFlag = romSlot0[0x143];
+    romSize = romSlot0[0x148];
+    ramSize = romSlot0[0x149];
+    mapper  = romSlot0[0x147];
 
     int nameLength = 16;
     if (cgbFlag == 0x80 || cgbFlag == 0xc0)
         nameLength = 15;
     for (int i=0; i<nameLength; i++) 
-        romTitle[i] = (char)rom[0][i+0x134];
+        romTitle[i] = (char)romSlot0[i+0x134];
     romTitle[nameLength] = '\0';
 
     hasRumble = false;
@@ -457,7 +471,7 @@ int loadProgram(char* f)
     // Little hack to preserve "quickread" from gbcpu.cpp.
     if (biosExists) {
         for (int i=0x100; i<0x150; i++)
-            bios[i] = rom[0][i];
+            bios[i] = romSlot0[i];
     }
 
     char nameBuf[100];
@@ -473,7 +487,7 @@ int loadProgram(char* f)
     loadCheats(nameBuf);
 
 
-    if (numRomBanks <= MAX_LOADED_ROM_BANKS) {
+    if (numRomBanks <= numLoadedRomBanks) {
         fclose(romFile);
         romFile = NULL;
     }
@@ -483,25 +497,33 @@ int loadProgram(char* f)
 }
 
 void loadRomBank() {
-    if (numRomBanks <= MAX_LOADED_ROM_BANKS || romBank == 0 || bankSlotIDs[romBank] != -1)
+    if (bankSlotIDs[romBank] != -1 || numRomBanks <= numLoadedRomBanks || romBank == 0) {
+		romSlot1 = romBankSlots+bankSlotIDs[romBank]*0x4000;
         return;
+	}
     int bankToUnload = lastBanksUsed.back();
     lastBanksUsed.pop_back();
     int slot = bankSlotIDs[bankToUnload];
     bankSlotIDs[bankToUnload] = -1;
     bankSlotIDs[romBank] = slot;
-    rom[romBank] = romBankSlots[slot];
 
     fseek(romFile, 0x4000*romBank, SEEK_SET);
-    fread(rom[romBank], 1, 0x4000, romFile);
+    fread(romBankSlots+slot*0x4000, 1, 0x4000, romFile);
 
     lastBanksUsed.insert(lastBanksUsed.begin(), romBank);
 
     applyGGCheatsToBank(romBank);
+
+	romSlot1 = romBankSlots+slot*0x4000;
 }
 
-bool isBankLoaded(int bank) {
+bool isRomBankLoaded(int bank) {
     return bankSlotIDs[bank] != -1;
+}
+u8* getRomBank(int bank) {
+	if (!isRomBankLoaded(bank))
+		return 0;
+	return romBankSlots+bankSlotIDs[bank]*0x4000;
 }
 
 int loadSave()

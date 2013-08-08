@@ -60,7 +60,6 @@ extern u8 bios[0x900];
 // memory[x][yyy] = ram value at xyyy
 extern u8* memory[0x10];
 
-extern u8* rom[];
 extern u8 vram[2][0x2000];
 extern u8** externRam;
 extern u8 wram[8][0x1000];

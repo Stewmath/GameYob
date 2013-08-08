@@ -8,9 +8,9 @@ enum {
     MBC1,
     MBC2,
     MBC3,
-    MBC4,
+    MBC4, // Unsupported
     MBC5,
-    MBC7,
+    MBC7, // Unsupported
     HUC3,
     HUC1,
     MBC_MAX,
@@ -25,7 +25,13 @@ enum {
 #define UP			0x40
 #define DOWN		0x80
 
-#define MAX_LOADED_ROM_BANKS	128 /* 64 = 1 MiB */
+const int MAX_ROM_BANKS = 0x200;
+
+extern int maxLoadedRomBanks;
+extern int numLoadedRomBanks;
+
+extern u8* romSlot0;
+extern u8* romSlot1;
 
 extern u8 buttonsPressed;
 
@@ -51,7 +57,8 @@ void forceReleaseKey(int key);
 void loadBios(const char* filename);
 int loadProgram(char* filename);
 void loadRomBank();
-bool isBankLoaded(int bank);
+bool isRomBankLoaded(int bank);
+u8* getRomBank(int bank);
 int loadSave();
 int saveGame();
 char* getRomTitle();
