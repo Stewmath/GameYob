@@ -66,7 +66,9 @@ void setEventCycles(int cycles) {
 void gameboyUpdateVBlank() {
 	if (gbsMode) {
         drawScreen(); // Just because it syncs with vblank...
-		updateGBSInput();
+        // gbsUpdateInput is instead called from the vblank handler.
+        // This makes more sense when fast forward is on.
+		//gbsUpdateInput();
 	}
 	else {
 		drawScreen();

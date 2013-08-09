@@ -10,4 +10,4 @@ extern u16 gbsPlayAddress;
 
 void readGBSHeader();
 void initGBS();
-void updateGBSInput();
+void gbsUpdateInput();

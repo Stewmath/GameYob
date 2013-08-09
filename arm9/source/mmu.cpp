@@ -999,8 +999,6 @@ void writeIO(u8 ioReg, u8 val)
             break;
         case 0xFF:
             ioRam[ioReg] = val;
-            if (gbsMode)
-                ioRam[ioReg] = TIMER; // Allow only timer interrupts for GBS stuff
             if (val & ioRam[0x0f])
                 cyclesToExecute = -1;
             break;

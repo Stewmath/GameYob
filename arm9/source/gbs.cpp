@@ -17,13 +17,30 @@ u16 gbsLoadAddress;
 u16 gbsInitAddress;
 u16 gbsPlayAddress;
 
-int gbsCurrentSong;
+int gbsSelectedSong;
 
 // private
 
-void gbsLoadSong(int song) {
-    gbsCurrentSong = song;
-    gbRegs.af.b.h = song;
+void gbsRedraw() {
+    consoleClear();
+
+    printf("Song %d of %d\n\n", gbsSelectedSong+1, gbsNumSongs);
+
+    // Print music information
+    for (int i=0; i<3; i++) {
+        for (int j=0; j<32; j++) {
+            char c = gbsHeader[0x10+i*0x20+j];
+            if (c == 0)
+                printf(" ");
+            else
+                printf("%c", c);
+        }
+        printf("\n");
+    }
+}
+
+void gbsLoadSong() {
+    gbRegs.af.b.h = gbsSelectedSong;
     gbRegs.sp.w = READ16(gbsHeader+0x0c); // Reset SP
     writeMemory(--gbRegs.sp.w, 0x01);
     writeMemory(--gbRegs.sp.w, 0x00); // Will return to beginning
@@ -77,26 +94,32 @@ void initGBS() {
     romSlot0[0x102] = 0x18; // jr -3
     romSlot0[0x103] = -3;
 
-    gbsLoadSong(firstSong);
+    gbsSelectedSong = firstSong;
+    gbsLoadSong();
+    gbsRedraw();
 
     writeIO(0xff, TIMER); // Enable timer interrupt
 }
 
-void updateGBSInput() {
+// Called at vblank each frame
+void gbsUpdateInput() {
     updateInput(); // As normal
 
-    consoleClear();
-
-    printf("Song %d of %d\n", gbsCurrentSong+1, gbsNumSongs);
-
     if (keyPressedAutoRepeat(KEY_LEFT)) {
-        if (gbsCurrentSong == 0)
-            gbsCurrentSong = gbsNumSongs;
-        gbsLoadSong(gbsCurrentSong-1);
+        gbsSelectedSong--;
+        if (gbsSelectedSong == -1)
+            gbsSelectedSong = gbsNumSongs-1;
+        gbsRedraw();
     }
     if (keyPressedAutoRepeat(KEY_RIGHT)) {
-        if (gbsCurrentSong == gbsNumSongs-1)
-            gbsCurrentSong = -1;
-        gbsLoadSong(gbsCurrentSong+1);
+        gbsSelectedSong++;
+        if (gbsSelectedSong == gbsNumSongs)
+            gbsSelectedSong = 0;
+        gbsRedraw();
     }
+    if (keyJustPressed(KEY_A)) {
+        gbsLoadSong();
+    }
+
+    gbsRedraw();
 }
