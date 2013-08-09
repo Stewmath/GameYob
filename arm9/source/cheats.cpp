@@ -6,7 +6,7 @@
 #include "cheats.h"
 #include "inputhelper.h"
 
-#define TO_INT(a) ( (a) >= 'A' ? (a) - 'A' + 10 : (a) - '0')
+#define TO_INT(a) ( (a) >= 'a' ? (a) - 'a' + 10 : (a) >= 'A' ? (a) - 'A' + 10 : (a) - '0')
 
 bool     cheatsEnabled = true;
 cheat_t  cheats[MAX_CHEATS];
