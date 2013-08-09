@@ -12,8 +12,7 @@ placed between 2 and 3.
 
 Layers are dynamically allocated. If bg & window are not on the same line, 
 everything's fine. If they are on the same line, they are each allocated 2 
-layers. It detects 
-whether high-priority tiles are necessary. If so it uses:
+layers. It detects whether high-priority tiles are necessary. If so it uses:
 1. A layer with colors 0-3 of each tile
 2. A layer with colors 1-3 of high-priority tiles
 Or, if it doesn't use high-priority tiles, satisfy low-priority sprites:

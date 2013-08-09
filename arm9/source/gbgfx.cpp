@@ -1,3 +1,4 @@
+#include "inputhelper.h"
 #include <nds.h>
 #include <stdio.h>
 #include <math.h>
@@ -510,7 +511,7 @@ void initGFX()
     WIN0_X1 = screenOffsX+160;
     WIN0_Y1 = screenOffsY+144;
 
-	int mode = (loadedBorderType == BORDER_CUSTOM ? 3 : 0);
+	int mode = (loadedBorderType == BORDER_CUSTOM ? MODE_3_2D : MODE_0_2D);
     videoSetMode(mode | DISPLAY_BG0_ACTIVE | DISPLAY_BG1_ACTIVE | DISPLAY_BG2_ACTIVE | DISPLAY_BG3_ACTIVE |
             DISPLAY_WIN0_ON | DISPLAY_WIN1_ON | DISPLAY_SPR_ACTIVE | DISPLAY_SPR_1D);
 
@@ -647,8 +648,6 @@ void refreshSgbPalette() {
     }
 }
 
-// This function is a bit finicky since the hblank interrupt reads 
-// loadedBorderType.
 void checkBorder() {
     int lastBorderType = loadedBorderType;
     int nextBorderType = BORDER_NONE;
