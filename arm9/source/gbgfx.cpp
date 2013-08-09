@@ -209,7 +209,7 @@ void drawLine(int gbLine) {
             WIN0_X0 = screenOffsX+160;
             WIN0_Y0 = screenOffsY;
         }
-		WIN_IN |= 15<<8;
+        WIN_IN |= 15<<8;
 
         if (winLayers != 0) {
             int whofs = -(state->winX-7)-screenOffsX;
@@ -323,9 +323,9 @@ void drawLine(int gbLine) {
             BG_VOFS(layer++) = 0;
         }
         while (layer < 4) {
-			WIN_IN &= ~((1<<layer)<<8);
-			WIN_IN &= ~(1<<layer++);
-		}
+            WIN_IN &= ~((1<<layer)<<8);
+            WIN_IN &= ~(1<<layer++);
+        }
     }
 
     if (state->bgPalettesModified) {
@@ -450,9 +450,9 @@ int loadBorder(const char* filename) {
         u16 buffer[256];
         fread(buffer, 2, 0x100, file);
         /*
-        DC_FlushRange(buffer, 0x100*2);
-        dmaCopy(buffer, BG_GFX+0x20000+y*256, 0x100*2);
-        */
+           DC_FlushRange(buffer, 0x100*2);
+           dmaCopy(buffer, BG_GFX+0x20000+y*256, 0x100*2);
+           */
         for (int i=0; i<256; i++) {
             BG_GFX[0x20000+y*256+i] = ((buffer[i]>>10)&0x1f) | ((buffer[i])&(0x1f<<5)) | (buffer[i]&0x1f)<<10 | BIT(15);
         }
@@ -466,9 +466,9 @@ int loadBorder(const char* filename) {
 // This just sets up the background
 void loadSGBBorder() {
     loadedBorderType = BORDER_SGB;
-	videoBgDisable(3);
+    videoBgDisable(3);
     WIN_OUT = 1<<3;
-	REG_DISPCNT &= ~7; // Mode 0
+    REG_DISPCNT &= ~7; // Mode 0
     REG_BG3CNT = BG_MAP_BASE(border_map_base) | BG_TILE_BASE(12);
     REG_BG3HOFS = 0;
     REG_BG3VOFS = -(screenOffsY-40);
@@ -511,12 +511,12 @@ void initGFX()
     WIN0_X1 = screenOffsX+160;
     WIN0_Y1 = screenOffsY+144;
 
-	int mode = (loadedBorderType == BORDER_CUSTOM ? MODE_3_2D : MODE_0_2D);
+    int mode = (loadedBorderType == BORDER_CUSTOM ? MODE_3_2D : MODE_0_2D);
     videoSetMode(mode | DISPLAY_BG0_ACTIVE | DISPLAY_BG1_ACTIVE | DISPLAY_BG2_ACTIVE | DISPLAY_BG3_ACTIVE |
             DISPLAY_WIN0_ON | DISPLAY_WIN1_ON | DISPLAY_SPR_ACTIVE | DISPLAY_SPR_1D);
 
-    checkBorder(); // This may override the video mode
-    
+    checkBorder();
+
     REG_DISPSTAT &= 0xFF;
     REG_DISPSTAT |= 227<<8;     // Set line 227 for vcount
 
@@ -652,27 +652,27 @@ void checkBorder() {
     int lastBorderType = loadedBorderType;
     int nextBorderType = BORDER_NONE;
 
-	if (!nukeBorder) {
-		if (lastBorderType == BORDER_SGB && sgbBordersEnabled) {
-			nextBorderType = BORDER_SGB;
-		}
-	}
-	nukeBorder = false;
+    if (!nukeBorder) {
+        if (lastBorderType == BORDER_SGB && sgbBordersEnabled) {
+            nextBorderType = BORDER_SGB;
+        }
+    }
+    nukeBorder = false;
 
     if (customBordersEnabled && scaleMode == 0 && nextBorderType == BORDER_NONE) {
         nextBorderType = BORDER_CUSTOM;
     }
 
 end:
-	/*
-    if (loadedBorderType == nextBorderType)
-        return;
-		*/
+    /*
+       if (loadedBorderType == nextBorderType)
+       return;
+       */
     loadedBorderType = nextBorderType;
 
     if (nextBorderType == BORDER_NONE) {
         WIN_OUT = 0;
-		REG_DISPCNT &= ~7; // Mode 0
+        REG_DISPCNT &= ~7; // Mode 0
         BG_PALETTE[0] = BACKDROP_COLOUR; // Reset backdrop (SGB borders use the backdrop)
     }
     else {
@@ -682,15 +682,15 @@ end:
         }
         else if (nextBorderType == BORDER_CUSTOM) {
             if (lastBorderType != BORDER_CUSTOM) { // Don't reload if it's already loaded
-				videoBgDisable(3);
+                videoBgDisable(3);
                 if (loadBorder("/border.bmp") != 0) {
                     nextBorderType = BORDER_NONE;
                     goto end;
                 }
 
                 // Set up background
-				REG_DISPCNT &= ~7;
-				REG_DISPCNT |= 3; // Mode 3
+                REG_DISPCNT &= ~7;
+                REG_DISPCNT |= 3; // Mode 3
                 REG_BG3CNT = BG_MAP_BASE(16) | BG_BMP16_256x256;
                 REG_BG3X = 0;
                 REG_BG3Y = 0;
@@ -699,8 +699,8 @@ end:
                 REG_BG3PC = 0;
                 REG_BG3PD = 1<<8;
 
-				swiWaitForVBlank();
-				videoBgEnable(3);
+                swiWaitForVBlank();
+                videoBgEnable(3);
             }
         }
     }

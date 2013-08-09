@@ -202,7 +202,8 @@ char* startFileChooser() {
         std::vector<bool> directory;
         while ((entry = readdir(dp)) != NULL) {
             char* ext = strrchr(entry->d_name, '.')+1;
-            if (entry->d_type & DT_DIR || strcmpi(ext, "cgb") == 0 || strcmpi(ext, "gbc") == 0 || strcmpi(ext, "gb") == 0 || strcmpi(ext, "sgb") == 0) {
+            if (entry->d_type & DT_DIR || strcmpi(ext, "cgb") == 0 || strcmpi(ext, "gbc") == 0 || strcmpi(ext, "gb") == 0 || strcmpi(ext, "sgb") == 0 ||
+					strcmpi(ext, "gbs") == 0) {
                 if (!(strcmp(".", entry->d_name) == 0)) {
                     directory.push_back(entry->d_type & DT_DIR);
                     char *name = (char*)malloc(sizeof(char)*(strlen(entry->d_name)+1));

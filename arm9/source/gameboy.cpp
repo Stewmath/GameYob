@@ -13,6 +13,7 @@
 #include "console.h"
 #include "cheats.h"
 #include "sgb.h"
+#include "gbs.h"
 
 int scanlineCounter;
 int doubleSpeed;
@@ -63,75 +64,81 @@ void setEventCycles(int cycles) {
 
 // This is called 60 times per second, even if the lcd is off.
 void gameboyUpdateVBlank() {
-    drawScreen();
-    soundUpdateVBlank();
-    updateInput();
+	if (gbsMode) {
+        drawScreen(); // Just because it syncs with vblank...
+		updateGBSInput();
+	}
+	else {
+		drawScreen();
+		soundUpdateVBlank();
+		updateInput();
 
-    if (resettingGameboy) {
-        initializeGameboy();
-        resettingGameboy = false;
-    }
+		if (resettingGameboy) {
+			initializeGameboy();
+			resettingGameboy = false;
+		}
 
-    if (probingForBorder)
-        return;
+		if (probingForBorder)
+			return;
 
-    // Check autosaving stuff
-    if (saveModified) {
-        wroteToSramThisFrame = true;
-        saveModified = false;
-    }
-    else if (wroteToSramThisFrame) { // This executes when a full frame has passed since sram was last written to.
-        printLog("SAVE %d\n", numSaveWrites);
-        numSaveWrites = 0;
-        wroteToSramThisFrame = false;
+		// Check autosaving stuff
+		if (saveModified) {
+			wroteToSramThisFrame = true;
+			saveModified = false;
+		}
+		else if (wroteToSramThisFrame) { // This executes when a full frame has passed since sram was last written to.
+			printLog("SAVE %d\n", numSaveWrites);
+			numSaveWrites = 0;
+			wroteToSramThisFrame = false;
 
-        fseek(saveFile, autosaveStart, SEEK_SET);
+			fseek(saveFile, autosaveStart, SEEK_SET);
 
-        for (int i=autosaveStart/0x2000; i<=autosaveEnd/0x2000; i++) {
-            int start = (i == autosaveStart/0x2000 ? autosaveStart : i*0x2000);
-            int end = (i == autosaveEnd/0x2000 ? autosaveEnd+1 : (i+1)*0x2000);
-            fwrite(externRam[i]+(start&0x1fff), 1, end-start, saveFile);
-        }
+			for (int i=autosaveStart/0x2000; i<=autosaveEnd/0x2000; i++) {
+				int start = (i == autosaveStart/0x2000 ? autosaveStart : i*0x2000);
+				int end = (i == autosaveEnd/0x2000 ? autosaveEnd+1 : (i+1)*0x2000);
+				fwrite(externRam[i]+(start&0x1fff), 1, end-start, saveFile);
+			}
 
-        flushFatCache();
+			flushFatCache();
 
-        autosaveStart = -1;
-        autosaveEnd = -1;
-    }
+			autosaveStart = -1;
+			autosaveEnd = -1;
+		}
 
-    if (cheatsEnabled)
-        applyGSCheats();
+		if (cheatsEnabled)
+			applyGSCheats();
 
-    if (!consoleDebugOutput && (rawTime > lastRawTime))
-    {
-        consoleClear();
-        int line=0;
-        if (fpsOutput) {
-            consoleClear();
-            iprintf("FPS: %d\n", fps);
-            line++;
-        }
-        fps = 0;
-        if (timeOutput) {
-            for (; line<23-1; line++)
-                iprintf("\n");
-            char *timeString = ctime(&rawTime);
-            for (int i=0;; i++) {
-                if (timeString[i] == ':') {
-                    timeString += i-2;
-                    break;
-                }
-            }
-            char s[50];
-            strncpy(s, timeString, 50);
-            s[5] = '\0';
-            int spaces = 31-strlen(s);
-            for (int i=0; i<spaces; i++)
-                iprintf(" ");
-            iprintf("%s\n", s);
-        }
-        lastRawTime = rawTime;
-    }
+		if (!consoleDebugOutput && (rawTime > lastRawTime))
+		{
+			consoleClear();
+			int line=0;
+			if (fpsOutput) {
+				consoleClear();
+				iprintf("FPS: %d\n", fps);
+				line++;
+			}
+			fps = 0;
+			if (timeOutput) {
+				for (; line<23-1; line++)
+					iprintf("\n");
+				char *timeString = ctime(&rawTime);
+				for (int i=0;; i++) {
+					if (timeString[i] == ':') {
+						timeString += i-2;
+						break;
+					}
+				}
+				char s[50];
+				strncpy(s, timeString, 50);
+				s[5] = '\0';
+				int spaces = 31-strlen(s);
+				for (int i=0; i<spaces; i++)
+					iprintf(" ");
+				iprintf("%s\n", s);
+			}
+			lastRawTime = rawTime;
+		}
+	}
 }
 
 // This function can be called from weird contexts, so just set a flag to deal 

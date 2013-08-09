@@ -10,6 +10,7 @@
 #include "nifi.h"
 #include "sgb.h"
 #include "console.h"
+#include "gbs.h"
 #ifdef DS
 #include <nds.h>
 #endif
@@ -543,7 +544,7 @@ void initMMU()
     writeFunc = mbcWrites[MBC];
 
     biosOn = false;
-    if (biosExists && !probingForBorder) {
+    if (biosExists && !probingForBorder && !gbsMode) {
         if (biosEnabled == 2)
             biosOn = true;
         else if (biosEnabled == 1 && resultantGBMode == 0)
@@ -664,6 +665,10 @@ u8 readMemory(u16 addr)
     }
 
     return memory[addr>>12][addr&0xfff];
+}
+
+u16 readMemory16(u16 addr) {
+    return readMemory(addr) | readMemory(addr+1)<<8;
 }
 
 #ifdef DS
@@ -839,6 +844,9 @@ void writeIO(u8 ioReg, u8 val)
         case 0x05:
             ioRam[ioReg] = val;
             break;
+        case 0x06:
+            ioRam[ioReg] = val;
+            break;
         case 0x07:
             timerPeriod = periods[val&0x3];
             ioRam[ioReg] = val;
@@ -991,6 +999,8 @@ void writeIO(u8 ioReg, u8 val)
             break;
         case 0xFF:
             ioRam[ioReg] = val;
+            if (gbsMode)
+                ioRam[ioReg] = TIMER; // Allow only timer interrupts for GBS stuff
             if (val & ioRam[0x0f])
                 cyclesToExecute = -1;
             break;

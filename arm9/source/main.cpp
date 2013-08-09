@@ -18,6 +18,7 @@
 #include "console.h"
 #include "nifi.h"
 #include "cheats.h"
+#include "gbs.h"
 #include "common.h"
 
 extern time_t rawTime;
@@ -83,32 +84,38 @@ void initGBCMode() {
 void initializeGameboy() {
     sgbMode = false;
 
-    switch(gbcModeOption) {
-        case 0: // GB
-            initGBMode();
-            break;
-        case 1: // GBC if needed
-            if (romSlot0[0x143] == 0xC0)
-                initGBCMode();
-            else
-                initGBMode();
-            break;
-        case 2: // GBC
-            if (romSlot0[0x143] == 0x80 || romSlot0[0x143] == 0xC0)
-                initGBCMode();
-            else
-                initGBMode();
-            break;
-    }
-
-    bool sgbEnhanced = romSlot0[0x14b] == 0x33 && romSlot0[0x146] == 0x03;
-    if (sgbEnhanced && resultantGBMode != 2 && probingForBorder) {
-        resultantGBMode = 2;
-        nukeBorder = false;
-    }
-    else {
+    if (gbsMode) {
+        resultantGBMode = 1; // GBC
         probingForBorder = false;
     }
+    else {
+        switch(gbcModeOption) {
+            case 0: // GB
+                initGBMode();
+                break;
+            case 1: // GBC if needed
+                if (romSlot0[0x143] == 0xC0)
+                    initGBCMode();
+                else
+                    initGBMode();
+                break;
+            case 2: // GBC
+                if (romSlot0[0x143] == 0x80 || romSlot0[0x143] == 0xC0)
+                    initGBCMode();
+                else
+                    initGBMode();
+                break;
+        }
+
+        bool sgbEnhanced = romSlot0[0x14b] == 0x33 && romSlot0[0x146] == 0x03;
+        if (sgbEnhanced && resultantGBMode != 2 && probingForBorder) {
+            resultantGBMode = 2;
+            nukeBorder = false;
+        }
+        else {
+            probingForBorder = false;
+        }
+    } // !gbsMode
 
     initMMU();
     initCPU();
@@ -116,12 +123,15 @@ void initializeGameboy() {
     initGFX();
     initSND();
 
-    if (!probingForBorder && suspendStateExists) {
+    if (!gbsMode && !probingForBorder && suspendStateExists) {
         loadState(-1);
         // enter the console on resume
         advanceFrame = true;
     }
     updateScreens();
+
+    if (gbsMode)
+        initGBS();
 }
 
 void initializeGameboyFirstTime() {
@@ -171,6 +181,7 @@ int main(int argc, char* argv[])
     else {
         selectRom();
     }
+
     consoleOn = false;
     updateScreens();
 

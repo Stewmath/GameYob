@@ -9,6 +9,7 @@
 #include "nifi.h"
 #include "cheats.h"
 #include "gbgfx.h"
+#include "gbs.h"
 #include "common.h"
 
 
@@ -562,7 +563,7 @@ PrintConsole blankConsole;
 void updateScreens() {
     swiWaitForVBlank();
 
-    if (!consoleOn && scaleMode != 0) {
+    if (!gbsMode && !consoleOn && scaleMode != 0) {
         sharedData->scalingOn = 1;
 
         REG_DISPCNT &= ~(3<<16);
@@ -601,6 +602,11 @@ void updateScreens() {
             powerOff(backlights[consoleScreen]);
         else
             powerOn(backlights[consoleScreen]);
+    }
+    if (gbsMode) {
+        powerOn(backlights[consoleScreen]);
+        powerOff(backlights[!consoleScreen]);
+        REG_DISPCNT &= ~(3<<16);
     }
 }
 

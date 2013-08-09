@@ -20,6 +20,7 @@
 #include "gbsnd.h"
 #include "cheats.h"
 #include "sgb.h"
+#include "gbs.h"
 #include "common.h"
 
 FILE* romFile=NULL;
@@ -59,15 +60,15 @@ bool suspendStateExists;
 void initInput()
 {
     //fatInit(2, true);
-	fatInitDefault();
+    fatInitDefault();
     chdir("/lameboy"); // Default rom directory
 
-	if (__dsimode)
-		maxLoadedRomBanks = 512; // 8 megabytes
-	else
-		maxLoadedRomBanks = 128; // 2 megabytes
+    if (__dsimode)
+        maxLoadedRomBanks = 512; // 8 megabytes
+    else
+        maxLoadedRomBanks = 128; // 2 megabytes
 
-	romBankSlots = (u8*)malloc(maxLoadedRomBanks*0x4000);
+    romBankSlots = (u8*)malloc(maxLoadedRomBanks*0x4000);
 }
 
 void flushFatCache() {
@@ -116,7 +117,7 @@ void controlsParseConfig(const char* line2) {
     char line[100];
     strncpy(line, line2, 100);
     while (strlen(line) > 0 && (line[strlen(line)-1] == '\n' || line[strlen(line)-1] == ' '))
-            line[strlen(line)-1] = '\0';
+        line[strlen(line)-1] = '\0';
     if (line[0] == '(') {
         char* bracketEnd;
         if ((bracketEnd = strrchr(line, ')')) != 0) {
@@ -373,6 +374,9 @@ int loadProgram(char* f)
         fclose(romFile);
     strcpy(filename, f);
 
+    // Check if this is a GBS file
+    gbsMode = (strcmpi(strrchr(filename, '.'), ".gbs") == 0);
+
     romFile = fopen(filename, "rb");
     if (romFile == NULL)
     {
@@ -380,30 +384,48 @@ int loadProgram(char* f)
         return 1;
     }
 
-    // First calculate the size
-    fseek(romFile, 0, SEEK_END);
-    numRomBanks = ftell(romFile)/0x4000;
+    if (gbsMode) {
+        fread(gbsHeader, 1, 0x70, romFile);
+        readGBSHeader();
+        fseek(romFile, 0, SEEK_END);
+        numRomBanks = (ftell(romFile)-0x70+0x3fff)/0x4000; // Get number of banks, rounded up
+    }
+    else {
+        fseek(romFile, 0, SEEK_END);
+        numRomBanks = (ftell(romFile)+0x3fff)/0x4000; // Get number of banks, rounded up
+    }
     rewind(romFile);
 
-	if (numRomBanks <= maxLoadedRomBanks)
-		numLoadedRomBanks = numRomBanks;
-	else
-		numLoadedRomBanks = maxLoadedRomBanks;
 
-	romSlot0 = romBankSlots;
-	romSlot1 = romBankSlots + 0x4000;
+    if (numRomBanks <= maxLoadedRomBanks)
+        numLoadedRomBanks = numRomBanks;
+    else
+        numLoadedRomBanks = maxLoadedRomBanks;
+
+    romSlot0 = romBankSlots;
+    romSlot1 = romBankSlots + 0x4000;
 
     for (int i=0; i<numRomBanks; i++) {
         bankSlotIDs[i] = -1;
     }
 
+    // Load rom banks and initialize all those "bank" arrays
     lastBanksUsed = std::vector<int>();
-    for (int i=0; i<numLoadedRomBanks; i++)
-    {
+    // Read bank 0
+    if (gbsMode) {
+        bankSlotIDs[0] = 0;
+        fseek(romFile, 0x70, SEEK_SET);
+        fread(romBankSlots+gbsLoadAddress, 1, 0x4000-gbsLoadAddress, romFile);
+    }
+    else {
+        bankSlotIDs[0] = 0;
+        fread(romBankSlots, 1, 0x4000, romFile);
+    }
+    // Read the rest of the banks
+    for (int i=1; i<numLoadedRomBanks; i++) {
         bankSlotIDs[i] = i;
         fread(romBankSlots+0x4000*i, 1, 0x4000, romFile);
-        if (i != 0)
-            lastBanksUsed.push_back(i);
+        lastBanksUsed.push_back(i);
     }
 
     strcpy(basename, filename);
@@ -425,82 +447,92 @@ int loadProgram(char* f)
 
     hasRumble = false;
 
-    switch (mapper) {
-        case 0: case 8: case 9:
-            MBC = MBC0; 
-            break;
-        case 1: case 2: case 3:
-            MBC = MBC1;
-            break;
-        case 5: case 6:
-            MBC = MBC2;
-            break;
-        //case 0xb: case 0xc: case 0xd:
-            //MBC = MMM01;
-            //break;
-        case 0xf: case 0x10: case 0x11: case 0x12: case 0x13:
-            MBC = MBC3;
-            break;
-        //case 0x15: case 0x16: case 0x17:
-            //MBC = MBC4;
-            //break;
-        case 0x19: case 0x1a: case 0x1b: 
-            MBC = MBC5;
-            break;
-        case 0x1c: case 0x1d: case 0x1e:
-            MBC = MBC5;
-            hasRumble = true;
-            break;
-        case 0x22:
-            MBC = MBC7;
-            break;
-        case 0xea: /* Hack for SONIC5 */
-            MBC = MBC1;
-            break;
-        case 0xfe:
-            MBC = HUC3;
-            break;
-        case 0xff:
-            MBC = HUC1;
-            break;
-        default:
-            printLog("Unsupported MBC %02x\n", mapper);
-            return 1;
+    if (gbsMode) {
+        MBC = MBC5;
     }
+    else {
+        switch (mapper) {
+            case 0: case 8: case 9:
+                MBC = MBC0; 
+                break;
+            case 1: case 2: case 3:
+                MBC = MBC1;
+                break;
+            case 5: case 6:
+                MBC = MBC2;
+                break;
+                //case 0xb: case 0xc: case 0xd:
+                //MBC = MMM01;
+                //break;
+            case 0xf: case 0x10: case 0x11: case 0x12: case 0x13:
+                MBC = MBC3;
+                break;
+                //case 0x15: case 0x16: case 0x17:
+                //MBC = MBC4;
+                //break;
+            case 0x19: case 0x1a: case 0x1b: 
+                MBC = MBC5;
+                break;
+            case 0x1c: case 0x1d: case 0x1e:
+                MBC = MBC5;
+                hasRumble = true;
+                break;
+            case 0x22:
+                MBC = MBC7;
+                break;
+            case 0xea: /* Hack for SONIC5 */
+                MBC = MBC1;
+                break;
+            case 0xfe:
+                MBC = HUC3;
+                break;
+            case 0xff:
+                MBC = HUC1;
+                break;
+            default:
+                printLog("Unsupported MBC %02x\n", mapper);
+                return 1;
+        }
 
-    // Little hack to preserve "quickread" from gbcpu.cpp.
-    if (biosExists) {
-        for (int i=0x100; i<0x150; i++)
-            bios[i] = romSlot0[i];
-    }
+        // Little hack to preserve "quickread" from gbcpu.cpp.
+        if (biosExists) {
+            for (int i=0x100; i<0x150; i++)
+                bios[i] = romSlot0[i];
+        }
 
-    char nameBuf[100];
-    siprintf(nameBuf, "%s.yss", basename);
-    FILE* stateFile = fopen(nameBuf, "r");
-    suspendStateExists = stateFile;
-    if (stateFile)
-        fclose(stateFile);
+        char nameBuf[100];
+        // Check for a suspend state
+        siprintf(nameBuf, "%s.yss", basename);
+        FILE* stateFile = fopen(nameBuf, "r");
+        suspendStateExists = stateFile;
+        if (stateFile)
+            fclose(stateFile);
+
+        // Load cheats
+        siprintf(nameBuf, "%s.cht", basename);
+        loadCheats(nameBuf);
+
+    } // !gbsMode
 
     loadSave();
 
-    siprintf(nameBuf, "%s.cht", basename);
-    loadCheats(nameBuf);
-
-
+    // If we've loaded everything, close the rom file
     if (numRomBanks <= numLoadedRomBanks) {
         fclose(romFile);
         romFile = NULL;
     }
 
+    // We haven't calculated the # of cycles to the next hardware event.
     cyclesToEvent = 1;
+
     return 0;
 }
 
 void loadRomBank() {
     if (bankSlotIDs[romBank] != -1 || numRomBanks <= numLoadedRomBanks || romBank == 0) {
-		romSlot1 = romBankSlots+bankSlotIDs[romBank]*0x4000;
+        romSlot1 = romBankSlots+bankSlotIDs[romBank]*0x4000;
         return;
-	}
+    }
     int bankToUnload = lastBanksUsed.back();
     lastBanksUsed.pop_back();
     int slot = bankSlotIDs[bankToUnload];
@@ -514,16 +546,16 @@ void loadRomBank() {
 
     applyGGCheatsToBank(romBank);
 
-	romSlot1 = romBankSlots+slot*0x4000;
+    romSlot1 = romBankSlots+slot*0x4000;
 }
 
 bool isRomBankLoaded(int bank) {
     return bankSlotIDs[bank] != -1;
 }
 u8* getRomBank(int bank) {
-	if (!isRomBankLoaded(bank))
-		return 0;
-	return romBankSlots+bankSlotIDs[bank]*0x4000;
+    if (!isRomBankLoaded(bank))
+        return 0;
+    return romBankSlots+bankSlotIDs[bank]*0x4000;
 }
 
 int loadSave()
@@ -539,26 +571,30 @@ int loadSave()
     }
     externRam = NULL;
 
-    // Get the game's external memory size and allocate the memory
-    switch(ramSize)
-    {
-        case 0:
-            numRamBanks = 0;
-            break;
-        case 1:
-        case 2:
-            numRamBanks = 1;
-            break;
-        case 3:
-            numRamBanks = 4;
-            break;
-        default:
-            printLog("Invalid RAM bank number: %x\nDefaulting to 4 banks\n", ramSize);
-            numRamBanks = 4;
-            break;
-    }
-    if (MBC == MBC2)
+    if (gbsMode)
         numRamBanks = 1;
+    else {
+        // Get the game's external memory size and allocate the memory
+        switch(ramSize)
+        {
+            case 0:
+                numRamBanks = 0;
+                break;
+            case 1:
+            case 2:
+                numRamBanks = 1;
+                break;
+            case 3:
+                numRamBanks = 4;
+                break;
+            default:
+                printLog("Invalid RAM bank number: %x\nDefaulting to 4 banks\n", ramSize);
+                numRamBanks = 4;
+                break;
+        }
+        if (MBC == MBC2)
+            numRamBanks = 1;
+    }
 
     if (numRamBanks == 0)
         return 0;
@@ -566,6 +602,9 @@ int loadSave()
     externRam = (u8**)malloc(numRamBanks*sizeof(u8*));
     for (int i=0; i<numRamBanks; i++)
         externRam[i] = (u8*)malloc(0x2000*sizeof(u8));
+
+    if (gbsMode)
+        return 0; // GBS files don't get to save.
 
     // Now load the data.
     saveFile = fopen(savename, "r+b");
