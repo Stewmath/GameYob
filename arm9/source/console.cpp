@@ -19,6 +19,8 @@ void versionInfoFunc(int value); // Defined in version.cpp
 const int screenTileWidth = 32;
 const int backlights[] = {PM_BACKLIGHT_TOP, PM_BACKLIGHT_BOTTOM};
 
+PrintConsole* printConsole;
+
 bool consoleDebugOutput = false;
 bool quitConsole = false;
 bool consoleOn = false;
@@ -387,6 +389,28 @@ void consoleSetLineColor(int line, int color) {
     }
 }
 
+void iprintfColored(int palette, const char *format, ...) {
+    va_list args;
+    va_start(args, format);
+
+    PrintConsole* console = consoleGetDefault();
+    int x = printConsole->cursorX;
+    int y = printConsole->cursorY;
+
+    char s[100];
+    vsiprintf(s, format, args);
+    iprintf(s);
+
+    for (uint i=0; i<strlen(s); i++) {
+        consoleSetPosColor(x, y, palette);
+        x++;
+        if (x == 32) {
+            x = 0;
+            y++;
+        }
+    }
+}
+
 // Message will be printed immediately, but also stored in case it's overwritten 
 // right away.
 void printConsoleMessage(const char* s) {
@@ -430,49 +454,60 @@ void displayConsole() {
         consoleClear();
 		int pos=0;
         int nameStart = (32-strlen(menuList[menu].name)-2)/2;
-        if (option == -1)
+        if (option == -1) {
             nameStart-=2;
-		iprintf("<");
+            iprintfColored(CONSOLE_COLOR_LIGHT_GREEN, "<");
+        }
+        else
+            iprintf("<");
 		pos++;
         for (; pos<nameStart; pos++)
             iprintf(" ");
         if (option == -1) {
-            iprintf("* ");
+            iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, "* ");
 			pos += 2;
 		}
-        iprintf("[");
-        iprintf(menuList[menu].name);
-        iprintf("]");
+        {
+            int color = (option == -1 ? CONSOLE_COLOR_LIGHT_YELLOW : CONSOLE_COLOR_WHITE);
+            iprintfColored(color, "[%s]", menuList[menu].name);
+        }
 		pos += 2 + strlen(menuList[menu].name);
         if (option == -1) {
-            iprintf(" *");
+            iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, " *");
 			pos += 2;
 		}
 		for (; pos < 31; pos++)
 			iprintf(" ");
-		iprintf(">");
+        if (option == -1)
+            iprintfColored(CONSOLE_COLOR_LIGHT_GREEN, ">");
+        else
+            iprintf(">");
         iprintf("\n");
 
         for (int i=0; i<menuList[menu].numOptions; i++) {
             if (menuList[menu].options[i].numValues == 0) {
                 for (unsigned int j=0; j<(32-strlen(menuList[menu].options[i].name))/2-2; j++)
                     iprintf(" ");
-                if (i == option)
-                    iprintf("* %s *\n\n", menuList[menu].options[i].name);
+                if (i == option) {
+                    iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, "* %s *\n\n", menuList[menu].options[i].name);
+                }
                 else
                     iprintf("  %s  \n\n", menuList[menu].options[i].name);
             }
             else {
-                for (unsigned int j=0; j<17-strlen(menuList[menu].options[i].name); j++)
+                for (unsigned int j=0; j<16-strlen(menuList[menu].options[i].name); j++)
                     iprintf(" ");
-                iprintf("%s ", menuList[menu].options[i].name);
-                if (i == option)
-                    iprintf("* ");
-                else
+                if (i == option) {
+                    iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, "* ");
+                    iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, "%s  ", menuList[menu].options[i].name);
+                    iprintfColored(CONSOLE_COLOR_LIGHT_GREEN, "%s", menuList[menu].options[i].values[menuList[menu].options[i].selection]);
+                    iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, " *");
+                }
+                else {
                     iprintf("  ");
-                iprintf("%s", menuList[menu].options[i].values[menuList[menu].options[i].selection]);
-                if (i == option)
-                    iprintf(" *");
+                    iprintf("%s  ", menuList[menu].options[i].name);
+                    iprintf("%s", menuList[menu].options[i].values[menuList[menu].options[i].selection]);
+                }
                 iprintf("\n\n");
             }
         }
@@ -629,7 +664,7 @@ void setupUnscaledScreens() {
     REG_DISPCNT |= 1<<16; // Enable main display
 
     consoleSelect(NULL); // Select default console
-    consoleDemoInit();
+    printConsole = consoleDemoInit();
     if (consoleScreen == 0)
         lcdMainOnBottom();
     else

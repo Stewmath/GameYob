@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <nds.h>
 #include "mmu.h"
+#include "console.h"
 #include "main.h"
 #include "cheats.h"
 #include "inputhelper.h"
@@ -216,18 +217,25 @@ bool startCheatMenu() {
         iprintf("          Cheat Menu      ");
         iprintf("%d/%d\n\n", page+1, numPages);
         for (int i=page*cheatsPerPage; i<numCheats && i < (page+1)*cheatsPerPage; i++) {
-            iprintf("%s", cheats[i].name);
+            int nameColor = (selection == i ? CONSOLE_COLOR_LIGHT_YELLOW : CONSOLE_COLOR_WHITE);
+            iprintfColored(nameColor, "%s", cheats[i].name);
             for (unsigned int j=0; j<25-strlen(cheats[i].name); j++)
                 iprintf(" ");
             if (cheats[i].flags & FLAG_ENABLED) {
-                if (selection == i)
-                    iprintf("* On * ");
+                if (selection == i) {
+                    iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, "* ");
+                    iprintfColored(CONSOLE_COLOR_LIGHT_GREEN, "On");
+                    iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, " * ");
+                }
                 else
                     iprintf("  On   ");
             }
             else {
-                if (selection == i)
-                    iprintf("* Off *");
+                if (selection == i) {
+                    iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, "* ");
+                    iprintfColored(CONSOLE_COLOR_LIGHT_GREEN, "Off");
+                    iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, " *");
+                }
                 else
                     iprintf("  Off  ");
             }

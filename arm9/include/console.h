@@ -20,6 +20,8 @@ void setConsoleDefaults();
 void consoleSetPosColor(int x, int y, int color);
 void consoleSetLineColor(int line, int color);
 
+void iprintfColored(int palette, const char* format, ...);
+
 void printConsoleMessage(const char* s);
 
 void enterConsole(); // May be called from an interrupt

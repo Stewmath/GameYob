@@ -177,7 +177,7 @@ void startKeyConfigChooser() {
         consoleClear();
         iprintf("Config: ");
         if (option == -1)
-            iprintf("* %s *\n\n", config->name);
+            iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, "* %s *\n\n", config->name);
         else
             iprintf("  %s  \n\n", config->name);
 
@@ -190,7 +190,7 @@ void startKeyConfigChooser() {
                 len--;
             }
             if (option == i) 
-                iprintf("* %s | %s *\n", dsKeyNames[i], gbKeyNames[config->gbKeys[i]]);
+                iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, "* %s | %s *\n", dsKeyNames[i], gbKeyNames[config->gbKeys[i]]);
             else
                 iprintf("  %s | %s  \n", dsKeyNames[i], gbKeyNames[config->gbKeys[i]]);
         }
@@ -224,12 +224,16 @@ void startKeyConfigChooser() {
                 }
             }
             else if (keyPressedAutoRepeat(KEY_DOWN)) {
-                if (option < 11)
+                if (option == 11)
+                    option = -1;
+                else
                     option++;
                 break;
             }
             else if (keyPressedAutoRepeat(KEY_UP)) {
-                if (option > -1)
+                if (option == -1)
+                    option = 11;
+                else
                     option--;
                 break;
             }
