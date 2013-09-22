@@ -5,6 +5,7 @@
 #include <vector>
 #include "filechooser.h"
 #include "inputhelper.h"
+#include "console.h"
 
 const int filesPerPage = 23;
 const int MAX_FILENAME_LEN = 100;
@@ -241,6 +242,11 @@ char* startFileChooser() {
                     iprintf("%s/\n", outBuffer);
                 else
                     iprintf("%s\n", outBuffer);
+
+                if (i == fileSelection) {
+                    consoleSelectedRow = i-scrollY;
+                    //consoleSetLineColor(i-scrollY, CONSOLE_COLOR_LIGHT_YELLOW);
+                }
             }
 
             while (true) {
@@ -310,5 +316,6 @@ char* startFileChooser() {
 end:
     closedir(dp);
     consoleClear();
+    consoleSelectedRow = -1;
     return retval;
 }

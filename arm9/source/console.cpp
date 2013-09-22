@@ -35,13 +35,14 @@ int sgbModeOption=false;
 
 bool customBordersEnabled;
 bool sgbBordersEnabled;
-
 bool autoSavingEnabled;
+
+volatile int consoleSelectedRow = -1;
+
 
 extern int interruptWaitMode;
 extern bool windowDisabled;
 extern bool hblankDisabled;
-extern int frameskip;
 extern int halt;
 
 extern int rumbleInserted;
@@ -369,6 +370,20 @@ void setConsoleDefaults() {
                 menuList[i].options[j].function(menuList[i].options[j].defaultSelection);
             }
         }
+    }
+}
+
+void consoleSetPosColor(int x, int y, int color) {
+    u16* map = BG_MAP_RAM_SUB(22);
+    map[y*32+x] &= ~TILE_PALETTE(15);
+    map[y*32+x] |= TILE_PALETTE(color);
+}
+
+void consoleSetLineColor(int line, int color) {
+    u16* map = BG_MAP_RAM_SUB(22);
+    for (int i=0; i<32; i++) {
+        map[line*32+i] &= ~TILE_PALETTE(15);
+        map[line*32+i] |= TILE_PALETTE(color);
     }
 }
 

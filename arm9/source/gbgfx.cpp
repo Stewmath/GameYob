@@ -356,15 +356,22 @@ void drawLine(int gbLine) {
         drawSprites(state->spriteData, state->tallSprites);
 }
 
-void hblankHandler() ITCM_CODE;
+void doHBlank(int line) ITCM_CODE;
 
-void hblankHandler()
-{
+void doHBlank(int line) {
+    if (line >= 192)
+        return;
+    if (consoleOn && line%8 == 0) {
+        // Change the backdrop color for a certain row.
+        // This is used in the file selection menu.
+        if (line/8 == consoleSelectedRow)
+            setBackdropColorSub(RGB15(0,0,31));
+        else
+            setBackdropColorSub(RGB15(0,0,0));
+    }
+
     if (hblankDisabled)
         return;
-    int line = REG_VCOUNT+1;
-    if ((REG_DISPSTAT&3) != 2)
-        line--;
     int gbLine = line-screenOffsY;
 
     if (gbLine >= 144 || gbLine <= 0)
@@ -381,8 +388,21 @@ void hblankHandler()
     drawLine(gbLine);
 }
 
-// Triggered on line 227, end of vblank
+void hblankHandler() ITCM_CODE;
+
+void hblankHandler()
+{
+    int line = REG_VCOUNT+1;
+    if ((REG_DISPSTAT&3) != 2)
+        line--;
+    doHBlank(line);
+}
+
+// Triggered on line 227, middle of vblank
 void vcountHandler() {
+    // Do hblank stuff for the very top line (physical line 0)
+    doHBlank(0);
+    // Draw the first gameboy line early (physical line 24)
     drawLine(0);
     lineCompleted[0] = true;
 
