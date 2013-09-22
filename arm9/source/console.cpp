@@ -113,6 +113,7 @@ void keyConfigFunc(int value) {
 }
 
 void saveSettingsFunc(int value) {
+    printConsoleMessage("Saving settings...");
     writeConfigFile();
     printConsoleMessage("Settings saved.");
 }
@@ -554,6 +555,7 @@ end:
         fifoSendValue32(FIFO_USER_01, GBSND_MUTE_COMMAND<<20 | 0);
     }
     consoleClear();
+    printLog("%d\n", gbsMode);
     consoleOn = false;
 
     updateScreens();
@@ -563,16 +565,20 @@ PrintConsole blankConsole;
 void updateScreens() {
     swiWaitForVBlank();
 
+    int screensToSet[2];
+
     if (!gbsMode && !consoleOn && scaleMode != 0) {
+        // Manage screens in the case that scaling is enabled:
+
         sharedData->scalingOn = 1;
 
-        REG_DISPCNT &= ~(3<<16);
-        powerOff(backlights[consoleScreen]);
+        REG_DISPCNT &= ~(3<<16); // Disable main display
+        screensToSet[consoleScreen] = false;
         if (consoleScreen == 0)
             lcdMainOnTop();
         else
             lcdMainOnBottom();
-        powerOn(backlights[!consoleScreen]);
+        screensToSet[!consoleScreen] = true;
 
         // Give it a dummy console so it won't write over bank C
         consoleSelect(&blankConsole);
@@ -581,32 +587,42 @@ void updateScreens() {
         refreshScaleMode();
     }
     else {
+        // Manage screens normally
+
         sharedData->scalingOn = 0;
 
-        REG_DISPCNT |= 1<<16;
+        REG_DISPCNT &= ~(3<<16);
+        REG_DISPCNT |= 1<<16; // Enable main display
+
         videoBgEnableSub(0);
         videoBgDisableSub(2);
         videoBgDisableSub(3);
         vramSetBankD(VRAM_D_MAIN_BG_0x06040000);
 
-        consoleSelect(NULL);
+        consoleSelect(NULL); // Select default console
         consoleDemoInit();
         if (consoleScreen == 0)
             lcdMainOnBottom();
         else
             lcdMainOnTop();
 
-        powerOn(backlights[!consoleScreen]);
+        screensToSet[!consoleScreen] = true;
 
         if (!(fpsOutput || timeOutput || consoleDebugOutput || consoleOn))
-            powerOff(backlights[consoleScreen]);
+            screensToSet[consoleScreen] = false;
         else
-            powerOn(backlights[consoleScreen]);
+            screensToSet[consoleScreen] = true;
     }
     if (gbsMode) {
-        powerOn(backlights[consoleScreen]);
-        powerOff(backlights[!consoleScreen]);
-        REG_DISPCNT &= ~(3<<16);
+        screensToSet[consoleScreen] = true;
+        screensToSet[!consoleScreen] = false;
+        REG_DISPCNT &= ~(3<<16); // Disable main display
+    }
+    for (int i=0; i<2; i++) {
+        if (screensToSet[i])
+            powerOn(backlights[i]);
+        else
+            powerOff(backlights[i]);
     }
 }
 

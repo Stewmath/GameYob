@@ -102,6 +102,8 @@ void refreshRomBank(int bank)
         memory[0x6] = romSlot1+0x2000;
         memory[0x7] = romSlot1+0x3000; 
     }
+    else
+        printLog("Tried to access bank %x\n", bank);
 }
 
 void refreshRamBank (int bank) 
@@ -551,6 +553,8 @@ void initMMU()
             biosOn = true;
     }
     mapMemory();
+    for (int i=0; i<8; i++)
+        memset(wram[i], 0, 0x1000);
     memset(hram, 0, 0x200); // Initializes sprites and IO registers
 
     writeIO(0x02, 0x00);

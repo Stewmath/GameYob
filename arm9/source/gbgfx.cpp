@@ -9,7 +9,6 @@
 #include "gameboy.h"
 #include "sgb.h"
 #include "console.h"
-#include "gbs.h"
 #include "common.h"
 
 #define BACKDROP_COLOUR RGB15(0,0,0)
@@ -416,9 +415,6 @@ void vblankHandler()
             nukeBorder = true;
             resetGameboy();
         }
-
-        if (gbsMode)
-            gbsUpdateInput();
     }
 
     memset(lineCompleted, 0, sizeof(lineCompleted));

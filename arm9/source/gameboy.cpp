@@ -64,16 +64,14 @@ void setEventCycles(int cycles) {
 
 // This is called 60 times per second, even if the lcd is off.
 void gameboyUpdateVBlank() {
+    updateInput();
 	if (gbsMode) {
         drawScreen(); // Just because it syncs with vblank...
-        // gbsUpdateInput is instead called from the vblank handler.
-        // This makes more sense when fast forward is on.
-		//gbsUpdateInput();
+		gbsUpdateInput();
 	}
 	else {
 		drawScreen();
 		soundUpdateVBlank();
-		updateInput();
 
 		if (resettingGameboy) {
 			initializeGameboy();

@@ -8,6 +8,6 @@ extern u16 gbsLoadAddress;
 extern u16 gbsInitAddress;
 extern u16 gbsPlayAddress;
 
-void readGBSHeader();
-void initGBS();
+void gbsReadHeader();
+void gbsInit();
 void gbsUpdateInput();

@@ -25,7 +25,15 @@ enum {
 #define UP			0x40
 #define DOWN		0x80
 
+enum {
+    KEY_NONE,
+    KEY_GB_A, KEY_GB_B, KEY_GB_LEFT, KEY_GB_RIGHT, KEY_GB_UP, KEY_GB_DOWN, KEY_GB_START, KEY_GB_SELECT,
+    KEY_MENU, KEY_SAVE, KEY_GB_AUTO_A, KEY_GB_AUTO_B, KEY_FAST_FORWARD, KEY_FAST_FORWARD_TOGGLE
+};
+
 const int MAX_ROM_BANKS = 0x200;
+
+
 
 extern int maxLoadedRomBanks;
 extern int numLoadedRomBanks;
@@ -53,6 +61,7 @@ bool keyPressedAutoRepeat(int key);
 bool keyJustPressed(int key);
 // Consider this key unpressed until released and pressed again
 void forceReleaseKey(int key);
+int mapGbKey(int gbKey); // Maps a "functional" key to a physical key.
 
 void loadBios(const char* filename);
 int loadProgram(char* filename);

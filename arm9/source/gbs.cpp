@@ -6,6 +6,7 @@
 #include "gbcpu.h"
 #include "gameboy.h"
 #include "main.h"
+#include "gbsnd.h"
 
 #define READ16(src) (*(src) | *(src+1)<<8)
 
@@ -17,14 +18,16 @@ u16 gbsLoadAddress;
 u16 gbsInitAddress;
 u16 gbsPlayAddress;
 
-int gbsSelectedSong;
+u8 gbsSelectedSong;
+u8 gbsPlayingSong;
 
 // private
 
 void gbsRedraw() {
     consoleClear();
 
-    printf("Song %d of %d\n\n", gbsSelectedSong+1, gbsNumSongs);
+    printf("Song %d of %d\n", gbsSelectedSong+1, gbsNumSongs);
+    printf("(Playing %d)\n\n", gbsPlayingSong+1);
 
     // Print music information
     for (int i=0; i<3; i++) {
@@ -40,25 +43,10 @@ void gbsRedraw() {
 }
 
 void gbsLoadSong() {
-    gbRegs.af.b.h = gbsSelectedSong;
-    gbRegs.sp.w = READ16(gbsHeader+0x0c); // Reset SP
-    writeMemory(--gbRegs.sp.w, 0x01);
-    writeMemory(--gbRegs.sp.w, 0x00); // Will return to beginning
-    gbRegs.pc.w = gbsInitAddress;
+    initMMU();
     ime = 0;
-}
 
-// public
-
-void readGBSHeader() {
-    gbsNumSongs    =    gbsHeader[0x04];
-    gbsLoadAddress =    READ16(gbsHeader+0x06);
-    gbsInitAddress =    READ16(gbsHeader+0x08);
-    gbsPlayAddress =    READ16(gbsHeader+0x0a);
-}
-
-void initGBS() {
-    u8 firstSong=   gbsHeader[0x05]-1;
+    gbRegs.sp.w = READ16(gbsHeader+0x0c);
     u8 tma =        gbsHeader[0x0e];
     u8 tac =        gbsHeader[0x0f];
 
@@ -66,19 +54,45 @@ void initGBS() {
         setDoubleSpeed(1);
     tac &= ~0x80;
     if (tma == 0 && tac == 0) {
-        tma = 188;
-        tac = 84;
+        // Vblank interrupt handler
+        romSlot0[0x40] = 0xcd; // call
+        romSlot0[0x41] = gbsPlayAddress&0xff;
+        romSlot0[0x42] = gbsPlayAddress>>8;
+        romSlot0[0x43] = 0xd9; // reti
+        writeIO(0xff, VBLANK);
+    }
+    else {
+        // Timer interrupt handler
+        romSlot0[0x50] = 0xcd; // call
+        romSlot0[0x51] = gbsPlayAddress&0xff;
+        romSlot0[0x52] = gbsPlayAddress>>8;
+        romSlot0[0x53] = 0xd9; // reti
+        writeIO(0xff, TIMER);
     }
 
     writeIO(0x05, 0x00);
     writeIO(0x06, tma);
     writeIO(0x07, tac);
 
-    // Timer interrupt handler
-    romSlot0[0x50] = 0xcd; // call
-    romSlot0[0x51] = gbsPlayAddress&0xff;
-    romSlot0[0x52] = gbsPlayAddress>>8;
-    romSlot0[0x53] = 0xd9; // reti
+    gbsPlayingSong = gbsSelectedSong;
+    gbRegs.af.b.h = gbsPlayingSong;
+    writeMemory(--gbRegs.sp.w, 0x01);
+    writeMemory(--gbRegs.sp.w, 0x00); // Will return to beginning
+    gbRegs.pc.w = gbsInitAddress;
+}
+
+// public
+
+void gbsReadHeader() {
+    gbsNumSongs    =    gbsHeader[0x04];
+    gbsLoadAddress =    READ16(gbsHeader+0x06);
+    gbsInitAddress =    READ16(gbsHeader+0x08);
+    gbsPlayAddress =    READ16(gbsHeader+0x0a);
+}
+
+void gbsInit() {
+    u8 firstSong=   gbsHeader[0x05]-1;
+    printLog("INIT\n");
 
     // RST vectors
     for (int i=0; i<8; i++) {
@@ -86,6 +100,11 @@ void initGBS() {
         romSlot0[i*8] = 0xc3; // jp
         romSlot0[i*8+1] = dest&0xff;
         romSlot0[i*8+2] = dest>>8;
+    }
+
+    // Interrupt handlers
+    for (int i=0; i<5; i++) {
+        romSlot0[0x40+i*8] = 0xd9; // reti
     }
 
     // Infinite loop
@@ -96,30 +115,28 @@ void initGBS() {
 
     gbsSelectedSong = firstSong;
     gbsLoadSong();
-    gbsRedraw();
-
-    writeIO(0xff, TIMER); // Enable timer interrupt
 }
 
 // Called at vblank each frame
 void gbsUpdateInput() {
-    updateInput(); // As normal
-
-    if (keyPressedAutoRepeat(KEY_LEFT)) {
-        gbsSelectedSong--;
-        if (gbsSelectedSong == -1)
+    if (keyPressedAutoRepeat(mapGbKey(KEY_GB_LEFT))) {
+        if (gbsSelectedSong == 0)
             gbsSelectedSong = gbsNumSongs-1;
-        gbsRedraw();
+        else
+            gbsSelectedSong--;
     }
-    if (keyPressedAutoRepeat(KEY_RIGHT)) {
+    if (keyPressedAutoRepeat(mapGbKey(KEY_GB_RIGHT))) {
         gbsSelectedSong++;
         if (gbsSelectedSong == gbsNumSongs)
             gbsSelectedSong = 0;
-        gbsRedraw();
     }
-    if (keyJustPressed(KEY_A)) {
+    if (keyJustPressed(mapGbKey(KEY_GB_A))) {
         gbsLoadSong();
     }
-
+    if (keyJustPressed(mapGbKey(KEY_GB_B))) { // Stop playing music
+        ime = 0;
+        writeIO(0xff, 0);
+        initSND();
+    }
     gbsRedraw();
 }

@@ -78,11 +78,7 @@ void flushFatCache() {
     _FAT_cache_flush(partition->cache); // Flush the cache manually
 }
 
-enum {
-    KEY_NONE,
-    KEY_GB_A, KEY_GB_B, KEY_GB_LEFT, KEY_GB_RIGHT, KEY_GB_UP, KEY_GB_DOWN, KEY_GB_START, KEY_GB_SELECT,
-    KEY_MENU, KEY_SAVE, KEY_GB_AUTO_A, KEY_GB_AUTO_B, KEY_FAST_FORWARD, KEY_FAST_FORWARD_TOGGLE
-};
+
 const char* gbKeyNames[] = {"-","A","B","Left","Right","Up","Down","Start","Select",
     "Menu","Save","Autofire A","Autofire B", "Fast Forward", "FF Toggle"};
 const char* dsKeyNames[] = {"A","B","Select","Start","Right","Left","Up","Down",
@@ -386,7 +382,7 @@ int loadProgram(char* f)
 
     if (gbsMode) {
         fread(gbsHeader, 1, 0x70, romFile);
-        readGBSHeader();
+        gbsReadHeader();
         fseek(romFile, 0, SEEK_END);
         numRomBanks = (ftell(romFile)-0x70+0x3fff)/0x4000; // Get number of banks, rounded up
     }
@@ -394,6 +390,14 @@ int loadProgram(char* f)
         fseek(romFile, 0, SEEK_END);
         numRomBanks = (ftell(romFile)+0x3fff)/0x4000; // Get number of banks, rounded up
     }
+
+    // Round numRomBanks to a power of 2
+    int n=1;
+    while (n < numRomBanks) n*=2;
+    numRomBanks = n;
+
+
+    int rawRomSize = ftell(romFile);
     rewind(romFile);
 
 
@@ -419,6 +423,7 @@ int loadProgram(char* f)
     }
     else {
         bankSlotIDs[0] = 0;
+        fseek(romFile, 0, SEEK_SET);
         fread(romBankSlots, 1, 0x4000, romFile);
     }
     // Read the rest of the banks
@@ -693,6 +698,10 @@ void forceReleaseKey(int key) {
     keysPressed &= ~key;
 }
 
+int mapGbKey(int gbKey) {
+    return keys[gbKey];
+}
+
 char* getRomTitle() {
     return romTitle;
 }
@@ -719,48 +728,48 @@ void updateInput()
     readKeys();
 
     buttonsPressed = 0xff;
-    if (keyPressed(keys[KEY_GB_UP])) {
+    if (keyPressed(mapGbKey(KEY_GB_UP))) {
         buttonsPressed &= (0xFF ^ UP);
         if (!(ioRam[0x00] & 0x10))
             requestInterrupt(JOYPAD);
     }
-    if (keyPressed(keys[KEY_GB_DOWN])) {
+    if (keyPressed(mapGbKey(KEY_GB_DOWN))) {
         buttonsPressed &= (0xFF ^ DOWN);
         if (!(ioRam[0x00] & 0x10))
             requestInterrupt(JOYPAD);
     }
-    if (keyPressed(keys[KEY_GB_LEFT])) {
+    if (keyPressed(mapGbKey(KEY_GB_LEFT))) {
         buttonsPressed &= (0xFF ^ LEFT);
         if (!(ioRam[0x00] & 0x10))
             requestInterrupt(JOYPAD);
     }
-    if (keyPressed(keys[KEY_GB_RIGHT])) {
+    if (keyPressed(mapGbKey(KEY_GB_RIGHT))) {
         buttonsPressed &= (0xFF ^ RIGHT);
         if (!(ioRam[0x00] & 0x10))
             requestInterrupt(JOYPAD);
     }
-    if (keyPressed(keys[KEY_GB_A])) {
+    if (keyPressed(mapGbKey(KEY_GB_A))) {
         buttonsPressed &= (0xFF ^ BUTTONA);
         if (!(ioRam[0x00] & 0x20))
             requestInterrupt(JOYPAD);
     }
-    if (keyPressed(keys[KEY_GB_B])) {
+    if (keyPressed(mapGbKey(KEY_GB_B))) {
         buttonsPressed &= (0xFF ^ BUTTONB);
         if (!(ioRam[0x00] & 0x20))
             requestInterrupt(JOYPAD);
     }
-    if (keyPressed(keys[KEY_GB_START])) {
+    if (keyPressed(mapGbKey(KEY_GB_START))) {
         buttonsPressed &= (0xFF ^ START);
         if (!(ioRam[0x00] & 0x20))
             requestInterrupt(JOYPAD);
     }
-    if (keyPressed(keys[KEY_GB_SELECT])) {
+    if (keyPressed(mapGbKey(KEY_GB_SELECT))) {
         buttonsPressed &= (0xFF ^ SELECT);
         if (!(ioRam[0x00] & 0x20))
             requestInterrupt(JOYPAD);
     }
 
-    if (keyPressed(keys[KEY_GB_AUTO_A])) {
+    if (keyPressed(mapGbKey(KEY_GB_AUTO_A))) {
         if (autoFireCounterA <= 0) {
             buttonsPressed &= (0xFF ^ BUTTONA);
             if (!(ioRam[0x00] & 0x20))
@@ -769,7 +778,7 @@ void updateInput()
         }
         autoFireCounterA--;
     }
-    if (keyPressed(keys[KEY_GB_AUTO_B])) {
+    if (keyPressed(mapGbKey(KEY_GB_AUTO_B))) {
         if (autoFireCounterB <= 0) {
             buttonsPressed &= (0xFF ^ BUTTONB);
             if (!(ioRam[0x00] & 0x20))
@@ -779,17 +788,17 @@ void updateInput()
         autoFireCounterB--;
     }
 
-    if (keyJustPressed(keys[KEY_SAVE])) {
+    if (keyJustPressed(mapGbKey(KEY_SAVE))) {
         if (!autoSavingEnabled)
             saveGame();
     }
-    if (advanceFrame || keyJustPressed(keys[KEY_MENU] | KEY_TOUCH)) {
+    if (advanceFrame || keyJustPressed(mapGbKey(KEY_MENU) | KEY_TOUCH)) {
         advanceFrame = 0;
         displayConsole();
     }
 
-    fastForwardKey = keyPressed(keys[KEY_FAST_FORWARD]);
-    if (keyJustPressed(keys[KEY_FAST_FORWARD_TOGGLE]))
+    fastForwardKey = keyPressed(mapGbKey(KEY_FAST_FORWARD));
+    if (keyJustPressed(mapGbKey(KEY_FAST_FORWARD_TOGGLE)))
         fastForwardMode = !fastForwardMode;
 
     if (fastForwardKey || fastForwardMode) {

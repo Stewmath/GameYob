@@ -128,10 +128,11 @@ void initializeGameboy() {
         // enter the console on resume
         advanceFrame = true;
     }
-    updateScreens();
-
     if (gbsMode)
-        initGBS();
+        gbsInit();
+
+    // We haven't calculated the # of cycles to the next hardware event.
+    cyclesToEvent = 1;
 }
 
 void initializeGameboyFirstTime() {
