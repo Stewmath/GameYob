@@ -527,6 +527,8 @@ void initGFX()
     int mode = (loadedBorderType == BORDER_CUSTOM ? MODE_3_2D : MODE_0_2D);
     videoSetMode(mode | DISPLAY_BG0_ACTIVE | DISPLAY_BG1_ACTIVE | DISPLAY_BG2_ACTIVE | DISPLAY_BG3_ACTIVE |
             DISPLAY_WIN0_ON | DISPLAY_WIN1_ON | DISPLAY_SPR_ACTIVE | DISPLAY_SPR_1D);
+    if (sharedData->scalingOn)
+        REG_DISPCNT &= ~(3<<16); // Main display is disabled when scaling is on
 
     checkBorder();
 

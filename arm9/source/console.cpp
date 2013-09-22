@@ -57,7 +57,7 @@ void suspendFunc(int value) {
     quitConsole = true;
 }
 void exitFunc(int value) {
-    if (!autoSavingEnabled) {
+    if (!autoSavingEnabled && numRamBanks && !gbsMode) {
         printConsoleMessage("Saving...");
         saveGame();
     }
@@ -287,7 +287,7 @@ struct ConsoleSubMenu {
 
 ConsoleSubMenu menuList[] = {
     {
-        "Options",
+        "ROM",
         8,
         {
             {"Save & Exit", exitFunc, 0, {}, 0},
