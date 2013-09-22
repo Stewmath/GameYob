@@ -218,7 +218,7 @@ bool startCheatMenu() {
         iprintf("%d/%d\n\n", page+1, numPages);
         for (int i=page*cheatsPerPage; i<numCheats && i < (page+1)*cheatsPerPage; i++) {
             int nameColor = (selection == i ? CONSOLE_COLOR_LIGHT_YELLOW : CONSOLE_COLOR_WHITE);
-            iprintfColored(nameColor, "%s", cheats[i].name);
+            iprintfColored(nameColor, cheats[i].name);
             for (unsigned int j=0; j<25-strlen(cheats[i].name); j++)
                 iprintf(" ");
             if (cheats[i].flags & FLAG_ENABLED) {

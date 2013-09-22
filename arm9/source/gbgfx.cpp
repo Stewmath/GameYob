@@ -398,18 +398,18 @@ void hblankHandler()
     doHBlank(line);
 }
 
-// Triggered on line 227, middle of vblank
+// Triggered on line 235, middle of vblank
 void vcountHandler() {
+    // These vram banks may have been allocated to arm7 for scaling stuff.
+    vramSetBankC(VRAM_C_SUB_BG);
+    if (sharedData->scalingOn)
+        vramSetBankD(VRAM_D_LCD);
+
     // Do hblank stuff for the very top line (physical line 0)
     doHBlank(0);
     // Draw the first gameboy line early (physical line 24)
     drawLine(0);
     lineCompleted[0] = true;
-
-    // These vram banks may have been allocated to arm7 for scaling stuff.
-    vramSetBankC(VRAM_C_SUB_BG);
-    if (sharedData->scalingOn)
-        vramSetBankD(VRAM_D_LCD);
 }
 
 
@@ -553,7 +553,7 @@ void initGFX()
     checkBorder();
 
     REG_DISPSTAT &= 0xFF;
-    REG_DISPSTAT |= 227<<8;     // Set line 227 for vcount
+    REG_DISPSTAT |= 235<<8;     // Set line 235 for vcount
 
     irqEnable(IRQ_VCOUNT);
     irqEnable(IRQ_HBLANK);
