@@ -2,9 +2,11 @@
 #pragma once
 
 typedef struct SharedData {
+    int fifosSent, fifosReceived;
+
+    // Scaling stuff
     u8 scalingOn;
     u8 scaleTransferReady;
-    int fifosSent, fifosReceived;
 
     // Sound stuff
     bool hyperSound;

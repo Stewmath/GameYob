@@ -642,7 +642,6 @@ PrintConsole blankConsole;
 void setupScaledScreens2() {
     REG_DISPCNT &= ~(3<<16); // Disable main display
     REG_DISPCNT_SUB |= 1<<16; // Enable sub display
-    powerOff(backlights[consoleScreen]);
     if (consoleScreen == 0)
         lcdMainOnTop();
     else
@@ -654,6 +653,10 @@ void setupScaledScreens2() {
 
 // 1 frame delay
 void setupScaledScreens1() {
+    powerOff(backlights[consoleScreen]);
+    REG_DISPCNT_SUB &= ~(3<<16); // Disable sub display (for 1 frame. Gotta hide the ugliness...)
+
+    // By next vblank, the scaled image will be ready.
     doAtVBlank(setupScaledScreens2);
 }
 

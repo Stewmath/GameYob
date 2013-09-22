@@ -80,7 +80,7 @@ void updateSoundSample(int byte);
 inline void synchronizeSound() {
     int cycles = (cyclesSinceVblank+extraCycles)>>doubleSpeed;
     if (sharedData->hyperSound &&
-            (!sharedData->scalingOn || !sharedData->scaleTransferReady) && // Scale transfer eats up a lot of arm7's time
+            (!sharedData->scaleTransferReady) && // Scale transfer eats up a lot of arm7's time
             !(sharedData->frameFlip_Gameboy != sharedData->frameFlip_DS || sharedData->dsCycles >= cycles)) {
 
         sharedData->cycles = cycles;
