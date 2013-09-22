@@ -47,21 +47,6 @@ bool lidClosed = false;
 
 void VblankHandler(void) {
     int i;
-
-    if (!sharedData->enableSleepMode) {
-        if (REG_KEYXY & KEY_LID) {
-            if (true || !lidClosed) {
-                fifoSendValue32(FIFO_USER_02, FIFOMSG_LID_CLOSED);
-                lidClosed = true;
-            }
-        }
-        else {
-            if (true || lidClosed) {
-                fifoSendValue32(FIFO_USER_02, FIFOMSG_LID_OPENED);
-                lidClosed = false;
-            }
-        }
-    }
     sharedData->frameFlip_DS = !sharedData->frameFlip_DS;
     sharedData->dsCycles = 0;
         do {

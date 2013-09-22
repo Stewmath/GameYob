@@ -392,6 +392,12 @@ void vcountHandler() {
         vramSetBankD(VRAM_D_LCD);
 }
 
+
+void (*vblankTask)(void) = 0;
+void doAtVBlank(void (*func)(void)) {
+    vblankTask = func;
+}
+
 bool filterFlip=false;
 void vblankHandler()
 {
@@ -433,6 +439,12 @@ void vblankHandler()
         }
         filterFlip = !filterFlip;
     }
+
+    if (vblankTask != 0) {
+        void (*func)() = vblankTask;
+        vblankTask = 0;
+        func();
+    }
 }
 
 int loadBorder(const char* filename) {
@@ -442,6 +454,7 @@ int loadBorder(const char* filename) {
         return 1;
     }
 
+    vramSetBankD(VRAM_D_MAIN_BG_0x06040000);
     // Start loading
     fseek(file, 0xe, SEEK_SET);
     u8 pixelStart = (u8)fgetc(file) + 0xe;

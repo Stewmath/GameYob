@@ -165,7 +165,11 @@ void setScreenFunc(int value) {
 
 void setScaleModeFunc(int value) {
     scaleMode = value;
-//    updateScreens();
+    if (!consoleOn) {
+        updateScreens();
+        if (value == 0)
+            checkBorder();
+    }
 }
 void setScaleFilterFunc(int value) {
     scaleFilter = value;
@@ -357,7 +361,7 @@ ConsoleSubMenu menuList[] = {
 };
 const int numMenus = sizeof(menuList)/sizeof(ConsoleSubMenu);
 
-void initConsole() {
+void setConsoleDefaults() {
     for (int i=0; i<numMenus; i++) {
         for (int j=0; j<menuList[i].numOptions; j++) {
             menuList[i].options[j].selection = menuList[i].options[j].defaultSelection;
@@ -366,7 +370,6 @@ void initConsole() {
             }
         }
     }
-    updateScreens();
 }
 
 // Message will be printed immediately, but also stored in case it's overwritten 
@@ -562,58 +565,73 @@ end:
     updateScreens();
 }
 
-PrintConsole blankConsole;
-void updateScreens() {
-    swiWaitForVBlank();
+int getConsoleOption(const char* optionName) {
+    for (int i=0; i<numMenus; i++) {
+        for (int j=0; j<menuList[i].numOptions; j++) {
+            if (strcmpi(optionName, menuList[i].options[j].name) == 0) {
+                return menuList[i].options[j].selection;
+            }
+        }
+    }
+    return 0;
+}
+void setConsoleOption(const char* optionName, int value) {
+    for (int i=0; i<numMenus; i++) {
+        for (int j=0; j<menuList[i].numOptions; j++) {
+            if (strcmpi(optionName, menuList[i].options[j].name) == 0) {
+                menuList[i].options[j].selection = value;
+                menuList[i].options[j].function(value);
+                return;
+            }
+        }
+    }
+}
 
+PrintConsole blankConsole;
+// 2 frames delay
+void setupScaledScreens2() {
+    REG_DISPCNT &= ~(3<<16); // Disable main display
+    REG_DISPCNT_SUB |= 1<<16; // Enable sub display
+    powerOff(backlights[consoleScreen]);
+    if (consoleScreen == 0)
+        lcdMainOnTop();
+    else
+        lcdMainOnBottom();
+    powerOn(backlights[!consoleScreen]);
+
+    refreshScaleMode();
+}
+
+// 1 frame delay
+void setupScaledScreens1() {
+    doAtVBlank(setupScaledScreens2);
+}
+
+void setupUnscaledScreens() {
     int screensToSet[2];
 
-    if (!gbsMode && !consoleOn && scaleMode != 0) {
-        // Manage screens in the case that scaling is enabled:
+    REG_DISPCNT &= ~(3<<16);
+    REG_DISPCNT |= 1<<16; // Enable main display
 
-        sharedData->scalingOn = 1;
+    consoleSelect(NULL); // Select default console
+    consoleDemoInit();
+    if (consoleScreen == 0)
+        lcdMainOnBottom();
+    else
+        lcdMainOnTop();
 
-        REG_DISPCNT &= ~(3<<16); // Disable main display
+    screensToSet[!consoleScreen] = true;
+
+    if (!(fpsOutput || timeOutput || consoleDebugOutput || consoleOn || gbsMode)) {
         screensToSet[consoleScreen] = false;
-        if (consoleScreen == 0)
-            lcdMainOnTop();
-        else
-            lcdMainOnBottom();
-        screensToSet[!consoleScreen] = true;
-
-        // Give it a dummy console so it won't write over bank C
-        consoleSelect(&blankConsole);
-        // Clear bank C since it used to be used for the console
-        memset(BG_GFX_SUB, 0, 256*144*2);
-        refreshScaleMode();
+        REG_DISPCNT_SUB &= ~(3<<16); // Disable sub display
     }
     else {
-        // Manage screens normally
-
-        sharedData->scalingOn = 0;
-
-        REG_DISPCNT &= ~(3<<16);
-        REG_DISPCNT |= 1<<16; // Enable main display
-
-        videoBgEnableSub(0);
-        videoBgDisableSub(2);
-        videoBgDisableSub(3);
-        vramSetBankD(VRAM_D_MAIN_BG_0x06040000);
-
-        consoleSelect(NULL); // Select default console
-        consoleDemoInit();
-        if (consoleScreen == 0)
-            lcdMainOnBottom();
-        else
-            lcdMainOnTop();
-
-        screensToSet[!consoleScreen] = true;
-
-        if (!(fpsOutput || timeOutput || consoleDebugOutput || consoleOn))
-            screensToSet[consoleScreen] = false;
-        else
-            screensToSet[consoleScreen] = true;
+        screensToSet[consoleScreen] = true;
+        REG_DISPCNT_SUB &= ~(3<<16);
+        REG_DISPCNT_SUB |= 1<<16; // Enable sub display
     }
+
     if (gbsMode) {
         screensToSet[consoleScreen] = true;
         screensToSet[!consoleScreen] = false;
@@ -624,6 +642,29 @@ void updateScreens() {
             powerOn(backlights[i]);
         else
             powerOff(backlights[i]);
+    }
+}
+
+void updateScreens() {
+    if (!gbsMode && !consoleOn && scaleMode != 0) {
+        // Manage screens in the case that scaling is enabled:
+        sharedData->scalingOn = 1;
+        // Give it a dummy console so it won't write over bank C
+        consoleSelect(&blankConsole);
+
+        doAtVBlank(setupScaledScreens1);
+        return;
+    }
+    else {
+        // Manage screens normally
+        sharedData->scalingOn = 0;
+
+        doAtVBlank(setupUnscaledScreens);
+
+        if (consoleOn || gbsMode)
+            // Wait for the vblank code to be executed
+            // (In particular, the consoleDemoInit() line)
+            swiWaitForVBlank();
     }
 }
 

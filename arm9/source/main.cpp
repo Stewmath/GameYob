@@ -176,13 +176,12 @@ int main(int argc, char* argv[])
     fifoSendValue32(FIFO_USER_03, ((u32)sharedData)&0x00ffffff);
 
     consoleOn = true;
-    initConsole();
     initInput();
+    if (!readConfigFile()) // If the config file doesn't exist
+        setConsoleDefaults(); // Set the default values
     // initGFX is called in initializeGameboy, but I also call it from here to
     // set up the vblank handler asap.
     initGFX();
-
-    readConfigFile();
 
     if (argc >= 2) {
         char* filename = argv[1];

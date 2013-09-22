@@ -12,6 +12,8 @@ extern volatile int loadedBorderType;
 extern u8 bgPaletteData[0x40];
 extern u8 sprPaletteData[0x40];
 
+void doAtVBlank(void (*func)(void));
+
 void drawScanline(int scanline);
 void drawScanline_P2(int scanline);
 void drawScreen();

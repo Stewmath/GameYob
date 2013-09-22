@@ -80,7 +80,7 @@ void flushFatCache() {
 
 
 const char* gbKeyNames[] = {"-","A","B","Left","Right","Up","Down","Start","Select",
-    "Menu","Save","Autofire A","Autofire B", "Fast Forward", "FF Toggle"};
+    "Menu","Save","Autofire A","Autofire B", "Fast Forward", "FF Toggle", "Scale"};
 const char* dsKeyNames[] = {"A","B","Select","Start","Right","Left","Up","Down",
     "R","L","X","Y"};
 
@@ -94,7 +94,7 @@ struct KeyConfig {
 KeyConfig defaultKeyConfig = {
     "Main",
     {KEY_GB_A,KEY_GB_B,KEY_GB_SELECT,KEY_GB_START,KEY_GB_RIGHT,KEY_GB_LEFT,KEY_GB_UP,KEY_GB_DOWN,
-        KEY_MENU,KEY_FAST_FORWARD,KEY_SAVE,KEY_NONE}
+        KEY_MENU,KEY_FAST_FORWARD,KEY_SAVE,KEY_SCALE}
 };
 
 std::vector<KeyConfig> keyConfigs;
@@ -300,7 +300,7 @@ void generalPrintConfig(FILE* file) {
         fiprintf(file, "rompath=%s\n", romPath);
 }
 
-void readConfigFile() {
+bool readConfigFile() {
     FILE* file = fopen("/gameyob.ini", "r");
     char line[100];
     void (*configParser)(const char*) = generalParseConfig;
@@ -339,6 +339,8 @@ end:
     if (selectedKeyConfig >= keyConfigs.size())
         selectedKeyConfig = 0;
     loadKeyConfig();
+
+    return file != NULL;
 }
 
 void writeConfigFile() {
@@ -396,8 +398,7 @@ int loadProgram(char* f)
     while (n < numRomBanks) n*=2;
     numRomBanks = n;
 
-
-    int rawRomSize = ftell(romFile);
+    //int rawRomSize = ftell(romFile);
     rewind(romFile);
 
 
@@ -803,6 +804,10 @@ void updateInput()
     if (keyJustPressed(mapGbKey(KEY_FAST_FORWARD_TOGGLE)))
         fastForwardMode = !fastForwardMode;
 
+    if (keyJustPressed(mapGbKey(KEY_SCALE))) {
+        setConsoleOption("Scaling", !getConsoleOption("Scaling"));
+    }
+
     if (fastForwardKey || fastForwardMode) {
         sharedData->hyperSound = false;
     }
@@ -844,15 +849,15 @@ struct StateStruct {
     //   u8[20*18] sgbMap;
 };
 
-void saveState(int num) {
+void saveState(int stateNum) {
     FILE* outFile;
     StateStruct state;
     char statename[100];
 
-    if (num == -1)
+    if (stateNum == -1)
         siprintf(statename, "%s.yss", basename);
     else
-        siprintf(statename, "%s.ys%d", basename, num);
+        siprintf(statename, "%s.ys%d", basename, stateNum);
     outFile = fopen(statename, "w");
 
     if (outFile == 0) {
@@ -911,7 +916,7 @@ void saveState(int num) {
     fclose(outFile);
 }
 
-int loadState(int num) {
+int loadState(int stateNum) {
     FILE *inFile;
     StateStruct state;
     char statename[100];
@@ -919,10 +924,10 @@ int loadState(int num) {
 
     memset(&state, 0, sizeof(StateStruct));
 
-    if (num == -1)
+    if (stateNum == -1)
         siprintf(statename, "%s.yss", basename);
     else
-        siprintf(statename, "%s.ys%d", basename, num);
+        siprintf(statename, "%s.ys%d", basename, stateNum);
     inFile = fopen(statename, "r");
 
     if (inFile == 0) {
@@ -979,7 +984,7 @@ int loadState(int num) {
 
 
     fclose(inFile);
-    if (num == -1) {
+    if (stateNum == -1) {
         unlink(statename);
         suspendStateExists = false;
     }
@@ -1017,7 +1022,7 @@ int loadState(int num) {
     refreshSND();
 
 
-    if (autoSavingEnabled)
+    if (autoSavingEnabled && stateNum != -1)
         saveGame(); // Synchronize save file on sd with file in ram
 
     return 0;

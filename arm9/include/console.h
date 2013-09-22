@@ -13,7 +13,7 @@ extern bool customBordersEnabled;
 extern bool sgbBordersEnabled;
 extern bool autoSavingEnabled;
 
-void initConsole();
+void setConsoleDefaults();
 
 void printConsoleMessage(const char* s);
 
@@ -22,6 +22,10 @@ void exitConsole();
 
 bool isConsoleEnabled();
 void displayConsole();
+
+int getConsoleOption(const char* name);
+void setConsoleOption(const char* name, int value);
+
 void updateScreens();
 
 void disableSleepMode();

@@ -28,7 +28,8 @@ enum {
 enum {
     KEY_NONE,
     KEY_GB_A, KEY_GB_B, KEY_GB_LEFT, KEY_GB_RIGHT, KEY_GB_UP, KEY_GB_DOWN, KEY_GB_START, KEY_GB_SELECT,
-    KEY_MENU, KEY_SAVE, KEY_GB_AUTO_A, KEY_GB_AUTO_B, KEY_FAST_FORWARD, KEY_FAST_FORWARD_TOGGLE
+    KEY_MENU, KEY_SAVE, KEY_GB_AUTO_A, KEY_GB_AUTO_B, KEY_FAST_FORWARD, KEY_FAST_FORWARD_TOGGLE,
+    KEY_SCALE
 };
 
 const int MAX_ROM_BANKS = 0x200;
@@ -52,7 +53,7 @@ void initInput();
 void flushFatCache();
 
 void startKeyConfigChooser();
-void readConfigFile();
+bool readConfigFile();
 void writeConfigFile();
 
 void readKeys();
