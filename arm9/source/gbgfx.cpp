@@ -51,7 +51,7 @@ int usingTilePriority[2];
 
 bool didVblank=false;
 // Frame counter. Incremented each vblank.
-u16 frame=0;
+volatile int frameCounter=0;
 
 bool changedTile[2][0x180];
 int changedTileQueueLength=0;
@@ -392,10 +392,11 @@ void vcountHandler() {
         vramSetBankD(VRAM_D_LCD);
 }
 
-bool shift=false;
+bool filterFlip=false;
 void vblankHandler()
 {
     didVblank = true;
+    frameCounter++;
     if (!consoleOn) {
         if (sharedData->scalingOn) {
             // Capture the main display into vram bank D
@@ -408,8 +409,7 @@ void vblankHandler()
             sharedData->scaleTransferReady = true;
         }
 
-        frame++;
-        if (frame == 150 && probingForBorder) {
+        if (frameCounter >= 150 && probingForBorder) {
             // Give up on finding a sgb border.
             probingForBorder = false;
             nukeBorder = true;
@@ -419,7 +419,7 @@ void vblankHandler()
 
     memset(lineCompleted, 0, sizeof(lineCompleted));
     if (scaleFilter == 1) {
-        if (shift) {
+        if (filterFlip) {
             REG_BG2X_SUB = SCALE_BGX - (1<<5);
             REG_BG2Y_SUB = SCALE_BGY - (1<<5);
             REG_BG3X_SUB = SCALE_BGX + (1<<5);
@@ -431,7 +431,7 @@ void vblankHandler()
             REG_BG3X_SUB = SCALE_BGX + (1<<5);
             REG_BG3Y_SUB = SCALE_BGY - (1<<5);
         }
-        shift = !shift;
+        filterFlip = !filterFlip;
     }
 }
 
@@ -531,7 +531,7 @@ void initGFX()
     memset(vram[1], 0, 0x2000);
 
     gfxMask = 0;
-    frame = 0;
+    frameCounter = 0;
 
     refreshGFX();
 }

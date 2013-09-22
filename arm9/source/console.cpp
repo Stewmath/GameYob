@@ -395,6 +395,7 @@ bool isConsoleEnabled() {
 }
 
 void displayConsole() {
+    enableSleepMode();
     fastForwardMode = false;
     advanceFrame = 0;
     consoleOn = true;
@@ -625,6 +626,22 @@ void updateScreens() {
             powerOff(backlights[i]);
     }
 }
+
+
+void disableSleepMode() {
+    if (sharedData->enableSleepMode) {
+        sharedData->enableSleepMode = false;
+        fifoSendValue32(FIFO_PM, PM_REQ_SLEEP_DISABLE);
+    }
+}
+
+void enableSleepMode() {
+    if (!sharedData->enableSleepMode) {
+        sharedData->enableSleepMode = true;
+        fifoSendValue32(FIFO_PM, PM_REQ_SLEEP_ENABLE);
+    }
+}
+
 
 void consoleParseConfig(const char* line) {
     char* equalsPos = strchr(line, '=');

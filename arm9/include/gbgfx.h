@@ -1,6 +1,8 @@
 #pragma once
 #include "global.h"
 
+extern volatile int frameCounter;
+
 extern int interruptWaitMode;
 extern int scaleMode;
 extern int scaleFilter;

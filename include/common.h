@@ -24,6 +24,8 @@ typedef struct SharedData {
     bool lfsr7Bit;
     u8* sampleData;
 
+    bool enableSleepMode;
+
     u32 message;
 } SharedData;
 
@@ -36,6 +38,11 @@ enum {
     GBSND_MUTE_COMMAND,
     GBSND_HYPERSOUND_ENABLE_COMMAND,
     GBSND_DUMMY_COMMAND
+};
+
+enum {
+    FIFOMSG_LID_CLOSED=1,
+    FIFOMSG_LID_OPENED
 };
 
 extern volatile SharedData* sharedData;

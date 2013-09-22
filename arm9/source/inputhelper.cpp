@@ -527,9 +527,6 @@ int loadProgram(char* f)
         romFile = NULL;
     }
 
-    // We haven't calculated the # of cycles to the next hardware event.
-    cyclesToEvent = 1;
-
     return 0;
 }
 
@@ -675,6 +672,7 @@ bool keyJustPressed(int key) {
     return ((keysPressed^lastKeysPressed)&keysPressed) & key;
 }
 
+int readKeysLastFrameCounter=0;
 void readKeys() {
     scanKeys();
 
@@ -687,10 +685,14 @@ void readKeys() {
         }
     }
     keysPressed &= ~keysForceReleased;
-    if (repeatStartTimer > 0)
-        repeatStartTimer--;
-    if (repeatTimer > 0)
-        repeatTimer--;
+
+    if (frameCounter != readKeysLastFrameCounter) { // Double-check that it's been 1/60th of a second
+        if (repeatStartTimer > 0)
+            repeatStartTimer--;
+        if (repeatTimer > 0)
+            repeatTimer--;
+        readKeysLastFrameCounter = frameCounter;
+    }
 }
 
 void forceReleaseKey(int key) {

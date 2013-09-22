@@ -43,8 +43,25 @@ volatile SharedData* sharedData;
 
 void updateChannel(int c);
 
+bool lidClosed = false;
+
 void VblankHandler(void) {
     int i;
+
+    if (!sharedData->enableSleepMode) {
+        if (REG_KEYXY & KEY_LID) {
+            if (true || !lidClosed) {
+                fifoSendValue32(FIFO_USER_02, FIFOMSG_LID_CLOSED);
+                lidClosed = true;
+            }
+        }
+        else {
+            if (true || lidClosed) {
+                fifoSendValue32(FIFO_USER_02, FIFOMSG_LID_OPENED);
+                lidClosed = false;
+            }
+        }
+    }
     sharedData->frameFlip_DS = !sharedData->frameFlip_DS;
     sharedData->dsCycles = 0;
         do {
@@ -94,7 +111,7 @@ void powerHandler(u32 value, void* user_data) {
         case PM_REQ_SLEEP:
 
             // Signal to disable sound
-            fifoSendValue32(FIFO_USER_02, 1);
+            fifoSendValue32(FIFO_USER_02, FIFOMSG_LID_CLOSED);
 
             ie_save = REG_IE;
             // Turn the speaker down.
@@ -125,7 +142,7 @@ void powerHandler(u32 value, void* user_data) {
             resyncClock();
 
             // Signal to re-enable sound
-            fifoSendValue32(FIFO_USER_02, 0);
+            fifoSendValue32(FIFO_USER_02, FIFOMSG_LID_OPENED);
             break;
 
         case PM_REQ_SLEEP_DISABLE:

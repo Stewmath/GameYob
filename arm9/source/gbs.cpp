@@ -1,12 +1,14 @@
 // GBS files contain music ripped from a game.
 #include <nds.h>
 #include "gbs.h"
+#include "common.h"
 #include "inputhelper.h"
 #include "mmu.h"
 #include "gbcpu.h"
 #include "gameboy.h"
 #include "main.h"
 #include "gbsnd.h"
+#include "console.h"
 
 #define READ16(src) (*(src) | *(src+1)<<8)
 
@@ -19,26 +21,31 @@ u16 gbsInitAddress;
 u16 gbsPlayAddress;
 
 u8 gbsSelectedSong;
-u8 gbsPlayingSong;
+int gbsPlayingSong;
 
 // private
 
 void gbsRedraw() {
-    consoleClear();
+    //consoleClear();
+    
+    iprintf("\33[0;0H"); // Cursor to upper-left corner
 
-    printf("Song %d of %d\n", gbsSelectedSong+1, gbsNumSongs);
-    printf("(Playing %d)\n\n", gbsPlayingSong+1);
+    iprintf("Song %d of %d\33[0K\n", gbsSelectedSong+1, gbsNumSongs);
+    if (gbsPlayingSong == -1)
+        iprintf("(Not playing)\33[0K\n\n");
+    else
+        iprintf("(Playing %d)\33[0K\n\n", gbsPlayingSong+1);
 
     // Print music information
     for (int i=0; i<3; i++) {
         for (int j=0; j<32; j++) {
             char c = gbsHeader[0x10+i*0x20+j];
             if (c == 0)
-                printf(" ");
+                iprintf(" ");
             else
-                printf("%c", c);
+                iprintf("%c", c);
         }
-        printf("\n");
+        iprintf("\n");
     }
 }
 
@@ -134,9 +141,15 @@ void gbsUpdateInput() {
         gbsLoadSong();
     }
     if (keyJustPressed(mapGbKey(KEY_GB_B))) { // Stop playing music
+        gbsPlayingSong = -1;
         ime = 0;
         writeIO(0xff, 0);
         initSND();
     }
     gbsRedraw();
+
+    if (gbsPlayingSong != -1)
+        disableSleepMode();
+    else
+        enableSleepMode();
 }

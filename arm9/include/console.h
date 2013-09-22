@@ -24,6 +24,9 @@ bool isConsoleEnabled();
 void displayConsole();
 void updateScreens();
 
+void disableSleepMode();
+void enableSleepMode();
+
 void consoleParseConfig(const char* line);
 void consolePrintConfig(FILE* file);
 void addToLog(const char* format, va_list args);

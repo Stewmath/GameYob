@@ -31,23 +31,26 @@ volatile SharedData* sharedData;
 void fifoValue32Handler(u32 value, void* user_data) {
     static bool wasInConsole;
     static bool oldSoundDisabled;
-    if (value == 1) { // Entering sleep
-        wasInConsole = isConsoleEnabled();
-        oldSoundDisabled = soundDisabled;
-        enterConsole();
-        soundDisabled = true;
-    }
-    else { // Exiting sleep
-        soundDisabled = false;
-        if (!wasInConsole)
-            exitConsole();
-        soundDisabled = oldSoundDisabled;
-        // Time isn't incremented properly in sleep mode, compensate here.
-        time(&rawTime);
-        lastRawTime = rawTime;
+    switch(value) {
+        case FIFOMSG_LID_CLOSED:
+            // Entering sleep mode
+            wasInConsole = isConsoleEnabled();
+            oldSoundDisabled = soundDisabled;
+            enterConsole();
+            soundDisabled = true;
+            break;
+        case FIFOMSG_LID_OPENED:
+            // Exiting sleep mode
+            soundDisabled = false;
+            if (!wasInConsole)
+                exitConsole();
+            soundDisabled = oldSoundDisabled;
+            // Time isn't incremented properly in sleep mode, compensate here.
+            time(&rawTime);
+            lastRawTime = rawTime;
+            break;
     }
 }
-
 
 
 void selectRom() {
@@ -82,6 +85,7 @@ void initGBCMode() {
     }
 }
 void initializeGameboy() {
+    enableSleepMode();
     sgbMode = false;
 
     if (gbsMode) {
@@ -128,6 +132,7 @@ void initializeGameboy() {
         // enter the console on resume
         advanceFrame = true;
     }
+
     if (gbsMode)
         gbsInit();
 
@@ -165,6 +170,7 @@ int main(int argc, char* argv[])
 
     sharedData = (SharedData*)memUncached(malloc(sizeof(SharedData)));
     sharedData->scalingOn = false;
+    sharedData->enableSleepMode = true;
     // It might make more sense to use "fifoSendAddress" here.
     // However there may have been something wrong with it in dsi mode.
     fifoSendValue32(FIFO_USER_03, ((u32)sharedData)&0x00ffffff);
@@ -172,6 +178,10 @@ int main(int argc, char* argv[])
     consoleOn = true;
     initConsole();
     initInput();
+    // initGFX is called in initializeGameboy, but I also call it from here to
+    // set up the vblank handler asap.
+    initGFX();
+
     readConfigFile();
 
     if (argc >= 2) {
