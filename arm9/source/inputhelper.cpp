@@ -169,104 +169,115 @@ void controlsPrintConfig(FILE* file) {
     }
 }
 
-void startKeyConfigChooser() {
-    bool quit=false;
-    int option=-1;
-    while (!quit) {
-        KeyConfig* config = &keyConfigs[selectedKeyConfig];
-        consoleClear();
-        iprintf("Config: ");
-        if (option == -1)
-            iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, "* %s *\n\n", config->name);
+int keyConfigChooser_option;
+
+void redrawKeyConfigChooser() {
+    int& option = keyConfigChooser_option;
+    KeyConfig* config = &keyConfigs[selectedKeyConfig];
+
+    consoleClear();
+
+    iprintf("Config: ");
+    if (option == -1)
+        iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, "* %s *\n\n", config->name);
+    else
+        iprintf("  %s  \n\n", config->name);
+
+    iprintf("       Button   Function\n\n");
+
+    for (int i=0; i<12; i++) {
+        int len = 11-strlen(dsKeyNames[i]);
+        while (len > 0) {
+            iprintf(" ");
+            len--;
+        }
+        if (option == i) 
+            iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, "* %s | %s *\n", dsKeyNames[i], gbKeyNames[config->gbKeys[i]]);
         else
-            iprintf("  %s  \n\n", config->name);
+            iprintf("  %s | %s  \n", dsKeyNames[i], gbKeyNames[config->gbKeys[i]]);
+    }
+    iprintf("\n\n\n\nPress X to make a new config.");
+    if (selectedKeyConfig != 0) /* can't erase the default */ {
+        iprintf("\n\nPress Y to delete this config.");
+    }
+}
 
-        iprintf("       Button   Function\n\n");
+void updateKeyConfigChooser() {
+    bool redraw = false;
 
-        for (int i=0; i<12; i++) {
-            int len = 11-strlen(dsKeyNames[i]);
-            while (len > 0) {
-                iprintf(" ");
-                len--;
-            }
-            if (option == i) 
-                iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, "* %s | %s *\n", dsKeyNames[i], gbKeyNames[config->gbKeys[i]]);
-            else
-                iprintf("  %s | %s  \n", dsKeyNames[i], gbKeyNames[config->gbKeys[i]]);
-        }
-        iprintf("\n\n\n\nPress X to make a new config.");
+    int& option = keyConfigChooser_option;
+    KeyConfig* config = &keyConfigs[selectedKeyConfig];
+
+    if (keyJustPressed(KEY_B)) {
+        loadKeyConfig();
+        closeSubMenu();
+    }
+    else if (keyJustPressed(KEY_X)) {
+        keyConfigs.push_back(KeyConfig(*config));
+        selectedKeyConfig = keyConfigs.size()-1;
+        char name[32];
+        siprintf(name, "Custom %d", keyConfigs.size()-1);
+        strcpy(keyConfigs.back().name, name);
+        option = -1;
+        redraw = true;
+    }
+    else if (keyJustPressed(KEY_Y)) {
         if (selectedKeyConfig != 0) /* can't erase the default */ {
-            iprintf("\n\nPress Y to delete this config.");
-        }
-
-        while (true) {
-            swiWaitForVBlank();
-            readKeys();
-            if (keyJustPressed(KEY_B)) {
-                quit = true;
-                break;
-            }
-            else if (keyJustPressed(KEY_X)) {
-                keyConfigs.push_back(KeyConfig(*config));
-                selectedKeyConfig = keyConfigs.size()-1;
-                char name[32];
-                siprintf(name, "Custom %d", keyConfigs.size()-1);
-                strcpy(keyConfigs.back().name, name);
-                option = -1;
-                break;
-            }
-            else if (keyJustPressed(KEY_Y)) {
-                if (selectedKeyConfig != 0) /* can't erase the default */ {
-                    keyConfigs.erase(keyConfigs.begin() + selectedKeyConfig);
-                    if (selectedKeyConfig >= keyConfigs.size())
-                        selectedKeyConfig = keyConfigs.size() - 1;
-                    break;
-                }
-            }
-            else if (keyPressedAutoRepeat(KEY_DOWN)) {
-                if (option == 11)
-                    option = -1;
-                else
-                    option++;
-                break;
-            }
-            else if (keyPressedAutoRepeat(KEY_UP)) {
-                if (option == -1)
-                    option = 11;
-                else
-                    option--;
-                break;
-            }
-            else if (keyPressedAutoRepeat(KEY_LEFT)) {
-                if (option == -1) {
-                    if (selectedKeyConfig == 0)
-                        selectedKeyConfig = keyConfigs.size()-1;
-                    else
-                        selectedKeyConfig--;
-                }
-                else {
-                    config->gbKeys[option]--;
-                    if (config->gbKeys[option] < 0)
-                        config->gbKeys[option] = NUM_GB_KEYS-1;
-                }
-                break;
-            }
-            else if (keyPressedAutoRepeat(KEY_RIGHT)) {
-                if (option == -1) {
-                    selectedKeyConfig++;
-                    if (selectedKeyConfig >= keyConfigs.size())
-                        selectedKeyConfig = 0;
-                }
-                else {
-                    config->gbKeys[option]++;
-                    if (config->gbKeys[option] >= NUM_GB_KEYS)
-                        config->gbKeys[option] = 0;
-                }
-                break;
-            }
+            keyConfigs.erase(keyConfigs.begin() + selectedKeyConfig);
+            if (selectedKeyConfig >= keyConfigs.size())
+                selectedKeyConfig = keyConfigs.size() - 1;
+            redraw = true;
         }
     }
-    loadKeyConfig();
+    else if (keyPressedAutoRepeat(KEY_DOWN)) {
+        if (option == 11)
+            option = -1;
+        else
+            option++;
+        redraw = true;
+    }
+    else if (keyPressedAutoRepeat(KEY_UP)) {
+        if (option == -1)
+            option = 11;
+        else
+            option--;
+        redraw = true;
+    }
+    else if (keyPressedAutoRepeat(KEY_LEFT)) {
+        if (option == -1) {
+            if (selectedKeyConfig == 0)
+                selectedKeyConfig = keyConfigs.size()-1;
+            else
+                selectedKeyConfig--;
+        }
+        else {
+            config->gbKeys[option]--;
+            if (config->gbKeys[option] < 0)
+                config->gbKeys[option] = NUM_GB_KEYS-1;
+        }
+        redraw = true;
+    }
+    else if (keyPressedAutoRepeat(KEY_RIGHT)) {
+        if (option == -1) {
+            selectedKeyConfig++;
+            if (selectedKeyConfig >= keyConfigs.size())
+                selectedKeyConfig = 0;
+        }
+        else {
+            config->gbKeys[option]++;
+            if (config->gbKeys[option] >= NUM_GB_KEYS)
+                config->gbKeys[option] = 0;
+        }
+        redraw = true;
+    }
+    if (redraw)
+        doAtVBlank(redrawKeyConfigChooser);
+}
+
+void startKeyConfigChooser() {
+    keyConfigChooser_option = -1;
+    displaySubMenu(updateKeyConfigChooser);
+    redrawKeyConfigChooser();
 }
 
 void generalParseConfig(const char* line) {
@@ -370,7 +381,7 @@ void loadBios(const char* filename) {
         fread(bios, 1, 0x900, file);
 }
 
-int loadProgram(char* f)
+int loadRom(char* f)
 {
     if (romFile != NULL)
         fclose(romFile);
@@ -459,6 +470,7 @@ int loadProgram(char* f)
 
     if (gbsMode) {
         MBC = MBC5;
+        loadCheats(""); // Unloads previous cheats
     }
     else {
         switch (mapper) {
@@ -565,8 +577,9 @@ u8* getRomBank(int bank) {
     return romBankSlots+bankSlotIDs[bank]*0x4000;
 }
 
-int loadSave()
-{
+void unloadRom() {
+    doAtVBlank(clearGFX);
+
     if (saveFile != NULL)
         fclose(saveFile);
     saveFile = NULL;
@@ -578,6 +591,10 @@ int loadSave()
     }
     externRam = NULL;
 
+}
+
+int loadSave()
+{
     if (gbsMode)
         numRamBanks = 1;
     else {
@@ -691,12 +708,12 @@ void readKeys() {
     }
     keysPressed &= ~keysForceReleased;
 
-    if (frameCounter != readKeysLastFrameCounter) { // Double-check that it's been 1/60th of a second
+    if (dsFrameCounter != readKeysLastFrameCounter) { // Double-check that it's been 1/60th of a second
         if (repeatStartTimer > 0)
             repeatStartTimer--;
         if (repeatTimer > 0)
             repeatTimer--;
-        readKeysLastFrameCounter = frameCounter;
+        readKeysLastFrameCounter = dsFrameCounter;
     }
 }
 
@@ -721,103 +738,6 @@ void printRomInfo() {
     iprintf("Cartridge type: %.2x (%s)\n", mapper, mbcName[MBC]);
     iprintf("ROM Size: %.2x (%d banks)\n", romSize, numRomBanks);
     iprintf("RAM Size: %.2x (%d banks)\n", ramSize, numRamBanks);
-    while (true) {
-        swiWaitForVBlank();
-        readKeys();
-        if (keyJustPressed(KEY_A) || keyJustPressed(KEY_B))
-            break;
-    }
-}
-
-int autoFireCounterA=0,autoFireCounterB=0;
-void updateInput()
-{
-    readKeys();
-
-    buttonsPressed = 0xff;
-    if (keyPressed(mapGbKey(KEY_GB_UP))) {
-        buttonsPressed &= (0xFF ^ UP);
-        if (!(ioRam[0x00] & 0x10))
-            requestInterrupt(JOYPAD);
-    }
-    if (keyPressed(mapGbKey(KEY_GB_DOWN))) {
-        buttonsPressed &= (0xFF ^ DOWN);
-        if (!(ioRam[0x00] & 0x10))
-            requestInterrupt(JOYPAD);
-    }
-    if (keyPressed(mapGbKey(KEY_GB_LEFT))) {
-        buttonsPressed &= (0xFF ^ LEFT);
-        if (!(ioRam[0x00] & 0x10))
-            requestInterrupt(JOYPAD);
-    }
-    if (keyPressed(mapGbKey(KEY_GB_RIGHT))) {
-        buttonsPressed &= (0xFF ^ RIGHT);
-        if (!(ioRam[0x00] & 0x10))
-            requestInterrupt(JOYPAD);
-    }
-    if (keyPressed(mapGbKey(KEY_GB_A))) {
-        buttonsPressed &= (0xFF ^ BUTTONA);
-        if (!(ioRam[0x00] & 0x20))
-            requestInterrupt(JOYPAD);
-    }
-    if (keyPressed(mapGbKey(KEY_GB_B))) {
-        buttonsPressed &= (0xFF ^ BUTTONB);
-        if (!(ioRam[0x00] & 0x20))
-            requestInterrupt(JOYPAD);
-    }
-    if (keyPressed(mapGbKey(KEY_GB_START))) {
-        buttonsPressed &= (0xFF ^ START);
-        if (!(ioRam[0x00] & 0x20))
-            requestInterrupt(JOYPAD);
-    }
-    if (keyPressed(mapGbKey(KEY_GB_SELECT))) {
-        buttonsPressed &= (0xFF ^ SELECT);
-        if (!(ioRam[0x00] & 0x20))
-            requestInterrupt(JOYPAD);
-    }
-
-    if (keyPressed(mapGbKey(KEY_GB_AUTO_A))) {
-        if (autoFireCounterA <= 0) {
-            buttonsPressed &= (0xFF ^ BUTTONA);
-            if (!(ioRam[0x00] & 0x20))
-                requestInterrupt(JOYPAD);
-            autoFireCounterA = 2;
-        }
-        autoFireCounterA--;
-    }
-    if (keyPressed(mapGbKey(KEY_GB_AUTO_B))) {
-        if (autoFireCounterB <= 0) {
-            buttonsPressed &= (0xFF ^ BUTTONB);
-            if (!(ioRam[0x00] & 0x20))
-                requestInterrupt(JOYPAD);
-            autoFireCounterB = 2;
-        }
-        autoFireCounterB--;
-    }
-
-    if (keyJustPressed(mapGbKey(KEY_SAVE))) {
-        if (!autoSavingEnabled)
-            saveGame();
-    }
-    if (advanceFrame || keyJustPressed(mapGbKey(KEY_MENU) | KEY_TOUCH)) {
-        advanceFrame = 0;
-        displayConsole();
-    }
-
-    fastForwardKey = keyPressed(mapGbKey(KEY_FAST_FORWARD));
-    if (keyJustPressed(mapGbKey(KEY_FAST_FORWARD_TOGGLE)))
-        fastForwardMode = !fastForwardMode;
-
-    if (keyJustPressed(mapGbKey(KEY_SCALE))) {
-        setConsoleOption("Scaling", !getConsoleOption("Scaling"));
-    }
-
-    if (fastForwardKey || fastForwardMode) {
-        sharedData->hyperSound = false;
-    }
-    else {
-        sharedData->hyperSound = hyperSound;
-    }
 }
 
 const int STATE_VERSION = 4;
@@ -854,6 +774,8 @@ struct StateStruct {
 };
 
 void saveState(int stateNum) {
+    muteSND();
+
     FILE* outFile;
     StateStruct state;
     char statename[100];
@@ -921,6 +843,8 @@ void saveState(int stateNum) {
 }
 
 int loadState(int stateNum) {
+    muteSND();
+
     FILE *inFile;
     StateStruct state;
     char statename[100];
@@ -936,6 +860,7 @@ int loadState(int stateNum) {
 
     if (inFile == 0) {
         printConsoleMessage("State doesn't exist.");
+        refreshSND();
         return 1;
     }
 
@@ -943,6 +868,7 @@ int loadState(int stateNum) {
 
     if (version == 0 || version > STATE_VERSION) {
         printConsoleMessage("State is from an incompatible version.");
+        refreshSND();
         return 1;
     }
 
@@ -1022,12 +948,30 @@ int loadState(int stateNum) {
 
     mapMemory();
     setDoubleSpeed(doubleSpeed);
-    refreshGFX();
-    refreshSND();
 
 
     if (autoSavingEnabled && stateNum != -1)
         saveGame(); // Synchronize save file on sd with file in ram
 
+    refreshSND();
+    refreshGFX();
+
     return 0;
+}
+
+bool checkStateExists(int num) {
+    FILE* file;
+    char statename[100];
+
+    if (stateNum == -1)
+        siprintf(statename, "%s.yss", basename);
+    else
+        siprintf(statename, "%s.ys%d", basename, stateNum);
+    file = fopen(statename, "r");
+
+    if (file == 0) {
+        return false;
+    }
+    fclose(file);
+    return true;
 }

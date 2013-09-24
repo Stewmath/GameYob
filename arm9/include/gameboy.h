@@ -1,10 +1,6 @@
 #pragma once
 #include "global.h"
 
-#define min(a,b) (a<b?a:b)
-
-//#define LOG
-
 extern int scanlineCounter;
 extern int phaseCounter;
 extern int dividerCounter;
@@ -26,14 +22,19 @@ extern int gbMode;
 extern bool sgbMode;
 
 extern int cyclesSinceVblank;
-
 extern bool probingForBorder;
-
 extern int interruptTriggered;
-
-void resetGameboy(); // This may be called even from the context of "runOpcode".
+extern int gameboyFrameCounter;
 
 void setEventCycles(int cycles);
+
+void gameboyCheckInput();
+void gameboyUpdateVBlank();
+
+void resetGameboy(); // This may be called even from the context of "runOpcode".
+void pauseGameboy();
+void unpauseGameboy();
+bool isGameboyPaused();
 void runEmul();
 void initLCD();
 void initGameboyMode();

@@ -23,11 +23,15 @@ u16 gbsPlayAddress;
 u8 gbsSelectedSong;
 int gbsPlayingSong;
 
+PrintConsole* gbsConsole = 0;
+extern PrintConsole defaultConsole; // Defined in libnds
+
 // private
 
 void gbsRedraw() {
     //consoleClear();
     
+    consoleSelect(gbsConsole);
     iprintf("\33[0;0H"); // Cursor to upper-left corner
 
     iprintf("Song %d of %d\33[0K\n", gbsSelectedSong+1, gbsNumSongs);
@@ -47,6 +51,8 @@ void gbsRedraw() {
         }
         iprintf("\n");
     }
+
+    consoleSelect(NULL);
 }
 
 void gbsLoadSong() {
@@ -98,8 +104,15 @@ void gbsReadHeader() {
 }
 
 void gbsInit() {
+    if (gbsConsole == 0) {
+        gbsConsole = (PrintConsole*)malloc(sizeof(PrintConsole));
+        memcpy(gbsConsole, &defaultConsole, sizeof(PrintConsole));
+    }
+    videoSetMode(MODE_0_2D);
+    consoleInit(gbsConsole, gbsConsole->bgLayer, BgType_Text4bpp, BgSize_T_256x256, gbsConsole->mapBase, gbsConsole->gfxBase, true, true);
+    videoBgEnable(0);
+
     u8 firstSong=   gbsHeader[0x05]-1;
-    printLog("INIT\n");
 
     // RST vectors
     for (int i=0; i<8; i++) {
@@ -125,7 +138,7 @@ void gbsInit() {
 }
 
 // Called at vblank each frame
-void gbsUpdateInput() {
+void gbsCheckInput() {
     if (keyPressedAutoRepeat(mapGbKey(KEY_GB_LEFT))) {
         if (gbsSelectedSong == 0)
             gbsSelectedSong = gbsNumSongs-1;

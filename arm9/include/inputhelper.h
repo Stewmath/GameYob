@@ -65,16 +65,18 @@ void forceReleaseKey(int key);
 int mapGbKey(int gbKey); // Maps a "functional" key to a physical key.
 
 void loadBios(const char* filename);
-int loadProgram(char* filename);
+int loadRom(char* filename);
 void loadRomBank();
 bool isRomBankLoaded(int bank);
 u8* getRomBank(int bank);
+
+void unloadRom();
+
 int loadSave();
 int saveGame();
 char* getRomTitle();
 void printRomInfo();
 
-void updateInput();
-
 void saveState(int num);
 int loadState(int num);
+bool checkStateExists(int num);

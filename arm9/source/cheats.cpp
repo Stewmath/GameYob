@@ -1,11 +1,13 @@
 #include <string.h>
 #include <algorithm>
 #include <nds.h>
+#include "gameboy.h"
 #include "mmu.h"
 #include "console.h"
 #include "main.h"
 #include "cheats.h"
 #include "inputhelper.h"
+#include "gbgfx.h"
 
 #define TO_INT(a) ( (a) >= 'a' ? (a) - 'a' + 10 : (a) >= 'A' ? (a) - 'A' + 10 : (a) - '0')
 
@@ -170,8 +172,10 @@ void loadCheats(const char* filename) {
 
     // Begin loading new cheat file
     FILE* file = fopen(filename, "r");
-    if (file == NULL)
+    if (file == NULL) {
+        disableMenuOption("Manage Cheats");
         return;
+    }
 
     while (!feof(file)) {
         int i = numCheats;
@@ -196,87 +200,100 @@ void loadCheats(const char* filename) {
     }
 
     fclose(file);
+
+    enableMenuOption("Manage Cheats");
+}
+
+const int cheatsPerPage=18;
+int cheatMenuSelection=0;
+bool cheatMenu_gameboyWasPaused;
+
+void redrawCheatMenu() {
+    int numPages = (numCheats-1)/cheatsPerPage+1;
+
+    int page = cheatMenuSelection/cheatsPerPage;
+    consoleClear();
+    iprintf("          Cheat Menu      ");
+    iprintf("%d/%d\n\n", page+1, numPages);
+    for (int i=page*cheatsPerPage; i<numCheats && i < (page+1)*cheatsPerPage; i++) {
+        int nameColor = (cheatMenuSelection == i ? CONSOLE_COLOR_LIGHT_YELLOW : CONSOLE_COLOR_WHITE);
+        iprintfColored(nameColor, cheats[i].name);
+        for (unsigned int j=0; j<25-strlen(cheats[i].name); j++)
+            iprintf(" ");
+        if (cheats[i].flags & FLAG_ENABLED) {
+            if (cheatMenuSelection == i) {
+                iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, "* ");
+                iprintfColored(CONSOLE_COLOR_LIGHT_GREEN, "On");
+                iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, " * ");
+            }
+            else
+                iprintf("  On   ");
+        }
+        else {
+            if (cheatMenuSelection == i) {
+                iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, "* ");
+                iprintfColored(CONSOLE_COLOR_LIGHT_GREEN, "Off");
+                iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, " *");
+            }
+            else
+                iprintf("  Off  ");
+        }
+    }
+
+}
+
+void updateCheatMenu() {
+    bool redraw=false;
+    if (cheatMenuSelection >= numCheats) {
+        cheatMenuSelection = 0;
+    }
+
+    if (keyPressedAutoRepeat(KEY_UP)) {
+        if (cheatMenuSelection > 0) {
+            cheatMenuSelection--;
+            redraw = true;
+        }
+    }
+    else if (keyPressedAutoRepeat(KEY_DOWN)) {
+        if (cheatMenuSelection < numCheats-1) {
+            cheatMenuSelection++;
+            redraw = true;
+        }
+    }
+    else if (keyJustPressed(KEY_RIGHT | KEY_LEFT)) {
+        toggleCheat(cheatMenuSelection, !(cheats[cheatMenuSelection].flags & FLAG_ENABLED));
+        redraw = true;
+    }
+    else if (keyJustPressed(KEY_R)) {
+        cheatMenuSelection += cheatsPerPage;
+        if (cheatMenuSelection >= numCheats)
+            cheatMenuSelection = 0;
+        redraw = true;
+    }
+    else if (keyJustPressed(KEY_L)) {
+        cheatMenuSelection -= cheatsPerPage;
+        if (cheatMenuSelection < 0)
+            cheatMenuSelection = numCheats-1;
+        redraw = true;
+    }
+    if (keyJustPressed(KEY_B)) {
+        closeSubMenu();
+        if (!cheatMenu_gameboyWasPaused)
+            unpauseGameboy();
+    }
+
+    if (redraw)
+        doAtVBlank(redrawCheatMenu);
 }
 
 bool startCheatMenu() {
-    const int cheatsPerPage=18;
-
-    int numPages = (numCheats-1)/cheatsPerPage+1;
-    bool quit=false;
-    static int selection=0;
-
     if (numCheats == 0)
         return false;
-    if (selection >= numCheats) {
-        selection = 0;
-    }
 
-    while (!quit) {
-        int page = selection/cheatsPerPage;
-        consoleClear();
-        iprintf("          Cheat Menu      ");
-        iprintf("%d/%d\n\n", page+1, numPages);
-        for (int i=page*cheatsPerPage; i<numCheats && i < (page+1)*cheatsPerPage; i++) {
-            int nameColor = (selection == i ? CONSOLE_COLOR_LIGHT_YELLOW : CONSOLE_COLOR_WHITE);
-            iprintfColored(nameColor, cheats[i].name);
-            for (unsigned int j=0; j<25-strlen(cheats[i].name); j++)
-                iprintf(" ");
-            if (cheats[i].flags & FLAG_ENABLED) {
-                if (selection == i) {
-                    iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, "* ");
-                    iprintfColored(CONSOLE_COLOR_LIGHT_GREEN, "On");
-                    iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, " * ");
-                }
-                else
-                    iprintf("  On   ");
-            }
-            else {
-                if (selection == i) {
-                    iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, "* ");
-                    iprintfColored(CONSOLE_COLOR_LIGHT_GREEN, "Off");
-                    iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, " *");
-                }
-                else
-                    iprintf("  Off  ");
-            }
-        }
-
-        while (true) {
-            swiWaitForVBlank();
-            readKeys();
-            if (keyPressedAutoRepeat(KEY_UP)) {
-                if (selection > 0) {
-                    selection--;
-                    break;
-                }
-            }
-            else if (keyPressedAutoRepeat(KEY_DOWN)) {
-                if (selection < numCheats-1) {
-                    selection++;
-                    break;
-                }
-            }
-            else if (keyJustPressed(KEY_RIGHT | KEY_LEFT)) {
-                toggleCheat(selection, !(cheats[selection].flags & FLAG_ENABLED));
-                break;
-            }
-            else if (keyJustPressed(KEY_R)) {
-                selection += cheatsPerPage;
-                if (selection >= numCheats)
-                    selection = 0;
-                break;
-            }
-            else if (keyJustPressed(KEY_L)) {
-                selection -= cheatsPerPage;
-                if (selection < 0)
-                    selection = numCheats-1;
-                break;
-            }
-            if (keyJustPressed(KEY_B)) {
-                return true;
-            }
-        }
-    }
+    cheatMenu_gameboyWasPaused = isGameboyPaused();
+    pauseGameboy();
+    displaySubMenu(updateCheatMenu);
+    redrawCheatMenu();
 
     return true;
 }

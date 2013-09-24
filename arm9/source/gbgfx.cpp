@@ -1,7 +1,9 @@
 #include "inputhelper.h"
+#include <vector>
 #include <nds.h>
 #include <stdio.h>
 #include <math.h>
+#include "gbs.h"
 #include "gbgfx.h"
 #include "mmu.h"
 #include "gbcpu.h"
@@ -9,6 +11,7 @@
 #include "gameboy.h"
 #include "sgb.h"
 #include "console.h"
+#include "filechooser.h"
 #include "common.h"
 
 #define BACKDROP_COLOUR RGB15(0,0,0)
@@ -44,6 +47,8 @@ const int win_all_priority = 2;
 const int screenOffsX = 48;
 const int screenOffsY = 24;
 
+bool gbGraphicsDisabled=false;
+
 // If the game is using the GBC's priority bit for tiles, the corresponding 
 // variable is set. This helps with layer management.
 int usingTilePriority[2];
@@ -51,7 +56,7 @@ int usingTilePriority[2];
 
 bool didVblank=false;
 // Frame counter. Incremented each vblank.
-volatile int frameCounter=0;
+volatile int dsFrameCounter=0;
 
 bool changedTile[2][0x180];
 int changedTileQueueLength=0;
@@ -86,6 +91,7 @@ int scaleMode;
 int scaleFilter=1;
 u8 gfxMask;
 volatile int loadedBorderType; // This is read from hblank
+bool customBorderExists = true;
 
 int SCALE_BGX, SCALE_BGY;
 
@@ -361,7 +367,7 @@ void doHBlank(int line) ITCM_CODE;
 void doHBlank(int line) {
     if (line >= 192)
         return;
-    if (consoleOn && line%8 == 0) {
+    if ((isFileChooserOn() || isMenuOn()) && line%8 == 0) {
         // Change the backdrop color for a certain row.
         // This is used in the file selection menu.
         if (line/8 == consoleSelectedRow)
@@ -370,7 +376,7 @@ void doHBlank(int line) {
             setBackdropColorSub(RGB15(0,0,0));
     }
 
-    if (hblankDisabled)
+    if (gbGraphicsDisabled || hblankDisabled)
         return;
     int gbLine = line-screenOffsY;
 
@@ -407,40 +413,34 @@ void vcountHandler() {
 
     // Do hblank stuff for the very top line (physical line 0)
     doHBlank(0);
+    if (gbGraphicsDisabled)
+        return;
     // Draw the first gameboy line early (physical line 24)
     drawLine(0);
     lineCompleted[0] = true;
 }
 
 
-void (*vblankTask)(void) = 0;
+std::vector<void (*)()> vblankTasks;
+
 void doAtVBlank(void (*func)(void)) {
-    vblankTask = func;
+    vblankTasks.push_back(func);
 }
 
 bool filterFlip=false;
 void vblankHandler()
 {
+    dsFrameCounter++;
     didVblank = true;
-    frameCounter++;
-    if (!consoleOn) {
-        if (sharedData->scalingOn) {
-            // Capture the main display into vram bank D
-            REG_DISPCAPCNT = 15 | 3<<16 | 0<<18 | 3<<20 | 0<<29 | 1<<31;
+    if (sharedData->scalingOn) {
+        // Capture the main display into vram bank D
+        REG_DISPCAPCNT = 15 | 3<<16 | 0<<18 | 3<<20 | 0<<29 | 1<<31;
 
-            // Leave the DMA copying for arm7.
-            //dmaCopyWordsAsynch(0, (u16*)0x06860000+24*256, (u16*)0x06200000, 144*256*2);
-            vramSetBankD(VRAM_D_ARM7_0x06000000);
-            vramSetBankC(VRAM_C_ARM7_0x06020000);
-            sharedData->scaleTransferReady = true;
-        }
-
-        if (frameCounter >= 150 && probingForBorder) {
-            // Give up on finding a sgb border.
-            probingForBorder = false;
-            nukeBorder = true;
-            resetGameboy();
-        }
+        // Leave the DMA copying for arm7.
+        //dmaCopyWordsAsynch(0, (u16*)0x06860000+24*256, (u16*)0x06200000, 144*256*2);
+        vramSetBankD(VRAM_D_ARM7_0x06000000);
+        vramSetBankC(VRAM_C_ARM7_0x06020000);
+        sharedData->scaleTransferReady = true;
     }
 
     memset(lineCompleted, 0, sizeof(lineCompleted));
@@ -460,16 +460,19 @@ void vblankHandler()
         filterFlip = !filterFlip;
     }
 
-    if (vblankTask != 0) {
-        void (*func)() = vblankTask;
-        vblankTask = 0;
-        func();
+    // Copy the list so that functions which access vblankTasks work.
+    std::vector<void (*)()> tasks = vblankTasks;
+    vblankTasks.clear();
+    for (int i=0; i<tasks.size(); i++) {
+        tasks[i]();
     }
 }
 
 int loadBorder(const char* filename) {
     FILE* file = fopen(filename, "rb");
     if (file == NULL) {
+        customBorderExists = false;
+        disableMenuOption("Custom Border");
         printLog("Error opening border.\n");
         return 1;
     }
@@ -479,15 +482,36 @@ int loadBorder(const char* filename) {
     fseek(file, 0xe, SEEK_SET);
     u8 pixelStart = (u8)fgetc(file) + 0xe;
     fseek(file, pixelStart, SEEK_SET);
-    for (int y=191; y>=0; y--) {
+    for (int y=191; y>=168; y--) {
         u16 buffer[256];
         fread(buffer, 2, 0x100, file);
-        /*
-           DC_FlushRange(buffer, 0x100*2);
-           dmaCopy(buffer, BG_GFX+0x20000+y*256, 0x100*2);
-           */
+        u16* src = buffer;
         for (int i=0; i<256; i++) {
-            BG_GFX[0x20000+y*256+i] = ((buffer[i]>>10)&0x1f) | ((buffer[i])&(0x1f<<5)) | (buffer[i]&0x1f)<<10 | BIT(15);
+            u16 val = *(src++);
+            BG_GFX[0x20000+y*256+i] = ((val>>10)&0x1f) | ((val)&(0x1f<<5)) | (val&0x1f)<<10 | BIT(15);
+        }
+    }
+    for (int y=167; y>=24; y--) {
+        u16 buffer[256];
+        fread(buffer, 2, 256, file);
+        u16* src = buffer;
+        for (int i=0; i<48; i++) {
+            u16 val = *(src++);
+            BG_GFX[0x20000+y*256+i] = ((val>>10)&0x1f) | ((val)&(0x1f<<5)) | (val&0x1f)<<10 | BIT(15);
+        }
+        src += 160;
+        for (int i=208; i<256; i++) {
+            u16 val = *(src++);
+            BG_GFX[0x20000+y*256+i] = ((val>>10)&0x1f) | ((val)&(0x1f<<5)) | (val&0x1f)<<10 | BIT(15);
+        }
+    }
+    for (int y=23; y>=0; y--) {
+        u16 buffer[256];
+        fread(buffer, 2, 0x100, file);
+        u16* src = buffer;
+        for (int i=0; i<256; i++) {
+            u16 val = *(src++);
+            BG_GFX[0x20000+y*256+i] = ((val>>10)&0x1f) | ((val)&(0x1f<<5)) | (val&0x1f)<<10 | BIT(15);
         }
     }
 
@@ -511,9 +535,27 @@ void loadSGBBorder() {
 
 void initGFX()
 {
+    if (gbsMode)
+        gbGraphicsDisabled = true;
+    else
+        gbGraphicsDisabled = false;
+
     vramSetBankA(VRAM_A_MAIN_BG);
     vramSetBankB(VRAM_B_MAIN_BG);
     vramSetBankE(VRAM_E_MAIN_SPRITE);
+
+    REG_DISPSTAT &= 0xFF;
+    REG_DISPSTAT |= 235<<8;     // Set line 235 for vcount
+
+    irqEnable(IRQ_VCOUNT);
+    irqEnable(IRQ_HBLANK);
+    irqEnable(IRQ_VBLANK);
+    irqSet(IRQ_VCOUNT, &vcountHandler);
+    irqSet(IRQ_HBLANK, &hblankHandler);
+    irqSet(IRQ_VBLANK, &vblankHandler);
+
+    if (gbGraphicsDisabled)
+        return;
 
     // Tile for "color0 maps", which contain only the gameboy's color 0.
     for (int i=0; i<16; i++) {
@@ -552,21 +594,10 @@ void initGFX()
 
     checkBorder();
 
-    REG_DISPSTAT &= 0xFF;
-    REG_DISPSTAT |= 235<<8;     // Set line 235 for vcount
-
-    irqEnable(IRQ_VCOUNT);
-    irqEnable(IRQ_HBLANK);
-    irqEnable(IRQ_VBLANK);
-    irqSet(IRQ_VCOUNT, &vcountHandler);
-    irqSet(IRQ_HBLANK, &hblankHandler);
-    irqSet(IRQ_VBLANK, &vblankHandler);
-
     memset(vram[0], 0, 0x2000);
     memset(vram[1], 0, 0x2000);
 
     gfxMask = 0;
-    frameCounter = 0;
 
     refreshGFX();
 }
@@ -599,6 +630,9 @@ void initGFXPalette() {
 }
 
 void refreshGFX() {
+    if (gbGraphicsDisabled)
+        return;
+
     for (int i=0; i<0x180; i++) {
         drawTile(i, 0);
         drawTile(i, 1);
@@ -623,6 +657,14 @@ void refreshGFX() {
         if (vram[1][i] & 0x80)
             usingTilePriority[1]++;
     }
+}
+
+void clearGFX() {
+    for (int i=0; i<(loadedBorderType?3:4); i++)
+        videoBgDisable(i);
+    REG_DISPCNT &= ~DISPLAY_SPR_ACTIVE;
+    setBackdropColor(BACKDROP_COLOUR);
+    memset(scanlineBuffers, 0, sizeof(scanlineBuffers));
 }
 
 // SGB palettes can't quite be perfect because SGB doesn't (necessarily) align 
@@ -684,6 +726,9 @@ void refreshSgbPalette() {
 }
 
 void checkBorder() {
+    if (gbGraphicsDisabled)
+        return;
+
     int lastBorderType = loadedBorderType;
     int nextBorderType = BORDER_NONE;
 
@@ -716,13 +761,12 @@ end:
             loadSGBBorder();
         }
         else if (nextBorderType == BORDER_CUSTOM) {
+            if (!customBorderExists) {
+                nextBorderType = BORDER_NONE;
+                goto end;
+            }
             if (lastBorderType != BORDER_CUSTOM) { // Don't reload if it's already loaded
                 videoBgDisable(3);
-                if (loadBorder("/border.bmp") != 0) {
-                    nextBorderType = BORDER_NONE;
-                    goto end;
-                }
-
                 // Set up background
                 REG_DISPCNT &= ~7;
                 REG_DISPCNT |= 3; // Mode 3
@@ -733,9 +777,8 @@ end:
                 REG_BG3PB = 0;
                 REG_BG3PC = 0;
                 REG_BG3PD = 1<<8;
-
-                swiWaitForVBlank();
                 videoBgEnable(3);
+                loadBorder("/border.bmp");
             }
         }
     }

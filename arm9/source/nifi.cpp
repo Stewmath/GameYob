@@ -26,8 +26,6 @@ void transferWaitingTimeoutFunc() {
 
 void packetHandler(int packetID, int readlength)
 {
-    if (isConsoleEnabled())
-        return;
     static char data[4096];
     // static int bytesRead = 0; // Not used
 
@@ -124,7 +122,7 @@ void disableNifi() {
 
 void sendPacketByte(u8 command, u8 data)
 {
-    if (!nifiEnabled || isConsoleEnabled())
+    if (!nifiEnabled)
         return;
     unsigned char buffer[8];
     buffer[0] = 'Y';

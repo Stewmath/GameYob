@@ -12,6 +12,7 @@ const int MAX_FILENAME_LEN = 100;
 int numFiles;
 int scrollY=0;
 int fileSelection=0;
+bool fileChooserOn=false;
 
 void updateScrollDown() {
     if (fileSelection >= numFiles)
@@ -188,6 +189,8 @@ template <class Data, class Metadata> void quickSort(std::vector<Data>& data, st
  * for free()ing it.
  */
 char* startFileChooser() {
+    fileChooserOn = true;
+    updateScreens(true); // Screen may need to be enabled
     char* retval;
     char cwd[256];
     getcwd(cwd, 256);
@@ -317,5 +320,11 @@ end:
     closedir(dp);
     consoleClear();
     consoleSelectedRow = -1;
+    fileChooserOn = false;
+    updateScreens();
     return retval;
+}
+
+bool isFileChooserOn() {
+    return fileChooserOn;
 }

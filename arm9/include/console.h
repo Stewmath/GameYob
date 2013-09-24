@@ -5,6 +5,7 @@ extern bool nukeBorder;
 
 extern bool consoleOn;
 
+extern bool consoleInitialized;
 extern bool consoleDebugOutput;
 extern int gbcModeOption;
 extern bool gbaModeOption;
@@ -12,6 +13,7 @@ extern int sgbModeOption;
 extern bool customBordersEnabled;
 extern bool sgbBordersEnabled;
 extern bool autoSavingEnabled;
+extern int stateNum;
 
 extern volatile int consoleSelectedRow; // This line is given a different backdrop
 
@@ -22,18 +24,26 @@ void consoleSetLineColor(int line, int color);
 
 void iprintfColored(int palette, const char* format, ...);
 
+void redrawMenu();
+
 void printConsoleMessage(const char* s);
 
-void enterConsole(); // May be called from an interrupt
-void exitConsole();
+void displayMenu();
+void closeMenu(); // updateScreens may need to be called after this
 
-bool isConsoleEnabled();
-void displayConsole();
+void updateMenu();
 
-int getConsoleOption(const char* name);
-void setConsoleOption(const char* name, int value);
+void displaySubMenu(void (*updateFunc)());
+void closeSubMenu();
 
-void updateScreens();
+bool isMenuOn();
+
+int getMenuOption(const char* name);
+void setMenuOption(const char* name, int value);
+void enableMenuOption(const char* name);
+void disableMenuOption(const char* name);
+
+void updateScreens(bool waitToFinish=false);
 
 void disableSleepMode();
 void enableSleepMode();
@@ -42,6 +52,7 @@ void consoleParseConfig(const char* line);
 void consolePrintConfig(FILE* file);
 void addToLog(const char* format, va_list args);
 
+int checkRumble();
 void OpenNorWrite();
 void CloseNorWrite();
 uint32 ReadNorFlashID();

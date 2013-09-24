@@ -232,6 +232,11 @@ void refreshSND() {
         handleSoundRegister(0x23, ioRam[0x23]|0x80);
 }
 
+void muteSND() {
+    sharedData->fifosSent++;
+    fifoSendValue32(FIFO_USER_01, GBSND_MUTE_COMMAND<<20);
+}
+
 void enableChannel(int i) {
     sharedData->chanEnabled[i] = true;
 }

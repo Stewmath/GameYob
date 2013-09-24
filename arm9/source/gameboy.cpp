@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "gameboy.h"
+#include "common.h"
 #include "gbcpu.h"
 #include "gbgfx.h"
 #include "gbsnd.h"
@@ -21,6 +22,7 @@ int doubleSpeed;
 time_t rawTime;
 time_t lastRawTime;
 
+volatile bool gameboyPaused;
 int fps;
 bool fpsOutput=true;
 bool timeOutput=true;
@@ -48,6 +50,8 @@ bool resettingGameboy = false;
 
 bool probingForBorder=false;
 
+int gameboyFrameCounter;
+
 bool wroteToSramThisFrame=false;
 
 
@@ -62,12 +66,118 @@ void setEventCycles(int cycles) {
     }
 }
 
+int autoFireCounterA=0,autoFireCounterB=0;
+void gameboyCheckInput() {
+    buttonsPressed = 0xff;
+    if (keyPressed(mapGbKey(KEY_GB_UP))) {
+        buttonsPressed &= (0xFF ^ UP);
+        if (!(ioRam[0x00] & 0x10))
+            requestInterrupt(JOYPAD);
+    }
+    if (keyPressed(mapGbKey(KEY_GB_DOWN))) {
+        buttonsPressed &= (0xFF ^ DOWN);
+        if (!(ioRam[0x00] & 0x10))
+            requestInterrupt(JOYPAD);
+    }
+    if (keyPressed(mapGbKey(KEY_GB_LEFT))) {
+        buttonsPressed &= (0xFF ^ LEFT);
+        if (!(ioRam[0x00] & 0x10))
+            requestInterrupt(JOYPAD);
+    }
+    if (keyPressed(mapGbKey(KEY_GB_RIGHT))) {
+        buttonsPressed &= (0xFF ^ RIGHT);
+        if (!(ioRam[0x00] & 0x10))
+            requestInterrupt(JOYPAD);
+    }
+    if (keyPressed(mapGbKey(KEY_GB_A))) {
+        buttonsPressed &= (0xFF ^ BUTTONA);
+        if (!(ioRam[0x00] & 0x20))
+            requestInterrupt(JOYPAD);
+    }
+    if (keyPressed(mapGbKey(KEY_GB_B))) {
+        buttonsPressed &= (0xFF ^ BUTTONB);
+        if (!(ioRam[0x00] & 0x20))
+            requestInterrupt(JOYPAD);
+    }
+    if (keyPressed(mapGbKey(KEY_GB_START))) {
+        buttonsPressed &= (0xFF ^ START);
+        if (!(ioRam[0x00] & 0x20))
+            requestInterrupt(JOYPAD);
+    }
+    if (keyPressed(mapGbKey(KEY_GB_SELECT))) {
+        buttonsPressed &= (0xFF ^ SELECT);
+        if (!(ioRam[0x00] & 0x20))
+            requestInterrupt(JOYPAD);
+    }
+
+    if (keyPressed(mapGbKey(KEY_GB_AUTO_A))) {
+        if (autoFireCounterA <= 0) {
+            buttonsPressed &= (0xFF ^ BUTTONA);
+            if (!(ioRam[0x00] & 0x20))
+                requestInterrupt(JOYPAD);
+            autoFireCounterA = 2;
+        }
+        autoFireCounterA--;
+    }
+    if (keyPressed(mapGbKey(KEY_GB_AUTO_B))) {
+        if (autoFireCounterB <= 0) {
+            buttonsPressed &= (0xFF ^ BUTTONB);
+            if (!(ioRam[0x00] & 0x20))
+                requestInterrupt(JOYPAD);
+            autoFireCounterB = 2;
+        }
+        autoFireCounterB--;
+    }
+
+    if (keyJustPressed(mapGbKey(KEY_SAVE))) {
+        if (!autoSavingEnabled)
+            saveGame();
+    }
+
+    fastForwardKey = keyPressed(mapGbKey(KEY_FAST_FORWARD));
+    if (keyJustPressed(mapGbKey(KEY_FAST_FORWARD_TOGGLE)))
+        fastForwardMode = !fastForwardMode;
+
+    if (keyJustPressed(mapGbKey(KEY_SCALE))) {
+        setMenuOption("Scaling", !getMenuOption("Scaling"));
+    }
+
+    if (fastForwardKey || fastForwardMode) {
+        sharedData->hyperSound = false;
+    }
+    else {
+        sharedData->hyperSound = hyperSound;
+    }
+
+    if (advanceFrame || keyJustPressed(mapGbKey(KEY_MENU) | KEY_TOUCH)) {
+        advanceFrame = 0;
+        forceReleaseKey(0xffff);
+        buttonsPressed = 0xff;
+        displayMenu();
+    }
+}
+
 // This is called 60 times per second, even if the lcd is off.
 void gameboyUpdateVBlank() {
-    updateInput();
+    gameboyFrameCounter++;
+
+    readKeys();
+    if (isMenuOn())
+        updateMenu();
+    else {
+        gameboyCheckInput();
+        if (gbsMode)
+            gbsCheckInput();
+    }
+
+    while (gameboyPaused) {
+        swiWaitForVBlank();
+        readKeys();
+        updateMenu();
+    }
+
 	if (gbsMode) {
         drawScreen(); // Just because it syncs with vblank...
-		gbsUpdateInput();
 	}
 	else {
 		drawScreen();
@@ -78,8 +188,15 @@ void gameboyUpdateVBlank() {
 			resettingGameboy = false;
 		}
 
-		if (probingForBorder)
+        if (probingForBorder) {
+            if (gameboyFrameCounter >= 150) {
+                // Give up on finding a sgb border.
+                probingForBorder = false;
+                nukeBorder = true;
+                resetGameboy();
+            }
 			return;
+        }
 
 		// Check autosaving stuff
 		if (saveModified) {
@@ -108,7 +225,7 @@ void gameboyUpdateVBlank() {
 		if (cheatsEnabled)
 			applyGSCheats();
 
-		if (!consoleDebugOutput && (rawTime > lastRawTime))
+		if (!isMenuOn() && !consoleDebugOutput && (rawTime > lastRawTime))
 		{
 			consoleClear();
 			int line=0;
@@ -145,6 +262,24 @@ void gameboyUpdateVBlank() {
 // with it later.
 void resetGameboy() {
     resettingGameboy = true;
+}
+
+void pauseGameboy() {
+    if (!gameboyPaused) {
+        gameboyPaused = true;
+        sharedData->fifosSent++;
+        fifoSendValue32(FIFO_USER_01, GBSND_MUTE_COMMAND<<20);
+    }
+}
+void unpauseGameboy() {
+    if (gameboyPaused) {
+        gameboyPaused = false;
+        sharedData->fifosSent++;
+        fifoSendValue32(FIFO_USER_01, GBSND_MASTER_VOLUME_COMMAND<<20);
+    }
+}
+bool isGameboyPaused() {
+    return gameboyPaused;
 }
 
 int soundCycles=0;
@@ -224,6 +359,7 @@ void runEmul()
 
 void initLCD()
 {
+    gameboyPaused = false;
     setDoubleSpeed(0);
 
     scanlineCounter = 456*(doubleSpeed?2:1);

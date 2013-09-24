@@ -23,7 +23,6 @@
 
 extern time_t rawTime;
 extern time_t lastRawTime;
-extern bool advanceFrame;
 
 volatile SharedData* sharedData;
 
@@ -48,8 +47,6 @@ void fifoValue32Handler(u32 value, void* user_data) {
 
 
 void selectRom() {
-    char* filename = startFileChooser();
-
     if (!biosExists) {
         FILE* file;
         file = fopen("gbc_bios.bin", "rb");
@@ -58,7 +55,10 @@ void selectRom() {
             fread(bios, 1, 0x900, file);
     }
 
-    loadProgram(filename);
+    unloadRom();
+    char* filename = startFileChooser();
+
+    loadRom(filename);
     free(filename);
 
     initializeGameboyFirstTime();
@@ -80,6 +80,7 @@ void initGBCMode() {
 }
 void initializeGameboy() {
     enableSleepMode();
+    gameboyFrameCounter = 0;
     sgbMode = false;
 
     if (gbsMode) {
@@ -123,8 +124,6 @@ void initializeGameboy() {
 
     if (!gbsMode && !probingForBorder && suspendStateExists) {
         loadState(-1);
-        // enter the console on resume
-        advanceFrame = true;
     }
 
     if (gbsMode)
@@ -138,7 +137,27 @@ void initializeGameboyFirstTime() {
     if (sgbBordersEnabled)
         probingForBorder = true; // This will be ignored if starting in sgb mode, or if there is no sgb mode.
     nukeBorder = true;
+
     initializeGameboy();
+
+    if (gbsMode) {
+        disableMenuOption("State Slot");
+        disableMenuOption("Save State");
+        disableMenuOption("Load State");
+    }
+    else {
+        enableMenuOption("State Slot");
+        enableMenuOption("Save State");
+        if (checkStateExists(stateNum))
+            enableMenuOption("Load State");
+        else
+            disableMenuOption("Load State");
+
+        if (numRamBanks && !gbsMode && !autoSavingEnabled)
+            enableMenuOption("Exit without saving");
+        else
+            disableMenuOption("Exit without saving");
+    }
 }
 
 int main(int argc, char* argv[])
@@ -169,24 +188,26 @@ int main(int argc, char* argv[])
     // However there may have been something wrong with it in dsi mode.
     fifoSendValue32(FIFO_USER_03, ((u32)sharedData)&0x00ffffff);
 
-    consoleOn = true;
     initInput();
-    if (!readConfigFile()) // If the config file doesn't exist
-        setConsoleDefaults(); // Set the default values
+    setConsoleDefaults();
+    readConfigFile();
+    swiWaitForVBlank();
+    swiWaitForVBlank();
     // initGFX is called in initializeGameboy, but I also call it from here to
     // set up the vblank handler asap.
     initGFX();
 
+    consoleInitialized = false;
+
     if (argc >= 2) {
         char* filename = argv[1];
-        loadProgram(filename);
+        loadRom(filename);
         initializeGameboyFirstTime();
     }
     else {
         selectRom();
     }
 
-    consoleOn = false;
     updateScreens();
 
     runEmul();
