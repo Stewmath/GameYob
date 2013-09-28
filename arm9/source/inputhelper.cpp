@@ -949,6 +949,7 @@ int loadState(int stateNum) {
         saveGame(); // Synchronize save file on sd with file in ram
 
     refreshGFX();
+    refreshSND();
 
     return 0;
 }
