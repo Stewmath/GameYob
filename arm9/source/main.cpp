@@ -147,15 +147,22 @@ void initializeGameboyFirstTime() {
         disableMenuOption("State Slot");
         disableMenuOption("Save State");
         disableMenuOption("Load State");
+        disableMenuOption("Delete State");
+        disableMenuOption("Suspend");
         disableMenuOption("Exit without saving");
     }
     else {
         enableMenuOption("State Slot");
         enableMenuOption("Save State");
-        if (checkStateExists(stateNum))
+        enableMenuOption("Suspend");
+        if (checkStateExists(stateNum)) {
             enableMenuOption("Load State");
-        else
+            enableMenuOption("Delete State");
+        }
+        else {
             disableMenuOption("Load State");
+            disableMenuOption("Delete State");
+        }
 
         if (numRamBanks && !autoSavingEnabled)
             enableMenuOption("Exit without saving");

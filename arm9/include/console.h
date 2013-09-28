@@ -3,8 +3,6 @@
 
 extern bool nukeBorder;
 
-extern bool consoleOn;
-
 extern bool consoleInitialized;
 extern bool consoleDebugOutput;
 extern int gbcModeOption;

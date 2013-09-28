@@ -131,41 +131,56 @@ void keyConfigFunc(int value) {
 
 void saveSettingsFunc(int value) {
     printMenuMessage("Saving settings...");
+    muteSND();
     writeConfigFile();
+    refreshSND();
     printMenuMessage("Settings saved.");
 }
 
 void stateSelectFunc(int value) {
     stateNum = value;
-    if (checkStateExists(stateNum))
+    if (checkStateExists(stateNum)) {
         enableMenuOption("Load State");
-    else
+        enableMenuOption("Delete State");
+    }
+    else {
         disableMenuOption("Load State");
-}
-void stateLoadFunc(int value) {
-    printMenuMessage("Loading state...");
-    if (loadState(stateNum) == 0) {
-        closeMenu();
-        consoleClear();
-        updateScreens();
-        printMessage[0] = '\0';
+        disableMenuOption("Delete State");
     }
 }
 void stateSaveFunc(int value) {
     printMenuMessage("Saving state...");
+    muteSND();
     saveState(stateNum);
+    refreshSND();
     printMenuMessage("State saved.");
+    // Will activate the other state options
+    stateSelectFunc(stateNum);
+}
+void stateLoadFunc(int value) {
+    printMenuMessage("Loading state...");
+    muteSND();
+    if (loadState(stateNum) == 0) {
+        closeMenu();
+        updateScreens();
+        printMessage[0] = '\0';
+    }
+}
+void stateDeleteFunc(int value) {
+    muteSND();
+    deleteState(stateNum);
+    // Will grey out the other state options
+    stateSelectFunc(stateNum);
+    refreshSND();
 }
 void resetFunc(int value) {
     nukeBorder = false;
     closeMenu();
-    consoleClear();
     updateScreens();
     initializeGameboy();
 }
 void returnFunc(int value) {
     closeMenu();
-    consoleClear();
     updateScreens();
 }
 
@@ -197,12 +212,9 @@ void setScaleModeFunc(int value) {
     }
     if (value == 0) {
         doAtVBlank(checkBorder);
-        if (customBorderExists)
-            enableMenuOption("Custom Border");
         enableMenuOption("Console Output");
     }
     else {
-        disableMenuOption("Custom Border");
         disableMenuOption("Console Output");
     }
 }
@@ -318,13 +330,14 @@ struct ConsoleSubMenu {
 ConsoleSubMenu menuList[] = {
     {
         "ROM",
-        8,
+        9,
         {
             {"Exit", exitFunc, 0, {}, 0},
             {"Reset", resetFunc, 0, {}, 0},
             {"State Slot", stateSelectFunc, 10, {"0","1","2","3","4","5","6","7","8","9"}, 0},
             {"Save State", stateSaveFunc, 0, {}, 0},
             {"Load State", stateLoadFunc, 0, {}, 0},
+            {"Delete State", stateDeleteFunc, 0, {}, 0},
             {"Quit to Launcher", returnToLauncherFunc, 0, {}, 0},
             {"Exit without saving", exitNoSaveFunc, 0, {}, 0},
             {"Suspend", suspendFunc, 0, {}, 0}
@@ -420,6 +433,8 @@ void displayMenu() {
 }
 void closeMenu() {
     menuOn = false;
+    setPrintConsole(menuConsole);
+    consoleClear();
 }
 
 bool isMenuOn() {
@@ -583,7 +598,6 @@ void updateMenu() {
     else if (keyJustPressed(KEY_B)) {
         forceReleaseKey(KEY_B);
         closeMenu();
-        consoleClear();
         updateScreens();
     }
     else if (keyJustPressed(KEY_L)) {
@@ -610,15 +624,21 @@ void updateMenu() {
 // Message will be printed immediately, but also stored in case it's overwritten 
 // right away.
 void printMenuMessage(const char* s) {
+    bool hadPreviousMessage = printMessage[0] != '\0';
     strncpy(printMessage, s, 33);
 
-    int newlines = 23-(menuList[menu].numOptions*2+2)-1;
-    for (int i=0; i<newlines; i++)
-        iprintf("\n");
+    if (hadPreviousMessage) {
+        iprintf("\r");
+    }
+    else {
+        int newlines = 23-(menuList[menu].numOptions*2+2)-1;
+        for (int i=0; i<newlines; i++)
+            iprintf("\n");
+    }
     int spaces = 31-strlen(printMessage);
     for (int i=0; i<spaces; i++)
         iprintf(" ");
-    iprintf("%s\n", printMessage);
+    iprintf("%s", printMessage);
 }
 
 void displaySubMenu(void (*updateFunc)()) {

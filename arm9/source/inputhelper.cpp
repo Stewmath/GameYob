@@ -359,8 +359,6 @@ end:
 }
 
 void writeConfigFile() {
-    muteSND();
-
     FILE* file = fopen("/gameyob.ini", "w");
     fiprintf(file, "[general]\n");
     generalPrintConfig(file);
@@ -373,8 +371,6 @@ void writeConfigFile() {
     char nameBuf[100];
     siprintf(nameBuf, "%s.cht", basename);
     saveCheats(nameBuf);
-
-    refreshSND();
 }
 
 
@@ -779,8 +775,6 @@ struct StateStruct {
 };
 
 void saveState(int stateNum) {
-    muteSND();
-
     FILE* outFile;
     StateStruct state;
     char statename[100];
@@ -848,8 +842,6 @@ void saveState(int stateNum) {
 }
 
 int loadState(int stateNum) {
-    muteSND();
-
     FILE *inFile;
     StateStruct state;
     char statename[100];
@@ -865,7 +857,6 @@ int loadState(int stateNum) {
 
     if (inFile == 0) {
         printMenuMessage("State doesn't exist.");
-        refreshSND();
         return 1;
     }
 
@@ -873,7 +864,6 @@ int loadState(int stateNum) {
 
     if (version == 0 || version > STATE_VERSION) {
         printMenuMessage("State is from an incompatible version.");
-        refreshSND();
         return 1;
     }
 
@@ -958,10 +948,22 @@ int loadState(int stateNum) {
     if (autoSavingEnabled && stateNum != -1)
         saveGame(); // Synchronize save file on sd with file in ram
 
-    refreshSND();
     refreshGFX();
 
     return 0;
+}
+
+void deleteState(int num) {
+    if (!checkStateExists(num))
+        return;
+
+    char statename[100];
+
+    if (stateNum == -1)
+        siprintf(statename, "%s.yss", basename);
+    else
+        siprintf(statename, "%s.ys%d", basename, stateNum);
+    unlink(statename);
 }
 
 bool checkStateExists(int num) {

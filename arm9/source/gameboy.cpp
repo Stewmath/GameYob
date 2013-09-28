@@ -209,38 +209,39 @@ void gameboyUpdateVBlank() {
 
 		if (cheatsEnabled)
 			applyGSCheats();
-
-		if (isConsoleOn() && !isMenuOn() && !consoleDebugOutput && (rawTime > lastRawTime))
-		{
-			consoleClear();
-			int line=0;
-			if (fpsOutput) {
-				consoleClear();
-				iprintf("FPS: %d\n", fps);
-				line++;
-			}
-			fps = 0;
-			if (timeOutput) {
-				for (; line<23-1; line++)
-					iprintf("\n");
-				char *timeString = ctime(&rawTime);
-				for (int i=0;; i++) {
-					if (timeString[i] == ':') {
-						timeString += i-2;
-						break;
-					}
-				}
-				char s[50];
-				strncpy(s, timeString, 50);
-				s[5] = '\0';
-				int spaces = 31-strlen(s);
-				for (int i=0; i<spaces; i++)
-					iprintf(" ");
-				iprintf("%s\n", s);
-			}
-			lastRawTime = rawTime;
-		}
 	}
+
+    if (isConsoleOn() && !isMenuOn() && !consoleDebugOutput && (rawTime > lastRawTime))
+    {
+        setPrintConsole(menuConsole);
+        consoleClear();
+        int line=0;
+        if (fpsOutput) {
+            consoleClear();
+            iprintf("FPS: %d\n", fps);
+            line++;
+        }
+        fps = 0;
+        if (timeOutput) {
+            for (; line<23-1; line++)
+                iprintf("\n");
+            char *timeString = ctime(&rawTime);
+            for (int i=0;; i++) {
+                if (timeString[i] == ':') {
+                    timeString += i-2;
+                    break;
+                }
+            }
+            char s[50];
+            strncpy(s, timeString, 50);
+            s[5] = '\0';
+            int spaces = 31-strlen(s);
+            for (int i=0; i<spaces; i++)
+                iprintf(" ");
+            iprintf("%s\n", s);
+        }
+        lastRawTime = rawTime;
+    }
 }
 
 void gameboySyncAutosave() {

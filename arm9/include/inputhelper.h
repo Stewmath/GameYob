@@ -79,4 +79,5 @@ void printRomInfo();
 
 void saveState(int num);
 int loadState(int num);
+void deleteState(int num);
 bool checkStateExists(int num);
