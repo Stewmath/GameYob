@@ -30,6 +30,8 @@ void setEventCycles(int cycles);
 
 void gameboyCheckInput();
 void gameboyUpdateVBlank();
+void gameboyAutosaveCheck();
+void gameboySyncAutosave();
 
 void resetGameboy(); // This may be called even from the context of "runOpcode".
 void pauseGameboy();

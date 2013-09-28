@@ -51,8 +51,9 @@ void selectRom() {
         FILE* file;
         file = fopen("gbc_bios.bin", "rb");
         biosExists = file != NULL;
-        if (biosExists)
+        if (biosExists) {
             fread(bios, 1, 0x900, file);
+        }
     }
 
     unloadRom();
@@ -144,6 +145,7 @@ void initializeGameboyFirstTime() {
         disableMenuOption("State Slot");
         disableMenuOption("Save State");
         disableMenuOption("Load State");
+        disableMenuOption("Exit without saving");
     }
     else {
         enableMenuOption("State Slot");
@@ -153,11 +155,16 @@ void initializeGameboyFirstTime() {
         else
             disableMenuOption("Load State");
 
-        if (numRamBanks && !gbsMode && !autoSavingEnabled)
+        if (numRamBanks && !autoSavingEnabled)
             enableMenuOption("Exit without saving");
         else
             disableMenuOption("Exit without saving");
     }
+
+    if (biosExists)
+        enableMenuOption("GBC Bios");
+    else
+        disableMenuOption("GBC Bios");
 }
 
 int main(int argc, char* argv[])
@@ -216,6 +223,8 @@ int main(int argc, char* argv[])
 }
 
 void printLog(const char *format, ...) {
+    if (isMenuOn())
+        return;
     va_list args;
     va_start(args, format);
     addToLog(format, args);

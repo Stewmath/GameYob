@@ -157,7 +157,7 @@ void gameboyCheckInput() {
     }
 }
 
-// This is called 60 times per second, even if the lcd is off.
+// This is called 60 times per gameboy second, even if the lcd is off.
 void gameboyUpdateVBlank() {
     gameboyFrameCounter++;
 
@@ -204,22 +204,7 @@ void gameboyUpdateVBlank() {
 			saveModified = false;
 		}
 		else if (wroteToSramThisFrame) { // This executes when a full frame has passed since sram was last written to.
-			printLog("SAVE %d\n", numSaveWrites);
-			numSaveWrites = 0;
-			wroteToSramThisFrame = false;
-
-			fseek(saveFile, autosaveStart, SEEK_SET);
-
-			for (int i=autosaveStart/0x2000; i<=autosaveEnd/0x2000; i++) {
-				int start = (i == autosaveStart/0x2000 ? autosaveStart : i*0x2000);
-				int end = (i == autosaveEnd/0x2000 ? autosaveEnd+1 : (i+1)*0x2000);
-				fwrite(externRam[i]+(start&0x1fff), 1, end-start, saveFile);
-			}
-
-			flushFatCache();
-
-			autosaveStart = -1;
-			autosaveEnd = -1;
+            gameboySyncAutosave();
 		}
 
 		if (cheatsEnabled)
@@ -256,6 +241,27 @@ void gameboyUpdateVBlank() {
 			lastRawTime = rawTime;
 		}
 	}
+}
+
+void gameboySyncAutosave() {
+    if (autosaveStart == -1)
+        return;
+    printLog("SAVE %d\n", numSaveWrites);
+    numSaveWrites = 0;
+    wroteToSramThisFrame = false;
+
+    fseek(saveFile, autosaveStart, SEEK_SET);
+
+    for (int i=autosaveStart/0x2000; i<=autosaveEnd/0x2000; i++) {
+        int start = (i == autosaveStart/0x2000 ? autosaveStart : i*0x2000);
+        int end = (i == autosaveEnd/0x2000 ? autosaveEnd+1 : (i+1)*0x2000);
+        fwrite(externRam[i]+(start&0x1fff), 1, end-start, saveFile);
+    }
+
+    flushFatCache();
+
+    autosaveStart = -1;
+    autosaveEnd = -1;
 }
 
 // This function can be called from weird contexts, so just set a flag to deal 

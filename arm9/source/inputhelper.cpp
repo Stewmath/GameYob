@@ -580,6 +580,7 @@ u8* getRomBank(int bank) {
 void unloadRom() {
     doAtVBlank(clearGFX);
 
+    gameboySyncAutosave();
     if (saveFile != NULL)
         fclose(saveFile);
     saveFile = NULL;
