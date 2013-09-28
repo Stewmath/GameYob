@@ -57,10 +57,12 @@ void selectRom() {
     }
 
     unloadRom();
-    char* filename = startFileChooser();
 
+    char* filename = startFileChooser();
     loadRom(filename);
     free(filename);
+
+    updateScreens();
 
     initializeGameboyFirstTime();
 }
@@ -196,7 +198,7 @@ int main(int argc, char* argv[])
     fifoSendValue32(FIFO_USER_03, ((u32)sharedData)&0x00ffffff);
 
     initInput();
-    setConsoleDefaults();
+    setMenuDefaults();
     readConfigFile();
     swiWaitForVBlank();
     swiWaitForVBlank();
@@ -220,12 +222,4 @@ int main(int argc, char* argv[])
     runEmul();
 
     return 0;
-}
-
-void printLog(const char *format, ...) {
-    if (isMenuOn())
-        return;
-    va_list args;
-    va_start(args, format);
-    addToLog(format, args);
 }

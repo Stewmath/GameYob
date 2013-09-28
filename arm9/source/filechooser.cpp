@@ -189,6 +189,7 @@ template <class Data, class Metadata> void quickSort(std::vector<Data>& data, st
  * for free()ing it.
  */
 char* startFileChooser() {
+    setPrintConsole(menuConsole);
     fileChooserOn = true;
     updateScreens(true); // Screen may need to be enabled
     char* retval;
@@ -321,7 +322,6 @@ end:
     consoleClear();
     consoleSelectedRow = -1;
     fileChooserOn = false;
-    updateScreens();
     return retval;
 }
 

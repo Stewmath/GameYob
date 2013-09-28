@@ -210,7 +210,7 @@ void gameboyUpdateVBlank() {
 		if (cheatsEnabled)
 			applyGSCheats();
 
-		if (!isMenuOn() && !consoleDebugOutput && (rawTime > lastRawTime))
+		if (isConsoleOn() && !isMenuOn() && !consoleDebugOutput && (rawTime > lastRawTime))
 		{
 			consoleClear();
 			int line=0;

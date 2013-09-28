@@ -337,7 +337,7 @@ bool readConfigFile() {
                     configParser = generalParseConfig;
                 }
                 else if (strcmpi(section, "console") == 0) {
-                    configParser = consoleParseConfig;
+                    configParser = menuParseConfig;
                 }
                 else if (strcmpi(section, "controls") == 0) {
                     configParser = controlsParseConfig;
@@ -359,11 +359,13 @@ end:
 }
 
 void writeConfigFile() {
+    muteSND();
+
     FILE* file = fopen("/gameyob.ini", "w");
     fiprintf(file, "[general]\n");
     generalPrintConfig(file);
     fiprintf(file, "[console]\n");
-    consolePrintConfig(file);
+    menuPrintConfig(file);
     fiprintf(file, "[controls]\n");
     controlsPrintConfig(file);
     fclose(file);
@@ -371,6 +373,8 @@ void writeConfigFile() {
     char nameBuf[100];
     siprintf(nameBuf, "%s.cht", basename);
     saveCheats(nameBuf);
+
+    refreshSND();
 }
 
 
@@ -788,7 +792,7 @@ void saveState(int stateNum) {
     outFile = fopen(statename, "w");
 
     if (outFile == 0) {
-        printConsoleMessage("Error opening file for writing.");
+        printMenuMessage("Error opening file for writing.");
         return;
     }
 
@@ -860,7 +864,7 @@ int loadState(int stateNum) {
     inFile = fopen(statename, "r");
 
     if (inFile == 0) {
-        printConsoleMessage("State doesn't exist.");
+        printMenuMessage("State doesn't exist.");
         refreshSND();
         return 1;
     }
@@ -868,7 +872,7 @@ int loadState(int stateNum) {
     fread(&version, sizeof(int), 1, inFile);
 
     if (version == 0 || version > STATE_VERSION) {
-        printConsoleMessage("State is from an incompatible version.");
+        printMenuMessage("State is from an incompatible version.");
         refreshSND();
         return 1;
     }

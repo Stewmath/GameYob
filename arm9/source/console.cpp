@@ -21,16 +21,15 @@ void subMenuGenericUpdateFunc(); // Private function here
 const int screenTileWidth = 32;
 const int backlights[] = {PM_BACKLIGHT_TOP, PM_BACKLIGHT_BOTTOM};
 
-PrintConsole* printConsole;
-
 bool consoleDebugOutput = false;
-bool consoleOn = false;
+bool menuOn = false;
 bool consoleInitialized = false;
 int menu=0;
 int option = -1;
 char printMessage[33];
 int consoleScreen;
 int stateNum=0;
+PrintConsole* menuConsole;
 
 bool nukeBorder=false;
 int gbcModeOption=0;
@@ -53,9 +52,18 @@ extern int halt;
 extern int rumbleInserted;
 extern int rumbleStrength;
 
+
+// Private function used for simple submenus
+void subMenuGenericUpdateFunc() {
+    if (keyJustPressed(KEY_A) || keyJustPressed(KEY_B))
+        closeSubMenu();
+}
+
+// Functions corresponding to menu options
+
 void suspendFunc(int value) {
     muteSND();
-    printConsoleMessage("Suspending...");
+    printMenuMessage("Suspending...");
     if (!autoSavingEnabled)
         saveGame();
     saveState(-1);
@@ -66,7 +74,7 @@ void suspendFunc(int value) {
 void exitFunc(int value) {
     muteSND();
     if (!autoSavingEnabled && numRamBanks && !gbsMode) {
-        printConsoleMessage("Saving...");
+        printMenuMessage("Saving...");
         saveGame();
     }
     printMessage[0] = '\0';
@@ -106,7 +114,7 @@ void returnToLauncherFunc(int value) {
 
 void nifiEnableFunc(int value) {
     if (value) {
-		printConsoleMessage("Warning: link emulation sucks.");
+		printMenuMessage("Warning: link emulation sucks.");
         enableNifi();
 	}
     else
@@ -115,16 +123,16 @@ void nifiEnableFunc(int value) {
 
 void cheatFunc(int value) {
     if (!startCheatMenu())
-        printConsoleMessage("No cheats found!");
+        printMenuMessage("No cheats found!");
 }
 void keyConfigFunc(int value) {
     startKeyConfigChooser();
 }
 
 void saveSettingsFunc(int value) {
-    printConsoleMessage("Saving settings...");
+    printMenuMessage("Saving settings...");
     writeConfigFile();
-    printConsoleMessage("Settings saved.");
+    printMenuMessage("Settings saved.");
 }
 
 void stateSelectFunc(int value) {
@@ -135,26 +143,29 @@ void stateSelectFunc(int value) {
         disableMenuOption("Load State");
 }
 void stateLoadFunc(int value) {
-    printConsoleMessage("Loading state...");
+    printMenuMessage("Loading state...");
     if (loadState(stateNum) == 0) {
         closeMenu();
+        consoleClear();
         updateScreens();
         printMessage[0] = '\0';
     }
 }
 void stateSaveFunc(int value) {
-    printConsoleMessage("Saving state...");
+    printMenuMessage("Saving state...");
     saveState(stateNum);
-    printConsoleMessage("State saved.");
+    printMenuMessage("State saved.");
 }
 void resetFunc(int value) {
     nukeBorder = false;
     closeMenu();
+    consoleClear();
     updateScreens();
     initializeGameboy();
 }
 void returnFunc(int value) {
     closeMenu();
+    consoleClear();
     updateScreens();
 }
 
@@ -380,7 +391,7 @@ ConsoleSubMenu menuList[] = {
 };
 const int numMenus = sizeof(menuList)/sizeof(ConsoleSubMenu);
 
-void setConsoleDefaults() {
+void setMenuDefaults() {
     for (int i=0; i<numMenus; i++) {
         for (int j=0; j<menuList[i].numOptions; j++) {
             menuList[i].options[j].selection = menuList[i].options[j].defaultSelection;
@@ -390,45 +401,38 @@ void setConsoleDefaults() {
             }
         }
     }
+
+    menuConsole = (PrintConsole*)malloc(sizeof(PrintConsole));
+    memcpy(menuConsole, consoleGetDefault(), sizeof(PrintConsole));
 }
 
-void consoleSetPosColor(int x, int y, int color) {
-    u16* map = BG_MAP_RAM_SUB(22);
-    map[y*32+x] &= ~TILE_PALETTE(15);
-    map[y*32+x] |= TILE_PALETTE(color);
+void displayMenu() {
+    menuOn = true;
+    fastForwardMode = false;
+    if (checkRumble())
+        enableMenuOption("Rumble Pak");
+    else
+        disableMenuOption("Rumble Pak");
+    // Enable backlight if necessary, and delay as necessary if the console
+    // needs to be initialized.
+    updateScreens(!consoleInitialized);
+    redrawMenu();
+}
+void closeMenu() {
+    menuOn = false;
 }
 
-void consoleSetLineColor(int line, int color) {
-    u16* map = BG_MAP_RAM_SUB(22);
-    for (int i=0; i<32; i++) {
-        map[line*32+i] &= ~TILE_PALETTE(15);
-        map[line*32+i] |= TILE_PALETTE(color);
-    }
+bool isMenuOn() {
+    return menuOn;
+}
+bool isConsoleOn() {
+    return consoleInitialized;
 }
 
-void iprintfColored(int palette, const char *format, ...) {
-    va_list args;
-    va_start(args, format);
-
-    PrintConsole* console = consoleGetDefault();
-    int x = printConsole->cursorX;
-    int y = printConsole->cursorY;
-
-    char s[100];
-    vsiprintf(s, format, args);
-    iprintf(s);
-
-    for (uint i=0; i<strlen(s); i++) {
-        consoleSetPosColor(x, y, palette);
-        x++;
-        if (x == 32) {
-            x = 0;
-            y++;
-        }
-    }
-}
 
 void redrawMenu() {
+    PrintConsole* oldConsole = getPrintConsole();
+    setPrintConsole(menuConsole);
     consoleClear();
 
     // Top line: submenu
@@ -514,36 +518,8 @@ void redrawMenu() {
 
         printMessage[0] = '\0';
     }
-}
 
-// Message will be printed immediately, but also stored in case it's overwritten 
-// right away.
-void printConsoleMessage(const char* s) {
-    strncpy(printMessage, s, 33);
-
-    int newlines = 23-(menuList[menu].numOptions*2+2)-1;
-    for (int i=0; i<newlines; i++)
-        iprintf("\n");
-    int spaces = 31-strlen(printMessage);
-    for (int i=0; i<spaces; i++)
-        iprintf(" ");
-    iprintf("%s\n", printMessage);
-}
-
-void displayMenu() {
-    consoleOn = true;
-    fastForwardMode = false;
-    if (checkRumble())
-        enableMenuOption("Rumble Pak");
-    else
-        disableMenuOption("Rumble Pak");
-    // Enable backlight if necessary, and delay as necessary if the console
-    // needs to be initialized.
-    updateScreens(!consoleInitialized);
-    redrawMenu();
-}
-void closeMenu() {
-    consoleOn = false;
+    consoleSelect(oldConsole);
 }
 
 // Called each vblank while the menu is on
@@ -607,6 +583,7 @@ void updateMenu() {
     else if (keyJustPressed(KEY_B)) {
         forceReleaseKey(KEY_B);
         closeMenu();
+        consoleClear();
         updateScreens();
     }
     else if (keyJustPressed(KEY_L)) {
@@ -630,9 +607,18 @@ void updateMenu() {
         doAtVBlank(redrawMenu);
 }
 
-void subMenuGenericUpdateFunc() {
-    if (keyJustPressed(KEY_A) || keyJustPressed(KEY_B))
-        closeSubMenu();
+// Message will be printed immediately, but also stored in case it's overwritten 
+// right away.
+void printMenuMessage(const char* s) {
+    strncpy(printMessage, s, 33);
+
+    int newlines = 23-(menuList[menu].numOptions*2+2)-1;
+    for (int i=0; i<newlines; i++)
+        iprintf("\n");
+    int spaces = 31-strlen(printMessage);
+    for (int i=0; i<spaces; i++)
+        iprintf(" ");
+    iprintf("%s\n", printMessage);
 }
 
 void displaySubMenu(void (*updateFunc)()) {
@@ -641,10 +627,6 @@ void displaySubMenu(void (*updateFunc)()) {
 void closeSubMenu() {
     subMenuUpdateFunc = NULL;
     doAtVBlank(redrawMenu);
-}
-
-bool isMenuOn() {
-    return consoleOn;
 }
 
 
@@ -696,6 +678,47 @@ void disableMenuOption(const char* optionName) {
     }
 }
 
+void menuParseConfig(const char* line) {
+    char* equalsPos = strchr(line, '=');
+    if (equalsPos == 0)
+        return;
+    *equalsPos = '\0';
+    const char* option = line;
+    const char* value = equalsPos+1;
+    int val = atoi(value);
+    for (int i=0; i<numMenus; i++) {
+        for (int j=0; j<menuList[i].numOptions; j++) {
+            if (strcmpi(menuList[i].options[j].name, option) == 0 && menuList[i].options[j].numValues != 0) {
+                menuList[i].options[j].selection = val;
+                menuList[i].options[j].function(val);
+                return;
+            }
+        }
+    }
+}
+
+void menuPrintConfig(FILE* file) {
+    for (int i=0; i<numMenus; i++) {
+        for (int j=0; j<menuList[i].numOptions; j++) {
+            if (menuList[i].options[j].numValues != 0)
+                fiprintf(file, "%s=%d\n", menuList[i].options[j].name, menuList[i].options[j].selection);
+        }
+    }
+}
+
+void printLog(const char *format, ...) {
+    if (isMenuOn() || sharedData->scalingOn)
+        return;
+    va_list args;
+    va_start(args, format);
+
+    if (consoleDebugOutput)
+        viprintf(format, args);
+}
+
+
+// updateScreens helper functions
+
 void enableConsoleBacklight2() {
     powerOn(backlights[consoleScreen]);
 }
@@ -704,7 +727,6 @@ void enableConsoleBacklight() {
     doAtVBlank(enableConsoleBacklight2);
 }
 
-PrintConsole dummyConsole;
 // 2 frames delay
 void setupScaledScreens2() {
     REG_DISPCNT &= ~(3<<16); // Disable main display
@@ -733,9 +755,9 @@ void setupUnscaledScreens() {
     REG_DISPCNT &= ~(3<<16);
     REG_DISPCNT |= 1<<16; // Enable main display
 
-    consoleSelect(NULL); // Select default console
     if (!consoleInitialized) {
-        printConsole = consoleDemoInit();
+        consoleDemoInit(); // Or, consoleInit(menuConsole, ...)
+        setPrintConsole(menuConsole);
         BG_PALETTE_SUB[8*16 - 1] = RGB15(17,17,17); // Grey (replaces a color established in consoleDemoInit)
         consoleInitialized = true;
     }
@@ -772,9 +794,10 @@ void updateScreens(bool waitToFinish) {
     if (!gbsMode && !isMenuOn() && !isFileChooserOn() && scaleMode != 0) {
         // Manage screens in the case that scaling is enabled:
         sharedData->scalingOn = 1;
-        // Give it a dummy console so it won't write over bank C
-        consoleSelect(&dummyConsole);
+
+        // The VRAM used for the console will be overwritten, so...
         consoleInitialized = false;
+
 
         doAtVBlank(setupScaledScreens1);
 
@@ -794,52 +817,62 @@ void updateScreens(bool waitToFinish) {
 }
 
 
-void disableSleepMode() {
-    if (sharedData->enableSleepMode) {
-        sharedData->enableSleepMode = false;
-        fifoSendValue32(FIFO_PM, PM_REQ_SLEEP_DISABLE);
+// Console helper functions
+
+PrintConsole* printConsole;
+
+void setPrintConsole(PrintConsole* console) {
+    printConsole = console;
+    consoleSelect(console);
+}
+
+PrintConsole* getPrintConsole() {
+    return printConsole;
+}
+
+void consoleSetPosColor(int x, int y, int color) {
+    u16* map = BG_MAP_RAM_SUB(22);
+    map[y*32+x] &= ~TILE_PALETTE(15);
+    map[y*32+x] |= TILE_PALETTE(color);
+}
+
+void consoleSetLineColor(int line, int color) {
+    u16* map = BG_MAP_RAM_SUB(22);
+    for (int i=0; i<32; i++) {
+        map[line*32+i] &= ~TILE_PALETTE(15);
+        map[line*32+i] |= TILE_PALETTE(color);
     }
 }
 
-void enableSleepMode() {
-    if (!sharedData->enableSleepMode) {
-        sharedData->enableSleepMode = true;
-        fifoSendValue32(FIFO_PM, PM_REQ_SLEEP_ENABLE);
-    }
-}
+void iprintfColored(int palette, const char *format, ...) {
+    va_list args;
+    va_start(args, format);
 
+    PrintConsole* console = getPrintConsole();
+    int x = console->cursorX;
+    int y = console->cursorY;
 
-void consoleParseConfig(const char* line) {
-    char* equalsPos = strchr(line, '=');
-    if (equalsPos == 0)
-        return;
-    *equalsPos = '\0';
-    const char* option = line;
-    const char* value = equalsPos+1;
-    int val = atoi(value);
-    for (int i=0; i<numMenus; i++) {
-        for (int j=0; j<menuList[i].numOptions; j++) {
-            if (strcmpi(menuList[i].options[j].name, option) == 0 && menuList[i].options[j].numValues != 0) {
-                menuList[i].options[j].selection = val;
-                menuList[i].options[j].function(val);
-                return;
+    char s[100];
+    vsiprintf(s, format, args);
+
+    u16* dest = BG_MAP_RAM_SUB(22)+y*32+x;
+    for (uint i=0; i<strlen(s); i++) {
+        if (s[i] == '\n') {
+            x = 0;
+            y++;
+        }
+        else {
+            *(dest++) = s[i] | TILE_PALETTE(palette);
+            x++;
+            if (x == 32) {
+                x = 0;
+                y++;
             }
         }
     }
-}
-
-void consolePrintConfig(FILE* file) {
-    for (int i=0; i<numMenus; i++) {
-        for (int j=0; j<menuList[i].numOptions; j++) {
-            if (menuList[i].options[j].numValues != 0)
-                fiprintf(file, "%s=%d\n", menuList[i].options[j].name, menuList[i].options[j].selection);
-        }
-    }
-}
-
-void addToLog(const char* format, va_list args) {
-    if (consoleDebugOutput)
-        viprintf(format, args);
+    console->cursorX = x;
+    console->cursorY = y;
+    //iprintf(s);
 }
 
 
@@ -950,4 +983,21 @@ uint32   ReadNorFlashID()
             
         return 0;
             
+}
+
+
+// Misc stuff
+
+void disableSleepMode() {
+    if (sharedData->enableSleepMode) {
+        sharedData->enableSleepMode = false;
+        fifoSendValue32(FIFO_PM, PM_REQ_SLEEP_DISABLE);
+    }
+}
+
+void enableSleepMode() {
+    if (!sharedData->enableSleepMode) {
+        sharedData->enableSleepMode = true;
+        fifoSendValue32(FIFO_PM, PM_REQ_SLEEP_ENABLE);
+    }
 }

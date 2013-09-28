@@ -11,7 +11,7 @@
 #include <nds/fifomessages.h>
 #include <time.h>
 #include "mmu.h"
-#include "main.h"
+#include "console.h"
 #include "gameboy.h"
 #include "gbsnd.h"
 #include "common.h"

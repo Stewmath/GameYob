@@ -14,48 +14,51 @@ extern bool customBordersEnabled;
 extern bool sgbBordersEnabled;
 extern bool autoSavingEnabled;
 extern int stateNum;
+extern PrintConsole* menuConsole;
 
 extern volatile int consoleSelectedRow; // This line is given a different backdrop
 
-void setConsoleDefaults();
 
-void consoleSetPosColor(int x, int y, int color);
-void consoleSetLineColor(int line, int color);
-
-void iprintfColored(int palette, const char* format, ...);
-
-void redrawMenu();
-
-void printConsoleMessage(const char* s);
+void setMenuDefaults();
 
 void displayMenu();
 void closeMenu(); // updateScreens may need to be called after this
+bool isMenuOn();
+bool isConsoleOn(); // Returns true if the sub-screen's console is set up.
 
+void redrawMenu();
 void updateMenu();
+void printMenuMessage(const char* s);
 
 void displaySubMenu(void (*updateFunc)());
 void closeSubMenu();
-
-bool isMenuOn();
 
 int getMenuOption(const char* name);
 void setMenuOption(const char* name, int value);
 void enableMenuOption(const char* name);
 void disableMenuOption(const char* name);
 
+void menuParseConfig(const char* line);
+void menuPrintConfig(FILE* file);
+
 void updateScreens(bool waitToFinish=false);
 
-void disableSleepMode();
-void enableSleepMode();
 
-void consoleParseConfig(const char* line);
-void consolePrintConfig(FILE* file);
-void addToLog(const char* format, va_list args);
+void setPrintConsole(PrintConsole* console);
+PrintConsole* getPrintConsole();
+
+void consoleSetPosColor(int x, int y, int color);
+void consoleSetLineColor(int line, int color);
+void iprintfColored(int palette, const char* format, ...);
+void printLog(const char* format, ...);
 
 int checkRumble();
 void OpenNorWrite();
 void CloseNorWrite();
 uint32 ReadNorFlashID();
+
+void disableSleepMode();
+void enableSleepMode();
 
 
 enum {

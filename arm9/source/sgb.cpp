@@ -1,5 +1,5 @@
 #include "sgb.h"
-#include "main.h"
+#include "console.h"
 #include "mmu.h"
 #include "gbgfx.h"
 #include "gbcpu.h"
