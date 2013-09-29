@@ -68,6 +68,9 @@ inline void FIFO_SEND(u32 message) {
         sharedData->fifosSent++;
         fifoSendValue32(FIFO_USER_01, message);
     }
+    else {
+        printLog("Sound error\n");
+    }
 }
 
 void refreshSoundVolume(int i, bool send=false);
@@ -154,6 +157,7 @@ void refreshSoundFreq(int i) {
     }
     else if (i == 3) {
         freq = (int)(524288 / chan4FreqRatio) >> (chanFreq[i]+1);
+        //freq = 0xaaa;
         //printLog("%.2x: Freq %x\n", ioRam[0x22], freq);
     }
     sharedData->chanRealFreq[i] = freq;
@@ -193,6 +197,13 @@ void initSND()
     ioRam[0x23] = 0xbf;
     ioRam[0x24] = 0x77;
     ioRam[0x25] = 0xf3;
+
+    // Initial values for the waveform are random among gameboys.
+    // These values are the defaults for the GBC.
+    for (int i=0; i<0x10; i+=2)
+        ioRam[0x30+i] = 0;
+    for (int i=1; i<0x10; i+=2)
+        ioRam[0x30+i] = 0xff;
 
     static double analog[] = { -1, -0.8667, -0.7334, -0.6, -0.4668, -0.3335, -0.2, -0.067, 0.0664, 0.2, 0.333, 0.4668, 0.6, 0.7334, 0.8667, 1  } ;
     int i;
