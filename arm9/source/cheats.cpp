@@ -227,7 +227,7 @@ void redrawCheatMenu() {
                 iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, " * ");
             }
             else
-                iprintf("  On   ");
+                iprintfColored(CONSOLE_COLOR_WHITE, "  On   ");
         }
         else {
             if (cheatMenuSelection == i) {
@@ -236,7 +236,7 @@ void redrawCheatMenu() {
                 iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, " *");
             }
             else
-                iprintf("  Off  ");
+                iprintfColored(CONSOLE_COLOR_WHITE, "  Off  ");
         }
     }
 
