@@ -131,8 +131,9 @@ void gameboyCheckInput() {
     }
 
     if (keyJustPressed(mapGbKey(KEY_SAVE))) {
-        if (!autoSavingEnabled)
+        if (!autoSavingEnabled) {
             saveGame();
+        }
     }
 
     fastForwardKey = keyPressed(mapGbKey(KEY_FAST_FORWARD));

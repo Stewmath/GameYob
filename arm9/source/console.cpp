@@ -63,9 +63,11 @@ void subMenuGenericUpdateFunc() {
 
 void suspendFunc(int value) {
     muteSND();
-    printMenuMessage("Suspending...");
-    if (!autoSavingEnabled)
+    if (!autoSavingEnabled) {
+        printMenuMessage("Saving SRAM...");
         saveGame();
+    }
+    printMenuMessage("Saving state...");
     saveState(-1);
     printMessage[0] = '\0';
     closeMenu();
@@ -74,7 +76,7 @@ void suspendFunc(int value) {
 void exitFunc(int value) {
     muteSND();
     if (!autoSavingEnabled && numRamBanks && !gbsMode) {
-        printMenuMessage("Saving...");
+        printMenuMessage("Saving SRAM...");
         saveGame();
     }
     printMessage[0] = '\0';
@@ -303,6 +305,7 @@ void hyperSoundFunc(int value) {
 }
 
 void setAutoSaveFunc(int value) {
+    muteSND();
     gameboySyncAutosave();
     autoSavingEnabled = value;
     saveGame(); // Synchronizes save file with filesystem
@@ -310,6 +313,7 @@ void setAutoSaveFunc(int value) {
         enableMenuOption("Exit without saving");
     else
         disableMenuOption("Exit without saving");
+    refreshSND();
 }
 
 struct MenuOption {
