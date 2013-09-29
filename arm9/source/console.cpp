@@ -303,6 +303,7 @@ void hyperSoundFunc(int value) {
 }
 
 void setAutoSaveFunc(int value) {
+    gameboySyncAutosave();
     autoSavingEnabled = value;
     saveGame(); // Synchronizes save file with filesystem
     if (numRamBanks && !gbsMode && !autoSavingEnabled)

@@ -53,6 +53,7 @@ bool probingForBorder=false;
 int gameboyFrameCounter;
 
 bool wroteToSramThisFrame=false;
+int framesSinceAutosaveStarted=0;
 
 
 void setEventCycles(int cycles) {
@@ -189,7 +190,7 @@ void gameboyUpdateVBlank() {
 		}
 
         if (probingForBorder) {
-            if (gameboyFrameCounter >= 150) {
+            if (gameboyFrameCounter >= 250) {
                 // Give up on finding a sgb border.
                 probingForBorder = false;
                 nukeBorder = true;
@@ -198,13 +199,16 @@ void gameboyUpdateVBlank() {
 			return;
         }
 
+        if (autosaveStart != -1)
+            framesSinceAutosaveStarted++;
 		// Check autosaving stuff
+		if (framesSinceAutosaveStarted >= 120 ||     // Executes when sram is written to for 120 consecutive frames, or
+                (!saveModified && wroteToSramThisFrame)) { // when a full frame has passed since sram was last written to.
+            gameboySyncAutosave();
+		}
 		if (saveModified) {
 			wroteToSramThisFrame = true;
 			saveModified = false;
-		}
-		else if (wroteToSramThisFrame) { // This executes when a full frame has passed since sram was last written to.
-            gameboySyncAutosave();
 		}
 
 		if (cheatsEnabled)
@@ -263,6 +267,7 @@ void gameboySyncAutosave() {
 
     autosaveStart = -1;
     autosaveEnd = -1;
+    framesSinceAutosaveStarted = 0;
 }
 
 // This function can be called from weird contexts, so just set a flag to deal 

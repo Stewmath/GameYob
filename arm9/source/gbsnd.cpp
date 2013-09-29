@@ -343,7 +343,7 @@ void updateSound(int cycles)
 
 void soundUpdateVBlank() {
     // This debug stuff helps when debugging Pokemon Diamond
-    printLog("%d\n", sharedData->fifosSent-sharedData->fifosReceived);
+    //printLog("%d\n", sharedData->fifosSent-sharedData->fifosReceived);
 }
 
 void handleSoundRegister(u8 ioReg, u8 val)
