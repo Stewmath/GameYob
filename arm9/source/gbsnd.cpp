@@ -22,14 +22,8 @@
 #define CHAN_3 4
 #define CHAN_4 8
 
-inline void setChan1() {ioRam[0x26] |= 1;}
-inline void clearChan1() {ioRam[0x26] &= ~1;}
-inline void setChan2() {ioRam[0x26] |= 2;}
-inline void clearChan2() {ioRam[0x26] &= ~2;}
-inline void setChan3() {ioRam[0x26] |= 4;}
-inline void clearChan3() {ioRam[0x26] &= ~4;}
-inline void setChan4() {ioRam[0x26] |= 8;}
-inline void clearChan4() {ioRam[0x26] &= ~8;}
+inline void setChan(int which) {ioRam[0x26] |= which;}
+inline void clearChan(int which) {ioRam[0x26] &= ~which;}
 
 bool soundDisabled=false;
 
@@ -286,7 +280,7 @@ void updateSound(int cycles)
             if (chanFreq[0] > 0x7FF)
             {
                 sharedData->chanOn &= ~CHAN_1;
-                clearChan1();
+                clearChan(CHAN_1);
             }
             else {
                 refreshSoundFreq(0);
@@ -330,13 +324,13 @@ void updateSound(int cycles)
                 sharedData->chanOn &= ~(1<<i);
                 changed = true;
                 if (i==0)
-                    clearChan1();
+                    clearChan(CHAN_1);
                 else if (i == 1)
-                    clearChan2();
+                    clearChan(CHAN_2);
                 else if (i == 2)
-                    clearChan3();
+                    clearChan(CHAN_3);
                 else
-                    clearChan4();
+                    clearChan(CHAN_4);
             }
             else
                 setSoundEventCycles(chanLenCounter[i]);
@@ -435,7 +429,7 @@ void handleSoundRegister(u8 ioReg, u8 val)
                     chan1SweepCounter = clockSpeed/(128/chan1SweepTime);
                     setSoundEventCycles(chan1SweepCounter);
                 }
-                setChan1();
+                setChan(CHAN_1);
 
                 refreshSoundVolume(0, false);
                 sendStartMessage(0);
@@ -494,7 +488,7 @@ void handleSoundRegister(u8 ioReg, u8 val)
                     setSoundEventCycles(chanLenCounter[1]);
                 sharedData->chanOn |= CHAN_2;
                 chanVol[1] = ioRam[0x17]>>4;
-                setChan2();
+                setChan(CHAN_2);
 
                 refreshSoundVolume(1, false);
                 sendStartMessage(1);
@@ -510,7 +504,7 @@ void handleSoundRegister(u8 ioReg, u8 val)
             if ((val & 0x80) == 0)
             {
                 sharedData->chanOn &= ~CHAN_3;
-                clearChan3();
+                clearChan(CHAN_3);
             }
             sendUpdateMessage(2);
             ioRam[0x1a] = val | 0x7f;
@@ -570,7 +564,7 @@ void handleSoundRegister(u8 ioReg, u8 val)
                 chanLenCounter[2] = (256-chanLen[2])*clockSpeed/256;
                 if (chanUseLen[2])
                     setSoundEventCycles(chanLenCounter[2]);
-                setChan3();
+                setChan(CHAN_3);
 
                 refreshSoundVolume(2, false);
                 sendStartMessage(2);
@@ -620,7 +614,7 @@ void handleSoundRegister(u8 ioReg, u8 val)
                 if (chanUseLen[3])
                     setSoundEventCycles(chanLenCounter[3]);
                 sharedData->chanOn |= CHAN_4;
-                setChan4();
+                setChan(CHAN_4);
                 chanVol[3] = ioRam[0x21]>>4;
                 refreshSoundVolume(3, false);
                 sendStartMessage(3);
@@ -651,10 +645,12 @@ void handleSoundRegister(u8 ioReg, u8 val)
             if (!(val&0x80))
             {
                 sharedData->chanOn = 0;
-                clearChan1();
-                clearChan2();
-                clearChan3();
-                clearChan4();
+                
+                clearChan(CHAN_1);
+                clearChan(CHAN_2);
+                clearChan(CHAN_3);
+                clearChan(CHAN_4);
+                
                 for (int reg = 0x10; reg <= 0x25; reg++)
                     ioRam[reg] = 0;
                 sendUpdateMessage(-1);
