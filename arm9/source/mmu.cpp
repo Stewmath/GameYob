@@ -651,6 +651,7 @@ u8 readMemory(u16 addr) ITCM_CODE;
 
 u8 readMemory(u16 addr)
 {
+#ifndef SPEEDHAX
     int area = addr>>13;
     if (area & 0x04) { // Addr >= 0x8000
         if (area == 0xe/2) {
@@ -665,8 +666,10 @@ u8 readMemory(u16 addr)
             /* Check if there's an handler for this mbc */
             if (readFunc != NULL)
                 return readFunc(addr);
+            return 0xff;
         }
     }
+#endif
 
     return memory[addr>>12][addr&0xfff];
 }
@@ -681,6 +684,9 @@ u8 readIO(u8 ioReg) ITCM_CODE;
 
 u8 readIO(u8 ioReg)
 {
+#ifdef SPEEDHAX
+    return ioRam[ioReg];
+#else
     switch (ioReg)
     {
         case 0x00:
@@ -739,6 +745,7 @@ u8 readIO(u8 ioReg)
         default:
             return ioRam[ioReg];
     }
+#endif
 }
 
 #ifdef DS
@@ -808,8 +815,10 @@ void writeIO(u8 ioReg, u8 val)
         case 0x00:
             if (sgbMode)
                 sgbHandleP1(val);
-            else
-                ioRam[0x00] = val|0xcf;
+            else {
+                ioRam[0x00] = val;
+                refreshP1();
+            }
             return;
         case 0x02:
             {
@@ -1012,6 +1021,19 @@ void writeIO(u8 ioReg, u8 val)
     }
 }
 
+void refreshP1() {
+    // Check if input register is being used for sgb packets
+    if (sgbPacketBit == -1) {
+        if ((ioRam[0x00] & 0x30) != 0x30) {
+            ioRam[0x00] &= 0xF0;
+            if (!(ioRam[0x00]&0x20))
+                ioRam[0x00] |= (buttonsPressed & 0xF);
+            else
+                ioRam[0x00] |= ((buttonsPressed & 0xF0)>>4);
+        }
+        ioRam[0x00] |= 0xc0;
+    }
+}
 
 bool updateHblankDMA()
 {

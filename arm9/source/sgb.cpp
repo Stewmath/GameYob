@@ -6,7 +6,7 @@
 
 int sgbPacketLength; // Number of packets to be transferred this command
 int sgbPacketsTransferred; // Number of packets which have been transferred so far
-int sgbPacketBit; // Next bit # to be sent in the packet. -1 if no packet is being transferred.
+int sgbPacketBit=-1; // Next bit # to be sent in the packet. -1 if no packet is being transferred.
 u8 sgbPacket[16];
 u8 sgbCommand;
 

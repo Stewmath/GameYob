@@ -149,8 +149,13 @@ int handleInterrupts(unsigned int interruptTriggered)
 
     ime = 0;
 
+#ifdef SPEEDHAX
+    quickWrite(--gbRegs.sp.w, gbRegs.pc.b.h);
+    quickWrite(--gbRegs.sp.w, gbRegs.pc.b.l);
+#else
     writeMemory(--gbRegs.sp.w, gbRegs.pc.b.h);
     writeMemory(--gbRegs.sp.w, gbRegs.pc.b.l);
+#endif
 
     /* __builtin_ffs returns the first bit set plus one */
     int irqNo = __builtin_ffs(interruptTriggered) - 1;
@@ -174,7 +179,7 @@ const u8 reg8Offsets[] = {
     offsetof(struct Registers, af.b.h)
 };
 
-int cyclesToExecute;
+int cyclesToExecute DTCM_BSS;
 
 #ifdef DS
 int runOpcode(int cycles) ITCM_CODE;
@@ -196,7 +201,7 @@ int runOpcode(int cycles) ITCM_CODE;
                     totalCycles -= 4; \
                 }
 
-u8* firstPcAddr;
+u8* firstPcAddr DTCM_BSS;
 int runOpcode(int cycles) {
     cyclesToExecute = cycles;
     // Having these commonly-used registers in local variables should improve speed
@@ -419,22 +424,42 @@ int runOpcode(int cycles) {
                     break;
                 }
             case 0xF5:		// PUSH AF
+#ifdef SPEEDHAX
+                quickWrite(--locSP, gbRegs.af.b.h);
+                quickWrite(--locSP, locF);
+#else
                 writeMemory(--locSP, gbRegs.af.b.h);
                 writeMemory(--locSP, locF);
+#endif
                 break;
                 // Some games use the stack in exotic ways.
                 // Better to use writeMemory than writeMemory.
             case 0xC5:		// PUSH BC			16
+#ifdef SPEEDHAX
+                quickWrite(--locSP, gbRegs.bc.b.h);
+                quickWrite(--locSP, gbRegs.bc.b.l);
+#else
                 writeMemory(--locSP, gbRegs.bc.b.h);
                 writeMemory(--locSP, gbRegs.bc.b.l);
+#endif
                 break;
             case 0xD5:		// PUSH de			16
+#ifdef SPEEDHAX
+                quickWrite(--locSP, gbRegs.de.b.h);
+                quickWrite(--locSP, gbRegs.de.b.l);
+#else
                 writeMemory(--locSP, gbRegs.de.b.h);
                 writeMemory(--locSP, gbRegs.de.b.l);
+#endif
                 break;
             case 0xE5:		// PUSH hl			16
+#ifdef SPEEDHAX
+                quickWrite(--locSP, gbRegs.hl.b.h);
+                quickWrite(--locSP, gbRegs.hl.b.l);
+#else
                 writeMemory(--locSP, gbRegs.hl.b.h);
                 writeMemory(--locSP, gbRegs.hl.b.l);
+#endif
                 break;
             case 0xF1:		// POP AF				12
                 locF = quickRead(locSP++) & 0xF0;
@@ -1405,8 +1430,13 @@ int runOpcode(int cycles) {
             case 0xCD:		// CALL nn			24
                 {
                     int val = getPC() + 2;
+#ifdef SPEEDHAX
+                    quickWrite(--locSP, (val) >> 8);
+                    quickWrite(--locSP, (val & 0xFF));
+#else
                     writeMemory(--locSP, (val) >> 8);
                     writeMemory(--locSP, (val & 0xFF));
+#endif
                     setPC(readPC16_noinc());
                     break;
                 }
@@ -1414,8 +1444,13 @@ int runOpcode(int cycles) {
                 if (!zeroSet())
                 {
                     int val = getPC() + 2;
+#ifdef SPEEDHAX
+                    quickWrite(--locSP, (val) >> 8);
+                    quickWrite(--locSP, (val & 0xFF));
+#else
                     writeMemory(--locSP, (val) >> 8);
                     writeMemory(--locSP, (val & 0xFF));
+#endif
                     setPC(readPC16_noinc());
                     break;
                 }
@@ -1428,8 +1463,13 @@ int runOpcode(int cycles) {
                 if (zeroSet())
                 {
                     int val = getPC() + 2;
+#ifdef SPEEDHAX
+                    quickWrite(--locSP, (val) >> 8);
+                    quickWrite(--locSP, (val & 0xFF));
+#else
                     writeMemory(--locSP, (val) >> 8);
                     writeMemory(--locSP, (val & 0xFF));
+#endif
                     setPC(readPC16_noinc());
                     break;
                 }
@@ -1442,8 +1482,13 @@ int runOpcode(int cycles) {
                 if (!carrySet())
                 {
                     int val = getPC() + 2;
+#ifdef SPEEDHAX
+                    quickWrite(--locSP, (val) >> 8);
+                    quickWrite(--locSP, (val & 0xFF));
+#else
                     writeMemory(--locSP, (val) >> 8);
                     writeMemory(--locSP, (val & 0xFF));
+#endif
                     setPC(readPC16_noinc());
                     break;
                 }
@@ -1456,8 +1501,13 @@ int runOpcode(int cycles) {
                 if (carrySet())
                 {
                     int val = getPC() + 2;
+#ifdef SPEEDHAX
+                    quickWrite(--locSP, (val) >> 8);
+                    quickWrite(--locSP, (val & 0xFF));
+#else
                     writeMemory(--locSP, (val) >> 8);
                     writeMemory(--locSP, (val & 0xFF));
+#endif
                     setPC(readPC16_noinc());
                     break;
                 }
@@ -1470,64 +1520,104 @@ int runOpcode(int cycles) {
             case 0xC7:		// RST 00H			16
                 {
                     u16 val = getPC();
+#ifdef SPEEDHAX
+                    quickWrite(--locSP, (val) >> 8);
+                    quickWrite(--locSP, (val & 0xFF));
+#else
                     writeMemory(--locSP, (val) >> 8);
                     writeMemory(--locSP, (val & 0xFF));
+#endif
                     setPC(0x0);
                 }
                 break;
             case 0xCF:		// RST 08H			16
                 {
                     u16 val = getPC();
+#ifdef SPEEDHAX
+                    quickWrite(--locSP, (val) >> 8);
+                    quickWrite(--locSP, (val & 0xFF));
+#else
                     writeMemory(--locSP, (val) >> 8);
                     writeMemory(--locSP, (val & 0xFF));
+#endif
                     setPC(0x8);
                     break;
                 }
             case 0xD7:		// RST 10H			16
                 {
                     u16 val = getPC();
+#ifdef SPEEDHAX
+                    quickWrite(--locSP, (val) >> 8);
+                    quickWrite(--locSP, (val & 0xFF));
+#else
                     writeMemory(--locSP, (val) >> 8);
                     writeMemory(--locSP, (val & 0xFF));
+#endif
                     setPC(0x10);
                 }
                 break;
             case 0xDF:		// RST 18H			16
                 {
                     u16 val = getPC();
+#ifdef SPEEDHAX
+                    quickWrite(--locSP, (val) >> 8);
+                    quickWrite(--locSP, (val & 0xFF));
+#else
                     writeMemory(--locSP, (val) >> 8);
                     writeMemory(--locSP, (val & 0xFF));
+#endif
                     setPC(0x18);
                 }
                 break;
             case 0xE7:		// RST 20H			16
                 {
                     u16 val = getPC();
+#ifdef SPEEDHAX
+                    quickWrite(--locSP, (val) >> 8);
+                    quickWrite(--locSP, (val & 0xFF));
+#else
                     writeMemory(--locSP, (val) >> 8);
                     writeMemory(--locSP, (val & 0xFF));
+#endif
                     setPC(0x20);
                 }
                 break;
             case 0xEF:		// RST 28H			16
                 {
                     u16 val = getPC();
+#ifdef SPEEDHAX
+                    quickWrite(--locSP, (val) >> 8);
+                    quickWrite(--locSP, (val & 0xFF));
+#else
                     writeMemory(--locSP, (val) >> 8);
                     writeMemory(--locSP, (val & 0xFF));
+#endif
                     setPC(0x28);
                 }
                 break;
             case 0xF7:		// RST 30H			16
                 {
                     u16 val = getPC();
+#ifdef SPEEDHAX
+                    quickWrite(--locSP, (val) >> 8);
+                    quickWrite(--locSP, (val & 0xFF));
+#else
                     writeMemory(--locSP, (val) >> 8);
                     writeMemory(--locSP, (val & 0xFF));
+#endif
                     setPC(0x30);
                 }
                 break;
             case 0xFF:		// RST 38H			16
                 {
                     u16 val = getPC();
+#ifdef SPEEDHAX
+                    quickWrite(--locSP, (val) >> 8);
+                    quickWrite(--locSP, (val & 0xFF));
+#else
                     writeMemory(--locSP, (val) >> 8);
                     writeMemory(--locSP, (val & 0xFF));
+#endif
                     setPC(0x38);
                 }
                 break;

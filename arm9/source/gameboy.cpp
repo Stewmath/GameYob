@@ -130,6 +130,8 @@ void gameboyCheckInput() {
         autoFireCounterB--;
     }
 
+    refreshP1();
+
     if (keyJustPressed(mapGbKey(KEY_SAVE))) {
         if (!autoSavingEnabled) {
             saveGame();

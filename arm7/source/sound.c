@@ -6,7 +6,7 @@
 #include <nds/timers.h>
 #include "common.h"
 
-#define SOUND_RESOLUTION 100
+#define SOUND_RESOLUTION 150
 
 int channels[4] = {8,9,0,14};
 const int dutyIndex[4] = {0, 1, 3, 5};
