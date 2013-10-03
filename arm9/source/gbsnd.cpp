@@ -22,8 +22,8 @@
 #define CHAN_3 4
 #define CHAN_4 8
 
-inline int setChan(int which) {ioRam[0x26] |= which;}
-inline int clearChan(int which) {ioRam[0x26] &= ~which;}
+inline void setChan(int which) {ioRam[0x26] |= which;}
+inline void clearChan(int which) {ioRam[0x26] &= ~which;}
 
 bool soundDisabled=false;
 
