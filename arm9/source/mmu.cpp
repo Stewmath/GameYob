@@ -666,7 +666,8 @@ u8 readMemory(u16 addr)
             /* Check if there's an handler for this mbc */
             if (readFunc != NULL)
                 return readFunc(addr);
-            return 0xff;
+            else if (!numRamBanks)
+                return 0xff;
         }
     }
 #endif
@@ -1024,7 +1025,11 @@ void writeIO(u8 ioReg, u8 val)
 void refreshP1() {
     // Check if input register is being used for sgb packets
     if (sgbPacketBit == -1) {
-        if ((ioRam[0x00] & 0x30) != 0x30) {
+        if ((ioRam[0x00] & 0x30) == 0x30) {
+            if (!sgbMode)
+                ioRam[0x00] |= 0x0F;
+        }
+        else {
             ioRam[0x00] &= 0xF0;
             if (!(ioRam[0x00]&0x20))
                 ioRam[0x00] |= (buttonsPressed & 0xF);

@@ -193,7 +193,7 @@ void gameboyUpdateVBlank() {
 		}
 
         if (probingForBorder) {
-            if (gameboyFrameCounter >= 250) {
+            if (gameboyFrameCounter >= 450) {
                 // Give up on finding a sgb border.
                 probingForBorder = false;
                 nukeBorder = true;
