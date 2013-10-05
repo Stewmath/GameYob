@@ -522,15 +522,10 @@ int loadRom(char* f)
                 bios[i] = romSlot0[i];
         }
 
-        char nameBuf[100];
-        // Check for a suspend state
-        siprintf(nameBuf, "%s.yss", basename);
-        FILE* stateFile = fopen(nameBuf, "r");
-        suspendStateExists = stateFile;
-        if (stateFile)
-            fclose(stateFile);
+        suspendStateExists = checkStateExists(-1);
 
         // Load cheats
+        char nameBuf[100];
         siprintf(nameBuf, "%s.cht", basename);
         loadCheats(nameBuf);
 
@@ -954,8 +949,8 @@ int loadState(int stateNum) {
     return 0;
 }
 
-void deleteState(int num) {
-    if (!checkStateExists(num))
+void deleteState(int stateNum) {
+    if (!checkStateExists(stateNum))
         return;
 
     char statename[100];
@@ -967,14 +962,16 @@ void deleteState(int num) {
     unlink(statename);
 }
 
-bool checkStateExists(int num) {
+bool checkStateExists(int stateNum) {
     FILE* file;
-    char statename[100];
+    char statename[256];
 
     if (stateNum == -1)
         siprintf(statename, "%s.yss", basename);
     else
         siprintf(statename, "%s.ys%d", basename, stateNum);
+    return access(statename, R_OK) == 0;
+    /*
     file = fopen(statename, "r");
 
     if (file == 0) {
@@ -982,4 +979,5 @@ bool checkStateExists(int num) {
     }
     fclose(file);
     return true;
+    */
 }

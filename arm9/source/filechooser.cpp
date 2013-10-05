@@ -3,11 +3,17 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <vector>
+#include <string>
 #include "filechooser.h"
 #include "inputhelper.h"
 #include "console.h"
 
-const int filesPerPage = 23;
+#define FLAG_DIRECTORY  1
+#define FLAG_SUSPENDED    2
+
+using namespace std;
+
+const int filesPerPage = 24;
 const int MAX_FILENAME_LEN = 100;
 int numFiles;
 int scrollY=0;
@@ -193,6 +199,7 @@ char* startFileChooser() {
     fileChooserOn = true;
     updateScreens(true); // Screen may need to be enabled
     char* retval;
+    char buffer[256];
     char cwd[256];
     getcwd(cwd, 256);
     DIR* dp = opendir(cwd);
@@ -204,27 +211,66 @@ char* startFileChooser() {
     while (true) {
         numFiles=0;
         std::vector<char*> filenames;
-        std::vector<bool> directory;
+        std::vector<int> flags;
+        std::vector<string> unmatchedStates;
+
+        // Read file list
         while ((entry = readdir(dp)) != NULL) {
             char* ext = strrchr(entry->d_name, '.')+1;
             if (entry->d_type & DT_DIR || strcmpi(ext, "cgb") == 0 || strcmpi(ext, "gbc") == 0 || strcmpi(ext, "gb") == 0 || strcmpi(ext, "sgb") == 0 ||
 					strcmpi(ext, "gbs") == 0) {
                 if (!(strcmp(".", entry->d_name) == 0)) {
-                    directory.push_back(entry->d_type & DT_DIR);
+                    int flag = 0;
+                    if (entry->d_type & DT_DIR)
+                        flag |= FLAG_DIRECTORY;
+                    // Check for suspend state
+                    if (!unmatchedStates.empty()) {
+                        strcpy(buffer, entry->d_name);
+                        *(strrchr(buffer, '.')) = '\0';
+                        for (int i=0; i<unmatchedStates.size(); i++) {
+                            if (strcmp(buffer, unmatchedStates[i].c_str()) == 0) {
+                                flag |= FLAG_SUSPENDED;
+                                unmatchedStates.erase(unmatchedStates.begin()+i);
+                                break;
+                            }
+                        }
+                    }
+
+                    flags.push_back(flag);
                     char *name = (char*)malloc(sizeof(char)*(strlen(entry->d_name)+1));
                     strcpy(name, entry->d_name);
                     filenames.push_back(name);
                     numFiles++;
                 }
             }
+            else if (strcmpi(ext, "yss") == 0 && !(entry->d_type & DT_DIR)) {
+                bool matched = false;
+                char buffer2[256];
+                strcpy(buffer2, entry->d_name);
+                *(strrchr(buffer2, '.')) = '\0';
+                for (int i=0; i<numFiles; i++) {
+                    if (strcmpi(strrchr(filenames[i], '.'), "gbs") != 0) { 
+                        strcpy(buffer, filenames[i]);
+                        *(strrchr(buffer, '.')) = '\0';
+                        if (strcmp(buffer, buffer2) == 0) {
+                            flags[i] |= FLAG_SUSPENDED;
+                            matched = true;
+                            break;
+                        }
+                    }
+                }
+                if (!matched)
+                    unmatchedStates.push_back(string(buffer2));
+            }
         }
 
-        quickSort(filenames, directory, nameSortFunction, 0, numFiles - 1);
+        quickSort(filenames, flags, nameSortFunction, 0, numFiles - 1);
 
         scrollY=0;
         updateScrollDown();
         bool readDirectory = false;
         while (!readDirectory) {
+            // Draw the screen
             consoleClear();
             for (int i=scrollY; i<scrollY+filesPerPage && i<numFiles; i++) {
                 if (i == fileSelection)
@@ -235,17 +281,20 @@ char* startFileChooser() {
                     iprintf("v ");
                 else
                     iprintf("  ");
-                char outBuffer[32];
 
-                int maxLen = 29;
-                if (directory[i])
+                int maxLen = 30;
+                if (flags[i] & FLAG_DIRECTORY)
                     maxLen--;
-                strncpy(outBuffer, filenames[i], maxLen);
-                outBuffer[maxLen] = '\0';
-                if (directory[i])
-                    iprintf("%s/\n", outBuffer);
+                strncpy(buffer, filenames[i], maxLen);
+                buffer[maxLen] = '\0';
+                if (flags[i] & FLAG_DIRECTORY)
+                    iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, "%s/", buffer);
+                else if (flags[i] & FLAG_SUSPENDED)
+                    iprintfColored(CONSOLE_COLOR_LIGHT_MAGENTA, "%s", buffer);
                 else
-                    iprintf("%s\n", outBuffer);
+                    iprintfColored(CONSOLE_COLOR_WHITE, "%s", buffer);
+                for (int i=0; i<maxLen-strlen(buffer); i++)
+                    iprintfColored(CONSOLE_COLOR_WHITE, " ");
 
                 if (i == fileSelection) {
                     consoleSelectedRow = i-scrollY;
@@ -253,11 +302,12 @@ char* startFileChooser() {
                 }
             }
 
+            // Wait for input
             while (true) {
                 swiWaitForVBlank();
                 readKeys();
                 if (keyJustPressed(KEY_A)) {
-                    if (directory[fileSelection]) {
+                    if (flags[fileSelection] & FLAG_DIRECTORY) {
                         closedir(dp);
                         dp = opendir(filenames[fileSelection]);
                         chdir(filenames[fileSelection]);
@@ -300,12 +350,12 @@ char* startFileChooser() {
                     }
                 }
                 else if (keyPressedAutoRepeat(KEY_RIGHT)) {
-                    fileSelection += filesPerPage/2;
+                    fileSelection += filesPerPage/2-1;
                     updateScrollDown();
                     break;
                 }
                 else if (keyPressedAutoRepeat(KEY_LEFT)) {
-                    fileSelection -= filesPerPage/2;
+                    fileSelection -= filesPerPage/2-1;
                     updateScrollUp();
                     break;
                 }
