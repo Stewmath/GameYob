@@ -53,7 +53,7 @@ int nameSortFunction(char*& a, char*& b)
     else if (bIsParent) // Sorts after
         return 1;
     else
-        return strcmp(a, b);
+        return strcmpi(a, b);
 }
 
 /*
