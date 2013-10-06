@@ -259,6 +259,10 @@ void gameboyUpdateVBlank() {
 void gameboySyncAutosave() {
     if (autosaveStart == -1)
         return;
+
+    int scalingWasOn = sharedData->scalingOn;
+    sharedData->scalingOn = 0; // Scaling + autosaving seems to cause problems occasionally
+
     printLog("SAVE %d\n", numSaveWrites);
     numSaveWrites = 0;
     wroteToSramThisFrame = false;
@@ -276,6 +280,8 @@ void gameboySyncAutosave() {
     autosaveStart = -1;
     autosaveEnd = -1;
     framesSinceAutosaveStarted = 0;
+
+    sharedData->scalingOn = scalingWasOn;
 }
 
 // This function can be called from weird contexts, so just set a flag to deal 
