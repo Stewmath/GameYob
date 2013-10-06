@@ -80,7 +80,7 @@ void flushFatCache() {
 
 
 const char* gbKeyNames[] = {"-","A","B","Left","Right","Up","Down","Start","Select",
-    "Menu","Save","Autofire A","Autofire B", "Fast Forward", "FF Toggle", "Scale"};
+    "Menu","Save","Autofire A","Autofire B", "Fast Forward", "FF Toggle", "Scale","Reset"};
 const char* dsKeyNames[] = {"A","B","Select","Start","Right","Left","Up","Down",
     "R","L","X","Y"};
 

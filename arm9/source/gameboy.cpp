@@ -130,7 +130,9 @@ void gameboyCheckInput() {
         autoFireCounterB--;
     }
 
+#ifdef SPEEDHAX
     refreshP1();
+#endif
 
     if (keyJustPressed(mapGbKey(KEY_SAVE))) {
         if (!autoSavingEnabled) {
@@ -159,6 +161,9 @@ void gameboyCheckInput() {
         buttonsPressed = 0xff;
         displayMenu();
     }
+
+    if (keyJustPressed(mapGbKey(KEY_RESET)))
+        resetGameboy();
 }
 
 // This is called 60 times per gameboy second, even if the lcd is off.
