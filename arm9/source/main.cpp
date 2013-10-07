@@ -28,16 +28,26 @@ volatile SharedData* sharedData;
 
 // This is used to signal sleep mode starting or ending.
 void fifoValue32Handler(u32 value, void* user_data) {
-    static bool scalingWasOn;
+    static u8 scalingWasOn;
+    static bool soundWasDisabled;
+    static bool wasPaused;
     switch(value) {
         case FIFOMSG_LID_CLOSED:
             // Entering sleep mode
             scalingWasOn = sharedData->scalingOn;
+            soundWasDisabled = soundDisabled;
+            wasPaused = isGameboyPaused();
+
             sharedData->scalingOn = 0;
+            soundDisabled = true;
+            pauseGameboy();
             break;
         case FIFOMSG_LID_OPENED:
             // Exiting sleep mode
             sharedData->scalingOn = scalingWasOn;
+            soundDisabled = soundWasDisabled;
+            if (!wasPaused)
+                unpauseGameboy();
             // Time isn't incremented properly in sleep mode, compensate here.
             time(&rawTime);
             lastRawTime = rawTime;
