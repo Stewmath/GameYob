@@ -26,26 +26,22 @@ extern time_t lastRawTime;
 
 volatile SharedData* sharedData;
 
-volatile bool sleeping=false;
 // This is used to signal sleep mode starting or ending.
 void fifoValue32Handler(u32 value, void* user_data) {
-    int scalingWasOn;
+    static bool scalingWasOn;
     switch(value) {
         case FIFOMSG_LID_CLOSED:
+            // Entering sleep mode
             scalingWasOn = sharedData->scalingOn;
             sharedData->scalingOn = 0;
-            // Enter a loop until arm7 is ready to continue
-            // This is necessary mostly because of sound. Also scaling, a bit.
-            sharedData->sleeping = true;
-            while (sharedData->sleeping);
-
-            sharedData->scalingOn = scalingWasOn;
             break;
-            /*
         case FIFOMSG_LID_OPENED:
-            sleeping = false;
+            // Exiting sleep mode
+            sharedData->scalingOn = scalingWasOn;
+            // Time isn't incremented properly in sleep mode, compensate here.
+            time(&rawTime);
+            lastRawTime = rawTime;
             break;
-            */
     }
 }
 

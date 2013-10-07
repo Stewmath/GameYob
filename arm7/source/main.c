@@ -95,7 +95,7 @@ void powerHandler(u32 value, void* user_data) {
 
         case PM_REQ_SLEEP:
 
-            // Signal to make arm9 enter a loop
+            // Signal to disable sound
             fifoSendValue32(FIFO_USER_02, FIFOMSG_LID_CLOSED);
 
             ie_save = REG_IE;
@@ -126,9 +126,8 @@ void powerHandler(u32 value, void* user_data) {
             // update clock tracking
             resyncClock();
 
-            // Allows arm9 to continue execution
-            sharedData->sleeping = false;
-            //fifoSendValue32(FIFO_USER_02, FIFOMSG_LID_OPENED);
+            // Signal to re-enable sound
+            fifoSendValue32(FIFO_USER_02, FIFOMSG_LID_OPENED);
             break;
 
         case PM_REQ_SLEEP_DISABLE:
