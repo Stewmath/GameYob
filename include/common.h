@@ -26,6 +26,8 @@ typedef struct SharedData {
     bool lfsr7Bit;
     u8* sampleData;
 
+    bool sleeping;
+
     bool enableSleepMode;
 
     u32 message;
