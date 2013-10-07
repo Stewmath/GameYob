@@ -29,12 +29,17 @@ volatile SharedData* sharedData;
 volatile bool sleeping=false;
 // This is used to signal sleep mode starting or ending.
 void fifoValue32Handler(u32 value, void* user_data) {
+    int scalingWasOn;
     switch(value) {
         case FIFOMSG_LID_CLOSED:
+            scalingWasOn = sharedData->scalingOn;
+            sharedData->scalingOn = 0;
             // Enter a loop until arm7 is ready to continue
             // This is necessary mostly because of sound. Also scaling, a bit.
             sharedData->sleeping = true;
             while (sharedData->sleeping);
+
+            sharedData->scalingOn = scalingWasOn;
             break;
             /*
         case FIFOMSG_LID_OPENED:
