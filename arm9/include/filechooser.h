@@ -1,4 +1,4 @@
 #pragma once
 
-char* startFileChooser();
+char* startFileChooser(const char* extensions[], bool romExtensions);
 bool isFileChooserOn();

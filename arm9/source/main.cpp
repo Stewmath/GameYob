@@ -68,7 +68,8 @@ void selectRom() {
 
     unloadRom();
 
-    char* filename = startFileChooser();
+    const char* extensions[] = {"gbs"};
+    char* filename = startFileChooser(extensions, true);
     loadRom(filename);
     free(filename);
 

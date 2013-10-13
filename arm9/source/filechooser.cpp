@@ -9,7 +9,8 @@
 #include "console.h"
 
 #define FLAG_DIRECTORY  1
-#define FLAG_SUSPENDED    2
+#define FLAG_SUSPENDED  2
+#define FLAG_ROM        4
 
 using namespace std;
 
@@ -194,10 +195,12 @@ template <class Data, class Metadata> void quickSort(std::vector<Data>& data, st
  * Returns a pointer to a newly-allocated string. The caller is responsible
  * for free()ing it.
  */
-char* startFileChooser() {
+char* startFileChooser(const char* extensions[], bool romExtensions) {
     setPrintConsole(menuConsole);
     fileChooserOn = true;
     updateScreens(true); // Screen may need to be enabled
+
+    int numExtensions = sizeof(extensions)/sizeof(const char*);
     char* retval;
     char buffer[256];
     char cwd[256];
@@ -217,21 +220,41 @@ char* startFileChooser() {
         // Read file list
         while ((entry = readdir(dp)) != NULL) {
             char* ext = strrchr(entry->d_name, '.')+1;
-            if (entry->d_type & DT_DIR || strcmpi(ext, "cgb") == 0 || strcmpi(ext, "gbc") == 0 || strcmpi(ext, "gb") == 0 || strcmpi(ext, "sgb") == 0 ||
-					strcmpi(ext, "gbs") == 0) {
+            bool isValidExtension = false;
+            bool isRomFile = false;
+            if (!(entry->d_type & DT_DIR)) {
+                for (int i=0; i<numExtensions; i++) {
+                    if (strcmpi(ext, extensions[i]) == 0) {
+                        isValidExtension = true;
+                        break;
+                    }
+                }
+                if (romExtensions) {
+                    isRomFile = strcmpi(ext, "cgb") == 0 || strcmpi(ext, "gbc") == 0 || strcmpi(ext, "gb") == 0 || strcmpi(ext, "sgb") == 0;
+                    if (isRomFile)
+                        isValidExtension = true;
+                }
+            }
+
+            if (entry->d_type & DT_DIR || isValidExtension) {
                 if (!(strcmp(".", entry->d_name) == 0)) {
                     int flag = 0;
                     if (entry->d_type & DT_DIR)
                         flag |= FLAG_DIRECTORY;
+                    if (isRomFile)
+                        flag |= FLAG_ROM;
+
                     // Check for suspend state
-                    if (!unmatchedStates.empty()) {
-                        strcpy(buffer, entry->d_name);
-                        *(strrchr(buffer, '.')) = '\0';
-                        for (int i=0; i<unmatchedStates.size(); i++) {
-                            if (strcmp(buffer, unmatchedStates[i].c_str()) == 0) {
-                                flag |= FLAG_SUSPENDED;
-                                unmatchedStates.erase(unmatchedStates.begin()+i);
-                                break;
+                    if (isRomFile) {
+                        if (!unmatchedStates.empty()) {
+                            strcpy(buffer, entry->d_name);
+                            *(strrchr(buffer, '.')) = '\0';
+                            for (uint i=0; i<unmatchedStates.size(); i++) {
+                                if (strcmp(buffer, unmatchedStates[i].c_str()) == 0) {
+                                    flag |= FLAG_SUSPENDED;
+                                    unmatchedStates.erase(unmatchedStates.begin()+i);
+                                    break;
+                                }
                             }
                         }
                     }
@@ -249,7 +272,7 @@ char* startFileChooser() {
                 strcpy(buffer2, entry->d_name);
                 *(strrchr(buffer2, '.')) = '\0';
                 for (int i=0; i<numFiles; i++) {
-                    if (strcmpi(strrchr(filenames[i], '.'), "gbs") != 0) { 
+                    if (flags[i] & FLAG_ROM) {
                         strcpy(buffer, filenames[i]);
                         *(strrchr(buffer, '.')) = '\0';
                         if (strcmp(buffer, buffer2) == 0) {
@@ -293,7 +316,7 @@ char* startFileChooser() {
                     iprintfColored(CONSOLE_COLOR_LIGHT_MAGENTA, "%s", buffer);
                 else
                     iprintfColored(CONSOLE_COLOR_WHITE, "%s", buffer);
-                for (int i=0; i<maxLen-strlen(buffer); i++)
+                for (uint j=0; j<maxLen-strlen(buffer); j++)
                     iprintfColored(CONSOLE_COLOR_WHITE, " ");
 
                 if (i == fileSelection) {
