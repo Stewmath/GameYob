@@ -22,6 +22,7 @@
 #include "sgb.h"
 #include "gbs.h"
 #include "common.h"
+#include "filechooser.h"
 
 FILE* romFile=NULL;
 FILE* saveFile=NULL;
@@ -32,6 +33,7 @@ char romTitle[20];
 
 char* romPath = NULL;
 char* biosPath = NULL;
+char* borderPath = NULL;
 
 // Values taken from the cartridge header
 u8 ramSize;
@@ -287,32 +289,47 @@ void generalParseConfig(const char* line) {
         const char* parameter = line;
         const char* value = equalsPos+1;
 
-        if (strcmpi(parameter, "biosfile") == 0) {
-            if (biosPath != 0)
-                free(biosPath);
-            biosPath = (char*)malloc(strlen(value)+1);
-            strcpy(biosPath, value);
-            loadBios(biosPath);
-        }
-        else if (strcmpi(parameter, "rompath") == 0) {
+        if (strcmpi(parameter, "rompath") == 0) {
             if (romPath != 0)
                 free(romPath);
             romPath = (char*)malloc(strlen(value)+1);
             strcpy(romPath, value);
             chdir(romPath);
         }
+        else if (strcmpi(parameter, "biosfile") == 0) {
+            if (biosPath != 0)
+                free(biosPath);
+            biosPath = (char*)malloc(strlen(value)+1);
+            strcpy(biosPath, value);
+            loadBios(biosPath);
+        }
+        else if (strcmpi(parameter, "borderfile") == 0) {
+            if (borderPath != 0)
+                free(biosPath);
+            borderPath = (char*)malloc(strlen(value)+1);
+            strcpy(borderPath, value);
+        }
+    }
+    if (borderPath == NULL || *borderPath == '\0') {
+        free(borderPath);
+        borderPath = (char*)malloc(strlen("/border.bmp")+1);
+        strcpy(borderPath, "/border.bmp");
     }
 }
 
 void generalPrintConfig(FILE* file) {
-    if (biosPath == 0)
-        fiprintf(file, "biosfile=\n");
-    else
-        fiprintf(file, "biosfile=%s\n", biosPath);
     if (romPath == 0)
         fiprintf(file, "rompath=\n");
     else
         fiprintf(file, "rompath=%s\n", romPath);
+    if (biosPath == 0)
+        fiprintf(file, "biosfile=\n");
+    else
+        fiprintf(file, "biosfile=%s\n", biosPath);
+    if (borderPath == 0)
+        fiprintf(file, "borderfile=\n");
+    else
+        fiprintf(file, "borderfile=%s\n", borderPath);
 }
 
 bool readConfigFile() {
@@ -963,7 +980,6 @@ void deleteState(int stateNum) {
 }
 
 bool checkStateExists(int stateNum) {
-    FILE* file;
     char statename[256];
 
     if (stateNum == -1)
@@ -981,3 +997,4 @@ bool checkStateExists(int stateNum) {
     return true;
     */
 }
+

@@ -14,8 +14,8 @@
 
 using namespace std;
 
-const int filesPerPage = 24;
 const int MAX_FILENAME_LEN = 100;
+int filesPerPage = 24;
 int numFiles;
 int scrollY=0;
 int fileSelection=0;
@@ -195,7 +195,9 @@ template <class Data, class Metadata> void quickSort(std::vector<Data>& data, st
  * Returns a pointer to a newly-allocated string. The caller is responsible
  * for free()ing it.
  */
-char* startFileChooser(const char* extensions[], bool romExtensions) {
+char* startFileChooser(const char* extensions[], bool romExtensions, bool canQuit) {
+    filesPerPage = (canQuit ? 23 : 24);
+
     setPrintConsole(menuConsole);
     fileChooserOn = true;
     updateScreens(true); // Screen may need to be enabled
@@ -288,6 +290,7 @@ char* startFileChooser(const char* extensions[], bool romExtensions) {
         }
 
         quickSort(filenames, flags, nameSortFunction, 0, numFiles - 1);
+        // Done reading files
 
         scrollY=0;
         updateScrollDown();
@@ -321,8 +324,14 @@ char* startFileChooser(const char* extensions[], bool romExtensions) {
 
                 if (i == fileSelection) {
                     consoleSelectedRow = i-scrollY;
-                    //consoleSetLineColor(i-scrollY, CONSOLE_COLOR_LIGHT_YELLOW);
                 }
+            }
+            if (canQuit) {
+                if (numFiles < filesPerPage) {
+                    for (int i=numFiles; i<filesPerPage; i++)
+                        iprintfColored(CONSOLE_COLOR_WHITE, "\n");
+                }
+                iprintfColored(CONSOLE_COLOR_WHITE, "                Press Y to exit");
             }
 
             // Wait for input
@@ -382,6 +391,12 @@ char* startFileChooser(const char* extensions[], bool romExtensions) {
                     updateScrollUp();
                     break;
                 }
+                else if (keyJustPressed(KEY_Y)) {
+                    if (canQuit) {
+                        retval = NULL;
+                        goto end;
+                    }
+                }
             }
         }
         // free memory used for filenames
@@ -396,6 +411,18 @@ end:
     consoleSelectedRow = -1;
     fileChooserOn = false;
     return retval;
+}
+
+int savedFileSelection;
+char savedCwd[256];
+void saveFileChooserStatus() {
+    savedFileSelection = fileSelection;
+    getcwd(savedCwd, 256);
+}
+void loadFileChooserStatus() {
+    fileSelection = savedFileSelection;
+    chdir(savedCwd);
+    fileSelection = 1;
 }
 
 bool isFileChooserOn() {

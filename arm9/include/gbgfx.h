@@ -25,7 +25,10 @@ void refreshGFX();
 void clearGFX();
 void refreshSgbPalette();
 
-void checkBorder();
+void selectBorder(); // Starts the file chooser for a border
+int loadBorder(const char* filename); // Loads the border to vram
+void checkBorder(); // Decides what kind of border to use, invokes loadBorder if necessary
+
 void refreshScaleMode();
 void setGFXMask(int mask);
 void setSgbTiles(u8* src, u8 flags);

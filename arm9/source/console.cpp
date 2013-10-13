@@ -363,13 +363,14 @@ ConsoleSubMenu menuList[] = {
     },
     {
         "Display",
-        5,
+        6,
         {
             {"Game Screen", setScreenFunc, 2, {"Top","Bottom"}, 0},
             {"Scaling", setScaleModeFunc, 3, {"Off","Aspect","Full"}, 0},
             {"Scale Filter", setScaleFilterFunc, 2, {"Off","On"}, 1},
+            {"SGB Borders", sgbBorderEnableFunc, 2, {"Off","On"}, 1},
             {"Custom Border", customBorderEnableFunc, 2, {"Off","On"}, 1},
-            {"SGB Borders", sgbBorderEnableFunc, 2, {"Off","On"}, 1}
+            {"Select Border", (void (*)(int))selectBorder, 0, {}, 0},
         }
     },
     {

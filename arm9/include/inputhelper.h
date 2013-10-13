@@ -49,6 +49,8 @@ extern bool advanceFrame;
 
 extern FILE* saveFile;
 
+extern char* borderPath;
+
 void initInput();
 void flushFatCache();
 

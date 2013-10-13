@@ -1,4 +1,7 @@
 #include "inputhelper.h"
+#include <string.h>
+#include <dirent.h>
+#include <unistd.h>
 #include <vector>
 #include <nds.h>
 #include <stdio.h>
@@ -12,7 +15,10 @@
 #include "sgb.h"
 #include "console.h"
 #include "filechooser.h"
+#include "inputhelper.h"
 #include "common.h"
+#include "gbsnd.h"
+
 
 #define BACKDROP_COLOUR RGB15(0,0,0)
 
@@ -468,58 +474,6 @@ void vblankHandler()
     }
 }
 
-int loadBorder(const char* filename) {
-    FILE* file = fopen(filename, "rb");
-    if (file == NULL) {
-        customBorderExists = false;
-        disableMenuOption("Custom Border");
-        printLog("Error opening border.\n");
-        return 1;
-    }
-
-    vramSetBankD(VRAM_D_MAIN_BG_0x06040000);
-    // Start loading
-    fseek(file, 0xe, SEEK_SET);
-    u8 pixelStart = (u8)fgetc(file) + 0xe;
-    fseek(file, pixelStart, SEEK_SET);
-    for (int y=191; y>=168; y--) {
-        u16 buffer[256];
-        fread(buffer, 2, 0x100, file);
-        u16* src = buffer;
-        for (int i=0; i<256; i++) {
-            u16 val = *(src++);
-            BG_GFX[0x20000+y*256+i] = ((val>>10)&0x1f) | ((val)&(0x1f<<5)) | (val&0x1f)<<10 | BIT(15);
-        }
-    }
-    for (int y=167; y>=24; y--) {
-        u16 buffer[256];
-        fread(buffer, 2, 256, file);
-        u16* src = buffer;
-        for (int i=0; i<48; i++) {
-            u16 val = *(src++);
-            BG_GFX[0x20000+y*256+i] = ((val>>10)&0x1f) | ((val)&(0x1f<<5)) | (val&0x1f)<<10 | BIT(15);
-        }
-        src += 160;
-        for (int i=208; i<256; i++) {
-            u16 val = *(src++);
-            BG_GFX[0x20000+y*256+i] = ((val>>10)&0x1f) | ((val)&(0x1f<<5)) | (val&0x1f)<<10 | BIT(15);
-        }
-    }
-    for (int y=23; y>=0; y--) {
-        u16 buffer[256];
-        fread(buffer, 2, 0x100, file);
-        u16* src = buffer;
-        for (int i=0; i<256; i++) {
-            u16 val = *(src++);
-            BG_GFX[0x20000+y*256+i] = ((val>>10)&0x1f) | ((val)&(0x1f<<5)) | (val&0x1f)<<10 | BIT(15);
-        }
-    }
-
-    fclose(file);
-
-    return 0;
-}
-
 // This just sets up the background
 void loadSGBBorder() {
     loadedBorderType = BORDER_SGB;
@@ -725,6 +679,93 @@ void refreshSgbPalette() {
     }
 }
 
+void selectBorder() {
+    muteSND();
+    saveFileChooserStatus();
+
+    if (borderPath == NULL)
+        chdir("fat:/");
+    else {
+        char dest[256];
+        strcpy(dest, borderPath);
+        *(strrchr(dest, '/')+1) = '\0';
+        chdir(dest);
+    }
+
+    const char* extensions[] = {"bmp"};
+    char* filename = startFileChooser(extensions, false, true);
+    if (filename != NULL) {
+        char cwd[256];
+        getcwd(cwd, 256);
+        free(borderPath);
+        borderPath = (char*)malloc(strlen(cwd)+strlen(filename)+1);
+        strcpy(borderPath, cwd);
+        strcat(borderPath, filename);
+
+        free(filename);
+
+        loadedBorderType = BORDER_NONE; // Force reload
+        checkBorder();
+    }
+
+    loadFileChooserStatus();
+    refreshSND();
+}
+
+int loadBorder(const char* filename) {
+    FILE* file = fopen(filename, "rb");
+    if (file == NULL) {
+        customBorderExists = false;
+        disableMenuOption("Custom Border");
+        printLog("Error opening border.\n");
+        return 1;
+    }
+    enableMenuOption("Custom Border");
+    customBorderExists = true;
+
+    vramSetBankD(VRAM_D_MAIN_BG_0x06040000);
+    // Start loading
+    fseek(file, 0xe, SEEK_SET);
+    u8 pixelStart = (u8)fgetc(file) + 0xe;
+    fseek(file, pixelStart, SEEK_SET);
+    for (int y=191; y>=168; y--) {
+        u16 buffer[256];
+        fread(buffer, 2, 0x100, file);
+        u16* src = buffer;
+        for (int i=0; i<256; i++) {
+            u16 val = *(src++);
+            BG_GFX[0x20000+y*256+i] = ((val>>10)&0x1f) | ((val)&(0x1f<<5)) | (val&0x1f)<<10 | BIT(15);
+        }
+    }
+    for (int y=167; y>=24; y--) {
+        u16 buffer[256];
+        fread(buffer, 2, 256, file);
+        u16* src = buffer;
+        for (int i=0; i<48; i++) {
+            u16 val = *(src++);
+            BG_GFX[0x20000+y*256+i] = ((val>>10)&0x1f) | ((val)&(0x1f<<5)) | (val&0x1f)<<10 | BIT(15);
+        }
+        src += 160;
+        for (int i=208; i<256; i++) {
+            u16 val = *(src++);
+            BG_GFX[0x20000+y*256+i] = ((val>>10)&0x1f) | ((val)&(0x1f<<5)) | (val&0x1f)<<10 | BIT(15);
+        }
+    }
+    for (int y=23; y>=0; y--) {
+        u16 buffer[256];
+        fread(buffer, 2, 0x100, file);
+        u16* src = buffer;
+        for (int i=0; i<256; i++) {
+            u16 val = *(src++);
+            BG_GFX[0x20000+y*256+i] = ((val>>10)&0x1f) | ((val)&(0x1f<<5)) | (val&0x1f)<<10 | BIT(15);
+        }
+    }
+
+    fclose(file);
+
+    return 0;
+}
+
 void checkBorder() {
     if (gbGraphicsDisabled)
         return;
@@ -761,10 +802,6 @@ end:
             loadSGBBorder();
         }
         else if (nextBorderType == BORDER_CUSTOM) {
-            if (!customBorderExists) {
-                nextBorderType = BORDER_NONE;
-                goto end;
-            }
             if (lastBorderType != BORDER_CUSTOM) { // Don't reload if it's already loaded
                 videoBgDisable(3);
                 // Set up background
@@ -778,7 +815,10 @@ end:
                 REG_BG3PC = 0;
                 REG_BG3PD = 1<<8;
                 videoBgEnable(3);
-                loadBorder("/border.bmp");
+                if (loadBorder(borderPath) == 1) {
+                    nextBorderType = BORDER_NONE;
+                    goto end;
+                }
             }
         }
     }
