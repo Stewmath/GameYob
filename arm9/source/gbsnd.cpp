@@ -505,8 +505,8 @@ void handleSoundRegister(u8 ioReg, u8 val)
             {
                 sharedData->chanOn &= ~CHAN_3;
                 clearChan(CHAN_3);
+                sendUpdateMessage(2);
             }
-            sendUpdateMessage(2);
             ioRam[0x1a] = val | 0x7f;
             break;
             // Length
@@ -558,7 +558,7 @@ void handleSoundRegister(u8 ioReg, u8 val)
             else
                 chanUseLen[2] = 0;
 
-            if (val & 0x80)
+            if ((val & 0x80) && (ioRam[0x1a] & 0x80))
             {
                 sharedData->chanOn |= CHAN_3;
                 chanLenCounter[2] = (256-chanLen[2])*clockSpeed/256;

@@ -81,7 +81,7 @@ void sgbLoadAttrFile(int index) {
         printLog("Bad Attr %x\n", index);
         return;
     }
-    printLog("Load Attr %x\n", index);
+    //printLog("Load Attr %x\n", index);
     int src = index*90;
     int dest=0;
     for (int i=0; i<20*18/4; i++) {
@@ -395,7 +395,7 @@ void sgbHandleP1(u8 val) {
             if (sgbPacketsTransferred == 0) {
                 sgbCommand = sgbPacket[0]/8;
                 sgbPacketLength = sgbPacket[0]&7;
-                printLog("CMD %x\n", sgbCommand);
+                //printLog("CMD %x\n", sgbCommand);
             }
             if (sgbCommands[sgbCommand] != 0)
                 sgbCommands[sgbCommand](sgbPacketsTransferred);
