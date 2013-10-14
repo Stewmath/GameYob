@@ -66,6 +66,7 @@ void doVramTransfer(u8* dest) {
 void setBackdrop(u16 val) {
     if (loadedBorderType == BORDER_SGB)
         BG_PALETTE[0] = val;
+    BG_PALETTE[15*16+1] = val; // "off map" palette, for when the screen is disabled
     for (int i=0; i<4; i++) {
         bgPaletteData[i*8] = val&0xff;
         bgPaletteData[i*8+1] = val>>8;

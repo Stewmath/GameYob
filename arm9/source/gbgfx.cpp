@@ -364,6 +364,7 @@ void drawLine(int gbLine) {
             }
         }
     }
+
     if (state->spritesModified)
         drawSprites(state->spriteData, state->tallSprites);
 }
@@ -597,6 +598,8 @@ void refreshGFX() {
     }
     changedMapQueueLength[0] = 0;
     changedMapQueueLength[1] = 0;
+    changedTileQueueLength = 0;
+    changedTileInFrameQueueLength = 0;
     lastScreenDisabled = !(ioRam[0x40] & 0x80);
     screenDisabled = lastScreenDisabled;
     winPosY = -1;
@@ -633,16 +636,16 @@ void refreshSgbPalette() {
     for (int y=0; y<18; y++) {
         winJustDisabled = false;
         for (int yPix=y*8-7; yPix<=y*8; yPix++) {
-            if (yPix >= 0 && renderingState[yPix].modified && renderingState[yPix].mapsModified) {
+            if (yPix >= 0 && drawingState[yPix].modified && drawingState[yPix].mapsModified) {
                 if (!winJustDisabled)
-                    winJustDisabled = winOn && (!renderingState[yPix].winOn);
-                winOn = renderingState[yPix].winOn;
-                winX = renderingState[yPix].winX;
-                winY = renderingState[yPix].winY;
-                hofs = renderingState[yPix].hofs;
-                vofs = renderingState[yPix].vofs;
-                winMap = renderingState[yPix].winMap;
-                bgMap = renderingState[yPix].bgMap;
+                    winJustDisabled = winOn && (!drawingState[yPix].winOn);
+                winOn = drawingState[yPix].winOn;
+                winX = drawingState[yPix].winX;
+                winY = drawingState[yPix].winY;
+                hofs = drawingState[yPix].hofs;
+                vofs = drawingState[yPix].vofs;
+                winMap = drawingState[yPix].winMap;
+                bgMap = drawingState[yPix].bgMap;
             }
         }
         for (int x=0; x<20; x++) {
@@ -895,12 +898,9 @@ void refreshScaleMode() {
 }
 
 void setGFXMask(int mask) {
-    if (gfxMask == mask)
-        return;
-    printLog("Mask %d\n", mask);
     gfxMask = mask;
+    printLog("Mask %d\n", gfxMask);
     if (gfxMask == 0) {
-        refreshGFX();
         if (loadedBorderType != BORDER_NONE) {
             videoBgEnable(3);
             BG_PALETTE[0] = bgPaletteData[0] | bgPaletteData[1]<<8;
@@ -1101,8 +1101,6 @@ void drawScreen()
 {
     if (probingForBorder)
         return;
-    if (sgbMode && !gfxMask)
-        refreshSgbPalette();
 
     if (!(fastForwardMode || fastForwardKey)) {
         if (interruptWaitMode == 1) // Wait for Vblank.
@@ -1140,6 +1138,8 @@ void drawScreen()
 
     updateTiles();
     updateTileMaps();
+    if (sgbMode)
+        refreshSgbPalette();
 }
 
 void drawSprites(u8* data, int tall) {
@@ -1520,6 +1520,10 @@ void handleVideoRegister(u8 ioReg, u8 val) {
                 spritesModified = true;
             }
             ioRam[0x40] = val;
+            if (!(val & 0x80)) {
+                ioRam[0x44] = 0;
+                ioRam[0x41] &= ~3; // Set video mode 0
+            }
             return;
         case 0x46:				// DMA
             {
