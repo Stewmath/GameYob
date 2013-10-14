@@ -469,7 +469,7 @@ void vblankHandler()
     // Copy the list so that functions which access vblankTasks work.
     std::vector<void (*)()> tasks = vblankTasks;
     vblankTasks.clear();
-    for (int i=0; i<tasks.size(); i++) {
+    for (uint i=0; i<tasks.size(); i++) {
         tasks[i]();
     }
 }
@@ -626,12 +626,16 @@ void clearGFX() {
 // Bars on the bottom are favored by this code.
 void refreshSgbPalette() {
     int winMap=0,bgMap=0;
+    bool winJustDisabled = false;
     bool winOn=0;
     int hofs=0,vofs=0,winX=0,winY=0;
 
     for (int y=0; y<18; y++) {
+        winJustDisabled = false;
         for (int yPix=y*8-7; yPix<=y*8; yPix++) {
             if (yPix >= 0 && renderingState[yPix].modified && renderingState[yPix].mapsModified) {
+                if (!winJustDisabled)
+                    winJustDisabled = winOn && (!renderingState[yPix].winOn);
                 winOn = renderingState[yPix].winOn;
                 winX = renderingState[yPix].winX;
                 winY = renderingState[yPix].winY;
@@ -645,7 +649,7 @@ void refreshSgbPalette() {
             int palette = sgbMap[y*20+x]&3;
 
             // BACKGROUND
-            int yLoop = (y == 0 ? 2 : 1); // Give vertical tile -1 tile 0's palette as it's scrolling in
+            int yLoop = (y == 0 || winJustDisabled ? 2 : 1); // Give vertical tile -1 tile 0's palette as it's scrolling in
             int xLoop = (x == 19 ? 2 : 1); // Give horizontal tile 20 tile 19's palette, as it's scrolling in
             while (yLoop-- > 0) {
                 for (int j=0; j<xLoop; j++) {
@@ -1146,41 +1150,64 @@ void drawSprites(u8* data, int tall) {
         else
         {
             int y = data[spriteNum]-16;
-            int tileNum = data[spriteNum+2];
-            if (tall)
-                tileNum &= ~1;
-            int x = data[spriteNum+1]-8;
-            int bank = 0;
-            int flipX = !!(data[spriteNum+3] & 0x20);
-            int flipY = !!(data[spriteNum+3] & 0x40);
-            int priority = !!(data[spriteNum+3] & 0x80);
-            int paletteid;
-
-            if (gbMode == CGB)
-            {
-                bank = !!(data[spriteNum+3]&0x8);
-                paletteid = data[spriteNum+3] & 0x7;
+            if (y == -16) {
+                sprites[i].attr0 = 0;
             }
-            else
-            {
-                if (sgbMode) {
-                    int yPos, xPos;
-                    xPos = (x < 0 ? 0 : x/8);
-                    if (tall)
-                        yPos = (y < -7 ? 0 : (y+7)/8);
-                    else
-                        yPos = (y < -3 ? 0 : (y+3)/8);
-                    int sgbPalette = sgbMap[yPos*20 + xPos]&3;
-                    paletteid = sgbPalette+(!!(data[spriteNum+3] & 0x10))*4;
+            else {
+                int tileNum = data[spriteNum+2];
+                if (tall)
+                    tileNum &= ~1;
+                int x = data[spriteNum+1]-8;
+                int bank = 0;
+                int flipX = !!(data[spriteNum+3] & 0x20);
+                int flipY = !!(data[spriteNum+3] & 0x40);
+                int priority = !!(data[spriteNum+3] & 0x80);
+                int paletteid;
+
+                if (gbMode == CGB)
+                {
+                    bank = !!(data[spriteNum+3]&0x8);
+                    paletteid = data[spriteNum+3] & 0x7;
                 }
                 else
-                    paletteid = ((data[spriteNum+3] & 0x10) ? 5 : 0);
-            }
+                {
+                    if (sgbMode) {
+                        // Sprites are colored the same as the background. A bit 
+                        // of compromise is needed, since they don't line up perfectly.
+                        int yPos, xPos;
+                        xPos = (x < 0 ? 0 : x/8);
+                        if (tall) {
+                            if ((y >= 144-15 && !drawingState[143].spritesOn) || (y < 144-15 && !drawingState[y+15].spritesOn))
+                                yPos = y/8; // Take the color at the top
+                            else if ((y < 0 && !drawingState[0].spritesOn) || !drawingState[y].spritesOn)
+                                yPos = (y+15)/8; // Take the color at the bottom
+                            else
+                                yPos = (y < -7 ? 0 : (y+7)/8); // Take the color around the middle
+                        }
+                        else {
+                            if (y > -8 && ((y >= 144-8 && !drawingState[143].spritesOn) || (y < 144-8 && !drawingState[y+8].spritesOn)))
+                                yPos = y/8; // Take the color at the top
+                            else if ((y < 0 && !drawingState[0].spritesOn) || !drawingState[y].spritesOn)
+                                yPos = (y+7)/8; // Take the color at the bottom
+                            else
+                                yPos = (y < -3 ? 0 : (y+3)/8); // Take the color around the middle
+                        }
+                        if (yPos < 0)
+                            yPos = 0;
+                        else if (yPos >= 18)
+                            yPos = 17;
+                        int sgbPalette = sgbMap[yPos*20 + xPos]&3;
+                        paletteid = sgbPalette+(!!(data[spriteNum+3] & 0x10))*4;
+                    }
+                    else
+                        paletteid = ((data[spriteNum+3] & 0x10) ? 5 : 0);
+                }
 
-            int priorityVal = (priority ? spr_priority_low : spr_priority);
-            sprites[i].attr0 = (y+screenOffsY) | (tall<<15);
-            sprites[i].attr1 = ((x&0x1ff)+screenOffsX) | (flipX<<12) | (flipY<<13);
-            sprites[i].attr2 = (tileNum+(bank*0x100)) | (priorityVal<<10) | (paletteid<<12);
+                int priorityVal = (priority ? spr_priority_low : spr_priority);
+                sprites[i].attr0 = (y+screenOffsY) | (tall<<15);
+                sprites[i].attr1 = ((x&0x1ff)+screenOffsX) | (flipX<<12) | (flipY<<13);
+                sprites[i].attr2 = (tileNum+(bank*0x100)) | (priorityVal<<10) | (paletteid<<12);
+            }
         }
     }
 }
@@ -1212,6 +1239,9 @@ void drawScanline_P2(int scanline) {
         winPosY = ioRam[0x44]-ioRam[0x4a];
     else if (winX < 167 && ioRam[0x4a] <= scanline)
         winPosY++;
+
+    // Always set this, since it's checked in the drawSprites function
+    renderingState[scanline].spritesOn = ioRam[0x40] & 0x2;
 
     if (scanline == 0) {
         lineModified = true;
@@ -1256,8 +1286,6 @@ void drawScanline_P2(int scanline) {
             bgMap = 1;
         else
             bgMap = 0;
-
-        renderingState[scanline].spritesOn = ioRam[0x40] & 0x2;
 
         renderingState[scanline].bgMap = bgMap;
         renderingState[scanline].winMap = winMap;
