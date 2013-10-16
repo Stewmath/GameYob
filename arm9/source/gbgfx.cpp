@@ -600,6 +600,9 @@ void refreshGFX() {
     changedMapQueueLength[1] = 0;
     changedTileQueueLength = 0;
     changedTileInFrameQueueLength = 0;
+    memset(changedTile, 0, sizeof(changedTile));
+    memset(changedTileInFrame, 0, sizeof(changedTileInFrame));
+
     lastScreenDisabled = !(ioRam[0x40] & 0x80);
     screenDisabled = lastScreenDisabled;
     winPosY = -1;
