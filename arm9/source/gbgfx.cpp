@@ -905,6 +905,7 @@ void setGFXMask(int mask) {
             videoBgEnable(3);
             BG_PALETTE[0] = bgPaletteData[0] | bgPaletteData[1]<<8;
         }
+        winPosY = -1;
     }
 }
 
