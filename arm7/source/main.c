@@ -50,7 +50,7 @@ void VblankHandler(void) {
     sharedData->frameFlip_DS = !sharedData->frameFlip_DS;
     sharedData->dsCycles = 0;
         do {
-            if (!sharedData->scalingOn)
+            if (!(sharedData->stalled || sharedData->scalingOn))
                 goto scaling_end;
         } while (!sharedData->scaleTransferReady);
         // Copy from vram bank D to C

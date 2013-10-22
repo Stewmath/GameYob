@@ -672,6 +672,9 @@ int saveGame()
     if (numRamBanks == 0 || saveFile == NULL)
         return 0;
 
+    bool wasStalled = sharedData->stalled;
+    sharedData->stalled = true;
+
     fseek(saveFile, 0, SEEK_SET);
 
     for (int i=0; i<numRamBanks; i++)
@@ -685,6 +688,8 @@ int saveGame()
     }
 
     flushFatCache();
+
+    sharedData->stalled = wasStalled;
 
     return 0;
 }

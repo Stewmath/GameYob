@@ -260,8 +260,8 @@ void gameboySyncAutosave() {
     if (autosaveStart == -1)
         return;
 
-    int scalingWasOn = sharedData->scalingOn;
-    sharedData->scalingOn = 0; // Scaling + autosaving seems to cause problems occasionally
+    bool wasStalled = sharedData->stalled;
+    sharedData->stalled = false; // Tells arm7 not to do scaling stuff until we're done here
 
     printLog("SAVE %d\n", numSaveWrites);
     numSaveWrites = 0;
@@ -281,7 +281,7 @@ void gameboySyncAutosave() {
     autosaveEnd = -1;
     framesSinceAutosaveStarted = 0;
 
-    sharedData->scalingOn = scalingWasOn;
+    sharedData->stalled = wasStalled;
 }
 
 // This function can be called from weird contexts, so just set a flag to deal 
