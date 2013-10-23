@@ -1,4 +1,6 @@
-﻿//Partial code from dsCard.cpp: http://www.ezflash.cn/zip/512triplecardsrc.rar
+﻿#include <nds.h>
+
+//Partial code from dsCard.cpp: http://www.ezflash.cn/zip/512triplecardsrc.rar
 //Original author: aladdin
 //Copyright: EZFlash Group
 

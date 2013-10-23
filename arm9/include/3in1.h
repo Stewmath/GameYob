@@ -1,13 +1,13 @@
-//Partial code from dsCard.h: http://www.ezflash.cn/zip/512triplecardsrc.rar
+ï»¿//Partial code from dsCard.h: http://www.ezflash.cn/zip/512triplecardsrc.rar
 //Original author: aladdin
 //Copyright: EZFlash Group
 
 //Original header below
 
 /**************************************************************************************************************
- * ´ËÎÄ¼þÎª dsCard.h ÎÄ¼þµÄµÚ¶þ°æ 
- * ÈÕÆÚ£º2006Äê11ÔÂ27ÈÕ11µã33·Ö  µÚÒ»°æ version 1.0
- * ×÷Õß£ºaladdin
+ * æ­¤æ–‡ä»¶ä¸º dsCard.h æ–‡ä»¶çš„ç¬¬äºŒç‰ˆ 
+ * æ—¥æœŸï¼š2006å¹´11æœˆ27æ—¥11ç‚¹33åˆ†  ç¬¬ä¸€ç‰ˆ version 1.0
+ * ä½œè€…ï¼šaladdin
  * CopyRight : EZFlash Group
  * 
  **************************************************************************************************************/
