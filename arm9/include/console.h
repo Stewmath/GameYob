@@ -51,9 +51,6 @@ void iprintfColored(int palette, const char* format, ...);
 void printLog(const char* format, ...);
 
 int checkRumble();
-void OpenNorWrite();
-void CloseNorWrite();
-uint32 ReadNorFlashID();
 
 void disableSleepMode();
 void enableSleepMode();
