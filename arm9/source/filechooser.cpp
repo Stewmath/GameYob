@@ -417,12 +417,12 @@ int savedFileSelection;
 char savedCwd[256];
 void saveFileChooserStatus() {
     savedFileSelection = fileSelection;
+    fileSelection = 1;
     getcwd(savedCwd, 256);
 }
 void loadFileChooserStatus() {
     fileSelection = savedFileSelection;
     chdir(savedCwd);
-    fileSelection = 1;
 }
 
 bool isFileChooserOn() {
