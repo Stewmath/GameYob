@@ -63,7 +63,7 @@ extern u8 bios[0x900];
 extern u8* memory[0x10];
 
 extern u8 vram[2][0x2000];
-extern u8** externRam;
+extern u8* externRam;
 extern u8 wram[8][0x1000];
 extern u8* const hram;
 extern u8* const ioRam;
@@ -83,6 +83,6 @@ extern u16 dmaLength;
 extern int dmaMode;
 
 extern bool saveModified;
-extern int autosaveStart;
-extern int autosaveEnd;
+extern bool dirtySectors[0x8000/512];
 extern int numSaveWrites;
+extern bool autosaveStarted;

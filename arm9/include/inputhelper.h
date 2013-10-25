@@ -53,6 +53,7 @@ extern char* borderPath;
 
 void initInput();
 void flushFatCache();
+void flushSaveFileSector(int sector);
 
 void startKeyConfigChooser();
 bool readConfigFile();

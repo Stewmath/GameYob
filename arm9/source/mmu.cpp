@@ -49,7 +49,7 @@ DTCM_BSS
 #endif
 ;
 u8 vram[2][0x2000];
-u8** externRam = NULL;
+u8* externRam = NULL;
 u8 wram[8][0x1000];
 
 u8 highram[0x1000];
@@ -74,9 +74,9 @@ int dmaMode;
 
 // Autosaving stuff
 bool saveModified=false;
+bool dirtySectors[0x8000/512];
 int numSaveWrites=0;
-int autosaveStart = -1;
-int autosaveEnd = -1;
+bool autosaveStarted = false;
 
 
 /* MBC flags */
@@ -110,8 +110,8 @@ void refreshRamBank (int bank)
 {
     if (bank < numRamBanks) {
         currentRamBank = bank;
-        memory[0xa] = externRam[currentRamBank];
-        memory[0xb] = externRam[currentRamBank]+0x1000; 
+        memory[0xa] = externRam+currentRamBank*0x2000;
+        memory[0xb] = externRam+currentRamBank*0x2000+0x1000; 
     }
 }
 
@@ -198,25 +198,17 @@ const mbcRead mbcReads[] = {
 
 
 void writeSram(u16 addr, u8 val) {
-    if (externRam[currentRamBank][addr] != val) {
-        externRam[currentRamBank][addr] = val;
+    int pos = addr + currentRamBank*0x2000;
+    if (externRam[pos] != val) {
+        externRam[pos] = val;
         if (autoSavingEnabled) {
+            autosaveStarted = true;
             /*
             fseek(saveFile, currentRamBank*0x2000+addr, SEEK_SET);
             fputc(val, saveFile);
             */
-            int pos = addr + currentRamBank*0x2000;
             saveModified = true;
-            if (autosaveStart == -1) {
-                autosaveStart = pos;
-                autosaveEnd = pos;
-            }
-            else {
-                if (pos < autosaveStart)
-                    autosaveStart = pos;
-                if (pos > autosaveEnd)
-                    autosaveEnd = pos;
-            }
+            dirtySectors[pos/512] = true;
             numSaveWrites++;
         }
     }
@@ -573,6 +565,8 @@ void initMMU()
     writeIO(0xff, 0x00);
 
     ioRam[0x55] = 0xff;
+
+    memset(dirtySectors, 0, sizeof(dirtySectors));
 }
 
 void mapMemory() {

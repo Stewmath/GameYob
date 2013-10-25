@@ -207,7 +207,7 @@ void gameboyUpdateVBlank() {
 			return;
         }
 
-        if (autosaveStart != -1)
+        if (autosaveStarted)
             framesSinceAutosaveStarted++;
 		// Check autosaving stuff
 		if (framesSinceAutosaveStarted >= 120 ||     // Executes when sram is written to for 120 consecutive frames, or
@@ -257,7 +257,7 @@ void gameboyUpdateVBlank() {
 }
 
 void gameboySyncAutosave() {
-    if (autosaveStart == -1)
+    if (!autosaveStarted)
         return;
 
     bool wasStalled = sharedData->stalled;
@@ -267,19 +267,19 @@ void gameboySyncAutosave() {
     numSaveWrites = 0;
     wroteToSramThisFrame = false;
 
-    fseek(saveFile, autosaveStart, SEEK_SET);
+    // iterate over each 512-byte sector
+    for (int i=0; i<numRamBanks*0x2000/512; i++) {
+        if (dirtySectors[i]) {
+            dirtySectors[i] = false;
 
-    for (int i=autosaveStart/0x2000; i<=autosaveEnd/0x2000; i++) {
-        int start = (i == autosaveStart/0x2000 ? autosaveStart : i*0x2000);
-        int end = (i == autosaveEnd/0x2000 ? autosaveEnd+1 : (i+1)*0x2000);
-        fwrite(externRam[i]+(start&0x1fff), 1, end-start, saveFile);
+            fseek(saveFile, i*512, SEEK_SET);
+            fwrite(externRam+i*512, 1, 512, saveFile);
+            flushSaveFileSector(i);
+        }
     }
 
-    flushFatCache();
-
-    autosaveStart = -1;
-    autosaveEnd = -1;
     framesSinceAutosaveStarted = 0;
+    autosaveStarted = false;
 
     sharedData->stalled = wasStalled;
 }

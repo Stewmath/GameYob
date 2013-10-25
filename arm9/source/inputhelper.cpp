@@ -24,6 +24,8 @@
 #include "common.h"
 #include "filechooser.h"
 
+#define FAT_CACHE_SIZE 32
+
 FILE* romFile=NULL;
 FILE* saveFile=NULL;
 char filename[100];
@@ -59,10 +61,14 @@ std::vector<int> lastBanksUsed;
 
 bool suspendStateExists;
 
+int saveFileStartSector;
+
+
 void initInput()
 {
-    //fatInit(2, true);
-    fatInitDefault();
+    fatInit(FAT_CACHE_SIZE, true);
+    //fatInitDefault();
+
     chdir("/lameboy"); // Default rom directory
 
     if (__dsimode)
@@ -78,6 +84,16 @@ void flushFatCache() {
     devoptab_t* devops = (devoptab_t*)GetDeviceOpTab ("sd");
     PARTITION* partition = (PARTITION*)devops->deviceData;
     _FAT_cache_flush(partition->cache); // Flush the cache manually
+}
+
+// This bypasses libfat's cache to directly write a single sector of the save 
+// file. This reduces lag.
+void flushSaveFileSector(int sector) {
+    devoptab_t* devops = (devoptab_t*)GetDeviceOpTab ("sd");
+    PARTITION* partition = (PARTITION*)devops->deviceData;
+    CACHE* cache = partition->cache;
+
+	_FAT_disc_writeSectors(cache->disc, saveFileStartSector+sector, 1, externRam+sector*512);
 }
 
 
@@ -548,13 +564,13 @@ int loadRom(char* f)
 
     } // !gbsMode
 
-    loadSave();
-
     // If we've loaded everything, close the rom file
     if (numRomBanks <= numLoadedRomBanks) {
         fclose(romFile);
         romFile = NULL;
     }
+
+    loadSave();
 
     return 0;
 }
@@ -598,12 +614,9 @@ void unloadRom() {
     saveFile = NULL;
     // unload previous save
     if (externRam != NULL) {
-        for (int i=0; i<numRamBanks; i++) 
-            free(externRam[i]);
         free(externRam);
+        externRam = NULL;
     }
-    externRam = NULL;
-
 }
 
 int loadSave()
@@ -636,9 +649,7 @@ int loadSave()
     if (numRamBanks == 0)
         return 0;
 
-    externRam = (u8**)malloc(numRamBanks*sizeof(u8*));
-    for (int i=0; i<numRamBanks; i++)
-        externRam[i] = (u8*)malloc(0x2000*sizeof(u8));
+    externRam = (u8*)malloc(numRamBanks*0x2000);
 
     if (gbsMode)
         return 0; // GBS files don't get to save.
@@ -655,8 +666,7 @@ int loadSave()
         saveFile = fopen(savename, "r+b");
     }
 
-    for (int i=0; i<numRamBanks; i++)
-        fread(externRam[i], 1, 0x2000, saveFile);
+    fread(externRam, 1, 0x2000*numRamBanks, saveFile);
 
     switch (MBC) {
         case MBC3:
@@ -664,6 +674,30 @@ int loadSave()
             fread(&gbClock, 1, sizeof(gbClock), saveFile);
             break;
     }
+
+    // Get the starting sector for the save file.
+    // I do this by writing a byte, then finding the area of the cache marked dirty.
+
+    flushFatCache();
+    devoptab_t* devops = (devoptab_t*)GetDeviceOpTab ("sd");
+    PARTITION* partition = (PARTITION*)devops->deviceData;
+    CACHE* cache = partition->cache;
+
+    fseek(saveFile, 0, SEEK_SET);
+    fputc(externRam[0], saveFile);
+    bool found=false;
+    for (int j=0; j<FAT_CACHE_SIZE; j++) {
+        if (cache->cacheEntries[j].dirty) {
+            saveFileStartSector = cache->cacheEntries[j].sector;
+            found = true;
+            break;
+        }
+    }
+    if (!found) {
+        printLog("couldn't find start sector\n");
+    }
+    flushFatCache();
+
     return 0;
 }
 
@@ -677,8 +711,7 @@ int saveGame()
 
     fseek(saveFile, 0, SEEK_SET);
 
-    for (int i=0; i<numRamBanks; i++)
-        fwrite(externRam[i], 1, 0x2000, saveFile);
+    fwrite(externRam, 1, 0x2000*numRamBanks, saveFile);
 
     switch (MBC) {
         case MBC3:
@@ -832,8 +865,7 @@ void saveState(int stateNum) {
     fwrite((char*)vram, 1, sizeof(vram), outFile);
     fwrite((char*)wram, 1, sizeof(wram), outFile);
     fwrite((char*)hram, 1, 0x200, outFile);
-    for (int i=0; i<numRamBanks; i++)
-        fwrite((char*)externRam[i], 1, 0x2000, outFile);
+    fwrite((char*)externRam, 1, 0x2000*numRamBanks, outFile);
 
     fwrite((char*)&state, 1, sizeof(StateStruct), outFile);
 
@@ -889,8 +921,7 @@ int loadState(int stateNum) {
     fread((char*)vram, 1, sizeof(vram), inFile);
     fread((char*)wram, 1, sizeof(wram), inFile);
     fread((char*)hram, 1, 0x200, inFile);
-    for (int i=0; i<numRamBanks; i++)
-        fread((char*)externRam[i], 1, 0x2000, inFile);
+    fread((char*)externRam, 1, 0x2000*numRamBanks, inFile);
     fread((char*)&state, 1, sizeof(StateStruct), inFile);
 
     /* MBC-specific values have been introduced in v3 */
@@ -1002,4 +1033,5 @@ bool checkStateExists(int stateNum) {
     return true;
     */
 }
+
 
