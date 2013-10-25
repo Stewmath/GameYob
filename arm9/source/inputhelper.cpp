@@ -656,10 +656,23 @@ int loadSave()
 
     // Now load the data.
     saveFile = fopen(savename, "r+b");
-    if (!saveFile) {
-        // Create the file if it didn't exist
+    int neededFileSize = numRamBanks*0x2000;
+    if (MBC == MBC3 || MBC == HUC3)
+        neededFileSize += sizeof(clockStruct);
+
+    int fileSize = 0;
+    if (saveFile) {
+        fseek(saveFile, 0, SEEK_END);
+        fileSize = ftell(saveFile);
+        fseek(saveFile, 0, SEEK_SET);
+    }
+
+    if (!saveFile || fileSize < neededFileSize) {
+        fclose(saveFile);
+
+        // Create the file
         saveFile = fopen(savename, "w");
-        fseek(saveFile, numRamBanks*0x2000-1, SEEK_SET);
+        fseek(saveFile, neededFileSize-1, SEEK_SET);
         fputc(0, saveFile);
         fclose(saveFile);
 
