@@ -88,7 +88,7 @@ void flushFatCache() {
 
 // This bypasses libfat's cache to directly write a single sector of the save 
 // file. This reduces lag.
-void flushSaveFileSector(int sector) {
+void writeSaveFileSector(int sector) {
     if (saveFileSectors[sector] == -1) {
         flushFatCache();
         return;
@@ -707,7 +707,7 @@ int loadSave()
         bool found=false;
         for (int j=0; j<FAT_CACHE_SIZE; j++) {
             if (cache->cacheEntries[j].dirty) {
-                saveFileSectors[i] = cache->cacheEntries[j].sector + (i%8); // 8 = sectorsPerPage
+                saveFileSectors[i] = cache->cacheEntries[j].sector + (i%(cache->sectorsPerPage));
                 cache->cacheEntries[j].dirty = false;
                 found = true;
                 break;

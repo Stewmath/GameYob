@@ -272,9 +272,14 @@ void gameboySyncAutosave() {
         if (dirtySectors[i]) {
             dirtySectors[i] = false;
 
+            /*
             fseek(saveFile, i*512, SEEK_SET);
             fwrite(externRam+i*512, 1, 512, saveFile);
-            flushSaveFileSector(i);
+            */
+            // Bypass libfat's cache to write to the save file directly.
+            // The cache should be usually be empty, or else it will overwrite 
+            // what's being written now at a later time.
+            writeSaveFileSector(i);
         }
     }
 
