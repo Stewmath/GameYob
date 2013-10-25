@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include "global.h"
 
+#define MAX_SRAM_SIZE   0x8000
 
 // Be careful changing this; it affects save state compatibility.
 struct clockStruct
@@ -83,6 +84,6 @@ extern u16 dmaLength;
 extern int dmaMode;
 
 extern bool saveModified;
-extern bool dirtySectors[0x8000/512];
+extern bool dirtySectors[MAX_SRAM_SIZE/512];
 extern int numSaveWrites;
 extern bool autosaveStarted;

@@ -61,7 +61,7 @@ std::vector<int> lastBanksUsed;
 
 bool suspendStateExists;
 
-int saveFileStartSector;
+int saveFileSectors[MAX_SRAM_SIZE/512];
 
 
 void initInput()
@@ -89,11 +89,15 @@ void flushFatCache() {
 // This bypasses libfat's cache to directly write a single sector of the save 
 // file. This reduces lag.
 void flushSaveFileSector(int sector) {
+    if (saveFileSectors[sector] == -1) {
+        flushFatCache();
+        return;
+    }
     devoptab_t* devops = (devoptab_t*)GetDeviceOpTab ("sd");
     PARTITION* partition = (PARTITION*)devops->deviceData;
     CACHE* cache = partition->cache;
 
-	_FAT_disc_writeSectors(cache->disc, saveFileStartSector+sector, 1, externRam+sector*512);
+	_FAT_disc_writeSectors(cache->disc, saveFileSectors[sector], 1, externRam+sector*512);
 }
 
 
@@ -688,7 +692,7 @@ int loadSave()
             break;
     }
 
-    // Get the starting sector for the save file.
+    // Get the save file's sectors on the sd card.
     // I do this by writing a byte, then finding the area of the cache marked dirty.
 
     flushFatCache();
@@ -696,20 +700,23 @@ int loadSave()
     PARTITION* partition = (PARTITION*)devops->deviceData;
     CACHE* cache = partition->cache;
 
-    fseek(saveFile, 0, SEEK_SET);
-    fputc(externRam[0], saveFile);
-    bool found=false;
-    for (int j=0; j<FAT_CACHE_SIZE; j++) {
-        if (cache->cacheEntries[j].dirty) {
-            saveFileStartSector = cache->cacheEntries[j].sector;
-            found = true;
-            break;
+    memset(saveFileSectors, -1, sizeof(saveFileSectors));
+    for (int i=0; i<numRamBanks*0x2000/512; i++) {
+        fseek(saveFile, i*512, SEEK_SET);
+        fputc(externRam[i*512], saveFile);
+        bool found=false;
+        for (int j=0; j<FAT_CACHE_SIZE; j++) {
+            if (cache->cacheEntries[j].dirty) {
+                saveFileSectors[i] = cache->cacheEntries[j].sector + (i%8); // 8 = sectorsPerPage
+                cache->cacheEntries[j].dirty = false;
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            printLog("couldn't find save file sector\n");
         }
     }
-    if (!found) {
-        printLog("couldn't find start sector\n");
-    }
-    flushFatCache();
 
     return 0;
 }

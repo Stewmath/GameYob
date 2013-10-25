@@ -74,7 +74,7 @@ int dmaMode;
 
 // Autosaving stuff
 bool saveModified=false;
-bool dirtySectors[0x8000/512];
+bool dirtySectors[MAX_SRAM_SIZE/512];
 int numSaveWrites=0;
 bool autosaveStarted = false;
 
