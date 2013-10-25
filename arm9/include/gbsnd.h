@@ -8,6 +8,7 @@ extern int cyclesToSoundEvent;
 void initSND();
 void refreshSND();
 void muteSND();
+void unmuteSND();
 void enableChannel(int i);
 void disableChannel(int i);
 void updateSound(int cycles);

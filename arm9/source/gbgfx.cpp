@@ -719,7 +719,7 @@ void selectBorder() {
     }
 
     loadFileChooserStatus();
-    refreshSND();
+    unmuteSND();
 }
 
 int loadBorder(const char* filename) {

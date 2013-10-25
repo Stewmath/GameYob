@@ -214,6 +214,12 @@ void doCommand(u32 command) {
             }
             break;
 
+        case GBSND_UNMUTE_COMMAND:
+            for (i=0; i<4; i++) {
+                setChannelVolume(i, true);
+            }
+            break;
+
         case GBSND_HYPERSOUND_ENABLE_COMMAND:
             setHyperSound(data);
             break;

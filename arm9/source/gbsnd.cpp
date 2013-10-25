@@ -241,6 +241,10 @@ void muteSND() {
     sharedData->fifosSent++;
     fifoSendValue32(FIFO_USER_01, GBSND_MUTE_COMMAND<<20);
 }
+void unmuteSND() {
+    sharedData->fifosSent++;
+    fifoSendValue32(FIFO_USER_01, GBSND_UNMUTE_COMMAND<<20);
+}
 
 void enableChannel(int i) {
     sharedData->chanEnabled[i] = true;

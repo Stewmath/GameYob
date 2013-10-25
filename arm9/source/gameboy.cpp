@@ -263,14 +263,15 @@ void gameboySyncAutosave() {
     bool wasStalled = sharedData->stalled;
     sharedData->stalled = false; // Tells arm7 not to do scaling stuff until we're done here
 
-    printLog("SAVE %d\n", numSaveWrites);
     numSaveWrites = 0;
     wroteToSramThisFrame = false;
 
+    int numSectors = 0;
     // iterate over each 512-byte sector
     for (int i=0; i<numRamBanks*0x2000/512; i++) {
         if (dirtySectors[i]) {
             dirtySectors[i] = false;
+            numSectors++;
 
             /*
             fseek(saveFile, i*512, SEEK_SET);
@@ -282,6 +283,7 @@ void gameboySyncAutosave() {
             writeSaveFileSector(i);
         }
     }
+    printLog("SAVE %d sectors\n", numSectors);
 
     framesSinceAutosaveStarted = 0;
     autosaveStarted = false;

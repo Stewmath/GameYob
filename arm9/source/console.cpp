@@ -136,7 +136,7 @@ void saveSettingsFunc(int value) {
     printMenuMessage("Saving settings...");
     muteSND();
     writeConfigFile();
-    refreshSND();
+    unmuteSND();
     printMenuMessage("Settings saved.");
 }
 
@@ -155,7 +155,7 @@ void stateSaveFunc(int value) {
     printMenuMessage("Saving state...");
     muteSND();
     saveState(stateNum);
-    refreshSND();
+    unmuteSND();
     printMenuMessage("State saved.");
     // Will activate the other state options
     stateSelectFunc(stateNum);
@@ -174,7 +174,7 @@ void stateDeleteFunc(int value) {
     deleteState(stateNum);
     // Will grey out the other state options
     stateSelectFunc(stateNum);
-    refreshSND();
+    unmuteSND();
 }
 void resetFunc(int value) {
     nukeBorder = false;
@@ -307,14 +307,16 @@ void hyperSoundFunc(int value) {
 
 void setAutoSaveFunc(int value) {
     muteSND();
-    gameboySyncAutosave();
+    if (autoSavingEnabled)
+        gameboySyncAutosave();
+    else
+        saveGame(); // Synchronizes save file with filesystem
     autoSavingEnabled = value;
-    saveGame(); // Synchronizes save file with filesystem
     if (numRamBanks && !gbsMode && !autoSavingEnabled)
         enableMenuOption("Exit without saving");
     else
         disableMenuOption("Exit without saving");
-    refreshSND();
+    unmuteSND();
 }
 
 struct MenuOption {
