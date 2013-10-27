@@ -216,6 +216,7 @@ void gameboyUpdateVBlank() {
 		}
 		if (saveModified) {
 			wroteToSramThisFrame = true;
+            autosaveStarted = true;
 			saveModified = false;
 		}
 
@@ -261,7 +262,7 @@ void gameboySyncAutosave() {
         return;
 
     bool wasStalled = sharedData->stalled;
-    sharedData->stalled = false; // Tells arm7 not to do scaling stuff until we're done here
+    sharedData->stalled = true; // Tells arm7 not to do scaling stuff until we're done here
 
     numSaveWrites = 0;
     wroteToSramThisFrame = false;
@@ -284,6 +285,7 @@ void gameboySyncAutosave() {
         }
     }
     printLog("SAVE %d sectors\n", numSectors);
+    flushFatCache(); // This should do nothing, unless the RTC was written to.
 
     framesSinceAutosaveStarted = 0;
     autosaveStarted = false;
