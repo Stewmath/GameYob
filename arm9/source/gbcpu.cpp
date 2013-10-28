@@ -144,8 +144,9 @@ int handleInterrupts(unsigned int interruptTriggered)
     /* Halt state is always reset */
     halt = 0;
     /* Avoid processing irqs */
-    if (!ime)
+    if (!ime) {
         return 0;
+    }
 
     ime = 0;
 
@@ -201,6 +202,7 @@ int runOpcode(int cycles) ITCM_CODE;
                     totalCycles -= 4; \
                 }
 
+u8* haltBugAddr = NULL;
 u8* firstPcAddr DTCM_BSS;
 int runOpcode(int cycles) {
     cyclesToExecute = cycles;
@@ -1264,25 +1266,36 @@ int runOpcode(int cycles) {
                 break;
 
             case 0x76:		// HALT					4
+                if (!ime) {
+                    if (gbMode == CGB)
+                        break;
+                    else {
+                        // DI + Halt bug
+                        // Fixes smurfs
+                        if (haltBugAddr == NULL) {
+                            haltBugAddr = pcAddr-1;
+                            // Write over 'halt' to produce the effect.
+                            *haltBugAddr = *pcAddr;
+                            pcAddr--;
+                            cyclesToExecute = totalCycles+1;
+                            // 'halt' will be restored after the opcode is executed.
+                        }
+                        break;
+                    }
+                }
                 halt = 1;
                 goto end;
 
             case 0x10:		// STOP					4
-                if (ioRam[0x4D] & 1 && gbMode == CGB)
-                {
+                if (ioRam[0x4D] & 1 && gbMode == CGB) {
                     if (ioRam[0x4D] & 0x80)
-                    {
                         setDoubleSpeed(0);
-                    }
                     else
-                    {
                         setDoubleSpeed(1);
-                    }
 
                     ioRam[0x4D] &= ~1;
                 }
-                else
-                {
+                else {
                     halt = 2;
                     goto end;
                 }
@@ -2830,6 +2843,10 @@ int runOpcode(int cycles) {
     }
 
 end:
+    if (haltBugAddr != NULL) {
+        *haltBugAddr = 0x76;
+        haltBugAddr = NULL;
+    }
     gbRegs.af.b.l = locF;
     gbRegs.pc.w += (pcAddr-firstPcAddr);
     gbRegs.sp.w = locSP;
