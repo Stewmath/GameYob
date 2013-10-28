@@ -360,7 +360,7 @@ ConsoleSubMenu menuList[] = {
             {"Rumble Pak", setRumbleFunc, 4, {"Off","Low","Mid","High"}, 2},
             {"Console Output", consoleOutputFunc, 4, {"Off","Time","FPS+Time","Debug"}, 0},
             {"Wireless Link", nifiEnableFunc, 2, {"Off","On"}, 0},
-            {"Autosaving", setAutoSaveFunc, 2, {"Off","On"}, 0},
+            {"Autosaving", setAutoSaveFunc, 2, {"Off","On"}, 1},
             {"Save Settings", saveSettingsFunc, 0, {}, 0}
         }
     },
