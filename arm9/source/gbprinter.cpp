@@ -1,15 +1,19 @@
+#include <stdio.h>
+#include <unistd.h>
 #include "gbprinter.h"
+#include "inputhelper.h"
 #include "nifi.h"
 #include "console.h"
-#include <fat.h>
 
 #define PRINTER_STATUS_READY        0x08
 #define PRINTER_STATUS_REQUESTED    0x04
 #define PRINTER_STATUS_PRINTING     0x02
 #define PRINTER_STATUS_CHECKSUM     0x01
 
-#define PRINTER_WIDTH 160 // in pixels
-#define PRINTER_HEIGHT 200
+#define PRINTER_WIDTH 160
+#define PRINTER_HEIGHT 208 // The actual value is 200, but 16 divides 208.
+
+// Local variables
 
 u8 printerGfx[PRINTER_WIDTH*PRINTER_HEIGHT/4];
 int printerGfxIndex;
@@ -26,36 +30,61 @@ u8 printerCompressionLen;
 u16 printerExpectedChecksum;
 u16 printerChecksum;
 
-u8 cmd2Index;
+int printerMargins;
+int lastPrinterMargins; // it's an int so that it can have a "nonexistant" value (never set).
+u8 printerCmd2Index;
 u8 printerPalette;
+u8 printerExposure; // Ignored
 
+int numPrinted; // Corresponds to the number after the filename
+
+// Local functions
+void resetGbPrinter();
+void printerSendVariableLenData();
 void printerSaveFile();
 
+
+// Called along with other initialization routines
 void initGbPrinter() {
     printerPacketByte = 0;
     printerChecksum = 0;
+    printerCmd2Index = 0;
+
+    printerMargins = -1;
+    lastPrinterMargins = -1;
+
+    numPrinted = 0;
+
+    resetGbPrinter();
+}
+
+// Can be invoked by the game (command 1)
+void resetGbPrinter() {
     printerStatus = 0;
     printerGfxIndex = 0;
-    cmd2Index = 0;
     memset(printerGfx, 0, sizeof(printerGfx));
 }
+
 
 void printerSendVariableLenData(u8 dat) {
     switch(printerCmd) {
 
         case 0x2: // Print
-            switch(cmd2Index) {
+            switch(printerCmd2Index) {
                 case 0: // Unknown (0x01)
                     break;
-                case 1: // Margins (ignored)
+                case 1: // Margins
+                    lastPrinterMargins = printerMargins;
+                    printerMargins = dat;
                     break;
                 case 2: // Palette
                     printerPalette = dat;
                     break;
-                case 3: // Exposure / brightness (ignored)
+                case 3: // Exposure / brightness
+                    printerExposure = dat;
                     break;
             }
-            cmd2Index++;
+            printerCmd2Index++;
             break;
 
         case 0x4: // Fill buffer
@@ -163,7 +192,7 @@ void sendGbPrinterByte(u8 dat) {
 
             switch(printerCmd) {
                 case 1: // Initialize
-                    initGbPrinter();
+                    resetGbPrinter();
                     break;
                 case 2: // Start printing
                     printerStatus &= ~PRINTER_STATUS_READY;
@@ -178,13 +207,14 @@ void sendGbPrinterByte(u8 dat) {
             linkReceivedData = printerStatus;
             goto endPacket;
     }
+
     printerPacketByte++;
     return;
 
 endPacket:
     printerPacketByte = 0;
     printerChecksum = 0;
-    cmd2Index = 0;
+    printerCmd2Index = 0;
     return;
 }
 
@@ -202,23 +232,36 @@ u8 bmpHeader[] = { // Contains header data & palettes
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x55, 0x55, 0x55, 0x55, 0xaa, 0xaa,
 0xaa, 0xaa, 0xff, 0xff, 0xff, 0xff
 };
-// BMP notes:
-// File size at 0x02 and 0x22 must be set.
-// 0x12 = width
-// 0x16 = height
-// 0x1c = color depth
-// 0x2e is number of colors (leave at 0)
-int numPrinted = 0;
+
+// Save the image as a 4bpp bitmap
 void printerSaveFile() {
+    // if "appending" is true, this image will be slapped onto the old one.
+    // Pokemon games have a tendency to print an image in multiple goes.
+    bool appending = false;
+    if (lastPrinterMargins != -1 &&
+            (lastPrinterMargins&0x0f) == 0 &&   // Last printed item left 0 space after
+            (printerMargins&0xf0)     == 0) {   // This item leaves 0 space before
+        appending = true;
+    }
+
+    // Find the first available "print number".
+    char filename[300];
+    while (true) {
+        siprintf(filename, "%s-%d.bmp", getRomBasename(), numPrinted);
+        if (access(filename, R_OK) != 0 // If the file doesn't exist, we're done searching.
+                || appending)           // If appending, the last file written to is already selected.
+            break;
+        numPrinted++;
+    }
+
     int width = PRINTER_WIDTH;
 
+    // In case of error, size must be rounded off to the nearest 16 vertical pixels.
     if (printerGfxIndex%(width/4*16) != 0)
         printerGfxIndex += (width/4*16)-(printerGfxIndex%(width/4*16));
 
     int height = printerGfxIndex / width * 4;
     int pixelArraySize = (width*height+1)/2;
-
-    printLog("%.4x bytes\n", printerGfxIndex);
 
     // Set up the palette
     for (int i=0; i<4; i++) {
@@ -242,31 +285,21 @@ void printerSaveFile() {
     }
 
     u16* pixelData = (u16*)malloc(pixelArraySize);
-    if (pixelData == NULL) {
-        printLog("VERY BAD\n");
-        while(1);
-    }
 
-    printLog("Max = %x\n", width*height/2);
+    // Convert the gameboy's tile-based 2bpp into a linear 4bpp format.
     for (int i=0; i<printerGfxIndex; i+=2) {
         u8 b1 = printerGfx[i];
         u8 b2 = printerGfx[i+1];
 
         int pixel = i*4;
         int tile = pixel/64;
-        int metaRow = tile/40;
 
-        int index = metaRow*width*16;
-        index = tile/20*width*8;
+        int index = tile/20*width*8;
         index += (tile%20)*8;
         index += ((pixel%64)/8)*width;
         index += (pixel%8);
         index /= 4;
 
-        if (index >= width*height/4) {
-            printLog("Over: %x -> %x\n", i, index);
-            while(1);
-        }
         pixelData[index] = 0;
         pixelData[index+1] = 0;
         for (int j=0; j<2; j++) {
@@ -277,21 +310,46 @@ void printerSaveFile() {
         }
     }
 
-    char fileString[30];
-    siprintf(fileString, "/printed%d.bmp", numPrinted);
-    FILE* file = fopen(fileString, "w");
+    FILE* file;
+    if (appending) {
+        file = fopen(filename, "r+b");
+        int temp;
 
-    WRITE_32(bmpHeader+2, sizeof(bmpHeader) + pixelArraySize);
-    WRITE_32(bmpHeader+0x22, pixelArraySize);
-    WRITE_32(bmpHeader+0x12, width);
-    WRITE_32(bmpHeader+0x16, -height);
+        // Update height
+        fseek(file, 0x16, SEEK_SET);
+        fread(&temp, 4, 1, file);
+        temp = -(height + (-temp));
+        fseek(file, 0x16, SEEK_SET);
+        fwrite(&temp, 4, 1, file);
 
-    fwrite(bmpHeader, 1, sizeof(bmpHeader), file);
+        // Update pixelArraySize
+        fseek(file, 0x22, SEEK_SET);
+        fread(&temp, 4, 1, file);
+        temp += pixelArraySize;
+        fseek(file, 0x22, SEEK_SET);
+        fwrite(&temp, 4, 1, file);
+
+        // Update file size
+        temp += sizeof(bmpHeader);
+        fseek(file, 0x2, SEEK_SET);
+        fwrite(&temp, 4, 1, file);
+
+        fclose(file);
+        file = fopen(filename, "ab");
+    }
+    else { // Not appending; making a file from scratch
+        file = fopen(filename, "ab");
+        WRITE_32(bmpHeader+2, sizeof(bmpHeader) + pixelArraySize);
+        WRITE_32(bmpHeader+0x22, pixelArraySize);
+        WRITE_32(bmpHeader+0x12, width);
+        WRITE_32(bmpHeader+0x16, -height); // negative means it's top-to-bottom
+        fwrite(bmpHeader, 1, sizeof(bmpHeader), file);
+    }
+
     fwrite(pixelData, 1, pixelArraySize, file);
 
     fclose(file);
 
     free(pixelData);
     printerGfxIndex = 0;
-    numPrinted++;
 }

@@ -71,6 +71,7 @@ int loadRom(char* filename);
 void loadRomBank();
 bool isRomBankLoaded(int bank);
 u8* getRomBank(int bank);
+const char* getRomBasename();
 
 void unloadRom();
 
