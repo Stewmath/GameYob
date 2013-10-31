@@ -827,11 +827,11 @@ void writeIO(u8 ioReg, u8 val)
                         serialCounter = 0;
                     return;
                 }
-                sendData = ioRam[0x01];
+                linkSendData = ioRam[0x01];
                 if (val & 0x80) {
                     if (transferWaiting) {
                         sendPacketByte(56, ioRam[0x01]);
-                        ioRam[0x01] = packetData;
+                        ioRam[0x01] = linkReceivedData;
                         requestInterrupt(SERIAL);
                         ioRam[ioReg] &= ~0x80;
                         transferWaiting = false;

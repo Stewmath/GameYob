@@ -1,5 +1,4 @@
 #pragma once
-#include "global.h"
 #include <stdio.h>
 
 /* All the possible MBC */

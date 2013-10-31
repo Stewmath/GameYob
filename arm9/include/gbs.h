@@ -1,5 +1,3 @@
-#include "global.h"
-
 extern bool gbsMode;
 extern u8 gbsHeader[0x70];
 

@@ -1,5 +1,4 @@
 #pragma once
-#include "global.h"
 
 extern volatile int dsFrameCounter;
 

@@ -286,12 +286,6 @@ void chan4Func(int value) {
     setChanEnabled(3, value);
 }
 
-void serialFunc(int value) {
-    ioRam[0x01] = packetData;
-    requestInterrupt(SERIAL);
-    ioRam[0x02] &= ~0x80;
-}
-
 void setRumbleFunc(int value) {
     rumbleStrength = value;
 

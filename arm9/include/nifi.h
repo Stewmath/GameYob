@@ -1,7 +1,7 @@
 #pragma once
 
-extern volatile int packetData;
-extern volatile int sendData;
+extern volatile int linkReceivedData;
+extern volatile int linkSendData;
 extern volatile bool transferWaiting;
 extern volatile bool transferReady;
 extern volatile bool receivedPacket;

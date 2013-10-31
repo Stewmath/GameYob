@@ -1,5 +1,3 @@
-#include "global.h"
-
 extern bool soundDisabled;
 extern bool hyperSound;
 
