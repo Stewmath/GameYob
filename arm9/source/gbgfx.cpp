@@ -1,3 +1,4 @@
+#include "printerIcon.h"
 #include "inputhelper.h"
 #include <string.h>
 #include <dirent.h>
@@ -688,6 +689,31 @@ void refreshSgbPalette() {
         }
     }
 }
+
+
+void displayIcon(int iconid) {
+    const u16* gfx;
+    const u16* pal;
+    int len = printerIconTilesLen; // Should always be the same
+
+    switch(iconid) {
+        case ICON_PRINTER:
+            gfx = printerIconTiles;
+            pal = printerIconPal;
+            break;
+        default:
+            sprites[40].attr0 = ATTR0_DISABLED;
+            return;
+    }
+
+    dmaCopy(gfx, SPRITE_GFX+0x200*16, len);
+    dmaCopy(pal, SPRITE_PALETTE+15*16, 16*2);
+
+    sprites[40].attr0 = screenOffsY;
+    sprites[40].attr1 = (screenOffsX + 160-32) | ATTR1_SIZE_32;
+    sprites[40].attr2 = 0x200 | ATTR2_PALETTE(15);
+}
+
 
 void selectBorder() {
     muteSND();

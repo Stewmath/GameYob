@@ -1,4 +1,5 @@
 #pragma once
+#include "global.h"
 
 #define GB			0
 #define CGB			1

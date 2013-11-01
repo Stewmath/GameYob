@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include "gbprinter.h"
+#include "gbgfx.h"
 #include "inputhelper.h"
 #include "nifi.h"
 #include "console.h"
@@ -31,7 +32,7 @@ u16 printerExpectedChecksum;
 u16 printerChecksum;
 
 int printerMargins;
-int lastPrinterMargins; // it's an int so that it can have a "nonexistant" value (never set).
+int lastPrinterMargins; // it's an int so that it can have a "nonexistant" value ("never set").
 u8 printerCmd2Index;
 u8 printerPalette;
 u8 printerExposure; // Ignored
@@ -235,6 +236,8 @@ u8 bmpHeader[] = { // Contains header data & palettes
 
 // Save the image as a 4bpp bitmap
 void printerSaveFile() {
+    displayIcon(ICON_PRINTER);
+
     // if "appending" is true, this image will be slapped onto the old one.
     // Pokemon games have a tendency to print an image in multiple goes.
     bool appending = false;
@@ -352,4 +355,5 @@ void printerSaveFile() {
 
     free(pixelData);
     printerGfxIndex = 0;
+    displayIcon(ICON_NULL);
 }

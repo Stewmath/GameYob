@@ -1,5 +1,6 @@
 #pragma once
 #include <stdio.h>
+#include "global.h"
 
 /* All the possible MBC */
 enum {
