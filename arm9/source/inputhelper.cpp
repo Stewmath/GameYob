@@ -609,6 +609,10 @@ u8* getRomBank(int bank) {
     return romBankSlots+bankSlotIDs[bank]*0x4000;
 }
 
+const char* getRomBasename() {
+    return basename;
+}
+
 void unloadRom() {
     doAtVBlank(clearGFX);
 

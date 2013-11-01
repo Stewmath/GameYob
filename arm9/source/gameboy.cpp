@@ -1,6 +1,6 @@
-#include <nds.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include "gbprinter.h"
 #include "gameboy.h"
 #include "common.h"
 #include "gbcpu.h"
@@ -344,21 +344,26 @@ void runEmul()
             serialCounter -= cycles;
             if (serialCounter <= 0) {
                 serialCounter = 0;
-                packetData = 0xff;
+                linkReceivedData = 0xff;
                 transferReady = true;
             }
             else
                 setEventCycles(serialCounter);
         }
         if (transferReady) {
-            if (!(ioRam[0x02] & 1)) {
-                sendPacketByte(56, sendData);
+            if (nifiEnabled) {
+                if (!(ioRam[0x02] & 1)) {
+                    sendPacketByte(56, linkSendData);
+                    timerStop(2);
+                }
             }
-            timerStop(2);
-            ioRam[0x01] = packetData;
+            else {
+                sendGbPrinterByte(ioRam[0x01]);
+            }
+            ioRam[0x01] = linkReceivedData;
             requestInterrupt(SERIAL);
             ioRam[0x02] &= ~0x80;
-            packetData = -1;
+            linkReceivedData = -1;
             transferReady = false;
         }
 
@@ -402,6 +407,8 @@ void initLCD()
     timerCounter = 0;
     dividerCounter = 256;
     serialCounter = 0;
+
+    initGbPrinter();
 
     // Timer stuff
     periods[0] = clockSpeed/4096;

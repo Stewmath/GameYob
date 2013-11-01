@@ -1,3 +1,4 @@
+#ifdef __GNUC__
 #pragma once
 
 // Interrupt definitions (used with requestInterrupt())
@@ -14,3 +15,4 @@ typedef unsigned short u16;
 typedef unsigned int u32;
 
 extern const int clockSpeed; 
+#endif

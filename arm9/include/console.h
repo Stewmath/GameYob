@@ -1,5 +1,7 @@
+#pragma once
 #include <stdarg.h>
 #include <stdio.h>
+#include <nds.h>
 
 extern bool nukeBorder;
 

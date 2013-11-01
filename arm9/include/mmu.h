@@ -1,7 +1,7 @@
 #pragma once
 #include "time.h"
-#include <stdio.h>
 #include "global.h"
+#include <stdio.h>
 
 #define MAX_SRAM_SIZE   0x8000
 

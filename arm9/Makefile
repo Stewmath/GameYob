@@ -7,6 +7,7 @@ endif
 
 include $(DEVKITARM)/ds_rules
 
+TARGET :=	gameyob
 #---------------------------------------------------------------------------------
 # BUILD is the directory where object files & intermediate files will be placed
 # SOURCES is a list of directories containing source code
@@ -18,7 +19,7 @@ BUILD		:=	build
 SOURCES		:=	source
 INCLUDES	:=	include ../include
 DATA		:=
-
+GFX			:= gfx/
 
 #---------------------------------------------------------------------------------
 # options for code generation
@@ -28,7 +29,7 @@ ARCH	:=	# -mthumb -mthumb-interwork	#This may cause some problem when there are 
 CFLAGS	:=	-Wall -Wno-psabi -DNO_VIZ\
  			-march=armv5te -mtune=arm946e-s -fomit-frame-pointer\
 			-ffast-math -O3 $(ARCH) \
-			-DVERSION_STRING=\"`git describe --always --abbrev=4`\" \
+			-DVERSION_STRING=\"`git describe --always --abbrev=4`\"
 			#-O3 -fpeel-loops -fno-pic -finline -fearly-inlining \
 
 CFLAGS	+=	$(INCLUDE) -DARM9 -DDS
@@ -61,12 +62,14 @@ export ARM9ELF	:=	$(CURDIR)/$(TARGET).elf
 export DEPSDIR	:=	$(CURDIR)/$(BUILD)
 
 export VPATH	:=	$(foreach dir,$(SOURCES),$(CURDIR)/$(dir)) \
-			$(foreach dir,$(DATA),$(CURDIR)/$(dir))
+					$(foreach dir,$(DATA),$(CURDIR)/$(dir)) \
+					$(foreach dir,$(GFX),$(CURDIR)/$(dir))
  
 CFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c)))
 CPPFILES	:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.cpp)))
 SFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.s)))
 BINFILES	:=	$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/*.*)))
+GFX_FILES   :=  $(foreach dir, $(GFX),$(notdir $(wildcard $(dir)/*.png)))
  
 #---------------------------------------------------------------------------------
 # use CXX for linking C++ projects, CC for standard C
@@ -82,7 +85,8 @@ else
 endif
 #---------------------------------------------------------------------------------
 
-export OFILES	:=	$(addsuffix .o,$(BINFILES)) \
+export OFILES	:=	$(GFX_FILES:.png=.o) \
+					$(addsuffix .o,$(BINFILES)) \
 					$(CPPFILES:.cpp=.o) $(CFILES:.c=.o) $(SFILES:.s=.o)
  
 export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
@@ -119,6 +123,12 @@ $(ARM9ELF)	:	$(OFILES)
 # Always rebuild version.cpp
 .FORCE:
 version.o: .FORCE
+
+
+#---------------------------------------------------------------------------------
+%.s %.h : %.png
+	grit $< -ff../gfx/icon.grit -o$*
+#---------------------------------------------------------------------------------
 
 
 #---------------------------------------------------------------------------------

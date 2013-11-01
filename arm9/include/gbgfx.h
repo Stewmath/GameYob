@@ -1,5 +1,9 @@
 #pragma once
-#include "global.h"
+
+enum Icons {
+    ICON_NULL=0,
+    ICON_PRINTER
+};
 
 extern volatile int dsFrameCounter;
 
@@ -24,6 +28,8 @@ void initGFXPalette();
 void refreshGFX();
 void clearGFX();
 void refreshSgbPalette();
+
+void displayIcon(int iconid);
 
 void selectBorder(); // Starts the file chooser for a border
 int loadBorder(const char* filename); // Loads the border to vram

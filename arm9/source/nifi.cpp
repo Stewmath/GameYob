@@ -7,8 +7,8 @@
 #include "gbcpu.h"
 #include "console.h"
 
-volatile int packetData=-1;
-volatile int sendData;
+volatile int linkReceivedData=-1;
+volatile int linkSendData;
 volatile bool transferWaiting = false;
 volatile bool transferReady = false;
 volatile int nifiSendid = 0;
@@ -46,7 +46,7 @@ void packetHandler(int packetID, int readlength)
         if (lastSendid == sendid) {
             if (!(ioRam[0x02] & 0x01)) {
                 nifiSendid--;
-                sendPacketByte(56, sendData);
+                sendPacketByte(56, linkSendData);
                 nifiSendid++;
             }
             return;
@@ -55,10 +55,10 @@ void packetHandler(int packetID, int readlength)
 
         if (command == 55 || command == 56) {
             //printLog("%d: Received %x\n", ioRam[0x02]&1, val);
-            packetData = val;
+            linkReceivedData = val;
         }
 
-        //packetData = 0;
+        //linkReceivedData = 0;
         switch(command) {
             // Command sent from "internal clock"
             case 55:
