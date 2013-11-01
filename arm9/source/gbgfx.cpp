@@ -35,6 +35,7 @@ u16* const overlayMap[2] = {BG_MAP_RAM(overlay_map_base[0]), BG_MAP_RAM(overlay_
 u16* const offMap = BG_MAP_RAM(off_map_base);
 u16* const borderMap = BG_MAP_RAM(border_map_base);
 
+const int firstGbSprite = 128-40;
 
 const int spr_priority = 2;
 const int spr_priority_low = 3;
@@ -473,7 +474,7 @@ void vblankHandler()
     if (iconTimeout != 0) {
         iconTimeout--;
         if (iconTimeout == 0) 
-            sprites[40].attr0 = ATTR0_DISABLED;
+            sprites[0].attr0 = ATTR0_DISABLED;
     }
 
     // Copy the list so that functions which access vblankTasks work.
@@ -534,7 +535,7 @@ void initGFX()
     // Off map palette
     BG_PALETTE[15*16+1] = RGB8(255,255,255);
 
-    for (int i=40; i<128; i++)
+    for (int i=0; i<128; i++)
         sprites[i].attr0 = ATTR0_DISABLED;
 
     initGFXPalette();
@@ -721,9 +722,9 @@ void displayIcon(int iconid) {
     dmaCopy(gfx, SPRITE_GFX+0x200*16, len);
     dmaCopy(pal, SPRITE_PALETTE+15*16, 16*2);
 
-    sprites[40].attr0 = screenOffsY;
-    sprites[40].attr1 = (screenOffsX + 160-32) | ATTR1_SIZE_32;
-    sprites[40].attr2 = 0x200 | ATTR2_PALETTE(15);
+    sprites[0].attr0 = screenOffsY;
+    sprites[0].attr1 = (screenOffsX + 160-32) | ATTR1_SIZE_32;
+    sprites[0].attr2 = 0x200 | ATTR2_PALETTE(15);
 }
 
 
@@ -1186,14 +1187,15 @@ void drawScreen()
 
 void drawSprites(u8* data, int tall) {
     for (int i=0; i<40; i++) {
+        int spriteIndex = i + firstGbSprite;
         int spriteNum = i*4;
         if (data[spriteNum] == 0)
-            sprites[i].attr0 = ATTR0_DISABLED;
+            sprites[spriteIndex].attr0 = ATTR0_DISABLED;
         else
         {
             int y = data[spriteNum]-16;
             if (y == -16) {
-                sprites[i].attr0 = 0;
+                sprites[spriteIndex].attr0 = 0;
             }
             else {
                 int tileNum = data[spriteNum+2];
@@ -1246,9 +1248,9 @@ void drawSprites(u8* data, int tall) {
                 }
 
                 int priorityVal = (priority ? spr_priority_low : spr_priority);
-                sprites[i].attr0 = (y+screenOffsY) | (tall<<15);
-                sprites[i].attr1 = ((x&0x1ff)+screenOffsX) | (flipX<<12) | (flipY<<13);
-                sprites[i].attr2 = (tileNum+(bank*0x100)) | (priorityVal<<10) | (paletteid<<12);
+                sprites[spriteIndex].attr0 = (y+screenOffsY) | (tall<<15);
+                sprites[spriteIndex].attr1 = ((x&0x1ff)+screenOffsX) | (flipX<<12) | (flipY<<13);
+                sprites[spriteIndex].attr2 = (tileNum+(bank*0x100)) | (priorityVal<<10) | (paletteid<<12);
             }
         }
     }
