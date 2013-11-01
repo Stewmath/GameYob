@@ -1,4 +1,5 @@
 #include <nds.h>
+#include "gbprinter.h"
 #include "console.h"
 #include "inputhelper.h"
 #include "filechooser.h"
@@ -40,6 +41,8 @@ int sgbModeOption=false;
 bool customBordersEnabled;
 bool sgbBordersEnabled;
 bool autoSavingEnabled;
+
+bool printerEnabled;
 
 volatile int consoleSelectedRow = -1;
 
@@ -118,10 +121,19 @@ void returnToLauncherFunc(int value) {
 void nifiEnableFunc(int value) {
     if (value) {
 		printMenuMessage("Warning: link emulation sucks.");
+        setMenuOption("GB Printer", 0);
         enableNifi();
 	}
     else
         disableNifi();
+}
+
+void printerEnableFunc(int value) {
+    if (value) {
+        setMenuOption("Wireless Link", 0);
+        initGbPrinter();
+    }
+    printerEnabled = value;
 }
 
 void cheatFunc(int value) {
@@ -347,13 +359,14 @@ ConsoleSubMenu menuList[] = {
     },
     {
         "Settings",
-        7,
+        8,
         {
             {"Key Config", keyConfigFunc, 0, {}, 0},
             {"Manage Cheats", cheatFunc, 0, {}, 0},
             {"Rumble Pak", setRumbleFunc, 4, {"Off","Low","Mid","High"}, 2},
             {"Console Output", consoleOutputFunc, 4, {"Off","Time","FPS+Time","Debug"}, 0},
             {"Wireless Link", nifiEnableFunc, 2, {"Off","On"}, 0},
+            {"GB Printer", printerEnableFunc, 2, {"Off","On"}, 1},
             {"Autosaving", setAutoSaveFunc, 2, {"Off","On"}, 1},
             {"Save Settings", saveSettingsFunc, 0, {}, 0}
         }

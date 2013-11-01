@@ -299,15 +299,13 @@ void resetGameboy() {
 void pauseGameboy() {
     if (!gameboyPaused) {
         gameboyPaused = true;
-        sharedData->fifosSent++;
-        fifoSendValue32(FIFO_USER_01, GBSND_MUTE_COMMAND<<20);
+        unmuteSND();
     }
 }
 void unpauseGameboy() {
     if (gameboyPaused) {
         gameboyPaused = false;
-        sharedData->fifosSent++;
-        fifoSendValue32(FIFO_USER_01, GBSND_MASTER_VOLUME_COMMAND<<20);
+        muteSND();
     }
 }
 bool isGameboyPaused() {
@@ -354,9 +352,11 @@ void runEmul()
                     timerStop(2);
                 }
             }
-            else {
+            else if (printerEnabled) {
                 sendGbPrinterByte(ioRam[0x01]);
             }
+            else
+                linkReceivedData = 0xff;
             ioRam[0x01] = linkReceivedData;
             requestInterrupt(SERIAL);
             ioRam[0x02] &= ~0x80;

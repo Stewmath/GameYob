@@ -13,6 +13,7 @@ extern int sgbModeOption;
 extern bool customBordersEnabled;
 extern bool sgbBordersEnabled;
 extern bool autoSavingEnabled;
+extern bool printerEnabled;
 extern int stateNum;
 extern PrintConsole* menuConsole;
 
