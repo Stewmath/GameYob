@@ -3,7 +3,6 @@
 
 typedef struct SharedData {
     int fifosSent, fifosReceived;
-    bool stalled; // true when arm9 is incapacitated, like when it's saving.
 
     // Scaling stuff
     u8 scalingOn;

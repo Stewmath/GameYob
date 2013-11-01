@@ -211,7 +211,6 @@ int main(int argc, char* argv[])
     sharedData = (SharedData*)memUncached(malloc(sizeof(SharedData)));
     sharedData->scalingOn = false;
     sharedData->enableSleepMode = true;
-    sharedData->stalled = false;
     // It might make more sense to use "fifoSendAddress" here.
     // However there may have been something wrong with it in dsi mode.
     fifoSendValue32(FIFO_USER_03, ((u32)sharedData)&0x00ffffff);

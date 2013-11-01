@@ -46,16 +46,14 @@ void updateChannel(int c);
 bool lidClosed = false;
 
 void VblankHandler(void) {
-    int i;
     sharedData->frameFlip_DS = !sharedData->frameFlip_DS;
     sharedData->dsCycles = 0;
-        do {
-            if (sharedData->stalled || !sharedData->scalingOn)
-                goto scaling_end;
-        } while (!sharedData->scaleTransferReady);
+
+    if (sharedData->scalingOn) {
         // Copy from vram bank D to C
         dmaCopyWords(3, (u16*)0x06000000+24*256, (u16*)0x06020000, 256*144*2);
-        sharedData->scaleTransferReady = 0;
+        sharedData->scaleTransferReady = false;
+    }
 
 scaling_end:
     Wifi_Update();
@@ -188,7 +186,6 @@ int main() {
     installGameboySoundFIFO();
 
 
-    // Keep the ARM7 mostly idle
     while (!exitflag) {
         if ( 0 == (REG_KEYINPUT & (KEY_SELECT | KEY_START | KEY_L | KEY_R))) {
             exitflag = true;

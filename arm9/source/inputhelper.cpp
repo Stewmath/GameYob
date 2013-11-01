@@ -730,9 +730,6 @@ int saveGame()
     if (numRamBanks == 0 || saveFile == NULL)
         return 0;
 
-    bool wasStalled = sharedData->stalled;
-    sharedData->stalled = true;
-
     fseek(saveFile, 0, SEEK_SET);
 
     fwrite(externRam, 1, 0x2000*numRamBanks, saveFile);
@@ -745,8 +742,6 @@ int saveGame()
     }
 
     flushFatCache();
-
-    sharedData->stalled = wasStalled;
 
     return 0;
 }

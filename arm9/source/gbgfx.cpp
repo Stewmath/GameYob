@@ -438,18 +438,18 @@ void doAtVBlank(void (*func)(void)) {
 bool filterFlip=false;
 void vblankHandler()
 {
-    dsFrameCounter++;
-    didVblank = true;
     if (sharedData->scalingOn) {
-        // Capture the main display into vram bank D
-        REG_DISPCAPCNT = 15 | 3<<16 | 0<<18 | 3<<20 | 0<<29 | 1<<31;
-
         // Leave the DMA copying for arm7.
         //dmaCopyWordsAsynch(0, (u16*)0x06860000+24*256, (u16*)0x06200000, 144*256*2);
         vramSetBankD(VRAM_D_ARM7_0x06000000);
         vramSetBankC(VRAM_C_ARM7_0x06020000);
         sharedData->scaleTransferReady = true;
+
+        // Capture the main display into vram bank D
+        REG_DISPCAPCNT = 15 | 3<<16 | 0<<18 | 3<<20 | 0<<29 | 1<<31;
     }
+    didVblank = true;
+    dsFrameCounter++;
 
     memset(lineCompleted, 0, sizeof(lineCompleted));
     if (scaleFilter == 1) {
