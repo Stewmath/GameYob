@@ -39,7 +39,7 @@ u8 printerExposure; // Ignored
 
 int numPrinted; // Corresponds to the number after the filename
 
-int printCounter; // Timer until the printer "stops printing".
+int printCounter=0; // Timer until the printer "stops printing".
 
 // Local functions
 void resetGbPrinter();
@@ -66,6 +66,7 @@ void resetGbPrinter() {
     printerStatus = 0;
     printerGfxIndex = 0;
     memset(printerGfx, 0, sizeof(printerGfx));
+    printCounter = 0;
 }
 
 
@@ -93,8 +94,6 @@ void printerSendVariableLenData(u8 dat) {
         case 0x4: // Fill buffer
             if (printerGfxIndex < PRINTER_WIDTH*PRINTER_HEIGHT/4) {
                 printerGfx[printerGfxIndex++] = dat;
-                if (printerGfxIndex >= 0x280)
-                    printerStatus |= PRINTER_STATUS_READY;
             }
             break;
     }
@@ -197,10 +196,8 @@ void sendGbPrinterByte(u8 dat) {
                 case 1: // Initialize
                     resetGbPrinter();
                     break;
-                case 2: // Start printing
-                    printerStatus &= ~PRINTER_STATUS_READY;
-                    printerStatus |= PRINTER_STATUS_REQUESTED;
-                    printerSaveFile();
+                case 2: // Start printing (after a short delay)
+                    printCounter = 1;
                     break;
                 case 4: // Fill buffer
                     // Data has been read, nothing more to do
@@ -208,6 +205,12 @@ void sendGbPrinterByte(u8 dat) {
             }
 
             linkReceivedData = printerStatus;
+
+            // The received value apparently shouldn't contain this until next 
+            // packet.
+            if (printerGfxIndex >= 0x280)
+                printerStatus |= PRINTER_STATUS_READY;
+
             goto endPacket;
     }
 
@@ -359,14 +362,22 @@ void printerSaveFile() {
     printerGfxIndex = 0;
     displayIcon(ICON_NULL);
 
-    printerStatus |= PRINTER_STATUS_PRINTING;
-    printCounter = 30; // Pretend to be printing for this many frames
+    printCounter = height*2; // PRINTER_STATUS_PRINTING will be unset after this many frames
 }
 
 void updateGbPrinter() {
-    if (printerStatus & PRINTER_STATUS_PRINTING) {
+    if (printCounter != 0) {
         printCounter--;
-        if (printCounter == 0)
-            printerStatus &= ~PRINTER_STATUS_PRINTING;
+        if (printCounter == 0) {
+            if (printerStatus & PRINTER_STATUS_PRINTING) {
+                printerStatus &= ~PRINTER_STATUS_PRINTING;
+            }
+            else {
+                printerStatus |= PRINTER_STATUS_REQUESTED;
+                printerStatus |= PRINTER_STATUS_PRINTING;
+                printerStatus &= ~PRINTER_STATUS_READY;
+                printerSaveFile();
+            }
+        }
     }
 }
