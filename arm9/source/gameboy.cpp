@@ -222,6 +222,8 @@ void gameboyUpdateVBlank() {
 
 		if (cheatsEnabled)
 			applyGSCheats();
+
+        updateGbPrinter();
 	}
 
     if (isConsoleOn() && !isMenuOn() && !consoleDebugOutput && (rawTime > lastRawTime))

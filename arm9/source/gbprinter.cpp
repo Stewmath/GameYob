@@ -39,6 +39,8 @@ u8 printerExposure; // Ignored
 
 int numPrinted; // Corresponds to the number after the filename
 
+int printCounter; // Timer until the printer "stops printing".
+
 // Local functions
 void resetGbPrinter();
 void printerSendVariableLenData();
@@ -356,4 +358,15 @@ void printerSaveFile() {
     free(pixelData);
     printerGfxIndex = 0;
     displayIcon(ICON_NULL);
+
+    printerStatus |= PRINTER_STATUS_PRINTING;
+    printCounter = 30; // Pretend to be printing for this many frames
+}
+
+void updateGbPrinter() {
+    if (printerStatus & PRINTER_STATUS_PRINTING) {
+        printCounter--;
+        if (printCounter == 0)
+            printerStatus &= ~PRINTER_STATUS_PRINTING;
+    }
 }
