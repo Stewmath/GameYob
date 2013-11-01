@@ -105,6 +105,8 @@ int SCALE_BGX, SCALE_BGY;
 bool lastScreenDisabled;
 bool screenDisabled;
 
+int iconTimeout=0;
+
 
 void drawSprites(u8* data, int tallSprites);
 void drawTile(int tile, int bank);
@@ -468,6 +470,12 @@ void vblankHandler()
         filterFlip = !filterFlip;
     }
 
+    if (iconTimeout != 0) {
+        iconTimeout--;
+        if (iconTimeout == 0) 
+            sprites[40].attr0 = ATTR0_DISABLED;
+    }
+
     // Copy the list so that functions which access vblankTasks work.
     std::vector<void (*)()> tasks = vblankTasks;
     vblankTasks.clear();
@@ -697,14 +705,18 @@ void displayIcon(int iconid) {
     int len = printerIconTilesLen; // Should always be the same
 
     switch(iconid) {
+        case ICON_NULL:
+            iconTimeout = 60;
+            return;
         case ICON_PRINTER:
             gfx = printerIconTiles;
             pal = printerIconPal;
             break;
         default:
-            sprites[40].attr0 = ATTR0_DISABLED;
             return;
     }
+
+    iconTimeout = 0;
 
     dmaCopy(gfx, SPRITE_GFX+0x200*16, len);
     dmaCopy(pal, SPRITE_PALETTE+15*16, 16*2);
