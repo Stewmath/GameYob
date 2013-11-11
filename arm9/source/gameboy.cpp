@@ -179,10 +179,14 @@ void gameboyUpdateVBlank() {
             gbsCheckInput();
     }
 
-    while (gameboyPaused) {
-        swiWaitForVBlank();
-        readKeys();
-        updateMenu();
+    if (gameboyPaused) {
+        muteSND();
+        while (gameboyPaused) {
+            swiWaitForVBlank();
+            readKeys();
+            updateMenu();
+        }
+        unmuteSND();
     }
 
 	if (gbsMode) {
@@ -299,13 +303,11 @@ void resetGameboy() {
 void pauseGameboy() {
     if (!gameboyPaused) {
         gameboyPaused = true;
-        unmuteSND();
     }
 }
 void unpauseGameboy() {
     if (gameboyPaused) {
         gameboyPaused = false;
-        muteSND();
     }
 }
 bool isGameboyPaused() {
