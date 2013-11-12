@@ -53,7 +53,7 @@ extern char* borderPath;
 
 void initInput();
 void flushFatCache();
-void writeSaveFileSector(int sector);
+void writeSaveFileSector(int startSector, int numSectors);
 
 void startKeyConfigChooser();
 bool readConfigFile();
@@ -77,7 +77,10 @@ const char* getRomBasename();
 void unloadRom();
 
 int loadSave();
-int saveGame();
+int saveGame(); // Write the whole save file in one go
+void gameboySyncAutosave(); // Update dirty parts of the save file
+void updateAutosave(); // Check if autosaving should by sync'ed this frame
+
 char* getRomTitle();
 void printRomInfo();
 

@@ -52,10 +52,6 @@ bool probingForBorder=false;
 
 int gameboyFrameCounter;
 
-bool wroteToSramThisFrame=false;
-int framesSinceAutosaveStarted=0;
-
-
 void setEventCycles(int cycles) {
     if (cycles < cyclesToEvent) {
         cyclesToEvent = cycles;
@@ -211,18 +207,7 @@ void gameboyUpdateVBlank() {
 			return;
         }
 
-        if (autosaveStarted)
-            framesSinceAutosaveStarted++;
-		// Check autosaving stuff
-		if (framesSinceAutosaveStarted >= 120 ||     // Executes when sram is written to for 120 consecutive frames, or
-                (!saveModified && wroteToSramThisFrame)) { // when a full frame has passed since sram was last written to.
-            gameboySyncAutosave();
-		}
-		if (saveModified) {
-			wroteToSramThisFrame = true;
-            autosaveStarted = true;
-			saveModified = false;
-		}
+        updateAutosave();
 
 		if (cheatsEnabled)
 			applyGSCheats();
@@ -261,37 +246,6 @@ void gameboyUpdateVBlank() {
         }
         lastRawTime = rawTime;
     }
-}
-
-void gameboySyncAutosave() {
-    if (!autosaveStarted)
-        return;
-
-    numSaveWrites = 0;
-    wroteToSramThisFrame = false;
-
-    int numSectors = 0;
-    // iterate over each 512-byte sector
-    for (int i=0; i<numRamBanks*0x2000/512; i++) {
-        if (dirtySectors[i]) {
-            dirtySectors[i] = false;
-            numSectors++;
-
-            /*
-            fseek(saveFile, i*512, SEEK_SET);
-            fwrite(externRam+i*512, 1, 512, saveFile);
-            */
-            // Bypass libfat's cache to write to the save file directly.
-            // The cache should be usually be empty, or else it will overwrite 
-            // what's being written now at a later time.
-            writeSaveFileSector(i);
-        }
-    }
-    printLog("SAVE %d sectors\n", numSectors);
-    flushFatCache(); // This should do nothing, unless the RTC was written to.
-
-    framesSinceAutosaveStarted = 0;
-    autosaveStarted = false;
 }
 
 // This function can be called from weird contexts, so just set a flag to deal 

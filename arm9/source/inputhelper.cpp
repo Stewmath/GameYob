@@ -88,8 +88,8 @@ void flushFatCache() {
 
 // This bypasses libfat's cache to directly write a single sector of the save 
 // file. This reduces lag.
-void writeSaveFileSector(int sector) {
-    if (saveFileSectors[sector] == -1) {
+void writeSaveFileSectors(int startSector, int numSectors) {
+    if (saveFileSectors[startSector] == -1) {
         flushFatCache();
         return;
     }
@@ -97,7 +97,7 @@ void writeSaveFileSector(int sector) {
     PARTITION* partition = (PARTITION*)devops->deviceData;
     CACHE* cache = partition->cache;
 
-	_FAT_disc_writeSectors(cache->disc, saveFileSectors[sector], 1, externRam+sector*512);
+	_FAT_disc_writeSectors(cache->disc, saveFileSectors[startSector], numSectors, externRam+startSector*512);
 }
 
 
@@ -722,6 +722,11 @@ int loadSave()
         }
     }
 
+    if (numRamBanks == 1) {
+        writeSaveFileSectors(0, 8);
+        writeSaveFileSectors(8, 8);
+    }
+
     return 0;
 }
 
@@ -745,6 +750,59 @@ int saveGame()
 
     return 0;
 }
+
+bool wroteToSramThisFrame=false;
+int framesSinceAutosaveStarted=0;
+
+void gameboySyncAutosave() {
+    if (!autosaveStarted)
+        return;
+
+    numSaveWrites = 0;
+    wroteToSramThisFrame = false;
+
+    int numSectors = 0;
+    // iterate over each 512-byte sector
+    for (int i=0; i<numRamBanks*0x2000/512; i++) {
+        if (dirtySectors[i]) {
+            dirtySectors[i] = false;
+
+            // If only 1 bank, it seems more efficient to write multiple sectors 
+            // at once - at least, on the Acekard 2i.
+            if (numRamBanks == 1) {
+                writeSaveFileSectors(i/8*8, 8);
+                for (int j=i; j<(i/8*8)+8; j++)
+                    dirtySectors[j] = false;
+            }
+            else {
+                // For bigger saves, writing one sector at a time seems to work better.
+                writeSaveFileSectors(i, 1);
+                numSectors++;
+            }
+        }
+    }
+    printLog("SAVE %d sectors\n", numSectors);
+    flushFatCache(); // This should do nothing, unless the RTC was written to.
+
+    framesSinceAutosaveStarted = 0;
+    autosaveStarted = false;
+}
+
+void updateAutosave() {
+    if (autosaveStarted)
+        framesSinceAutosaveStarted++;
+
+    if (framesSinceAutosaveStarted >= 120 ||     // Executes when sram is written to for 120 consecutive frames, or
+        (!saveModified && wroteToSramThisFrame)) { // when a full frame has passed since sram was last written to.
+        gameboySyncAutosave();
+    }
+    if (saveModified) {
+        wroteToSramThisFrame = true;
+        autosaveStarted = true;
+        saveModified = false;
+    }
+}
+
 
 bool keyPressed(int key) {
     return keysPressed&key;
