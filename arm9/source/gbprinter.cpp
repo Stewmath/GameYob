@@ -244,7 +244,7 @@ void printerSaveFile() {
     displayIcon(ICON_PRINTER);
 
     // if "appending" is true, this image will be slapped onto the old one.
-    // Pokemon games have a tendency to print an image in multiple goes.
+    // Some games have a tendency to print an image in multiple goes.
     bool appending = false;
     if (lastPrinterMargins != -1 &&
             (lastPrinterMargins&0x0f) == 0 &&   // Last printed item left 0 space after
@@ -256,9 +256,18 @@ void printerSaveFile() {
     char filename[300];
     while (true) {
         siprintf(filename, "%s-%d.bmp", getRomBasename(), numPrinted);
-        if (access(filename, R_OK) != 0 // If the file doesn't exist, we're done searching.
-                || appending)           // If appending, the last file written to is already selected.
-            break;
+        if (appending ||                        // If appending, the last file written to is already selected.
+                access(filename, R_OK) != 0) {  // Else, if the file doesn't exist, we're done searching.
+
+            if (appending && access(filename, R_OK) != 0) {
+                // This is a failsafe, this shouldn't happen
+                appending = false;
+                printLog("The image to be appended do doesn't exist!");
+                continue;
+            }
+            else
+                break;
+        }
         numPrinted++;
     }
 
@@ -360,7 +369,6 @@ void printerSaveFile() {
 
     free(pixelData);
     printerGfxIndex = 0;
-    displayIcon(ICON_NULL);
 
     printCounter = height*2; // PRINTER_STATUS_PRINTING will be unset after this many frames
 }
@@ -371,6 +379,7 @@ void updateGbPrinter() {
         if (printCounter == 0) {
             if (printerStatus & PRINTER_STATUS_PRINTING) {
                 printerStatus &= ~PRINTER_STATUS_PRINTING;
+                displayIcon(ICON_NULL); // Disable the printing icon
             }
             else {
                 printerStatus |= PRINTER_STATUS_REQUESTED;
