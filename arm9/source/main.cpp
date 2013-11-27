@@ -63,6 +63,7 @@ void selectRom() {
         biosExists = file != NULL;
         if (biosExists) {
             fread(bios, 1, 0x900, file);
+            fclose(file);
         }
     }
 

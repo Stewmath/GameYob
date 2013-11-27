@@ -325,7 +325,7 @@ void generalParseConfig(const char* line) {
         }
         else if (strcmpi(parameter, "borderfile") == 0) {
             if (borderPath != 0)
-                free(biosPath);
+                free(borderPath);
             borderPath = (char*)malloc(strlen(value)+1);
             strcpy(borderPath, value);
         }
