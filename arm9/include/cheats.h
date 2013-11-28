@@ -18,7 +18,7 @@ typedef struct cheat_t {
 } cheat_t;
 
 
-#define MAX_CHEATS      1000
+#define MAX_CHEATS      900
 #define FLAG_ENABLED    (1<<0)
 #define FLAG_TYPE_MASK  (3<<2)
 #define FLAG_GAMEGENIE  (1<<2)
