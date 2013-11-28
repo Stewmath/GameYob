@@ -69,8 +69,6 @@ void initInput()
     fatInit(FAT_CACHE_SIZE, true);
     //fatInitDefault();
 
-    chdir("/lameboy"); // Default rom directory
-
     if (__dsimode)
         maxLoadedRomBanks = 512; // 8 megabytes
     else
@@ -314,7 +312,7 @@ void generalParseConfig(const char* line) {
                 free(romPath);
             romPath = (char*)malloc(strlen(value)+1);
             strcpy(romPath, value);
-            chdir(romPath);
+            romChooserState.directory = romPath;
         }
         else if (strcmpi(parameter, "biosfile") == 0) {
             if (biosPath != 0)

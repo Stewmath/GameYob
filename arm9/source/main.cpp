@@ -57,6 +57,13 @@ void fifoValue32Handler(u32 value, void* user_data) {
 
 
 void selectRom() {
+    unloadRom();
+
+    loadFileChooserState(&romChooserState);
+    const char* extraExtensions[] = {"gbs"};
+    char* filename = startFileChooser(extraExtensions, true);
+    saveFileChooserState(&romChooserState);
+
     if (!biosExists) {
         FILE* file;
         file = fopen("gbc_bios.bin", "rb");
@@ -67,10 +74,6 @@ void selectRom() {
         }
     }
 
-    unloadRom();
-
-    const char* extraExtensions[] = {"gbs"};
-    char* filename = startFileChooser(extraExtensions, true);
     loadRom(filename);
     free(filename);
 

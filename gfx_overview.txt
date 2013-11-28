@@ -49,3 +49,5 @@ Base 8: Unsigned tiles, bank 0 (colors 0-3)
 Base 9: Unsigned tiles, bank 1 (colors 0-3)
 Base 10: Signed tiles, bank 0 (colors 0-3)
 Base 11: Signed tiles, bank 1 (colors 0-3)
+
+Base 12+: Super Gameboy border tiles

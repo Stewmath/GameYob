@@ -14,12 +14,18 @@
 
 using namespace std;
 
+// Public "states"
+FileChooserState romChooserState = {0,"/lameboy"};
+FileChooserState borderChooserState = {0,"/"};
+
+// Private stuff
 const int MAX_FILENAME_LEN = 100;
 int filesPerPage = 24;
 int numFiles;
 int scrollY=0;
 int fileSelection=0;
 bool fileChooserOn=false;
+string matchFile;
 
 void updateScrollDown() {
     if (fileSelection >= numFiles)
@@ -290,6 +296,21 @@ char* startFileChooser(const char* extensions[], bool romExtensions, bool canQui
         }
 
         quickSort(filenames, flags, nameSortFunction, 0, numFiles - 1);
+
+        if (fileSelection >= numFiles)
+            fileSelection = 0;
+
+        if (!matchFile.empty()) {
+            for (int i=0; i<numFiles; i++) {
+                if (matchFile == filenames[i]) {
+                    fileSelection = i;
+                    break;
+                }
+            }
+
+            matchFile = "";
+        }
+
         // Done reading files
 
         scrollY=0;
@@ -340,10 +361,13 @@ char* startFileChooser(const char* extensions[], bool romExtensions, bool canQui
                 readKeys();
                 if (keyJustPressed(KEY_A)) {
                     if (flags[fileSelection] & FLAG_DIRECTORY) {
+                        if (strcmp(filenames[fileSelection], "..") == 0)
+                            goto lowerDirectory;
                         closedir(dp);
                         dp = opendir(filenames[fileSelection]);
                         chdir(filenames[fileSelection]);
                         readDirectory = true;
+                        fileSelection = 1;
                         break;
                     }
                     else {
@@ -360,6 +384,12 @@ char* startFileChooser(const char* extensions[], bool romExtensions, bool canQui
                 }
                 else if (keyJustPressed(KEY_B)) {
                     if (numFiles >= 1 && strcmp(filenames[0], "..") == 0) {
+lowerDirectory:
+                        // Select this directory when going up
+                        getcwd(cwd, 256);
+                        *(strrchr(cwd, '/')) = '\0';
+                        matchFile = string(strrchr(cwd, '/')+1);
+
                         closedir(dp);
                         dp = opendir("..");
                         chdir("..");
@@ -403,7 +433,6 @@ char* startFileChooser(const char* extensions[], bool romExtensions, bool canQui
         for (int i=0; i<numFiles; i++) {
             free(filenames[i]);
         }
-        fileSelection = 0;
     }
 end:
     closedir(dp);
@@ -413,18 +442,22 @@ end:
     return retval;
 }
 
-int savedFileSelection;
-char savedCwd[256];
-void saveFileChooserStatus() {
-    savedFileSelection = fileSelection;
-    fileSelection = 1;
-    getcwd(savedCwd, 256);
-}
-void loadFileChooserStatus() {
-    fileSelection = savedFileSelection;
-    chdir(savedCwd);
-}
-
 bool isFileChooserOn() {
     return fileChooserOn;
+}
+
+void setFileChooserMatchFile(const char* filename) {
+    matchFile = filename;
+}
+
+
+void saveFileChooserState(FileChooserState* state) {
+    char cwd[256];
+    getcwd(cwd, 256);
+    state->selection = fileSelection;
+    state->directory = cwd;
+}
+void loadFileChooserState(FileChooserState* state) {
+    fileSelection = state->selection;
+    chdir(state->directory.c_str());
 }

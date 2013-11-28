@@ -98,6 +98,7 @@ bool hblankDisabled = false;
 int scaleMode;
 int scaleFilter=1;
 u8 gfxMask;
+
 volatile int loadedBorderType; // This is read from hblank
 bool customBorderExists = true;
 
@@ -720,16 +721,15 @@ void displayIcon(int iconid) {
 
 void selectBorder() {
     muteSND();
-    saveFileChooserStatus();
 
-    if (borderPath == NULL)
-        chdir("/");
-    else {
+    if (borderChooserState.directory == "/" && borderPath != NULL) {
         char dest[256];
         strcpy(dest, borderPath);
+        setFileChooserMatchFile(strrchr(dest, '/')+1);
         *(strrchr(dest, '/')+1) = '\0';
-        chdir(dest);
+        borderChooserState.directory = dest;
     }
+    loadFileChooserState(&borderChooserState);
 
     const char* extensions[] = {"bmp"};
     char* filename = startFileChooser(extensions, false, true);
@@ -747,9 +747,11 @@ void selectBorder() {
         checkBorder();
     }
 
-    loadFileChooserStatus();
+    saveFileChooserState(&borderChooserState);
+
     unmuteSND();
 }
+
 
 int loadBorder(const char* filename) {
     FILE* file = fopen(filename, "rb");
