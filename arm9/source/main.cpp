@@ -77,8 +77,6 @@ void selectRom() {
     loadRom(filename);
     free(filename);
 
-    updateScreens();
-
     initializeGameboyFirstTime();
 }
 
