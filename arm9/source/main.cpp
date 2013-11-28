@@ -77,6 +77,8 @@ void selectRom() {
     loadRom(filename);
     free(filename);
 
+    updateScreens();
+
     initializeGameboyFirstTime();
 }
 
@@ -232,13 +234,12 @@ int main(int argc, char* argv[])
     if (argc >= 2) {
         char* filename = argv[1];
         loadRom(filename);
+        updateScreens();
         initializeGameboyFirstTime();
     }
     else {
         selectRom();
     }
-
-    updateScreens();
 
     runEmul();
 

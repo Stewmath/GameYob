@@ -29,6 +29,8 @@ const int overlay_map_base[] = {5, 6};
 const int off_map_base = 7;
 const int border_map_base = 8;
 
+const int OFF_MAP_PALETTE_INDEX = 15*16+1;
+
 u16* const map[2] = {BG_MAP_RAM(map_base[0]), BG_MAP_RAM(map_base[1])};
 u16* const color0Map[2] = {BG_MAP_RAM(color0_map_base[0]), BG_MAP_RAM(color0_map_base[1])};
 u16* const overlayMap[2] = {BG_MAP_RAM(overlay_map_base[0]), BG_MAP_RAM(overlay_map_base[1])};
@@ -206,6 +208,10 @@ void drawLine(int gbLine) {
                     if (usingTilePriority[state->bgMap]) {
                         winLayers = 1;
                         bgLayers = 2;
+                    }
+                    else if (usingTilePriority[state->winMap]) {
+                        winLayers = 2;
+                        bgLayers = 1;
                     }
                     else {
                         winLayers = 1;
@@ -385,6 +391,8 @@ void doHBlank(int line) {
         else
             setBackdropColorSub(RGB15(0,0,0));
     }
+    else if (consoleSelectedRow == -1)
+        setBackdropColorSub(RGB15(0,0,0));
 
     if (gbGraphicsDisabled || hblankDisabled)
         return;
@@ -526,7 +534,7 @@ void initGFX()
         offMap[i] = 15<<12;
     }
     // Off map palette
-    BG_PALETTE[15*16+1] = RGB8(255,255,255);
+    BG_PALETTE[OFF_MAP_PALETTE_INDEX] = RGB8(255,255,255);
 
     for (int i=0; i<128; i++)
         sprites[i].attr0 = ATTR0_DISABLED;
@@ -623,11 +631,16 @@ void refreshGFX() {
 }
 
 void clearGFX() {
+    memset(scanlineBuffers, 0, sizeof(scanlineBuffers));
     for (int i=0; i<(loadedBorderType?3:4); i++)
         videoBgDisable(i);
     REG_DISPCNT &= ~DISPLAY_SPR_ACTIVE;
-    setBackdropColor(BACKDROP_COLOUR);
-    memset(scanlineBuffers, 0, sizeof(scanlineBuffers));
+
+    // Blacken the screen.
+    // I could use the backdrop, but that messes with SGB borders.
+    BG_PALETTE[OFF_MAP_PALETTE_INDEX] = 0;
+    BG_CNT(0) = BG_MAP_BASE(off_map_base) | 3;
+    videoBgEnable(0);
 }
 
 // SGB palettes can't quite be perfect because SGB doesn't (necessarily) align 

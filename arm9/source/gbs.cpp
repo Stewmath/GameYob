@@ -31,7 +31,7 @@ extern PrintConsole defaultConsole; // Defined in libnds
 void gbsRedraw() {
     //consoleClear();
     
-    consoleSelect(gbsConsole);
+    setPrintConsole(gbsConsole);
     iprintf("\33[0;0H"); // Cursor to upper-left corner
 
     iprintf("Song %d of %d\33[0K\n", gbsSelectedSong+1, gbsNumSongs);
@@ -51,8 +51,6 @@ void gbsRedraw() {
         }
         iprintf("\n");
     }
-
-    consoleSelect(NULL);
 }
 
 void gbsLoadSong() {

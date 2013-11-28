@@ -140,6 +140,15 @@ void gameboyCheckInput() {
     if (keyJustPressed(mapGbKey(KEY_FAST_FORWARD_TOGGLE)))
         fastForwardMode = !fastForwardMode;
 
+    if (advanceFrame || keyJustPressed(mapGbKey(KEY_MENU) | KEY_TOUCH)) {
+        advanceFrame = 0;
+        forceReleaseKey(0xffff);
+        fastForwardKey = false;
+        fastForwardMode = false;
+        buttonsPressed = 0xff;
+        displayMenu();
+    }
+
     if (keyJustPressed(mapGbKey(KEY_SCALE))) {
         setMenuOption("Scaling", !getMenuOption("Scaling"));
     }
@@ -149,13 +158,6 @@ void gameboyCheckInput() {
     }
     else {
         sharedData->hyperSound = hyperSound;
-    }
-
-    if (advanceFrame || keyJustPressed(mapGbKey(KEY_MENU) | KEY_TOUCH)) {
-        advanceFrame = 0;
-        forceReleaseKey(0xffff);
-        buttonsPressed = 0xff;
-        displayMenu();
     }
 
     if (keyJustPressed(mapGbKey(KEY_RESET)))

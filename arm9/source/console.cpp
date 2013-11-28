@@ -437,15 +437,13 @@ void setMenuDefaults() {
 
 void displayMenu() {
     menuOn = true;
-    fastForwardMode = false;
     if (checkRumble())
         enableMenuOption("Rumble Pak");
     else
         disableMenuOption("Rumble Pak");
-    // Enable backlight if necessary, and delay as necessary if the console
-    // needs to be initialized.
-    updateScreens(!consoleInitialized);
-    redrawMenu();
+
+    updateScreens();
+    doAtVBlank(redrawMenu);
 }
 void closeMenu() {
     menuOn = false;
@@ -550,7 +548,7 @@ void redrawMenu() {
         printMessage[0] = '\0';
     }
 
-    consoleSelect(oldConsole);
+    setPrintConsole(oldConsole);
 }
 
 // Called each vblank while the menu is on
@@ -828,7 +826,7 @@ void setupUnscaledScreens() {
 
 void updateScreens(bool waitToFinish) {
     if (!gbsMode && !isMenuOn() && !isFileChooserOn() && scaleMode != 0) {
-        // Manage screens in the case that scaling is enabled:
+        // Manage screens with scaling enabled:
         sharedData->scalingOn = 1;
 
         // The VRAM used for the console will be overwritten, so...
