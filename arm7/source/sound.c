@@ -6,6 +6,7 @@
 #include <nds/timers.h>
 #include "common.h"
 
+// The lower this value, the more often sound will be synchronized.
 #define SOUND_RESOLUTION 150
 
 int channels[4] = {8,9,0,14};
@@ -216,7 +217,8 @@ void doCommand(u32 command) {
 
         case GBSND_UNMUTE_COMMAND:
             for (i=0; i<4; i++) {
-                setChannelVolume(i, true);
+                if ((sharedData->chanOn & (1<<i)) && sharedData->chanEnabled[i])
+                    setChannelVolume(i, true);
             }
             break;
 
