@@ -370,7 +370,9 @@ void printerSaveFile() {
     free(pixelData);
     printerGfxIndex = 0;
 
-    printCounter = height*2; // PRINTER_STATUS_PRINTING will be unset after this many frames
+    printCounter = height; // PRINTER_STATUS_PRINTING will be unset after this many frames
+    if (printCounter == 0)
+        printCounter = 1;
 }
 
 void updateGbPrinter() {
