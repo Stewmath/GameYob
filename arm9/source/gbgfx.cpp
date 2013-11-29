@@ -432,7 +432,8 @@ void vcountHandler() {
     if (gbGraphicsDisabled)
         return;
     // Draw the first gameboy line early (physical line 24)
-    drawLine(0);
+    if (drawingState[0].modified)
+        drawLine(0);
     lineCompleted[0] = true;
 }
 
@@ -499,17 +500,14 @@ void loadSGBBorder() {
 
 void initGFX()
 {
-    if (gbsMode)
-        gbGraphicsDisabled = true;
-    else
-        gbGraphicsDisabled = false;
-
     vramSetBankA(VRAM_A_MAIN_BG);
     vramSetBankB(VRAM_B_MAIN_BG);
     vramSetBankE(VRAM_E_MAIN_SPRITE);
 
     REG_DISPSTAT &= 0xFF;
     REG_DISPSTAT |= 235<<8;     // Set line 235 for vcount
+
+    gbGraphicsDisabled = true;
 
     irqEnable(IRQ_VCOUNT);
     irqEnable(IRQ_HBLANK);
@@ -518,8 +516,10 @@ void initGFX()
     irqSet(IRQ_HBLANK, &hblankHandler);
     irqSet(IRQ_VBLANK, &vblankHandler);
 
-    if (gbGraphicsDisabled)
+    if (gbsMode) {
+        gbGraphicsDisabled = true;
         return;
+    }
 
     // Tile for "color0 maps", which contain only the gameboy's color 0.
     for (int i=0; i<16; i++) {
@@ -532,14 +532,17 @@ void initGFX()
         offMap[i] = 15<<12;
     }
     // Off map palette
-    BG_PALETTE[OFF_MAP_PALETTE_INDEX] = RGB8(255,255,255);
+    BG_PALETTE[OFF_MAP_PALETTE_INDEX] = RGB15(31,31,31);
 
     for (int i=0; i<128; i++)
         sprites[i].attr0 = ATTR0_DISABLED;
 
     initGFXPalette();
 
-    WIN_IN = (1<<4) | (1<<12);
+    gbGraphicsDisabled = true;
+    swiWaitForVBlank();
+
+    WIN_IN = (1<<4) | (1<<12) | 1;
     WIN_OUT = 1<<3;
     WIN1_X0 = screenOffsX;
     WIN1_X1 = screenOffsX+160;
@@ -552,51 +555,58 @@ void initGFX()
 
     int mode = (loadedBorderType == BORDER_CUSTOM ? MODE_3_2D : MODE_0_2D);
     videoSetMode(mode | DISPLAY_BG0_ACTIVE | DISPLAY_BG1_ACTIVE | DISPLAY_BG2_ACTIVE | DISPLAY_BG3_ACTIVE |
-            DISPLAY_WIN0_ON | DISPLAY_WIN1_ON | DISPLAY_SPR_ACTIVE | DISPLAY_SPR_1D);
+            DISPLAY_WIN0_ON | DISPLAY_WIN1_ON | DISPLAY_SPR_1D);
     if (sharedData->scalingOn)
         REG_DISPCNT &= ~(3<<16); // Main display is disabled when scaling is on
 
-    checkBorder();
-
     memset(vram[0], 0, 0x2000);
     memset(vram[1], 0, 0x2000);
+    for (int i=0; i<144; i++) {
+        scanlineBuffers[0][i].modified = false;
+        scanlineBuffers[1][i].modified = false;
+    }
+    gbGraphicsDisabled = false;
 
     gfxMask = 0;
 
+    checkBorder();
     refreshGFX();
 }
 
 void initGFXPalette() {
-    sprPaletteData[0] = 0xff;
-    sprPaletteData[1] = 0xff;
-    sprPaletteData[2] = 0x15|((0x15&7)<<5);
-    sprPaletteData[3] = (0x15>>3)|(0x15<<2);
-    sprPaletteData[4] = 0xa|((0xa&7)<<5);
-    sprPaletteData[5] = (0xa>>3)|(0xa<<2);
-    sprPaletteData[6] = 0;
-    sprPaletteData[7] = 0;
-    sprPaletteData[8] = 0xff;
-    sprPaletteData[9] = 0xff;
-    sprPaletteData[10] = 0x15|((0x15&7)<<5);
-    sprPaletteData[11] = (0x15>>3)|(0x15<<2);
-    sprPaletteData[12] = 0xa|((0xa&7)<<5);
-    sprPaletteData[13] = (0xa>>3)|(0xa<<2);
-    sprPaletteData[14] = 0;
-    sprPaletteData[15] = 0;
-    bgPaletteData[0] = 0xff;
-    bgPaletteData[1] = 0xff;
-    bgPaletteData[2] = 0x15|((0x15&7)<<5);
-    bgPaletteData[3] = (0x15>>3)|(0x15<<2);
-    bgPaletteData[4] = 0xa|((0xa&7)<<5);
-    bgPaletteData[5] = (0xa>>3)|(0xa<<2);
-    bgPaletteData[6] = 0;
-    bgPaletteData[7] = 0;
+    memset(bgPaletteData, 0xff, 0x40);
+    if (gbMode == GB) {
+        sprPaletteData[0] = 0xff;
+        sprPaletteData[1] = 0xff;
+        sprPaletteData[2] = 0x15|((0x15&7)<<5);
+        sprPaletteData[3] = (0x15>>3)|(0x15<<2);
+        sprPaletteData[4] = 0xa|((0xa&7)<<5);
+        sprPaletteData[5] = (0xa>>3)|(0xa<<2);
+        sprPaletteData[6] = 0;
+        sprPaletteData[7] = 0;
+        sprPaletteData[8] = 0xff;
+        sprPaletteData[9] = 0xff;
+        sprPaletteData[10] = 0x15|((0x15&7)<<5);
+        sprPaletteData[11] = (0x15>>3)|(0x15<<2);
+        sprPaletteData[12] = 0xa|((0xa&7)<<5);
+        sprPaletteData[13] = (0xa>>3)|(0xa<<2);
+        sprPaletteData[14] = 0;
+        sprPaletteData[15] = 0;
+        bgPaletteData[0] = 0xff;
+        bgPaletteData[1] = 0xff;
+        bgPaletteData[2] = 0x15|((0x15&7)<<5);
+        bgPaletteData[3] = (0x15>>3)|(0x15<<2);
+        bgPaletteData[4] = 0xa|((0xa&7)<<5);
+        bgPaletteData[5] = (0xa>>3)|(0xa<<2);
+        bgPaletteData[6] = 0;
+        bgPaletteData[7] = 0;
+    }
+    // This prevents some flickering when loading roms
+    for (int i=0; i<8; i++)
+        updateBgPalette_GBC(i, bgPaletteData+i*8);
 }
 
 void refreshGFX() {
-    if (gbGraphicsDisabled)
-        return;
-
     for (int i=0; i<0x180; i++) {
         drawTile(i, 0);
         drawTile(i, 1);
@@ -629,14 +639,21 @@ void refreshGFX() {
 }
 
 void clearGFX() {
-    memset(scanlineBuffers, 0, sizeof(scanlineBuffers));
+    gbGraphicsDisabled = true;
     for (int i=0; i<(loadedBorderType?3:4); i++)
         videoBgDisable(i);
     REG_DISPCNT &= ~DISPLAY_SPR_ACTIVE;
 
     // Blacken the screen.
-    // I could use the backdrop, but that messes with SGB borders.
-    BG_PALETTE[OFF_MAP_PALETTE_INDEX] = 0;
+    if (loadedBorderType) {
+        // Make it white if there's a border loaded.
+        // I could use the backdrop, but that messes with SGB borders.
+        BG_PALETTE[OFF_MAP_PALETTE_INDEX] = RGB15(31,31,31);
+    }
+    else {
+        // Otherwise make it black.
+        BG_PALETTE[OFF_MAP_PALETTE_INDEX] = RGB15(0,0,0);
+    }
     BG_CNT(0) = BG_MAP_BASE(off_map_base) | 3;
     videoBgEnable(0);
 }

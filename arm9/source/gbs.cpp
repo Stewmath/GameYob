@@ -31,6 +31,7 @@ extern PrintConsole defaultConsole; // Defined in libnds
 void gbsRedraw() {
     //consoleClear();
     
+    PrintConsole* oldPrintConsole = getPrintConsole();
     setPrintConsole(gbsConsole);
     iprintf("\33[0;0H"); // Cursor to upper-left corner
 
@@ -51,6 +52,7 @@ void gbsRedraw() {
         }
         iprintf("\n");
     }
+    setPrintConsole(oldPrintConsole);
 }
 
 void gbsLoadSong() {
