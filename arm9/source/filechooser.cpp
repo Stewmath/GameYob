@@ -30,10 +30,12 @@ string matchFile;
 void updateScrollDown() {
     if (fileSelection >= numFiles)
         fileSelection = numFiles-1;
-    if (fileSelection == numFiles-1 && numFiles > filesPerPage)
-        scrollY = fileSelection-filesPerPage+1;
-    else if (fileSelection-scrollY >= filesPerPage-1)
-        scrollY = fileSelection-filesPerPage+2;
+    if (numFiles > filesPerPage) {
+        if (fileSelection == numFiles-1)
+            scrollY = fileSelection-filesPerPage+1;
+        else if (fileSelection-scrollY >= filesPerPage-1)
+            scrollY = fileSelection-filesPerPage+2;
+    }
 }
 void updateScrollUp() {
     if (fileSelection < 0)
@@ -438,6 +440,7 @@ end:
     closedir(dp);
     consoleClear();
     consoleSelectedRow = -1;
+    setBackdropColorSub(RGB15(0,0,0)); // Sometimes needed to un-blueify the screen
     fileChooserOn = false;
     return retval;
 }

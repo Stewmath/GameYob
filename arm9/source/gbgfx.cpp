@@ -391,8 +391,6 @@ void doHBlank(int line) {
         else
             setBackdropColorSub(RGB15(0,0,0));
     }
-    else if (consoleSelectedRow == -1)
-        setBackdropColorSub(RGB15(0,0,0));
 
     if (gbGraphicsDisabled || hblankDisabled)
         return;
