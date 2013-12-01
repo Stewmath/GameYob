@@ -1,3 +1,17 @@
+Version 0.5:
+
+- Added Gameboy Printer emulation
+- Added GBS playback feature
+- Added "scale" button
+- Semi-overhauled menu: now colorized, and does not interrupt emulation.
+- Improved Super Gameboy emulation
+- Selectable custom borders
+- Reduced autosaving lag (results may vary between flashcards and SD cards)
+- Implemented the halt bug (fixes The Smurfs)
+- Wram register has unused bits set (fixes Metal Gear Solid)
+- More fixes to emulation accuracy, sound, etc
+- Stability fixes (most notably for sleep mode), many other minor bugfixes
+
 Version 0.4.1:
 
 - Fixed "save" button (which was bugged) and reduced autosaving lag
