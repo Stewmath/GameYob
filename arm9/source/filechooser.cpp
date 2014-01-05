@@ -346,7 +346,7 @@ char* startFileChooser(const char* extensions[], bool romExtensions, bool canQui
                     iprintfColored(CONSOLE_COLOR_WHITE, " ");
 
                 if (i == fileSelection) {
-                    consoleSelectedRow = i-scrollY;
+                    consoleSelectedRow = i-scrollY; // triggers blue highlighting
                 }
             }
             if (canQuit) {

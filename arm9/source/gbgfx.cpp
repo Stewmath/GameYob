@@ -776,6 +776,7 @@ void selectBorder() {
     }
 
     saveFileChooserState(&borderChooserState);
+    loadFileChooserState(&romChooserState);
 
     unmuteSND();
 }
