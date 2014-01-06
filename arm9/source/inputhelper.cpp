@@ -680,9 +680,16 @@ int loadSave()
         fclose(saveFile);
 
         // Extend the size of the file, or create it
-        saveFile = fopen(savename, "ab");
-        fseek(saveFile, neededFileSize-1, SEEK_SET);
-        fputc(0, saveFile);
+        if (!saveFile) {
+            saveFile = fopen(savename, "wb");
+            fseek(saveFile, neededFileSize-1, SEEK_SET);
+            fputc(0, saveFile);
+        }
+        else {
+            saveFile = fopen(savename, "ab");
+            for (; fileSize<neededFileSize; fileSize++)
+                fputc(0, saveFile);
+        }
         fclose(saveFile);
 
         saveFile = fopen(savename, "r+b");
