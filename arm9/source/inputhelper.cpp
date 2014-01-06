@@ -643,6 +643,9 @@ int loadSave()
             case 3:
                 numRamBanks = 4;
                 break;
+            case 4:
+                numRamBanks = 16;
+                break;
             default:
                 printLog("Invalid RAM bank number: %x\nDefaulting to 4 banks\n", ramSize);
                 numRamBanks = 4;
@@ -676,8 +679,8 @@ int loadSave()
     if (!saveFile || fileSize < neededFileSize) {
         fclose(saveFile);
 
-        // Create the file
-        saveFile = fopen(savename, "w");
+        // Extend the size of the file, or create it
+        saveFile = fopen(savename, "ab");
         fseek(saveFile, neededFileSize-1, SEEK_SET);
         fputc(0, saveFile);
         fclose(saveFile);
@@ -866,7 +869,7 @@ void printRomInfo() {
     iprintf("RAM Size: %.2x (%d banks)\n", ramSize, numRamBanks);
 }
 
-const int STATE_VERSION = 4;
+const int STATE_VERSION = 5;
 
 struct StateStruct {
     // version
@@ -996,7 +999,13 @@ int loadState(int stateNum) {
     fread((char*)vram, 1, sizeof(vram), inFile);
     fread((char*)wram, 1, sizeof(wram), inFile);
     fread((char*)hram, 1, 0x200, inFile);
-    fread((char*)externRam, 1, 0x2000*numRamBanks, inFile);
+
+    if (version <= 4 && ramSize == 0x04)
+        // Value "0x04" for ram size wasn't interpreted correctly before
+        fread((char*)externRam, 1, 0x2000*4, inFile);
+    else
+        fread((char*)externRam, 1, 0x2000*numRamBanks, inFile);
+
     fread((char*)&state, 1, sizeof(StateStruct), inFile);
 
     /* MBC-specific values have been introduced in v3 */

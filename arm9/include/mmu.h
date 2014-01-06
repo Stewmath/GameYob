@@ -3,7 +3,7 @@
 #include "global.h"
 #include <stdio.h>
 
-#define MAX_SRAM_SIZE   0x8000
+#define MAX_SRAM_SIZE   0x20000
 
 // Be careful changing this; it affects save state compatibility.
 struct clockStruct
