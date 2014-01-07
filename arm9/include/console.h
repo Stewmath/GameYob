@@ -3,8 +3,6 @@
 #include <stdio.h>
 #include <nds.h>
 
-extern bool nukeBorder;
-
 extern bool consoleInitialized;
 extern bool consoleDebugOutput;
 extern int gbcModeOption;

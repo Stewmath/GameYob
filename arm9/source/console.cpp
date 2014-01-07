@@ -33,7 +33,6 @@ int consoleScreen;
 int stateNum=0;
 PrintConsole* menuConsole;
 
-bool nukeBorder=false;
 int gbcModeOption=0;
 bool gbaModeOption=false;
 int sgbModeOption=false;
@@ -189,7 +188,6 @@ void stateDeleteFunc(int value) {
     unmuteSND();
 }
 void resetFunc(int value) {
-    nukeBorder = false;
     closeMenu();
     updateScreens();
     initializeGameboy();

@@ -94,6 +94,7 @@ bool spritesModified;
 
 // Whether to wait for vblank if emulation is running behind schedule
 int interruptWaitMode=0;
+
 bool windowDisabled = false;
 bool hblankDisabled = false;
 
@@ -103,6 +104,7 @@ u8 gfxMask;
 
 volatile int loadedBorderType; // This is read from hblank
 bool customBorderExists = true;
+bool sgbBorderLoaded;
 
 int SCALE_BGX, SCALE_BGY;
 
@@ -268,6 +270,7 @@ void drawLine(int gbLine) {
                 }
             }
             else { // winLayers == 3
+                // Apply both tile and sprite priority bits.
                 BG_CNT(layer) = state->winColor0Cnt;
                 BG_HOFS(layer) = whofs;
                 BG_VOFS(layer++) = wvofs;
@@ -843,12 +846,9 @@ void checkBorder() {
     int lastBorderType = loadedBorderType;
     int nextBorderType = BORDER_NONE;
 
-    if (!nukeBorder) {
-        if (lastBorderType == BORDER_SGB && sgbBordersEnabled) {
-            nextBorderType = BORDER_SGB;
-        }
+    if (sgbBorderLoaded && sgbBordersEnabled) {
+        nextBorderType = BORDER_SGB;
     }
-    nukeBorder = false;
 
     if (customBordersEnabled && scaleMode == 0 && nextBorderType == BORDER_NONE) {
         nextBorderType = BORDER_CUSTOM;
@@ -973,8 +973,6 @@ void setGFXMask(int mask) {
 }
 
 void setSgbTiles(u8* src, u8 flags) {
-    if (!sgbBordersEnabled)
-        return;
     if (gfxMask != 0 && loadedBorderType != BORDER_NONE) {
         videoBgDisable(3);
         BG_PALETTE[0] = BACKDROP_COLOUR;
@@ -1026,8 +1024,6 @@ void setSgbTiles(u8* src, u8 flags) {
 }
 
 void setSgbMap(u8* src) {
-    if (!sgbBordersEnabled)
-        return;
     for (int i=0; i<32*32; i++) {
         u16 val = ((u16*)src)[i];
         int tile = val&0xff;
@@ -1040,13 +1036,15 @@ void setSgbMap(u8* src) {
     DC_FlushRange(src+0x800, 0x80);
     dmaCopy(src+0x800, BG_PALETTE+8*16, 0x80);
 
-    loadSGBBorder();
+    sgbBorderLoaded = true;
+    if (sgbBordersEnabled) {
+        loadSGBBorder();
 
-    BG_PALETTE[0] = bgPaletteData[0] | bgPaletteData[1]<<8;
-    if (probingForBorder) {
-        probingForBorder = false;
-        nukeBorder = false;
-        resetGameboy();
+        BG_PALETTE[0] = bgPaletteData[0] | bgPaletteData[1]<<8;
+        if (probingForBorder) {
+            probingForBorder = false;
+            resetGameboy();
+        }
     }
 }
 

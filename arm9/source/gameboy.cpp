@@ -66,6 +66,10 @@ void setEventCycles(int cycles) {
 int autoFireCounterA=0,autoFireCounterB=0;
 void gameboyCheckInput() {
     buttonsPressed = 0xff;
+
+    if (probingForBorder)
+        return;
+
     if (keyPressed(mapGbKey(KEY_GB_UP))) {
         buttonsPressed &= (0xFF ^ UP);
         if (!(ioRam[0x00] & 0x10))
@@ -203,7 +207,7 @@ void gameboyUpdateVBlank() {
             if (gameboyFrameCounter >= 450) {
                 // Give up on finding a sgb border.
                 probingForBorder = false;
-                nukeBorder = true;
+                sgbBorderLoaded = false;
                 resetGameboy();
             }
 			return;

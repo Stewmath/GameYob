@@ -127,7 +127,6 @@ void initializeGameboy() {
         bool sgbEnhanced = romSlot0[0x14b] == 0x33 && romSlot0[0x146] == 0x03;
         if (sgbEnhanced && resultantGBMode != 2 && probingForBorder) {
             resultantGBMode = 2;
-            nukeBorder = false;
         }
         else {
             probingForBorder = false;
@@ -154,7 +153,7 @@ void initializeGameboy() {
 void initializeGameboyFirstTime() {
     if (sgbBordersEnabled)
         probingForBorder = true; // This will be ignored if starting in sgb mode, or if there is no sgb mode.
-    nukeBorder = true;
+    sgbBorderLoaded = false; // Effectively unloads any sgb border
 
     initializeGameboy();
 

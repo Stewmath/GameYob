@@ -13,6 +13,7 @@ extern int scaleFilter;
 extern u8 gfxMask;
 extern volatile int loadedBorderType;
 extern bool customBorderExists;
+extern bool sgbBorderLoaded;
 
 extern u8 bgPaletteData[0x40];
 extern u8 sprPaletteData[0x40];
