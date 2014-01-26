@@ -447,6 +447,7 @@ void closeMenu() {
     menuOn = false;
     setPrintConsole(menuConsole);
     consoleClear();
+    unpauseGameboy();
 }
 
 bool isMenuOn() {
