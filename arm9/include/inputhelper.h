@@ -34,6 +34,9 @@ enum {
 
 const int MAX_ROM_BANKS = 0x200;
 
+extern char filename[256];
+extern char savename[256];
+extern char basename[256];
 
 
 extern int maxLoadedRomBanks;
@@ -68,23 +71,10 @@ void forceReleaseKey(int key);
 int mapGbKey(int gbKey); // Maps a "functional" key to a physical key.
 
 void loadBios(const char* filename);
-int loadRom(char* filename);
 void loadRomBank();
 bool isRomBankLoaded(int bank);
 u8* getRomBank(int bank);
 const char* getRomBasename();
 
-void unloadRom();
-
-int loadSave();
-int saveGame(); // Write the whole save file in one go
-void gameboySyncAutosave(); // Update dirty parts of the save file
-void updateAutosave(); // Check if autosaving should by sync'ed this frame
-
 char* getRomTitle();
 void printRomInfo();
-
-void saveState(int num);
-int loadState(int num);
-void deleteState(int num);
-bool checkStateExists(int num);

@@ -56,7 +56,7 @@ void gbsRedraw() {
 }
 
 void gbsLoadSong() {
-    initMMU();
+    gameboy->initMMU();
     ime = 0;
 
     gbRegs.sp.w = READ16(gbsHeader+0x0c);
@@ -64,7 +64,7 @@ void gbsLoadSong() {
     u8 tac =        gbsHeader[0x0f];
 
     if (tac&0x80)
-        setDoubleSpeed(1);
+        gameboy->setDoubleSpeed(1);
     tac &= ~0x80;
     if (tma == 0 && tac == 0) {
         // Vblank interrupt handler
@@ -72,7 +72,7 @@ void gbsLoadSong() {
         romSlot0[0x41] = gbsPlayAddress&0xff;
         romSlot0[0x42] = gbsPlayAddress>>8;
         romSlot0[0x43] = 0xd9; // reti
-        writeIO(0xff, VBLANK);
+        gameboy->writeIO(0xff, VBLANK);
     }
     else {
         // Timer interrupt handler
@@ -80,17 +80,17 @@ void gbsLoadSong() {
         romSlot0[0x51] = gbsPlayAddress&0xff;
         romSlot0[0x52] = gbsPlayAddress>>8;
         romSlot0[0x53] = 0xd9; // reti
-        writeIO(0xff, TIMER);
+        gameboy->writeIO(0xff, TIMER);
     }
 
-    writeIO(0x05, 0x00);
-    writeIO(0x06, tma);
-    writeIO(0x07, tac);
+    gameboy->writeIO(0x05, 0x00);
+    gameboy->writeIO(0x06, tma);
+    gameboy->writeIO(0x07, tac);
 
     gbsPlayingSong = gbsSelectedSong;
     gbRegs.af.b.h = gbsPlayingSong;
-    writeMemory(--gbRegs.sp.w, 0x01);
-    writeMemory(--gbRegs.sp.w, 0x00); // Will return to beginning
+    gameboy->writeMemory(--gbRegs.sp.w, 0x01);
+    gameboy->writeMemory(--gbRegs.sp.w, 0x00); // Will return to beginning
     gbRegs.pc.w = gbsInitAddress;
 }
 
@@ -157,7 +157,7 @@ void gbsCheckInput() {
     if (keyJustPressed(mapGbKey(KEY_GB_B))) { // Stop playing music
         gbsPlayingSong = -1;
         ime = 0;
-        writeIO(0xff, 0);
+        gameboy->writeIO(0xff, 0);
         initSND();
     }
     gbsRedraw();

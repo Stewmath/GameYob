@@ -26,6 +26,8 @@ extern time_t lastRawTime;
 
 volatile SharedData* sharedData;
 
+Gameboy* gameboy;
+
 // This is used to signal sleep mode starting or ending.
 void fifoValue32Handler(u32 value, void* user_data) {
     static u8 scalingWasOn;
@@ -57,7 +59,7 @@ void fifoValue32Handler(u32 value, void* user_data) {
 
 
 void selectRom() {
-    unloadRom();
+    gameboy->unloadRom();
 
     loadFileChooserState(&romChooserState);
     const char* extraExtensions[] = {"gbs"};
@@ -74,7 +76,7 @@ void selectRom() {
         }
     }
 
-    loadRom(filename);
+    gameboy->loadRom(filename);
     free(filename);
 
     updateScreens();
@@ -219,6 +221,8 @@ int main(int argc, char* argv[])
     // However there may have been something wrong with it in dsi mode.
     fifoSendValue32(FIFO_USER_03, ((u32)sharedData)&0x00ffffff);
 
+    gameboy = new Gameboy();
+
     initInput();
     setMenuDefaults();
     readConfigFile();
@@ -232,7 +236,7 @@ int main(int argc, char* argv[])
 
     if (argc >= 2) {
         char* filename = argv[1];
-        loadRom(filename);
+        gameboy->loadRom(filename);
         updateScreens();
         initializeGameboyFirstTime();
     }
@@ -240,7 +244,7 @@ int main(int argc, char* argv[])
         selectRom();
     }
 
-    runEmul();
+    gameboy->runEmul();
 
     return 0;
 }

@@ -44,7 +44,7 @@ void packetHandler(int packetID, int readlength)
         int sendid = *((int*)(data+36));
 
         if (lastSendid == sendid) {
-            if (!(ioRam[0x02] & 0x01)) {
+            if (!(gameboy->readIO(0x02) & 0x01)) {
                 nifiSendid--;
                 sendPacketByte(56, linkSendData);
                 nifiSendid++;
@@ -62,7 +62,7 @@ void packetHandler(int packetID, int readlength)
         switch(command) {
             // Command sent from "internal clock"
             case 55:
-                if (ioRam[0x02] & 0x80) {
+                if (gameboy->readIO(0x02) & 0x80) {
                     // Falls through to case 56
                 }
                 else {

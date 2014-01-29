@@ -15,7 +15,13 @@
 #include <nds.h>
 #endif
 
-extern time_t rawTime;
+int rumbleInserted = 0;
+// whether the bios exists and has been loaded
+bool biosExists = false;
+// how/when the bios should be used
+int biosEnabled;
+
+
 
 #define refreshVramBank() { \
     memory[0x8] = vram[vramBank]; \
@@ -23,76 +29,7 @@ extern time_t rawTime;
 #define refreshWramBank() { \
     memory[0xd] = wram[wramBank]; }
 
-bool hasRumble;
-int rumbleStrength;
-int rumbleInserted = 0;
-bool rumbleValue = 0;
-bool lastRumbleValue = 0;
-
-clockStruct gbClock;
-
-int numRomBanks=0;
-int numRamBanks=0;
-
-int resultantGBMode;
-
-u8 bios[0x900];
-bool biosExists = false;
-int biosEnabled;
-bool biosOn = false;
-
-u8 buttonsPressed = 0xff;
-
-u8* memory[0x10]
-#ifdef DS
-DTCM_BSS
-#endif
-;
-u8 vram[2][0x2000];
-u8* externRam = NULL;
-u8 wram[8][0x1000];
-
-u8 highram[0x1000];
-u8* const hram = highram+0xe00;
-u8* const ioRam = hram+0x100;
-
-int wramBank;
-int vramBank;
-
-int MBC;
-int memoryModel;
-
-bool rockmanMapper;
-
-int romBank;
-int currentRamBank;
-
-u16 dmaSource;
-u16 dmaDest;
-u16 dmaLength;
-int dmaMode;
-
-// Autosaving stuff
-bool saveModified=false;
-bool dirtySectors[MAX_SRAM_SIZE/512];
-int numSaveWrites=0;
-bool autosaveStarted = false;
-
-
-/* MBC flags */
-bool ramEnabled;
-
-u8   HuC3Mode;
-u8   HuC3Value;
-u8   HuC3Shift;
-
-typedef void (* mbcWrite)(u16,u8);
-typedef u8   (* mbcRead )(u16);
-
-mbcWrite writeFunc;
-mbcRead readFunc;
-
-void refreshRomBank(int bank) 
+void Gameboy::refreshRomBank(int bank) 
 {
     if (bank < numRomBanks) {
         romBank = bank;
@@ -106,7 +43,7 @@ void refreshRomBank(int bank)
         printLog("Tried to access bank %x\n", bank);
 }
 
-void refreshRamBank (int bank) 
+void Gameboy::refreshRamBank (int bank) 
 {
     if (bank < numRamBanks) {
         currentRamBank = bank;
@@ -115,7 +52,7 @@ void refreshRamBank (int bank)
     }
 }
 
-void handleHuC3Command (u8 cmd) 
+void Gameboy::handleHuC3Command (u8 cmd) 
 {
     switch (cmd&0xf0) {
         case 0x10: /* Read clock */
@@ -158,7 +95,7 @@ void handleHuC3Command (u8 cmd)
 /* MBC read handlers */
 
 /* HUC3 */
-u8 h3r (u16 addr) {
+u8 Gameboy::h3r (u16 addr) {
     switch (HuC3Mode) {
         case 0xc:
             return HuC3Value;
@@ -172,7 +109,7 @@ u8 h3r (u16 addr) {
 }
 
 /* MBC3 */
-u8 m3r (u16 addr) {
+u8 Gameboy::m3r (u16 addr) {
     if (!ramEnabled)
         return 0xff;
 
@@ -192,12 +129,8 @@ u8 m3r (u16 addr) {
     }
 }
 
-const mbcRead mbcReads[] = { 
-    NULL, NULL, NULL, m3r, NULL, NULL, NULL, h3r, NULL
-};
 
-
-void writeSram(u16 addr, u8 val) {
+void Gameboy::writeSram(u16 addr, u8 val) {
     int pos = addr + currentRamBank*0x2000;
     if (externRam[pos] != val) {
         externRam[pos] = val;
@@ -213,7 +146,7 @@ void writeSram(u16 addr, u8 val) {
     }
 }
 
-void writeClockStruct() {
+void Gameboy::writeClockStruct() {
     if (autoSavingEnabled) {
         fseek(saveFile, numRamBanks*0x2000, SEEK_SET);
         fwrite(&gbClock, 1, sizeof(gbClock), saveFile);
@@ -225,7 +158,7 @@ void writeClockStruct() {
 /* MBC Write handlers */
 
 /* MBC0 */
-void m0w (u16 addr, u8 val) {
+void Gameboy::m0w (u16 addr, u8 val) {
     switch (addr >> 12) {
         case 0x0: /* 0000 - 1fff */
         case 0x1:
@@ -248,8 +181,7 @@ void m0w (u16 addr, u8 val) {
 }
 
 /* MBC2 */
-void m2w(u16 addr, u8 val)
-{
+void Gameboy::m2w(u16 addr, u8 val) {
     switch (addr >> 12) {
         case 0x0: /* 0000 - 1fff */
         case 0x1:
@@ -274,8 +206,7 @@ void m2w(u16 addr, u8 val)
 }
 
 /* MBC3 */
-void m3w(u16 addr, u8 val)
-{
+void Gameboy::m3w(u16 addr, u8 val) {
     switch (addr >> 12) {
         case 0x0: /* 0000 - 1fff */
         case 0x1:
@@ -348,7 +279,7 @@ void m3w(u16 addr, u8 val)
 }
 
 /* MBC1 */
-void m1w (u16 addr, u8 val) {
+void Gameboy::m1w (u16 addr, u8 val) {
     int newBank;
 
     switch (addr >> 12) {
@@ -390,8 +321,7 @@ void m1w (u16 addr, u8 val) {
 }
 
 /* HUC1 */
-void h1w(u16 addr, u8 val)
-{
+void Gameboy::h1w(u16 addr, u8 val) {
     switch (addr >> 12) {
         case 0x0: /* 0000 - 1fff */
         case 0x1:
@@ -424,7 +354,7 @@ void h1w(u16 addr, u8 val)
 }
 
 /* MBC5 */
-void m5w (u16 addr, u8 val) {
+void Gameboy::m5w (u16 addr, u8 val) {
     switch (addr >> 12) {
         case 0x0: /* 0000 - 1fff */
         case 0x1:
@@ -470,7 +400,7 @@ void m5w (u16 addr, u8 val) {
 }
 
 /* HUC3 */
-void h3w (u16 addr, u8 val) {
+void Gameboy::h3w (u16 addr, u8 val) {
     switch (addr >> 12) {
         case 0x0: /* 0000 - 1fff */
         case 0x1:
@@ -506,11 +436,7 @@ void h3w (u16 addr, u8 val) {
     }
 }
 
-const mbcWrite mbcWrites[] = {
-    m0w, m1w, m2w, m3w, NULL, m5w, NULL, h3w, h1w
-};
-
-void initMMU()
+void Gameboy::initMMU()
 {
     wramBank = 1;
     vramBank = 0;
@@ -568,7 +494,7 @@ void initMMU()
     memset(dirtySectors, 0, sizeof(dirtySectors));
 }
 
-void mapMemory() {
+void Gameboy::mapMemory() {
     if (biosOn)
         memory[0x0] = bios;
     else
@@ -599,7 +525,7 @@ void mapMemory() {
         }                   \
     } while (0) 
 
-void latchClock()
+void Gameboy::latchClock()
 {
     // +2h, the same as lameboy
     time_t now = rawTime-120*60;
@@ -638,11 +564,7 @@ void latchClock()
     gbClock.last = now;
 }
 
-#ifdef DS
-u8 readMemory(u16 addr) ITCM_CODE;
-#endif
-
-u8 readMemory(u16 addr)
+u8 Gameboy::readMemory(u16 addr)
 {
 #ifndef SPEEDHAX
     int area = addr>>13;
@@ -668,15 +590,11 @@ u8 readMemory(u16 addr)
     return memory[addr>>12][addr&0xfff];
 }
 
-u16 readMemory16(u16 addr) {
+u16 Gameboy::readMemory16(u16 addr) {
     return readMemory(addr) | readMemory(addr+1)<<8;
 }
 
-#ifdef DS
-u8 readIO(u8 ioReg) ITCM_CODE;
-#endif
-
-u8 readIO(u8 ioReg)
+u8 Gameboy::readIO(u8 ioReg)
 {
 #ifdef SPEEDHAX
     return ioRam[ioReg];
@@ -742,11 +660,7 @@ u8 readIO(u8 ioReg)
 #endif
 }
 
-#ifdef DS
-void writeMemory(u16 addr, u8 val) ITCM_CODE;
-#endif
-
-void writeMemory(u16 addr, u8 val)
+void Gameboy::writeMemory(u16 addr, u8 val)
 {
     switch (addr >> 12)
     {
@@ -779,8 +693,7 @@ void writeMemory(u16 addr, u8 val)
 }
 
 
-bool nifiTryAgain=true;
-void nifiTimeoutFunc() {
+void Gameboy::nifiTimeoutFunc() {
     printLog("Nifi timeout\n");
     if (nifiTryAgain) {
         nifiSendid--;
@@ -798,11 +711,7 @@ void nifiTimeoutFunc() {
     }
 }
 
-#ifdef DS
-void writeIO(u8 ioReg, u8 val) ITCM_CODE;
-#endif
-
-void writeIO(u8 ioReg, u8 val)
+void Gameboy::writeIO(u8 ioReg, u8 val)
 {
     switch (ioReg)
     {
@@ -1015,7 +924,7 @@ void writeIO(u8 ioReg, u8 val)
     }
 }
 
-void refreshP1() {
+void Gameboy::refreshP1() {
     // Check if input register is being used for sgb packets
     if (sgbPacketBit == -1) {
         if ((ioRam[0x00] & 0x30) == 0x30) {
@@ -1033,7 +942,7 @@ void refreshP1() {
     }
 }
 
-bool updateHblankDMA()
+bool Gameboy::updateHblankDMA()
 {
     if (dmaLength > 0)
     {
@@ -1058,7 +967,7 @@ bool updateHblankDMA()
 }
 
 
-void doRumble(bool rumbleVal)
+void Gameboy::doRumble(bool rumbleVal)
 {
     if (rumbleInserted == 1)
     {
