@@ -24,7 +24,8 @@
 #include "common.h"
 #include "filechooser.h"
 
-#define FAT_CACHE_SIZE 32
+#define FAT_CACHE_SIZE 16
+#define FAT_BYTESPERSECTOR 512
 
 FILE* romFile=NULL;
 FILE* saveFile=NULL;
@@ -61,8 +62,10 @@ std::vector<int> lastBanksUsed;
 
 bool suspendStateExists;
 
-int saveFileSectors[MAX_SRAM_SIZE/512];
+int saveFileSectors[MAX_SRAM_SIZE/FAT_BYTESPERSECTOR];
 
+int fat_bytesPerSector;
+int fat_sectorsPerPage;
 
 void initInput()
 {
@@ -75,6 +78,12 @@ void initInput()
         maxLoadedRomBanks = 128; // 2 megabytes
 
     romBankSlots = (u8*)malloc(maxLoadedRomBanks*0x4000);
+
+    devoptab_t* devops = (devoptab_t*)GetDeviceOpTab ("sd");
+    PARTITION* partition = (PARTITION*)devops->deviceData;
+    CACHE* cache = partition->cache;
+    fat_bytesPerSector = cache->bytesPerSector;
+    fat_sectorsPerPage = cache->sectorsPerPage;
 }
 
 void flushFatCache() {
@@ -95,7 +104,7 @@ void writeSaveFileSectors(int startSector, int numSectors) {
     PARTITION* partition = (PARTITION*)devops->deviceData;
     CACHE* cache = partition->cache;
 
-	_FAT_disc_writeSectors(cache->disc, saveFileSectors[startSector], numSectors, externRam+startSector*512);
+	_FAT_disc_writeSectors(cache->disc, saveFileSectors[startSector], numSectors, externRam+startSector*fat_bytesPerSector);
 }
 
 
@@ -574,6 +583,9 @@ int loadRom(char* f)
 
     loadSave();
 
+    printLog("%d bytes per sector\n", fat_bytesPerSector);
+    printLog("%d sectors per page\n", fat_sectorsPerPage);
+
     return 0;
 }
 
@@ -713,9 +725,9 @@ int loadSave()
     CACHE* cache = partition->cache;
 
     memset(saveFileSectors, -1, sizeof(saveFileSectors));
-    for (int i=0; i<numRamBanks*0x2000/512; i++) {
-        fseek(saveFile, i*512, SEEK_SET);
-        fputc(externRam[i*512], saveFile);
+    for (int i=0; i<numRamBanks*0x2000/fat_bytesPerSector; i++) {
+        fseek(saveFile, i*fat_bytesPerSector, SEEK_SET);
+        fputc(externRam[i*fat_bytesPerSector], saveFile);
         bool found=false;
         for (int j=0; j<FAT_CACHE_SIZE; j++) {
             if (cache->cacheEntries[j].dirty) {
@@ -731,8 +743,12 @@ int loadSave()
     }
 
     if (numRamBanks == 1) {
-        writeSaveFileSectors(0, 8);
-        writeSaveFileSectors(8, 8);
+        // This helps remove lag, because it's already been written to once, the 
+        // card will be "ready" for future writes.
+        int iterations = 0x2000 / (fat_bytesPerSector * fat_sectorsPerPage);
+        for (int i=0; i<iterations; i++) {
+            writeSaveFileSectors(i*fat_sectorsPerPage, fat_sectorsPerPage);
+        }
     }
 
     return 0;
@@ -770,16 +786,18 @@ void gameboySyncAutosave() {
     wroteToSramThisFrame = false;
 
     int numSectors = 0;
-    // iterate over each 512-byte sector
-    for (int i=0; i<numRamBanks*0x2000/512; i++) {
+    // iterate over each sector
+    for (int i=0; i<numRamBanks*0x2000/fat_bytesPerSector; i++) {
         if (dirtySectors[i]) {
             dirtySectors[i] = false;
 
             // If only 1 bank, it seems more efficient to write multiple sectors 
             // at once - at least, on the Acekard 2i.
             if (numRamBanks == 1) {
-                writeSaveFileSectors(i/8*8, 8);
-                for (int j=i; j<(i/8*8)+8; j++)
+                int sectors = fat_sectorsPerPage;
+
+                writeSaveFileSectors(i/sectors*sectors, sectors);
+                for (int j=i; j<(i/sectors*sectors)+sectors; j++)
                     dirtySectors[j] = false;
             }
             else {

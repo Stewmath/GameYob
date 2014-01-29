@@ -11,6 +11,7 @@
 #include "sgb.h"
 #include "console.h"
 #include "gbs.h"
+#include "libfat_fake.h"
 #ifdef DS
 #include <nds.h>
 #endif
@@ -207,7 +208,7 @@ void writeSram(u16 addr, u8 val) {
             fputc(val, saveFile);
             */
             saveModified = true;
-            dirtySectors[pos/512] = true;
+            dirtySectors[pos/fat_bytesPerSector] = true;
             numSaveWrites++;
         }
     }

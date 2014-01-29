@@ -30,6 +30,10 @@ typedef struct {
 } PARTITION;
 // PARTITION has more entries but only cache is important for our purposes
 
+
+extern int fat_bytesPerSector;
+extern int fat_sectorsPerPage;
+
 extern "C" bool _FAT_cache_flush (CACHE* cache);
 static inline bool _FAT_disc_writeSectors (const DISC_INTERFACE* disc, sec_t sector, sec_t numSectors, const void* buffer) {
 	return disc->writeSectors (sector, numSectors, buffer);
