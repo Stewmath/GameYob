@@ -72,8 +72,8 @@ class Gameboy {
         void gameboyAutosaveCheck();
 
         void resetGameboy(); // This may be called even from the context of "runOpcode".
-        void pauseGameboy();
-        void unpauseGameboy();
+        void pause();
+        void unpause();
         bool isGameboyPaused();
         void runEmul() ITCM_CODE;
         void initGameboyMode();
@@ -130,8 +130,8 @@ class Gameboy {
 
         void doRumble(bool rumbleVal);
 
-        inline u8 getNumRomBanks() { return numRomBanks; }
-        inline u8 getNumRamBanks() { return numRamBanks; }
+        inline int getNumRomBanks() { return numRomBanks; }
+        inline int getNumRamBanks() { return numRamBanks; }
         inline u8 getWramBank() { return wramBank; }
         inline void setWramBank(u8 bank) { wramBank = bank; }
 
@@ -183,6 +183,9 @@ class Gameboy {
         int gameboyFrameCounter;
 
         // mmu variables
+
+        u8* romSlot0;
+        u8* romSlot1;
 
         clockStruct gbClock;
 
@@ -238,6 +241,7 @@ class Gameboy {
         bool autosaveStarted;
 
         // cpu variables
+        // TODO: try dtcm
         struct Registers gbRegs;
         int halt;
         int ime;
@@ -285,8 +289,6 @@ class Gameboy {
 
         u8 buttonsPressed;
 
-        u8* romSlot0;
-        u8* romSlot1;
         int maxLoadedRomBanks;
         int numLoadedRomBanks;
         u8* romBankSlots; // Each 0x4000 bytes = one slot

@@ -41,14 +41,14 @@ void fifoValue32Handler(u32 value, void* user_data) {
 
             sharedData->scalingOn = 0;
             soundDisabled = true;
-            gameboy->pauseGameboy();
+            gameboy->pause();
             break;
         case FIFOMSG_LID_OPENED:
             // Exiting sleep mode
             sharedData->scalingOn = scalingWasOn;
             soundDisabled = soundWasDisabled;
             if (!wasPaused)
-                gameboy->unpauseGameboy();
+                gameboy->unpause();
             // Time isn't incremented properly in sleep mode, compensate here.
             time(&rawTime);
             lastRawTime = rawTime;
@@ -84,14 +84,14 @@ void selectRom() {
 }
 
 void initGBMode() {
-    if (sgbModeOption != 0 && gameboy->readMemory(0x14b) == 0x33 && gameboy->readMemory(0x146) == 0x03)
+    if (sgbModeOption != 0 && gameboy->romSlot0[0x14b] == 0x33 && gameboy->romSlot0[0x146] == 0x03)
         gameboy->resultantGBMode = 2;
     else {
         gameboy->resultantGBMode = 0;
     }
 }
 void initGBCMode() {
-    if (sgbModeOption == 2 && gameboy->readMemory(0x14b) == 0x33 && gameboy->readMemory(0x146) == 0x03)
+    if (sgbModeOption == 2 && gameboy->romSlot0[0x14b] == 0x33 && gameboy->romSlot0[0x146] == 0x03)
         gameboy->resultantGBMode = 2;
     else {
         gameboy->resultantGBMode = 1;
@@ -110,20 +110,20 @@ void initializeGameboy() {
                 initGBMode();
                 break;
             case 1: // GBC if needed
-                if (gameboy->readMemory(0x143) == 0xC0)
+                if (gameboy->romSlot0[0x143] == 0xC0)
                     initGBCMode();
                 else
                     initGBMode();
                 break;
             case 2: // GBC
-                if (gameboy->readMemory(0x143) == 0x80 || gameboy->readMemory(0x143) == 0xC0)
+                if (gameboy->romSlot0[0x143] == 0x80 || gameboy->romSlot0[0x143] == 0xC0)
                     initGBCMode();
                 else
                     initGBMode();
                 break;
         }
 
-        bool sgbEnhanced = gameboy->readMemory(0x14b) == 0x33 && gameboy->readMemory(0x146) == 0x03;
+        bool sgbEnhanced = gameboy->romSlot0[0x14b] == 0x33 && gameboy->romSlot0[0x146] == 0x03;
         if (sgbEnhanced && gameboy->resultantGBMode != 2 && probingForBorder) {
             gameboy->resultantGBMode = 2;
         }

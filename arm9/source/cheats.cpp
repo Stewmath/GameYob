@@ -294,7 +294,7 @@ void updateCheatMenu() {
     if (keyJustPressed(KEY_B)) {
         closeSubMenu();
         if (!cheatMenu_gameboyWasPaused)
-            gameboy->unpauseGameboy();
+            gameboy->unpause();
     }
 
     if (redraw)
@@ -308,7 +308,7 @@ bool startCheatMenu() {
         return false;
 
     cheatMenu_gameboyWasPaused = gameboy->isGameboyPaused();
-    gameboy->pauseGameboy();
+    gameboy->pause();
     displaySubMenu(updateCheatMenu);
     redrawCheatMenu();
 

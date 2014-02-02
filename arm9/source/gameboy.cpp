@@ -228,7 +228,7 @@ void Gameboy::gameboyCheckInput() {
 
     if (keyJustPressed(mapGbKey(KEY_MENU) | mapGbKey(KEY_MENU_PAUSE) | KEY_TOUCH)) {
         if (keyJustPressed(mapGbKey(KEY_MENU_PAUSE)))
-            pauseGameboy();
+            pause();
 
         forceReleaseKey(0xffff);
         fastForwardKey = false;
@@ -344,12 +344,12 @@ void Gameboy::resetGameboy() {
     resettingGameboy = true;
 }
 
-void Gameboy::pauseGameboy() {
+void Gameboy::pause() {
     if (!gameboyPaused) {
         gameboyPaused = true;
     }
 }
-void Gameboy::unpauseGameboy() {
+void Gameboy::unpause() {
     if (gameboyPaused) {
         gameboyPaused = false;
     }
@@ -372,7 +372,6 @@ void Gameboy::runEmul()
             cycles = runOpcode(cyclesToEvent);
 
         bool opTriggeredInterrupt = cyclesToExecute == -1;
-        cyclesToExecute = -1;
 
         cycles += extraCycles;
 
@@ -390,24 +389,25 @@ void Gameboy::runEmul()
             }
             else
                 setEventCycles(serialCounter);
-        }
-        if (transferReady) {
-            if (nifiEnabled) {
-                if (!(ioRam[0x02] & 1)) {
-                    sendPacketByte(56, linkSendData);
-                    timerStop(2);
+
+            if (transferReady) {
+                if (nifiEnabled) {
+                    if (!(ioRam[0x02] & 1)) {
+                        sendPacketByte(56, linkSendData);
+                        timerStop(2);
+                    }
                 }
+                else if (printerEnabled) {
+                    sendGbPrinterByte(ioRam[0x01]);
+                }
+                else
+                    linkReceivedData = 0xff;
+                ioRam[0x01] = linkReceivedData;
+                requestInterrupt(SERIAL);
+                ioRam[0x02] &= ~0x80;
+                linkReceivedData = -1;
+                transferReady = false;
             }
-            else if (printerEnabled) {
-                sendGbPrinterByte(ioRam[0x01]);
-            }
-            else
-                linkReceivedData = 0xff;
-            ioRam[0x01] = linkReceivedData;
-            requestInterrupt(SERIAL);
-            ioRam[0x02] &= ~0x80;
-            linkReceivedData = -1;
-            transferReady = false;
         }
 
         updateTimers(cycles);
@@ -807,8 +807,6 @@ int Gameboy::loadRom(char* f)
     }
 
     loadSave();
-
-    printRomInfo();
 
     return 0;
 }

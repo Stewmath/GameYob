@@ -382,7 +382,7 @@ void drawLine(int gbLine) {
         drawSprites(state->spriteData, state->tallSprites);
 }
 
-//void doHBlank(int line) ITCM_CODE;
+void doHBlank(int line) ITCM_CODE;
 
 void doHBlank(int line) {
     if (line >= 192)
@@ -414,7 +414,7 @@ void doHBlank(int line) {
     drawLine(gbLine);
 }
 
-void hblankHandler() ITCM_CODE;
+void hblankHandler();
 
 void hblankHandler()
 {
@@ -1305,6 +1305,7 @@ void drawScanline_P2(int scanline) {
     // Always set this, since it's checked in the drawSprites function
     renderingState[scanline].spritesOn = gameboy->ioRam[0x40] & 0x2;
 
+    /*
     if (scanline == 0) {
         lineModified = true;
         bgPalettesModified = true;
@@ -1312,7 +1313,8 @@ void drawScanline_P2(int scanline) {
         spritesModified = true;
         mapsModified = true;
     }
-    else if (scanline == gameboy->ioRam[0x4a]) { // First line of the window
+    */
+    if (scanline == gameboy->ioRam[0x4a]) { // First line of the window
         lineModified = true;
         mapsModified = true;
     }
