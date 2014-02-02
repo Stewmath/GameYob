@@ -14,9 +14,7 @@ typedef unsigned char u8;
 typedef unsigned short u16;
 typedef unsigned int u32;
 
-extern const int clockSpeed; 
-
-#include "gameboy.h"
+class Gameboy;
 
 extern Gameboy* gameboy;
 #endif

@@ -3,7 +3,6 @@
 #endif
 #include <stddef.h>
 #include <stdio.h>
-#include "gbcpu.h"
 #include "mmu.h"
 #include "gbgfx.h"
 #include "gbsnd.h"
@@ -27,29 +26,7 @@
 #define halfSet()		(locF & 0x20 ? 1 : 0)
 #define numberedGbReg(n)	((u8 *) &gbRegs + reg8Offsets[n])
 
-inline u8 quickRead(u16 addr) {
-    return memory[addr>>12][addr&0xFFF];
-}
-inline u8 quickReadIO(u8 addr) {
-    return ioRam[addr];
-}
-inline u16 quickRead16(u16 addr) {
-    return quickRead(addr)|(quickRead(addr+1)<<8);
-}
-
-// Currently unused because this can actually overwrite the rom, in rare cases
-inline void quickWrite(u16 addr, u8 val) {
-    memory[addr>>12][addr&0xFFF] = val;
-}
-
-struct Registers gbRegs
-#ifdef DS
-DTCM_BSS
-#endif
-;
-int halt;
-
-u8 opCycles[0x100]
+const u8 opCycles[0x100]
 #ifdef DS
 DTCM_DATA
 #endif
@@ -76,7 +53,7 @@ DTCM_DATA
         /* opcodes that have 99 cycles are undefined, but don't hang on them */
 };
 
-u8 CBopCycles[0x100]
+const u8 CBopCycles[0x100]
 #ifdef DS
 DTCM_DATA
 #endif
@@ -103,12 +80,16 @@ DTCM_DATA
 };
 
 
-// IMPORTANT: This variable is unchanging, it DOES NOT change in double speed mode!
-const int clockSpeed = 4194304;
+/*
+struct Registers Gameboy::gbRegs;
+#ifdef DS
+DTCM_BSS
+#endif
+;
+int DTCM_BSS Gameboy::halt;
+*/
 
-int ime;
-
-void initCPU()
+void Gameboy::initCPU()
 {
     gbRegs.sp.w = 0xFFFE;
     ime = 1;			// Correct default value?
@@ -122,23 +103,22 @@ void initCPU()
     else
     {
         gbRegs.pc.w = 0x100;
-        initGameboyMode();
     }
 }
 
-void enableInterrupts()
+void Gameboy::enableInterrupts()
 {
     ime = 1;
     if (ioRam[0x0f] & ioRam[0xff])
         cyclesToExecute = -1;
 }
 
-void disableInterrupts()
+void Gameboy::disableInterrupts()
 {
     ime = 0;
 }
 
-int handleInterrupts(unsigned int interruptTriggered)
+int Gameboy::handleInterrupts(unsigned int interruptTriggered)
 {
     const u16 isrVectors[] = { 0x40, 0x48, 0x50, 0x58, 0x60 };
     /* Halt state is always reset */
@@ -182,10 +162,6 @@ const u8 reg8Offsets[] = {
 
 int cyclesToExecute DTCM_BSS;
 
-#ifdef DS
-int runOpcode(int cycles) ITCM_CODE;
-#endif
-
 #define setPC(val) { gbRegs.pc.w = (val); pcAddr = &memory[(gbRegs.pc.w)>>12][(gbRegs.pc.w)&0xfff]; firstPcAddr=pcAddr;} 
 #define getPC() (gbRegs.pc.w+(pcAddr-firstPcAddr))
 #define readPC() *(pcAddr++)
@@ -204,7 +180,7 @@ int runOpcode(int cycles) ITCM_CODE;
 
 u8* haltBugAddr = NULL;
 u8* firstPcAddr DTCM_BSS;
-int runOpcode(int cycles) {
+int Gameboy::runOpcode(int cycles) {
     cyclesToExecute = cycles;
     // Having these commonly-used registers in local variables should improve speed
     u8* pcAddr;

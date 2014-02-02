@@ -10,7 +10,6 @@
 #include "gbs.h"
 #include "gbgfx.h"
 #include "mmu.h"
-#include "gbcpu.h"
 #include "main.h"
 #include "gameboy.h"
 #include "sgb.h"
@@ -56,6 +55,8 @@ const int win_all_priority = 2;
 
 const int screenOffsX = 48;
 const int screenOffsY = 24;
+
+bool probingForBorder = false;
 
 bool gbGraphicsDisabled=false;
 
@@ -237,7 +238,7 @@ void drawLine(int gbLine) {
         if (winLayers != 0) {
             int whofs = -(state->winX-7)-screenOffsX;
             int wvofs = -(gbLine-state->winPosY)-screenOffsY;
-            if (gbMode == GB) {
+            if (gameboy->gbMode == GB) {
                 // In GB mode, BG and Window share the backdrop color.
                 // So they don't need their own dedicated layers.
                 BG_CNT(layer) = state->winCnt;
@@ -295,7 +296,7 @@ void drawLine(int gbLine) {
         if (bgLayers != 0) {
             int hofs = state->hofs-screenOffsX;
             int vofs = state->vofs-screenOffsY;
-            if (gbMode == GB) {
+            if (gameboy->gbMode == GB) {
                 BG_CNT(layer) = state->bgCnt;
                 BG_HOFS(layer) = hofs;
                 BG_VOFS(layer++) = vofs;
@@ -339,7 +340,7 @@ void drawLine(int gbLine) {
                 }
             }
         }
-        if (gbMode == GB) {
+        if (gameboy->gbMode == GB) {
             // This layer provides the backdrop for both BG and Window.
             WIN_IN |= (1<<layer); // Must be displayed over window
             BG_CNT(layer) = state->winColor0Cnt;
@@ -353,7 +354,7 @@ void drawLine(int gbLine) {
     }
 
     if (state->bgPalettesModified) {
-        if (gbMode == CGB) {
+        if (gameboy->gbMode == CGB) {
             for (int i=0; i<8; i++)
                 updateBgPalette_GBC(i, state->bgPaletteData);
         }
@@ -364,7 +365,7 @@ void drawLine(int gbLine) {
         }
     }
     if (state->sprPalettesModified) {
-        if (gbMode == GB) {
+        if (gameboy->gbMode == GB) {
             for (int i=0; i<4; i++) {
                 updateSprPalette(i, state->sprPaletteData, state->sprPal[0]);
                 updateSprPalette(i+4, state->sprPaletteData, state->sprPal[1]);
@@ -381,7 +382,7 @@ void drawLine(int gbLine) {
         drawSprites(state->spriteData, state->tallSprites);
 }
 
-void doHBlank(int line) ITCM_CODE;
+//void doHBlank(int line) ITCM_CODE;
 
 void doHBlank(int line) {
     if (line >= 192)
@@ -562,8 +563,6 @@ void initGFX()
     if (sharedData->scalingOn)
         REG_DISPCNT &= ~(3<<16); // Main display is disabled when scaling is on
 
-    memset(vram[0], 0, 0x2000);
-    memset(vram[1], 0, 0x2000);
     for (int i=0; i<144; i++) {
         scanlineBuffers[0][i].modified = false;
         scanlineBuffers[1][i].modified = false;
@@ -578,7 +577,7 @@ void initGFX()
 
 void initGFXPalette() {
     memset(bgPaletteData, 0xff, 0x40);
-    if (gbMode == GB) {
+    if (gameboy->gbMode == GB) {
         sprPaletteData[0] = 0xff;
         sprPaletteData[1] = 0xff;
         sprPaletteData[2] = 0x15|((0x15&7)<<5);
@@ -625,18 +624,18 @@ void refreshGFX() {
     memset(changedTile, 0, sizeof(changedTile));
     memset(changedTileInFrame, 0, sizeof(changedTileInFrame));
 
-    lastScreenDisabled = !(ioRam[0x40] & 0x80);
+    lastScreenDisabled = !(gameboy->ioRam[0x40] & 0x80);
     screenDisabled = lastScreenDisabled;
     winPosY = -1;
 
     usingTilePriority[0] = 0;
     usingTilePriority[1] = 0;
     for (int i=0x1800; i<0x1c00; i++) {
-        if (vram[1][i] & 0x80)
+        if (gameboy->vram[1][i] & 0x80)
             usingTilePriority[0]++;
     }
     for (int i=0x1c00; i<0x2000; i++) {
-        if (vram[1][i] & 0x80)
+        if (gameboy->vram[1][i] & 0x80)
             usingTilePriority[1]++;
     }
 }
@@ -686,7 +685,7 @@ void refreshSgbPalette() {
             }
         }
         for (int x=0; x<20; x++) {
-            int palette = sgbMap[y*20+x]&3;
+            int palette = gameboy->sgbMap[y*20+x]&3;
 
             // BACKGROUND
             int yLoop = (y == 0 || winJustDisabled ? 2 : 1); // Give vertical tile -1 tile 0's palette as it's scrolling in
@@ -1043,7 +1042,7 @@ void setSgbMap(u8* src) {
         BG_PALETTE[0] = bgPaletteData[0] | bgPaletteData[1]<<8;
         if (probingForBorder) {
             probingForBorder = false;
-            resetGameboy();
+            gameboy->resetGameboy();
         }
     }
 }
@@ -1059,20 +1058,20 @@ void updateTileMaps() {
 void updateTileMap(int m, int i) {
     changedMap[m][i] = false;
     int mapAddr = (m ? 0x1c00+i : 0x1800+i);
-    int tileNum = vram[0][mapAddr];
+    int tileNum = gameboy->vram[0][mapAddr];
 
     int bank=0;
     int flipX = 0, flipY = 0;
     int paletteid = 0;
     int priority = 0;
 
-    if (gbMode == CGB)
+    if (gameboy->gbMode == CGB)
     {
-        flipX = !!(vram[1][mapAddr] & 0x20);
-        flipY = !!(vram[1][mapAddr] & 0x40);
-        bank = !!(vram[1][mapAddr] & 0x8);
-        paletteid = vram[1][mapAddr] & 0x7;
-        priority = !!(vram[1][mapAddr] & 0x80);
+        flipX = !!(gameboy->vram[1][mapAddr] & 0x20);
+        flipY = !!(gameboy->vram[1][mapAddr] & 0x40);
+        bank = !!(gameboy->vram[1][mapAddr] & 0x8);
+        paletteid = gameboy->vram[1][mapAddr] & 0x7;
+        priority = !!(gameboy->vram[1][mapAddr] & 0x80);
     }
     if (priority)
         overlayMap[m][i] = (tileNum+(bank*0x100)) | (paletteid<<12) | (flipX<<10) | (flipY<<11);
@@ -1091,7 +1090,7 @@ void drawTile(int tileNum, int bank) {
 
     bool unsign = tileNum < 0x100;
     bool sign = tileNum >= 0x80;
-    u8* src = &vram[bank][tileNum<<4];
+    u8* src = &gameboy->vram[bank][tileNum<<4];
     for (int y=0; y<8; y++) {
         int b1=*(src++);
         int b2=*(src++)<<1;
@@ -1192,15 +1191,15 @@ void drawScreen()
     drawingState = tmp;
 
     screenDisabled = lastScreenDisabled;
-    if (!(ioRam[0x40] & 0x80))
+    if (!(gameboy->ioRam[0x40] & 0x80))
         screenDisabled = true;
-    lastScreenDisabled = !(ioRam[0x40] & 0x80);
+    lastScreenDisabled = !(gameboy->ioRam[0x40] & 0x80);
 
     winPosY = -1;
 
     updateTiles();
     updateTileMaps();
-    if (sgbMode)
+    if (gameboy->sgbMode)
         refreshSgbPalette();
 }
 
@@ -1227,14 +1226,14 @@ void drawSprites(u8* data, int tall) {
                 int priority = !!(data[spriteNum+3] & 0x80);
                 int paletteid;
 
-                if (gbMode == CGB)
+                if (gameboy->gbMode == CGB)
                 {
                     bank = !!(data[spriteNum+3]&0x8);
                     paletteid = data[spriteNum+3] & 0x7;
                 }
                 else
                 {
-                    if (sgbMode) {
+                    if (gameboy->sgbMode) {
                         // Sprites are colored the same as the background. A bit 
                         // of compromise is needed, since they don't line up perfectly.
                         int yPos, xPos;
@@ -1259,7 +1258,7 @@ void drawSprites(u8* data, int tall) {
                             yPos = 0;
                         else if (yPos >= 18)
                             yPos = 17;
-                        int sgbPalette = sgbMap[yPos*20 + xPos]&3;
+                        int sgbPalette = gameboy->sgbMap[yPos*20 + xPos]&3;
                         paletteid = sgbPalette+(!!(data[spriteNum+3] & 0x10))*4;
                     }
                     else
@@ -1285,8 +1284,8 @@ void drawScanline(int scanline)
     // writes to winX during mode 3 to take effect next scanline - at least, 
     // when winX is changed from >=167 to <167 or vice versa. Maybe this should 
     // be investigated further.
-    if (winX != ioRam[0x4b]) {
-        winX = ioRam[0x4b];
+    if (winX != gameboy->ioRam[0x4b]) {
+        winX = gameboy->ioRam[0x4b];
         lineModified = true;
         mapsModified = true;
     }
@@ -1299,12 +1298,12 @@ void drawScanline_P2(int scanline) {
     if (hblankDisabled)
         return;
     if (winPosY == -2)
-        winPosY = ioRam[0x44]-ioRam[0x4a];
-    else if (winX < 167 && ioRam[0x4a] <= scanline)
+        winPosY = gameboy->ioRam[0x44]-gameboy->ioRam[0x4a];
+    else if (winX < 167 && gameboy->ioRam[0x4a] <= scanline)
         winPosY++;
 
     // Always set this, since it's checked in the drawSprites function
-    renderingState[scanline].spritesOn = ioRam[0x40] & 0x2;
+    renderingState[scanline].spritesOn = gameboy->ioRam[0x40] & 0x2;
 
     if (scanline == 0) {
         lineModified = true;
@@ -1313,7 +1312,7 @@ void drawScanline_P2(int scanline) {
         spritesModified = true;
         mapsModified = true;
     }
-    else if (scanline == ioRam[0x4a]) { // First line of the window
+    else if (scanline == gameboy->ioRam[0x4a]) { // First line of the window
         lineModified = true;
         mapsModified = true;
     }
@@ -1327,8 +1326,8 @@ void drawScanline_P2(int scanline) {
     renderingState[scanline].spritesModified = spritesModified;
     if (spritesModified) {
         for (int i=0; i<0xa0; i++)
-            renderingState[scanline].spriteData[i] = hram[i];
-        renderingState[scanline].tallSprites = !!(ioRam[0x40]&4);
+            renderingState[scanline].spriteData[i] = gameboy->hram[i];
+        renderingState[scanline].tallSprites = !!(gameboy->ioRam[0x40]&4);
         spritesModified = false;
     }
 
@@ -1337,15 +1336,15 @@ void drawScanline_P2(int scanline) {
         mapsModified = false;
 
         int tileSigned,winMap,bgMap;
-        if (ioRam[0x40] & 0x10)
+        if (gameboy->ioRam[0x40] & 0x10)
             tileSigned = 0;
         else
             tileSigned = 1;
-        if (ioRam[0x40] & 0x40)
+        if (gameboy->ioRam[0x40] & 0x40)
             winMap = 1;
         else
             winMap = 0;
-        if (ioRam[0x40] & 0x8)
+        if (gameboy->ioRam[0x40] & 0x8)
             bgMap = 1;
         else
             bgMap = 0;
@@ -1353,7 +1352,7 @@ void drawScanline_P2(int scanline) {
         renderingState[scanline].bgMap = bgMap;
         renderingState[scanline].winMap = winMap;
 
-        if (gbMode != CGB && !(ioRam[0x40] & 1)) {
+        if (gameboy->gbMode != CGB && !(gameboy->ioRam[0x40] & 1)) {
             renderingState[scanline].winColor0Cnt = BG_MAP_BASE(off_map_base) | 3;
             renderingState[scanline].winCnt = BG_MAP_BASE(off_map_base) | 3;
             renderingState[scanline].winOverlayCnt = BG_MAP_BASE(off_map_base) | 3;
@@ -1362,7 +1361,7 @@ void drawScanline_P2(int scanline) {
             renderingState[scanline].bgOverlayCnt = BG_MAP_BASE(off_map_base) | 3;
         }
         else {
-            bool priorityOn = gbMode == CGB && ioRam[0x40] & 1;
+            bool priorityOn = gameboy->gbMode == CGB && gameboy->ioRam[0x40] & 1;
 
             int winMapBase = map_base[winMap];
             int bgMapBase = map_base[bgMap];
@@ -1390,19 +1389,19 @@ void drawScanline_P2(int scanline) {
             }
         }
 
-        bool winOn = (ioRam[0x40] & 0x20) && winX < 167 && ioRam[0x4a] < 144 && ioRam[0x4a] <= scanline;
+        bool winOn = (gameboy->ioRam[0x40] & 0x20) && winX < 167 && gameboy->ioRam[0x4a] < 144 && gameboy->ioRam[0x4a] <= scanline;
         renderingState[scanline].winOn = winOn;
-        renderingState[scanline].hofs = ioRam[0x43];
-        renderingState[scanline].vofs = ioRam[0x42];
+        renderingState[scanline].hofs = gameboy->ioRam[0x43];
+        renderingState[scanline].vofs = gameboy->ioRam[0x42];
         renderingState[scanline].winX = winX;
         renderingState[scanline].winPosY = winPosY;
-        renderingState[scanline].winY = ioRam[0x4a];
+        renderingState[scanline].winY = gameboy->ioRam[0x4a];
     }
 
     renderingState[scanline].bgPalettesModified = bgPalettesModified;
     if (bgPalettesModified) {
         bgPalettesModified = false;
-        renderingState[scanline].bgPal = ioRam[0x47];
+        renderingState[scanline].bgPal = gameboy->ioRam[0x47];
 
         // Hash is helpful for more-or-less static screens using tons of colours.
         int hash=0;
@@ -1423,8 +1422,8 @@ void drawScanline_P2(int scanline) {
     renderingState[scanline].sprPalettesModified = sprPalettesModified;
     if (sprPalettesModified) {
         sprPalettesModified = false;
-        renderingState[scanline].sprPal[0] = ioRam[0x48];
-        renderingState[scanline].sprPal[1] = ioRam[0x49];
+        renderingState[scanline].sprPal[0] = gameboy->ioRam[0x48];
+        renderingState[scanline].sprPal[1] = gameboy->ioRam[0x49];
         for (int i=0; i<0x40; i++) {
             renderingState[scanline].sprPaletteData[i] = sprPaletteData[i];
         }
@@ -1434,31 +1433,31 @@ void drawScanline_P2(int scanline) {
 }
 
 void writeVram(u16 addr, u8 val) {
-    u8 old = vram[vramBank][addr];
+    u8 old = gameboy->vram[gameboy->vramBank][addr];
     if (old == val)
         return;
-    vram[vramBank][addr] = val;
+    gameboy->vram[gameboy->vramBank][addr] = val;
 
     if (addr < 0x1800) {
         int tileNum = addr/16;
-        int scanline = ioRam[0x44];
+        int scanline = gameboy->ioRam[0x44];
         if (scanline >= 128 && scanline < 144) {
-            if (!changedTileInFrame[vramBank][tileNum]) {
-                changedTileInFrame[vramBank][tileNum] = true;
-                changedTileInFrameQueue[changedTileInFrameQueueLength++] = tileNum|(vramBank<<9);
+            if (!changedTileInFrame[gameboy->vramBank][tileNum]) {
+                changedTileInFrame[gameboy->vramBank][tileNum] = true;
+                changedTileInFrameQueue[changedTileInFrameQueueLength++] = tileNum|(gameboy->vramBank<<9);
             }
         }
         else {
-            if (!changedTile[vramBank][tileNum]) {
-                changedTile[vramBank][tileNum] = true;
-                changedTileQueue[changedTileQueueLength++] = tileNum|(vramBank<<9);
+            if (!changedTile[gameboy->vramBank][tileNum]) {
+                changedTile[gameboy->vramBank][tileNum] = true;
+                changedTileQueue[changedTileQueueLength++] = tileNum|(gameboy->vramBank<<9);
             }
         }
     }
     else {
         int map = (addr-0x1800)/0x400;
         int tile = addr&0x3ff;
-        if (vramBank == 1) {
+        if (gameboy->vramBank == 1) {
             if ((val&0x80) && !(old&0x80))
                 usingTilePriority[map]++;
             else if (!(val&0x80) && (old&0x80))
@@ -1471,24 +1470,24 @@ void writeVram(u16 addr, u8 val) {
     }
 }
 void writeVram16(u16 dest, u16 src) {
-    bool writingToMapFlags = (vramBank == 1 && dest >= 0x1800);
+    bool writingToMapFlags = (gameboy->vramBank == 1 && dest >= 0x1800);
     bool changed=false;
-    u8* page = memory[src>>12];
+    u8* page = gameboy->memory[src>>12];
     int offset = src&0xfff;
 
     for (int i=0; i<16; i++) {
         u8 val = page[offset++];
-        if (vram[vramBank][dest] != val) {
+        if (gameboy->vram[gameboy->vramBank][dest] != val) {
             changed = true;
             if (writingToMapFlags) {
-                u8 old = vram[vramBank][dest];
+                u8 old = gameboy->vram[gameboy->vramBank][dest];
                 int map = (dest-0x1800)/0x400;
                 if ((val&0x80) && !(old&0x80))
                     usingTilePriority[map]++;
                 else if (!(val&0x80) && (old&0x80))
                     usingTilePriority[map]--;
             }
-            vram[vramBank][dest] = val;
+            gameboy->vram[gameboy->vramBank][dest] = val;
         }
         dest++;
     }
@@ -1498,16 +1497,16 @@ void writeVram16(u16 dest, u16 src) {
 
     if (dest < 0x1800) {
         int tileNum = dest/16;
-        if (ioRam[0x44] < 144) {
-            if (!changedTileInFrame[vramBank][tileNum]) {
-                changedTileInFrame[vramBank][tileNum] = true;
-                changedTileInFrameQueue[changedTileInFrameQueueLength++] = tileNum|(vramBank<<9);
+        if (gameboy->ioRam[0x44] < 144) {
+            if (!changedTileInFrame[gameboy->vramBank][tileNum]) {
+                changedTileInFrame[gameboy->vramBank][tileNum] = true;
+                changedTileInFrameQueue[changedTileInFrameQueueLength++] = tileNum|(gameboy->vramBank<<9);
             }
         }
         else {
-            if (!changedTile[vramBank][tileNum]) {
-                changedTile[vramBank][tileNum] = true;
-                changedTileQueue[changedTileQueueLength++] = tileNum|(vramBank<<9);
+            if (!changedTile[gameboy->vramBank][tileNum]) {
+                changedTile[gameboy->vramBank][tileNum] = true;
+                changedTileQueue[changedTileQueueLength++] = tileNum|(gameboy->vramBank<<9);
             }
         }
     }
@@ -1558,11 +1557,11 @@ void updateBgPalette_GBC(int paletteid, u8* data) {
 }
 void updateSprPalette(int paletteid, u8* data, u8 dmgPal) {
     int src = paletteid;
-    if (gbMode == GB && paletteid >= 4) // SGB stuff
+    if (gameboy->gbMode == GB && paletteid >= 4) // SGB stuff
         src -= 4;
     for (int i=0; i<4; i++) {
         int id;
-        if (gbMode == GB)
+        if (gameboy->gbMode == GB)
             id = (dmgPal>>(i*2))&3;
         else
             id = i;
@@ -1574,51 +1573,51 @@ void updateSprPalette(int paletteid, u8* data, u8 dmgPal) {
 void handleVideoRegister(u8 ioReg, u8 val) {
     switch(ioReg) {
         case 0x40:    // LCDC
-            if ((val & 0x7B) != (ioRam[0x40] & 0x7B)) {
+            if ((val & 0x7B) != (gameboy->ioRam[0x40] & 0x7B)) {
                 lineModified = true;
                 mapsModified = true;
             }
-            if ((val&4) != (ioRam[0x40]&4)) {
+            if ((val&4) != (gameboy->ioRam[0x40]&4)) {
                 lineModified = true;
                 spritesModified = true;
             }
-            ioRam[0x40] = val;
+            gameboy->ioRam[0x40] = val;
             if (!(val & 0x80)) {
-                ioRam[0x44] = 0;
-                ioRam[0x41] &= ~3; // Set video mode 0
+                gameboy->ioRam[0x44] = 0;
+                gameboy->ioRam[0x41] &= ~3; // Set video mode 0
             }
             return;
         case 0x46:				// DMA
             {
                 int src = val << 8;
-                u8* mem = memory[src>>12];
+                u8* mem = gameboy->memory[src>>12];
                 src &= 0xfff;
                 for (int i=0; i<0xA0; i++) {
                     u8 val = mem[src++];
-                    hram[i] = val;
+                    gameboy->hram[i] = val;
                 }
                 lineModified = true;
                 spritesModified = true;
 
-                ioRam[ioReg] = val;
-                //printLog("dma write %d\n", ioRam[0x44]);
+                gameboy->ioRam[ioReg] = val;
+                //printLog("dma write %d\n", gameboy->ioRam[0x44]);
                 return;
             }
         case 0x42:
         case 0x43:
-            if (val != ioRam[ioReg]) {
-                ioRam[ioReg] = val;
+            if (val != gameboy->ioRam[ioReg]) {
+                gameboy->ioRam[ioReg] = val;
                 lineModified = true;
                 mapsModified = true;
             }
             break;
         case 0x4B: // winX
-            if (val != ioRam[ioReg]) {
-                ioRam[ioReg] = val;
+            if (val != gameboy->ioRam[ioReg]) {
+                gameboy->ioRam[ioReg] = val;
             }
             break;
         case 0x4A: // winY
-            if (ioRam[0x44] >= 144 || val > ioRam[0x44])
+            if (gameboy->ioRam[0x44] >= 144 || val > gameboy->ioRam[0x44])
                 winPosY = -1;
             else {
                 // Signal that winPosY must be reset according to winY
@@ -1626,64 +1625,64 @@ void handleVideoRegister(u8 ioReg, u8 val) {
             }
             lineModified = true;
             mapsModified = true;
-            ioRam[ioReg] = val;
+            gameboy->ioRam[ioReg] = val;
             break;
         case 0x47:				// BG Palette (GB classic only)
-            if (gbMode == GB && ioRam[0x47] != val) {
+            if (gameboy->gbMode == GB && gameboy->ioRam[0x47] != val) {
                 lineModified = true;
                 bgPalettesModified = true;
             }
-            ioRam[0x47] = val;
+            gameboy->ioRam[0x47] = val;
             return;
         case 0x48:				// Spr Palette (GB classic only)
-            if (gbMode == GB && ioRam[0x48] != val) {
+            if (gameboy->gbMode == GB && gameboy->ioRam[0x48] != val) {
                 lineModified = true;
                 sprPalettesModified = true;
             }
-            ioRam[0x48] = val;
+            gameboy->ioRam[0x48] = val;
             return;
         case 0x49:				// Spr Palette (GB classic only)
-            if (gbMode == GB && ioRam[0x49] != val) {
+            if (gameboy->gbMode == GB && gameboy->ioRam[0x49] != val) {
                 lineModified = true;
                 sprPalettesModified = true;
             }
-            ioRam[0x49] = val;
+            gameboy->ioRam[0x49] = val;
             return;
         case 0x69:				// BG Palette Data (GBC only)
             {
-                int index = ioRam[0x68] & 0x3F;
+                int index = gameboy->ioRam[0x68] & 0x3F;
                 if (bgPaletteData[index] != val) {
                     bgPaletteData[index] = val;
                     lineModified = true;
                     bgPalettesModified = true;
                 }
 
-                if (ioRam[0x68] & 0x80)
-                    ioRam[0x68] = 0x80 | (ioRam[0x68]+1);
-                ioRam[0x69] = bgPaletteData[ioRam[0x68]&0x3F];
+                if (gameboy->ioRam[0x68] & 0x80)
+                    gameboy->ioRam[0x68] = 0x80 | (gameboy->ioRam[0x68]+1);
+                gameboy->ioRam[0x69] = bgPaletteData[gameboy->ioRam[0x68]&0x3F];
                 return;
             }
         case 0x6B:				// Sprite Palette Data (GBC only)
             {
-                int index = ioRam[0x6A] & 0x3F;
+                int index = gameboy->ioRam[0x6A] & 0x3F;
                 if (sprPaletteData[index] != val) {
                     sprPaletteData[index] = val;
                     lineModified = true;
                     sprPalettesModified = true;
                 }
 
-                if (ioRam[0x6A] & 0x80)
-                    ioRam[0x6A] = 0x80 | (ioRam[0x6A]+1);
-                ioRam[0x6B] = sprPaletteData[ioRam[0x6A]&0x3F];
+                if (gameboy->ioRam[0x6A] & 0x80)
+                    gameboy->ioRam[0x6A] = 0x80 | (gameboy->ioRam[0x6A]+1);
+                gameboy->ioRam[0x6B] = sprPaletteData[gameboy->ioRam[0x6A]&0x3F];
                 return;
             }
         default:
-            ioRam[ioReg] = val;
+            gameboy->ioRam[ioReg] = val;
     }
 }
 
 void writeHram(u16 addr, u8 val) {
-    hram[addr&0x1ff] = val;
+    gameboy->hram[addr&0x1ff] = val;
     lineModified = true;
     spritesModified = true;
 }

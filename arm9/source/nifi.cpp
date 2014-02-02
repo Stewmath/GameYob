@@ -4,7 +4,6 @@
 #include "mmu.h"
 #include "main.h"
 #include "gameboy.h"
-#include "gbcpu.h"
 #include "console.h"
 
 volatile int linkReceivedData=-1;
@@ -74,7 +73,7 @@ void packetHandler(int packetID, int readlength)
                 // Internal clock receives a response from external clock
             case 56:
                 transferReady = true;
-                cyclesToExecute = -1;
+                gameboy->cyclesToExecute = -1;
                 nifiSendid++;
                 break;
             default:

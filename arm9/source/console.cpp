@@ -33,9 +33,12 @@ int consoleScreen;
 int stateNum=0;
 PrintConsole* menuConsole;
 
-int gbcModeOption=0;
-bool gbaModeOption=false;
-int sgbModeOption=false;
+int gbcModeOption;
+bool gbaModeOption;
+int sgbModeOption;
+
+bool soundDisabled;
+bool hyperSound;
 
 bool customBordersEnabled;
 bool sgbBordersEnabled;
@@ -43,9 +46,17 @@ bool autoSavingEnabled;
 
 bool printerEnabled;
 
+// how/when the bios should be used
+int biosEnabled;
+
 volatile int consoleSelectedRow = -1;
 
 void (*subMenuUpdateFunc)();
+
+bool fpsOutput;
+bool timeOutput;
+
+int rumbleStrength;
 
 extern int interruptWaitMode;
 extern bool windowDisabled;
@@ -53,7 +64,6 @@ extern bool hblankDisabled;
 extern int halt;
 
 extern int rumbleInserted;
-extern int rumbleStrength;
 
 
 // Private function used for simple submenus
@@ -68,19 +78,19 @@ void suspendFunc(int value) {
     muteSND();
     if (!autoSavingEnabled) {
         printMenuMessage("Saving SRAM...");
-        saveGame();
+        gameboy->saveGame();
     }
     printMenuMessage("Saving state...");
-    saveState(-1);
+    gameboy->saveState(-1);
     printMessage[0] = '\0';
     closeMenu();
     selectRom();
 }
 void exitFunc(int value) {
     muteSND();
-    if (!autoSavingEnabled && numRamBanks && !gbsMode) {
+    if (!autoSavingEnabled && gameboy->getNumRamBanks() && !gbsMode) {
         printMenuMessage("Saving SRAM...");
-        saveGame();
+        gameboy->saveGame();
     }
     printMessage[0] = '\0';
     closeMenu();
@@ -153,7 +163,7 @@ void saveSettingsFunc(int value) {
 
 void stateSelectFunc(int value) {
     stateNum = value;
-    if (checkStateExists(stateNum)) {
+    if (gameboy->checkStateExists(stateNum)) {
         enableMenuOption("Load State");
         enableMenuOption("Delete State");
     }
@@ -165,7 +175,7 @@ void stateSelectFunc(int value) {
 void stateSaveFunc(int value) {
     printMenuMessage("Saving state...");
     muteSND();
-    saveState(stateNum);
+    gameboy->saveState(stateNum);
     unmuteSND();
     printMenuMessage("State saved.");
     // Will activate the other state options
@@ -174,7 +184,7 @@ void stateSaveFunc(int value) {
 void stateLoadFunc(int value) {
     printMenuMessage("Loading state...");
     muteSND();
-    if (loadState(stateNum) == 0) {
+    if (gameboy->loadState(stateNum) == 0) {
         closeMenu();
         updateScreens();
         printMessage[0] = '\0';
@@ -182,7 +192,7 @@ void stateLoadFunc(int value) {
 }
 void stateDeleteFunc(int value) {
     muteSND();
-    deleteState(stateNum);
+    gameboy->deleteState(stateNum);
     // Will grey out the other state options
     stateSelectFunc(stateNum);
     unmuteSND();
@@ -263,14 +273,9 @@ void soundEnableFunc(int value) {
     sharedData->fifosSent++;
     fifoSendValue32(FIFO_USER_01, GBSND_MUTE_COMMAND<<20);
 }
-void advanceFrameFunc(int value) {
-    advanceFrame = true;
-    closeMenu();
-    updateScreens();
-}
 void romInfoFunc(int value) {
     displaySubMenu(subMenuGenericUpdateFunc);
-    printRomInfo();
+    gameboy->printRomInfo();
 }
 void versionInfoFunc(int value) {
     displaySubMenu(subMenuGenericUpdateFunc);
@@ -312,11 +317,11 @@ void hyperSoundFunc(int value) {
 void setAutoSaveFunc(int value) {
     muteSND();
     if (autoSavingEnabled)
-        gameboySyncAutosave();
+        gameboy->gameboySyncAutosave();
     else
-        saveGame(); // Synchronizes save file with filesystem
+        gameboy->saveGame(); // Synchronizes save file with filesystem
     autoSavingEnabled = value;
-    if (numRamBanks && !gbsMode && !autoSavingEnabled)
+    if (gameboy->getNumRamBanks() && !gbsMode && !autoSavingEnabled)
         enableMenuOption("Exit without saving");
     else
         disableMenuOption("Exit without saving");
@@ -400,7 +405,6 @@ ConsoleSubMenu menuList[] = {
             {"Window", windowEnableFunc, 2, {"Off","On"}, 1},
             {"Sound", soundEnableFunc, 2, {"Off","On"}, 1},
             {"Sound Timing Fix", hyperSoundFunc, 2, {"Off","On"}, 1},
-            //{"Advance Frame", advanceFrameFunc, 0, {}, 0},
             {"ROM Info", romInfoFunc, 0, {}, 0},
             {"Version Info", versionInfoFunc, 0, {}, 0}
         }
@@ -447,7 +451,7 @@ void closeMenu() {
     menuOn = false;
     setPrintConsole(menuConsole);
     consoleClear();
-    unpauseGameboy();
+    gameboy->unpauseGameboy();
 }
 
 bool isMenuOn() {

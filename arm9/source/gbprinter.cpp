@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include "gbprinter.h"
+#include "gameboy.h"
 #include "gbgfx.h"
 #include "inputhelper.h"
 #include "nifi.h"
@@ -255,7 +256,7 @@ void printerSaveFile() {
     // Find the first available "print number".
     char filename[300];
     while (true) {
-        siprintf(filename, "%s-%d.bmp", getRomBasename(), numPrinted);
+        siprintf(filename, "%s-%d.bmp", gameboy->getRomBasename(), numPrinted);
         if (appending ||                        // If appending, the last file written to is already selected.
                 access(filename, R_OK) != 0) {  // Else, if the file doesn't exist, we're done searching.
 

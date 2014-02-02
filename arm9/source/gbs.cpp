@@ -4,7 +4,6 @@
 #include "common.h"
 #include "inputhelper.h"
 #include "mmu.h"
-#include "gbcpu.h"
 #include "gameboy.h"
 #include "main.h"
 #include "gbsnd.h"
@@ -56,10 +55,11 @@ void gbsRedraw() {
 }
 
 void gbsLoadSong() {
+    u8* romSlot0 = gameboy->getRomBank(0);
     gameboy->initMMU();
-    ime = 0;
+    gameboy->ime = 0;
 
-    gbRegs.sp.w = READ16(gbsHeader+0x0c);
+    gameboy->gbRegs.sp.w = READ16(gbsHeader+0x0c);
     u8 tma =        gbsHeader[0x0e];
     u8 tac =        gbsHeader[0x0f];
 
@@ -88,10 +88,10 @@ void gbsLoadSong() {
     gameboy->writeIO(0x07, tac);
 
     gbsPlayingSong = gbsSelectedSong;
-    gbRegs.af.b.h = gbsPlayingSong;
-    gameboy->writeMemory(--gbRegs.sp.w, 0x01);
-    gameboy->writeMemory(--gbRegs.sp.w, 0x00); // Will return to beginning
-    gbRegs.pc.w = gbsInitAddress;
+    gameboy->gbRegs.af.b.h = gbsPlayingSong;
+    gameboy->writeMemory(--gameboy->gbRegs.sp.w, 0x01);
+    gameboy->writeMemory(--gameboy->gbRegs.sp.w, 0x00); // Will return to beginning
+    gameboy->gbRegs.pc.w = gbsInitAddress;
 }
 
 // public
@@ -104,6 +104,8 @@ void gbsReadHeader() {
 }
 
 void gbsInit() {
+    u8* romSlot0 = gameboy->getRomBank(0);
+
     if (gbsConsole == 0) {
         gbsConsole = (PrintConsole*)malloc(sizeof(PrintConsole));
         memcpy(gbsConsole, &defaultConsole, sizeof(PrintConsole));
@@ -156,9 +158,9 @@ void gbsCheckInput() {
     }
     if (keyJustPressed(mapGbKey(KEY_GB_B))) { // Stop playing music
         gbsPlayingSong = -1;
-        ime = 0;
+        gameboy->ime = 0;
         gameboy->writeIO(0xff, 0);
-        initSND();
+        gameboy->initSND();
     }
     gbsRedraw();
 

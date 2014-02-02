@@ -1,11 +1,20 @@
 #pragma once
 #include <stdio.h>
+#include <vector>
 #include "time.h"
+#include "cheats.h"
+
 #ifdef DS
 #include <nds.h>
 #endif
 
+#define MAX_ROM_BANKS   0x200
 #define MAX_SRAM_SIZE   0x20000
+
+#define GB			0
+#define CGB			1
+
+class SoundEngine;
 
 // Be careful changing this; it affects save state compatibility.
 struct clockStruct
@@ -23,12 +32,40 @@ struct clockStruct
     time_t last;
 };
 
+// Cpu stuff
+typedef union
+{
+    u16 w;
+    struct B
+    {
+        u8 l;
+        u8 h;
+    } b;
+} Register;
+
+struct Registers
+{
+    Register sp; /* Stack Pointer */
+    Register pc; /* Program Counter */
+    Register af;
+    Register bc;
+    Register de;
+    Register hl;
+};
+
+// IMPORTANT: This is unchanging, it DOES NOT change in double speed mode!
+#define clockSpeed 4194304
+
 
 class Gameboy {
     public:
         // gameboy.cpp
 
-        void setEventCycles(int cycles);
+        Gameboy();
+        void init();
+        void initSND();
+
+        void setEventCycles(int cycles) ITCM_CODE;
 
         void gameboyCheckInput();
         void gameboyUpdateVBlank();
@@ -38,12 +75,11 @@ class Gameboy {
         void pauseGameboy();
         void unpauseGameboy();
         bool isGameboyPaused();
-        void runEmul();
-        void initLCD();
+        void runEmul() ITCM_CODE;
         void initGameboyMode();
         void checkLYC();
-        void updateLCD(int cycles);
-        void updateTimers(int cycles);
+        void updateLCD(int cycles) ITCM_CODE;
+        void updateTimers(int cycles) ITCM_CODE;
         void requestInterrupt(int id);
         void setDoubleSpeed(int val);
 
@@ -59,6 +95,24 @@ class Gameboy {
         int loadState(int num);
         void deleteState(int num);
         bool checkStateExists(int num);
+
+        inline int getCyclesSinceVblank() { return cyclesSinceVblank + extraCycles; }
+        inline bool isDoubleSpeed() { return doubleSpeed; }
+        inline CheatEngine* getCheatEngine() { return cheatEngine; }
+
+        // gbcpu.cpp
+        void initCPU();
+        void enableInterrupts();
+        void disableInterrupts();
+        int handleInterrupts(unsigned int interruptTriggered);
+        int runOpcode(int cycles) ITCM_CODE;
+
+        inline u8 quickRead(u16 addr) { return memory[addr>>12][addr&0xFFF]; }
+        inline u8 quickReadIO(u8 addr) { return ioRam[addr]; }
+        inline u16 quickRead16(u16 addr) { return quickRead(addr)|(quickRead(addr+1)<<8); }
+        // Currently unused because this can actually overwrite the rom, in rare cases
+        inline void quickWrite(u16 addr, u8 val) { memory[addr>>12][addr&0xFFF] = val; }
+
 
         // mmu.cpp
 
@@ -76,6 +130,14 @@ class Gameboy {
 
         void doRumble(bool rumbleVal);
 
+        inline u8 getNumRomBanks() { return numRomBanks; }
+        inline u8 getNumRamBanks() { return numRamBanks; }
+        inline u8 getWramBank() { return wramBank; }
+        inline void setWramBank(u8 bank) { wramBank = bank; }
+
+        inline void setSoundChannel(int which) {ioRam[0x26] |= which;}
+        inline void clearSoundChannel(int which) {ioRam[0x26] &= ~which;}
+
         // mbc functions (in mmu.cpp)
         u8 h3r(u16 addr);
         u8 m3r(u16 addr);
@@ -87,6 +149,18 @@ class Gameboy {
         void h1w(u16 addr, u8 val);
         void m5w (u16 addr, u8 val);
         void h3w (u16 addr, u8 val);
+
+        // gbio.h
+        void gbioInit();
+        void writeSaveFileSectors(int startSector, int numSectors);
+        void loadRomBank();
+        bool isRomBankLoaded(int bank);
+        u8* getRomBank(int bank);
+        const char* getRomBasename();
+
+        char* getRomTitle();
+        void printRomInfo();
+        void loadBios(const char* filename);
 
 
         // variables
@@ -100,18 +174,11 @@ class Gameboy {
 
         int doubleSpeed;
 
-        bool fastForwardMode; // controlled by the toggle hotkey
-        bool fastForwardKey;  // only while its hotkey is pressed
-
-        bool fpsOutput;
-        bool timeOutput;
-
         int gbMode;
         bool sgbMode;
 
         int cyclesToEvent;
         int cyclesSinceVblank;
-        bool probingForBorder;
         int interruptTriggered;
         int gameboyFrameCounter;
 
@@ -122,7 +189,8 @@ class Gameboy {
         int numRomBanks;
         int numRamBanks;
         bool hasRumble;
-        int rumbleStrength;
+        int rumbleValue;
+        int lastRumbleValue;
 
         // MBC flags
         bool ramEnabled;
@@ -146,6 +214,8 @@ class Gameboy {
         u8 wram[8][0x1000];
 
         u8 highram[0x1000];
+        u8* hram;
+        u8* ioRam;
 
         u8 spriteData[];
         int wramBank;
@@ -167,7 +237,17 @@ class Gameboy {
         int numSaveWrites;
         bool autosaveStarted;
 
+        // cpu variables
+        struct Registers gbRegs;
+        int halt;
+        int ime;
+        int extraCycles;
+        int cyclesToExecute;
+
     private:
+        CheatEngine* cheatEngine;
+        SoundEngine* soundEngine;
+
         // mmu functions
         void refreshRomBank(int bank);
         void refreshRamBank(int bank);
@@ -186,16 +266,91 @@ class Gameboy {
 
         bool rockmanMapper;
 
-        void (*writeFunc)(u16, u8);
-        u8 (*readFunc)(u16);
+        void (Gameboy::*writeFunc)(u16, u8);
+        u8 (Gameboy::*readFunc)(u16);
 
-        // mmu variables
-        bool nifiTryAgain;
+        // gbio.cpp
+        FILE* romFile;
+        FILE* saveFile;
+        char filename[256];
+        char savename[256];
+        char basename[256];
+        char romTitle[20];
 
+        // Values taken from the cartridge header
+        u8 ramSize;
+        u8 mapper;
+        u8 cgbFlag;
+        u8 romSize;
+
+        u8 buttonsPressed;
+
+        u8* romSlot0;
+        u8* romSlot1;
+        int maxLoadedRomBanks;
+        int numLoadedRomBanks;
+        u8* romBankSlots; // Each 0x4000 bytes = one slot
+        int bankSlotIDs[MAX_ROM_BANKS]; // Keeps track of which bank occupies which slot
+        std::vector<int> lastBanksUsed;
+
+        bool suspendStateExists;
+
+        int saveFileSectors[MAX_SRAM_SIZE/512];
+
+        // sgb.cpp
+    public:
+        void initSGB();
+        void sgbHandleP1(u8 val);
+
+        u8 sgbMap[20*18];
+
+        // SGB packet commands
+        void doVramTransfer(u8* dest);
+        void setBackdrop(u16 val);
+        void sgbLoadAttrFile(int index);
+        void sgbPalXX(int block);
+        void sgbAttrBlock(int block);
+        void sgbAttrLin(int block);
+        void sgbAttrDiv(int block);
+        void sgbAttrChr(int block);
+        void sgbPalSet(int block);
+        void sgbPalTrn(int block);
+        void sgbDataSnd(int block);
+        void sgbMltReq(int block);
+        void sgbChrTrn(int block);
+        void sgbPctTrn(int block);
+        void sgbAttrTrn(int block);
+        void sgbAttrSet(int block);
+        void sgbMask(int block);
+    private:
+
+        int sgbPacketLength; // Number of packets to be transferred this command
+        int sgbPacketsTransferred; // Number of packets which have been transferred so far
+        int sgbPacketBit; // Next bit # to be sent in the packet. -1 if no packet is being transferred.
+        u8 sgbPacket[16];
+        u8 sgbCommand;
+
+        u8 sgbNumControllers;
+        u8 sgbSelectedController;
+        u8 sgbButtonsChecked;
+
+        // Data for various different sgb commands
+        struct SgbCmdData {
+            int numDataSets;
+
+            union {
+                struct {
+                    u8 data[6];
+                    u8 dataBytes;
+                } attrBlock;
+
+                struct {
+                    u8 writeStyle;
+                    u8 x,y;
+                } attrChr;
+            };
+        } cmdData;
 };
-
-#define hram highram+0xe00
-#define ioRam hram+0x100
 
 typedef void (Gameboy::*mbcWrite)(u16,u8);
 typedef u8   (Gameboy::*mbcRead )(u16);
@@ -209,3 +364,5 @@ const mbcWrite mbcWrites[] = {
 
 
 extern bool biosExists;
+
+extern Gameboy* gameboy;

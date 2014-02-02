@@ -1,11 +1,17 @@
 #pragma once
 
+#ifdef DS
+#include <nds.h>
+#endif
+
 enum Icons {
     ICON_NULL=0,
     ICON_PRINTER
 };
 
 extern volatile int dsFrameCounter;
+
+extern bool probingForBorder;
 
 extern int interruptWaitMode;
 extern int scaleMode;

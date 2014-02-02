@@ -1,9 +1,10 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <dirent.h>
+#include <unistd.h>
 #include "gbprinter.h"
 #include "gameboy.h"
 #include "common.h"
-#include "gbcpu.h"
 #include "gbgfx.h"
 #include "gbsnd.h"
 #include "mmu.h"
@@ -15,22 +16,22 @@
 #include "cheats.h"
 #include "sgb.h"
 #include "gbs.h"
+#include "libfat_fake.h"
 
 
-time_t rawTime;
-time_t lastRawTime;
 const int maxWaitCycles=1000000;
 
-
-bool fpsOutput=true;
-bool timeOutput=true;
-bool fastForwardMode = false; // controlled by the toggle hotkey
-bool fastForwardKey = false;  // only while its hotkey is pressed
-
-int cyclesSinceVblank=0;
-bool probingForBorder=false;
-
 Gameboy::Gameboy() {
+    romFile=NULL;
+    saveFile=NULL;
+
+    if (__dsimode)
+        maxLoadedRomBanks = 512; // 8 megabytes
+    else
+        maxLoadedRomBanks = 128; // 2 megabytes
+    romBankSlots = (u8*)malloc(maxLoadedRomBanks*0x4000);
+
+
     fpsOutput=true;
     timeOutput=true;
 
@@ -50,7 +51,87 @@ Gameboy::Gameboy() {
     numSaveWrites = 0;
     autosaveStarted = false;
 
+    cheatEngine = new CheatEngine(this);
+    soundEngine = new SoundEngine(this);
 }
+
+void Gameboy::init()
+{
+    sgbMode = false;
+
+    initMMU();
+    initCPU();
+
+    cyclesSinceVblank = 0;
+    gameboyFrameCounter = 0;
+
+    gameboyPaused = false;
+    setDoubleSpeed(0);
+
+    scanlineCounter = 456*(doubleSpeed?2:1);
+    phaseCounter = 456*153;
+    timerCounter = 0;
+    dividerCounter = 256;
+    serialCounter = 0;
+
+    initGbPrinter();
+
+    // Timer stuff
+    periods[0] = clockSpeed/4096;
+    periods[1] = clockSpeed/262144;
+    periods[2] = clockSpeed/65536;
+    periods[3] = clockSpeed/16384;
+    timerPeriod = periods[0];
+
+    timerStop(2);
+
+    initSND();
+
+    memset(vram[0], 0, 0x2000);
+    memset(vram[1], 0, 0x2000);
+
+    initGFX();
+    initSND();
+}
+
+void Gameboy::initSND() {
+
+    // Sound stuff
+    for (int i=0x27; i<=0x2f; i++)
+        ioRam[i] = 0xff;
+
+    ioRam[0x26] = 0xf0;
+
+    ioRam[0x10] = 0x80;
+    ioRam[0x11] = 0xBF;
+    ioRam[0x12] = 0xF3;
+    ioRam[0x14] = 0xBF;
+    ioRam[0x16] = 0x3F;
+    ioRam[0x17] = 0x00;
+    ioRam[0x19] = 0xbf;
+    ioRam[0x1a] = 0x7f;
+    ioRam[0x1b] = 0xff;
+    ioRam[0x1c] = 0x9f;
+    ioRam[0x1e] = 0xbf;
+    ioRam[0x20] = 0xff;
+    ioRam[0x21] = 0x00;
+    ioRam[0x22] = 0x00;
+    ioRam[0x23] = 0xbf;
+    ioRam[0x24] = 0x77;
+    ioRam[0x25] = 0xf3;
+
+    // Initial values for the waveform are random among gameboys.
+    // These values are the defaults for the GBC.
+    for (int i=0; i<0x10; i+=2)
+        ioRam[0x30+i] = 0;
+    for (int i=1; i<0x10; i+=2)
+        ioRam[0x30+i] = 0xff;
+
+    soundEngine->cyclesToSoundEvent = 0;
+
+    soundEngine->init();
+}
+
 
 void Gameboy::setEventCycles(int cycles) {
     if (cycles < cyclesToEvent) {
@@ -145,11 +226,10 @@ void Gameboy::gameboyCheckInput() {
     if (keyJustPressed(mapGbKey(KEY_FAST_FORWARD_TOGGLE)))
         fastForwardMode = !fastForwardMode;
 
-    if (advanceFrame || keyJustPressed(mapGbKey(KEY_MENU) | mapGbKey(KEY_MENU_PAUSE) | KEY_TOUCH)) {
+    if (keyJustPressed(mapGbKey(KEY_MENU) | mapGbKey(KEY_MENU_PAUSE) | KEY_TOUCH)) {
         if (keyJustPressed(mapGbKey(KEY_MENU_PAUSE)))
             pauseGameboy();
 
-        advanceFrame = 0;
         forceReleaseKey(0xffff);
         fastForwardKey = false;
         fastForwardMode = false;
@@ -200,7 +280,7 @@ void Gameboy::gameboyUpdateVBlank() {
 	}
 	else {
 		drawScreen();
-		soundUpdateVBlank();
+		soundEngine->soundUpdateVBlank();
 
 		if (resettingGameboy) {
 			initializeGameboy();
@@ -219,8 +299,8 @@ void Gameboy::gameboyUpdateVBlank() {
 
         updateAutosave();
 
-		if (cheatsEnabled)
-			applyGSCheats();
+		if (cheatEngine->areCheatsEnabled())
+			cheatEngine->applyGSCheats();
 
         updateGbPrinter();
 	}
@@ -333,12 +413,12 @@ void Gameboy::runEmul()
         updateTimers(cycles);
 
         soundCycles += cycles>>doubleSpeed;
-        if (soundCycles >= cyclesToSoundEvent) {
-            cyclesToSoundEvent = 10000;
-            updateSound(soundCycles);
+        if (soundCycles >= soundEngine->cyclesToSoundEvent) {
+            soundEngine->cyclesToSoundEvent = 10000;
+            soundEngine->updateSound(soundCycles);
             soundCycles = 0;
         }
-        setEventCycles(cyclesToSoundEvent);
+        setEventCycles(soundEngine->cyclesToSoundEvent);
 
         updateLCD(cycles);
 
@@ -358,29 +438,6 @@ void Gameboy::runEmul()
             extraCycles += handleInterrupts(interruptTriggered);
         }
     }
-}
-
-void Gameboy::initLCD()
-{
-    gameboyPaused = false;
-    setDoubleSpeed(0);
-
-    scanlineCounter = 456*(doubleSpeed?2:1);
-    phaseCounter = 456*153;
-    timerCounter = 0;
-    dividerCounter = 256;
-    serialCounter = 0;
-
-    initGbPrinter();
-
-    // Timer stuff
-    periods[0] = clockSpeed/4096;
-    periods[1] = clockSpeed/262144;
-    periods[2] = clockSpeed/65536;
-    periods[3] = clockSpeed/16384;
-    timerPeriod = periods[0];
-
-    timerStop(2);
 }
 
 // Called either from startup, or when the BIOS writes to FF50.
@@ -595,7 +652,7 @@ void Gameboy::setDoubleSpeed(int val) {
 }
 
 
-int loadRom(char* f)
+int Gameboy::loadRom(char* f)
 {
     if (romFile != NULL)
         fclose(romFile);
@@ -684,7 +741,7 @@ int loadRom(char* f)
 
     if (gbsMode) {
         MBC = MBC5;
-        loadCheats(""); // Unloads previous cheats
+        cheatEngine->loadCheats(""); // Unloads previous cheats
     }
     else {
         switch (mapper) {
@@ -736,12 +793,10 @@ int loadRom(char* f)
                 bios[i] = romSlot0[i];
         }
 
-        suspendStateExists = checkStateExists(-1);
-
         // Load cheats
         char nameBuf[100];
         siprintf(nameBuf, "%s.cht", basename);
-        loadCheats(nameBuf);
+        cheatEngine->loadCheats(nameBuf);
 
     } // !gbsMode
 
@@ -753,10 +808,12 @@ int loadRom(char* f)
 
     loadSave();
 
+    printRomInfo();
+
     return 0;
 }
 
-void unloadRom() {
+void Gameboy::unloadRom() {
     doAtVBlank(clearGFX);
 
     gameboySyncAutosave();
@@ -770,7 +827,7 @@ void unloadRom() {
     }
 }
 
-int loadSave()
+int Gameboy::loadSave()
 {
     if (gbsMode)
         numRamBanks = 1;
@@ -883,7 +940,7 @@ int loadSave()
     return 0;
 }
 
-int saveGame()
+int Gameboy::saveGame()
 {
     if (numRamBanks == 0 || saveFile == NULL)
         return 0;
@@ -904,7 +961,7 @@ int saveGame()
     return 0;
 }
 
-void gameboySyncAutosave() {
+void Gameboy::gameboySyncAutosave() {
     if (!autosaveStarted)
         return;
 
@@ -938,7 +995,7 @@ void gameboySyncAutosave() {
     autosaveStarted = false;
 }
 
-void updateAutosave() {
+void Gameboy::updateAutosave() {
     if (autosaveStarted)
         framesSinceAutosaveStarted++;
 
@@ -1130,7 +1187,6 @@ int Gameboy::loadState(int stateNum) {
     fclose(inFile);
     if (stateNum == -1) {
         unlink(statename);
-        suspendStateExists = false;
     }
 
     gbRegs = state.regs;
@@ -1168,7 +1224,7 @@ int Gameboy::loadState(int stateNum) {
         saveGame(); // Synchronize save file on sd with file in ram
 
     refreshGFX();
-    refreshSND();
+    soundEngine->refresh();
 
     return 0;
 }

@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <cstdlib>
 #include "mmu.h"
-#include "gbcpu.h"
 #include "gameboy.h"
 #include "gbgfx.h"
 #include "gbsnd.h"
@@ -11,6 +10,7 @@
 #include "sgb.h"
 #include "console.h"
 #include "gbs.h"
+#include "timer.h"
 #ifdef DS
 #include <nds.h>
 #endif
@@ -18,8 +18,6 @@
 int rumbleInserted = 0;
 // whether the bios exists and has been loaded
 bool biosExists = false;
-// how/when the bios should be used
-int biosEnabled;
 
 
 
@@ -438,6 +436,9 @@ void Gameboy::h3w (u16 addr, u8 val) {
 
 void Gameboy::initMMU()
 {
+    hram = highram+0xe00;
+    ioRam = hram+0x100;
+
     wramBank = 1;
     vramBank = 0;
     romBank = 1;
@@ -469,6 +470,7 @@ void Gameboy::initMMU()
         else if (biosEnabled == 1 && resultantGBMode == 0)
             biosOn = true;
     }
+
     mapMemory();
     for (int i=0; i<8; i++)
         memset(wram[i], 0, 0x1000);
@@ -492,6 +494,9 @@ void Gameboy::initMMU()
     ioRam[0x55] = 0xff;
 
     memset(dirtySectors, 0, sizeof(dirtySectors));
+
+    if (!biosOn)
+        initGameboyMode();
 }
 
 void Gameboy::mapMemory() {
@@ -580,7 +585,7 @@ u8 Gameboy::readMemory(u16 addr)
         else if (area == 0xa/2) {
             /* Check if there's an handler for this mbc */
             if (readFunc != NULL)
-                return readFunc(addr);
+                return (*this.*readFunc)(addr);
             else if (!numRamBanks)
                 return 0xff;
         }
@@ -689,30 +694,30 @@ void Gameboy::writeMemory(u16 addr, u8 val)
     }
 
     if (writeFunc != NULL)
-        writeFunc(addr, val);
+        (*this.*writeFunc)(addr, val);
 }
 
 
-void Gameboy::nifiTimeoutFunc() {
+bool nifiTryAgain = false;
+void nifiTimeoutFunc() {
     printLog("Nifi timeout\n");
     if (nifiTryAgain) {
         nifiSendid--;
-        sendPacketByte(55, ioRam[0x01]);
+        sendPacketByte(55, gameboy->ioRam[0x01]);
         nifiSendid++;
         nifiTryAgain = false;
     }
     else {
         // There was no response from nifi, assume no connection.
         printLog("No nifi response received\n");
-        ioRam[0x01] = 0xff;
-        requestInterrupt(SERIAL);
-        ioRam[0x02] &= ~0x80;
+        gameboy->ioRam[0x01] = 0xff;
+        gameboy->requestInterrupt(SERIAL);
+        gameboy->ioRam[0x02] &= ~0x80;
         timerStop(2);
     }
 }
 
-void Gameboy::writeIO(u8 ioReg, u8 val)
-{
+void Gameboy::writeIO(u8 ioReg, u8 val) {
     switch (ioReg)
     {
         case 0x00:
@@ -771,23 +776,17 @@ void Gameboy::writeIO(u8 ioReg, u8 val)
         case 0x11:
         case 0x12:
         case 0x13:
-        case 0x14:
         case 0x16:
         case 0x17:
         case 0x18:
-        case 0x19:
-        case 0x1A:
         case 0x1B:
         case 0x1C:
         case 0x1D:
-        case 0x1E:
         case 0x20:
         case 0x21:
         case 0x22:
-        case 0x23:
         case 0x24:
         case 0x25:
-        case 0x26:
         case 0x30:
         case 0x31:
         case 0x32:
@@ -804,8 +803,61 @@ void Gameboy::writeIO(u8 ioReg, u8 val)
         case 0x3D:
         case 0x3E:
         case 0x3F:
-            handleSoundRegister(ioReg, val);
+handleSoundReg:
+            if (soundDisabled || // If sound is disabled from menu, or
+                    // If sound is globally disabled via shutting down the APU,
+                    (!(ioRam[0x26] & 0x80)
+                     // ignore register writes to between FF10 and FF25 inclusive.
+                     && ioReg >= 0x10 && ioReg <= 0x25))
+                return;
+            ioRam[ioReg] = val;
+            soundEngine->handleSoundRegister(ioReg, val);
             return;
+        case 0x26:
+            ioRam[ioReg] &= ~0x80;
+            ioRam[ioReg] |= (val&0x80);
+
+            if (!(val & 0x80)) {
+                for (int reg = 0x10; reg <= 0x25; reg++)
+                    ioRam[reg] = 0;
+                clearSoundChannel(CHAN_1);
+                clearSoundChannel(CHAN_2);
+                clearSoundChannel(CHAN_3);
+                clearSoundChannel(CHAN_4);
+            }
+
+            soundEngine->handleSoundRegister(ioReg, val);
+            return;
+        case 0x14:
+            if (soundDisabled || (!(ioRam[0x26] & 0x80)))
+                return;
+            if (val & 0x80)
+                setSoundChannel(CHAN_1);
+            goto handleSoundReg;
+        case 0x19:
+            if (soundDisabled || (!(ioRam[0x26] & 0x80)))
+                return;
+            if (val & 0x80)
+                setSoundChannel(CHAN_2);
+            goto handleSoundReg;
+        case 0x1A:
+            if (soundDisabled || (!(ioRam[0x26] & 0x80)))
+                return;
+            if (!(val & 0x80))
+                clearSoundChannel(CHAN_3);
+            goto handleSoundReg;
+        case 0x1E:
+            if (soundDisabled || (!(ioRam[0x26] & 0x80)))
+                return;
+            if (val & 0x80)
+                setSoundChannel(CHAN_3);
+            goto handleSoundReg;
+        case 0x23:
+            if (soundDisabled || (!(ioRam[0x26] & 0x80)))
+                return;
+            if (val & 0x80)
+                setSoundChannel(CHAN_4);
+            goto handleSoundReg;
         case 0x40:
         case 0x42:
         case 0x43:
@@ -908,12 +960,12 @@ void Gameboy::writeIO(u8 ioReg, u8 val)
             }
             ioRam[ioReg] = val&0x7;
             return;
-        case 0x0F:
+        case 0x0F: // IF
             ioRam[ioReg] = val;
             if (val & ioRam[0xff])
                 cyclesToExecute = -1;
             break;
-        case 0xFF:
+        case 0xFF: // IE
             ioRam[ioReg] = val;
             if (val & ioRam[0x0f])
                 cyclesToExecute = -1;

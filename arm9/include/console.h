@@ -8,12 +8,20 @@ extern bool consoleDebugOutput;
 extern int gbcModeOption;
 extern bool gbaModeOption;
 extern int sgbModeOption;
+extern int biosEnabled;
+extern bool soundDisabled;
+extern bool hyperSound;
 extern bool customBordersEnabled;
 extern bool sgbBordersEnabled;
 extern bool autoSavingEnabled;
 extern bool printerEnabled;
 extern int stateNum;
 extern PrintConsole* menuConsole;
+
+extern bool fpsOutput;
+extern bool timeOutput;
+
+extern int rumbleStrength;
 
 extern volatile int consoleSelectedRow; // This line is given a different backdrop
 

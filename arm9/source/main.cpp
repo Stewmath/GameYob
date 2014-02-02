@@ -7,7 +7,6 @@
 //#include <iostream>
 //#include <string>
 #include "gbgfx.h"
-#include "gbcpu.h"
 #include "inputhelper.h"
 #include "filechooser.h"
 #include "timer.h"
@@ -21,8 +20,8 @@
 #include "gbs.h"
 #include "common.h"
 
-extern time_t rawTime;
-extern time_t lastRawTime;
+time_t rawTime;
+time_t lastRawTime;
 
 volatile SharedData* sharedData;
 
@@ -38,18 +37,18 @@ void fifoValue32Handler(u32 value, void* user_data) {
             // Entering sleep mode
             scalingWasOn = sharedData->scalingOn;
             soundWasDisabled = soundDisabled;
-            wasPaused = isGameboyPaused();
+            wasPaused = gameboy->isGameboyPaused();
 
             sharedData->scalingOn = 0;
             soundDisabled = true;
-            pauseGameboy();
+            gameboy->pauseGameboy();
             break;
         case FIFOMSG_LID_OPENED:
             // Exiting sleep mode
             sharedData->scalingOn = scalingWasOn;
             soundDisabled = soundWasDisabled;
             if (!wasPaused)
-                unpauseGameboy();
+                gameboy->unpauseGameboy();
             // Time isn't incremented properly in sleep mode, compensate here.
             time(&rawTime);
             lastRawTime = rawTime;
@@ -71,7 +70,7 @@ void selectRom() {
         file = fopen("gbc_bios.bin", "rb");
         biosExists = file != NULL;
         if (biosExists) {
-            fread(bios, 1, 0x900, file);
+            fread(gameboy->bios, 1, 0x900, file);
             fclose(file);
         }
     }
@@ -85,26 +84,24 @@ void selectRom() {
 }
 
 void initGBMode() {
-    if (sgbModeOption != 0 && romSlot0[0x14b] == 0x33 && romSlot0[0x146] == 0x03)
-        resultantGBMode = 2;
+    if (sgbModeOption != 0 && gameboy->readMemory(0x14b) == 0x33 && gameboy->readMemory(0x146) == 0x03)
+        gameboy->resultantGBMode = 2;
     else {
-        resultantGBMode = 0;
+        gameboy->resultantGBMode = 0;
     }
 }
 void initGBCMode() {
-    if (sgbModeOption == 2 && romSlot0[0x14b] == 0x33 && romSlot0[0x146] == 0x03)
-        resultantGBMode = 2;
+    if (sgbModeOption == 2 && gameboy->readMemory(0x14b) == 0x33 && gameboy->readMemory(0x146) == 0x03)
+        gameboy->resultantGBMode = 2;
     else {
-        resultantGBMode = 1;
+        gameboy->resultantGBMode = 1;
     }
 }
 void initializeGameboy() {
     enableSleepMode();
-    gameboyFrameCounter = 0;
-    sgbMode = false;
 
     if (gbsMode) {
-        resultantGBMode = 1; // GBC
+        gameboy->resultantGBMode = 1; // GBC
         probingForBorder = false;
     }
     else {
@@ -113,43 +110,39 @@ void initializeGameboy() {
                 initGBMode();
                 break;
             case 1: // GBC if needed
-                if (romSlot0[0x143] == 0xC0)
+                if (gameboy->readMemory(0x143) == 0xC0)
                     initGBCMode();
                 else
                     initGBMode();
                 break;
             case 2: // GBC
-                if (romSlot0[0x143] == 0x80 || romSlot0[0x143] == 0xC0)
+                if (gameboy->readMemory(0x143) == 0x80 || gameboy->readMemory(0x143) == 0xC0)
                     initGBCMode();
                 else
                     initGBMode();
                 break;
         }
 
-        bool sgbEnhanced = romSlot0[0x14b] == 0x33 && romSlot0[0x146] == 0x03;
-        if (sgbEnhanced && resultantGBMode != 2 && probingForBorder) {
-            resultantGBMode = 2;
+        bool sgbEnhanced = gameboy->readMemory(0x14b) == 0x33 && gameboy->readMemory(0x146) == 0x03;
+        if (sgbEnhanced && gameboy->resultantGBMode != 2 && probingForBorder) {
+            gameboy->resultantGBMode = 2;
         }
         else {
             probingForBorder = false;
         }
     } // !gbsMode
 
-    initMMU();
-    initCPU();
-    initLCD();
-    initGFX();
-    initSND();
+    gameboy->init();
 
-    if (!gbsMode && !probingForBorder && suspendStateExists) {
-        loadState(-1);
+    if (!gbsMode && !probingForBorder && gameboy->checkStateExists(-1)) {
+        gameboy->loadState(-1);
     }
 
     if (gbsMode)
         gbsInit();
 
     // We haven't calculated the # of cycles to the next hardware event.
-    cyclesToEvent = 1;
+    gameboy->cyclesToEvent = 1;
 }
 
 void initializeGameboyFirstTime() {
@@ -171,7 +164,7 @@ void initializeGameboyFirstTime() {
         enableMenuOption("State Slot");
         enableMenuOption("Save State");
         enableMenuOption("Suspend");
-        if (checkStateExists(stateNum)) {
+        if (gameboy->checkStateExists(stateNum)) {
             enableMenuOption("Load State");
             enableMenuOption("Delete State");
         }
@@ -180,7 +173,7 @@ void initializeGameboyFirstTime() {
             disableMenuOption("Delete State");
         }
 
-        if (numRamBanks && !autoSavingEnabled)
+        if (gameboy->getNumRamBanks() && !autoSavingEnabled)
             enableMenuOption("Exit without saving");
         else
             disableMenuOption("Exit without saving");

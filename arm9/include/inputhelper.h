@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include "global.h"
 
+#define FAT_CACHE_SIZE 16
+
 /* All the possible MBC */
 enum {
     MBC0 = 0,
@@ -32,23 +34,20 @@ enum {
     KEY_SCALE, KEY_RESET
 };
 
-const int MAX_ROM_BANKS = 0x200;
-
+/*
 extern char filename[256];
 extern char savename[256];
 extern char basename[256];
+*/
+
+extern bool fastForwardMode; // controlled by the toggle hotkey
+extern bool fastForwardKey;  // only while its hotkey is pressed
 
 
 extern int maxLoadedRomBanks;
-extern int numLoadedRomBanks;
-
-extern u8* romSlot0;
-extern u8* romSlot1;
-
-extern u8 buttonsPressed;
 
 extern bool suspendStateExists;
-extern bool advanceFrame;
+
 
 extern FILE* saveFile;
 
@@ -56,7 +55,6 @@ extern char* borderPath;
 
 void initInput();
 void flushFatCache();
-void writeSaveFileSector(int startSector, int numSectors);
 
 void startKeyConfigChooser();
 bool readConfigFile();
@@ -70,11 +68,4 @@ bool keyJustPressed(int key);
 void forceReleaseKey(int key);
 int mapGbKey(int gbKey); // Maps a "functional" key to a physical key.
 
-void loadBios(const char* filename);
-void loadRomBank();
-bool isRomBankLoaded(int bank);
-u8* getRomBank(int bank);
-const char* getRomBasename();
-
-char* getRomTitle();
-void printRomInfo();
+//void loadBios(const char* filename);

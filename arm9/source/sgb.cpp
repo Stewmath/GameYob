@@ -1,52 +1,24 @@
 #include "sgb.h"
+#include "gameboy.h"
 #include "console.h"
 #include "mmu.h"
 #include "gbgfx.h"
-#include "gbcpu.h"
 
-int sgbPacketLength; // Number of packets to be transferred this command
-int sgbPacketsTransferred; // Number of packets which have been transferred so far
-int sgbPacketBit=-1; // Next bit # to be sent in the packet. -1 if no packet is being transferred.
-u8 sgbPacket[16];
-u8 sgbCommand;
+#define sgbPalettes (gameboy->vram[1])
+#define sgbAttrFiles (gameboy->vram[1]+0x1000)
 
-u8* sgbPalettes = vram[1]; // Borrow vram bank 1. We don't need it in sgb mode.
-u8* sgbAttrFiles = vram[1]+0x1000;
-u8 sgbMap[20*18];
-
-u8 numControllers;
-u8 selectedController;
-u8 buttonsChecked;
-
-// Data for various different commands
-struct CmdData {
-    int numDataSets;
-    
-    union {
-        struct {
-            u8 data[6];
-            u8 dataBytes;
-        } attrBlock;
-
-        struct {
-            u8 writeStyle;
-            u8 x,y;
-        } attrChr;
-    };
-} cmdData;
-
-void initSGB() {
+void Gameboy::initSGB() {
     sgbPacketLength=0;
-    numControllers=1;
-    selectedController=0;
+    sgbNumControllers=1;
+    sgbSelectedController=0;
     sgbPacketBit = -1;
     sgbPacketsTransferred = 0;
-    buttonsChecked = 0;
+    sgbButtonsChecked = 0;
 
     memset(sgbMap, 0, 20*18);
 }
 
-void doVramTransfer(u8* dest) {
+void Gameboy::doVramTransfer(u8* dest) {
     int map = 0x1800+((ioRam[0x40]>>3)&1)*0x400;
     int index=0;
     for (int y=0; y<18; y++) {
@@ -63,7 +35,7 @@ void doVramTransfer(u8* dest) {
     }
 }
 
-void setBackdrop(u16 val) {
+void Gameboy::setBackdrop(u16 val) {
     if (loadedBorderType == BORDER_SGB)
         BG_PALETTE[0] = val;
     BG_PALETTE[15*16+1] = val; // "off map" palette, for when the screen is disabled
@@ -77,7 +49,7 @@ void setBackdrop(u16 val) {
     }
 }
 
-void sgbLoadAttrFile(int index) {
+void Gameboy::sgbLoadAttrFile(int index) {
     if (index > 0x2c) {
         printLog("Bad Attr %x\n", index);
         return;
@@ -94,7 +66,7 @@ void sgbLoadAttrFile(int index) {
     }
 }
 
-void sgbPalXX(int block) {
+void Gameboy::sgbPalXX(int block) {
     int s1,s2;
     switch(sgbCommand) {
         case 0:
@@ -125,7 +97,7 @@ void sgbPalXX(int block) {
     setBackdrop(sgbPacket[1] | sgbPacket[2]<<8);
 }
 
-void sgbAttrBlock(int block) {
+void Gameboy::sgbAttrBlock(int block) {
     int pos;
     if (block == 0) {
         cmdData.attrBlock.dataBytes=0;
@@ -195,7 +167,7 @@ void sgbAttrBlock(int block) {
     }
 }
 
-void sgbAttrLin(int block) {
+void Gameboy::sgbAttrLin(int block) {
     int index = 0;
     if (block == 0) {
         cmdData.numDataSets = sgbPacket[1];
@@ -221,7 +193,7 @@ void sgbAttrLin(int block) {
     }
 }
 
-void sgbAttrDiv(int block) {
+void Gameboy::sgbAttrDiv(int block) {
     int p0 = (sgbPacket[1]>>2)&3;
     int p1 = (sgbPacket[1]>>4)&3;
     int p2 = (sgbPacket[1]>>0)&3;
@@ -256,7 +228,7 @@ void sgbAttrDiv(int block) {
     }
 }
 
-void sgbAttrChr(int block) {
+void Gameboy::sgbAttrChr(int block) {
     u8& x = cmdData.attrChr.x;
     u8& y = cmdData.attrChr.y;
 
@@ -295,7 +267,7 @@ void sgbAttrChr(int block) {
     }
 }
 
-void sgbPalSet(int block) {
+void Gameboy::sgbPalSet(int block) {
     for (int i=0; i<4; i++) {
         int paletteid = (sgbPacket[i*2+1] | (sgbPacket[i*2+2]<<8))&0x1ff;
         //printLog("%d: %x\n", i, paletteid);
@@ -311,58 +283,58 @@ void sgbPalSet(int block) {
     if (sgbPacket[9]&0x40)
         setGFXMask(0);
 }
-void sgbPalTrn(int block) {
+void Gameboy::sgbPalTrn(int block) {
     doVramTransfer(sgbPalettes);
 }
 
-void sgbDataSnd(int block) {
+void Gameboy::sgbDataSnd(int block) {
     //printLog("SND %.2x -> %.2x:%.2x%.2x\n", sgbPacket[4], sgbPacket[3], sgbPacket[2], sgbPacket[1]);
 }
 
-void sgbMltReq(int block) {
-    numControllers = (sgbPacket[1]&3)+1;
-    if (numControllers > 1)
-        selectedController = 1;
+void Gameboy::sgbMltReq(int block) {
+    sgbNumControllers = (sgbPacket[1]&3)+1;
+    if (sgbNumControllers > 1)
+        sgbSelectedController = 1;
     else
-        selectedController = 0;
+        sgbSelectedController = 0;
 }
 
-void sgbChrTrn(int blonk) {
+void Gameboy::sgbChrTrn(int blonk) {
     u8* data = (u8*)malloc(0x1000);
     doVramTransfer(data);
     setSgbTiles(data, sgbPacket[1]);
     free(data);
 }
 
-void sgbPctTrn(int block) {
+void Gameboy::sgbPctTrn(int block) {
     u8* data = (u8*)malloc(0x1000);
     doVramTransfer(data);
     setSgbMap(data);
     free(data);
 }
 
-void sgbAttrTrn(int block) {
+void Gameboy::sgbAttrTrn(int block) {
     doVramTransfer(sgbAttrFiles);
 }
 
-void sgbAttrSet(int block) {
+void Gameboy::sgbAttrSet(int block) {
     sgbLoadAttrFile(sgbPacket[1]&0x3f);
     if (sgbPacket[1]&0x40)
         setGFXMask(0);
 }
 
-void sgbMask(int block) {
+void Gameboy::sgbMask(int block) {
     setGFXMask(sgbPacket[1]&3);
 }
 
-void (*sgbCommands[])(int) = {
-    sgbPalXX,sgbPalXX,sgbPalXX,sgbPalXX,sgbAttrBlock,sgbAttrLin,sgbAttrDiv,sgbAttrChr,
-    NULL,NULL,sgbPalSet,sgbPalTrn,NULL,NULL,NULL,sgbDataSnd,
-    NULL,sgbMltReq,NULL,sgbChrTrn,sgbPctTrn,sgbAttrTrn,sgbAttrSet,sgbMask,
+void (Gameboy::*sgbCommands[])(int) = {
+    &Gameboy::sgbPalXX,&Gameboy::sgbPalXX,&Gameboy::sgbPalXX,&Gameboy::sgbPalXX,&Gameboy::sgbAttrBlock,&Gameboy::sgbAttrLin,&Gameboy::sgbAttrDiv,&Gameboy::sgbAttrChr,
+    NULL,NULL,&Gameboy::sgbPalSet,&Gameboy::sgbPalTrn,NULL,NULL,NULL,&Gameboy::sgbDataSnd,
+    NULL,&Gameboy::sgbMltReq,NULL,&Gameboy::sgbChrTrn,&Gameboy::sgbPctTrn,&Gameboy::sgbAttrTrn,&Gameboy::sgbAttrSet,&Gameboy::sgbMask,
     NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL
 };
 
-void sgbHandleP1(u8 val) {
+void Gameboy::sgbHandleP1(u8 val) {
     if ((val&0x30) == 0) {
         // Start packet transfer
         sgbPacketBit = 0;
@@ -399,7 +371,7 @@ void sgbHandleP1(u8 val) {
                 //printLog("CMD %x\n", sgbCommand);
             }
             if (sgbCommands[sgbCommand] != 0)
-                sgbCommands[sgbCommand](sgbPacketsTransferred);
+                (this->*sgbCommands[sgbCommand])(sgbPacketsTransferred);
 
             sgbPacketBit = -1;
             sgbPacketsTransferred++;
@@ -411,20 +383,20 @@ void sgbHandleP1(u8 val) {
     }
     else {
         if ((val&0x30) == 0x30) {
-            if (buttonsChecked == 3) {
-                selectedController++;
-                if (selectedController >= numControllers)
-                    selectedController = 0;
-                buttonsChecked = 0;
+            if (sgbButtonsChecked == 3) {
+                sgbSelectedController++;
+                if (sgbSelectedController >= sgbNumControllers)
+                    sgbSelectedController = 0;
+                sgbButtonsChecked = 0;
             }
-            ioRam[0x00] = 0xff - selectedController;
+            ioRam[0x00] = 0xff - sgbSelectedController;
         }
         else {
             ioRam[0x00] = val|0xcf;
             if ((val&0x30) == 0x10)
-                buttonsChecked |= 1;
+                sgbButtonsChecked |= 1;
             else if ((val&0x30) == 0x20)
-                buttonsChecked |= 2;
+                sgbButtonsChecked |= 2;
         }
     }
 }

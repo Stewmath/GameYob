@@ -14,7 +14,6 @@
 #include "gameboy.h"
 #include "main.h"
 #include "console.h"
-#include "gbcpu.h"
 #include "nifi.h"
 #include "gbgfx.h"
 #include "gbsnd.h"
@@ -24,57 +23,24 @@
 #include "common.h"
 #include "filechooser.h"
 
-#define FAT_CACHE_SIZE 32
-
-FILE* romFile=NULL;
-FILE* saveFile=NULL;
-char filename[256];
-char savename[256];
-char basename[256];
-char romTitle[20];
-
-char* romPath = NULL;
-char* biosPath = NULL;
-char* borderPath = NULL;
-
-// Values taken from the cartridge header
-u8 ramSize;
-u8 mapper;
-u8 cgbFlag;
-u8 romSize;
-
 int keysPressed=0;
 int lastKeysPressed=0;
 int keysForceReleased=0;
 int repeatStartTimer=0;
 int repeatTimer=0;
 
-bool advanceFrame=false;
+char* biosPath = NULL;
+char* borderPath = NULL;
+char* romPath = NULL;
 
-u8* romSlot0;
-u8* romSlot1;
-int maxLoadedRomBanks;
-int numLoadedRomBanks;
-u8* romBankSlots = NULL; // Each 0x4000 bytes = one slot
-int bankSlotIDs[MAX_ROM_BANKS]; // Keeps track of which bank occupies which slot
-std::vector<int> lastBanksUsed;
-
-bool suspendStateExists;
-
-int saveFileSectors[MAX_SRAM_SIZE/512];
+bool fastForwardMode = false; // controlled by the toggle hotkey
+bool fastForwardKey = false;  // only while its hotkey is pressed
 
 
 void initInput()
 {
     fatInit(FAT_CACHE_SIZE, true);
     //fatInitDefault();
-
-    if (__dsimode)
-        maxLoadedRomBanks = 512; // 8 megabytes
-    else
-        maxLoadedRomBanks = 128; // 2 megabytes
-
-    romBankSlots = (u8*)malloc(maxLoadedRomBanks*0x4000);
 }
 
 void flushFatCache() {
@@ -82,20 +48,6 @@ void flushFatCache() {
     devoptab_t* devops = (devoptab_t*)GetDeviceOpTab ("sd");
     PARTITION* partition = (PARTITION*)devops->deviceData;
     _FAT_cache_flush(partition->cache); // Flush the cache manually
-}
-
-// This bypasses libfat's cache to directly write a single sector of the save 
-// file. This reduces lag.
-void writeSaveFileSectors(int startSector, int numSectors) {
-    if (saveFileSectors[startSector] == -1) {
-        flushFatCache();
-        return;
-    }
-    devoptab_t* devops = (devoptab_t*)GetDeviceOpTab ("sd");
-    PARTITION* partition = (PARTITION*)devops->deviceData;
-    CACHE* cache = partition->cache;
-
-	_FAT_disc_writeSectors(cache->disc, saveFileSectors[startSector], numSectors, gameboy->externRam+startSector*512);
 }
 
 
@@ -319,7 +271,7 @@ void generalParseConfig(const char* line) {
                 free(biosPath);
             biosPath = (char*)malloc(strlen(value)+1);
             strcpy(biosPath, value);
-            loadBios(biosPath);
+            gameboy->loadBios(biosPath);
         }
         else if (strcmpi(parameter, "borderfile") == 0) {
             if (borderPath != 0)
@@ -404,50 +356,8 @@ void writeConfigFile() {
     fclose(file);
 
     char nameBuf[100];
-    siprintf(nameBuf, "%s.cht", basename);
-    saveCheats(nameBuf);
-}
-
-
-void loadBios(const char* filename) {
-    FILE* file = fopen(filename, "rb");
-    biosExists = file != NULL;
-    if (biosExists)
-        fread(bios, 1, 0x900, file);
-}
-
-void loadRomBank() {
-    if (bankSlotIDs[romBank] != -1 || numRomBanks <= numLoadedRomBanks || romBank == 0) {
-        romSlot1 = romBankSlots+bankSlotIDs[romBank]*0x4000;
-        return;
-    }
-    int bankToUnload = lastBanksUsed.back();
-    lastBanksUsed.pop_back();
-    int slot = bankSlotIDs[bankToUnload];
-    bankSlotIDs[bankToUnload] = -1;
-    bankSlotIDs[romBank] = slot;
-
-    fseek(romFile, 0x4000*romBank, SEEK_SET);
-    fread(romBankSlots+slot*0x4000, 1, 0x4000, romFile);
-
-    lastBanksUsed.insert(lastBanksUsed.begin(), romBank);
-
-    applyGGCheatsToBank(romBank);
-
-    romSlot1 = romBankSlots+slot*0x4000;
-}
-
-bool isRomBankLoaded(int bank) {
-    return bankSlotIDs[bank] != -1;
-}
-u8* getRomBank(int bank) {
-    if (!isRomBankLoaded(bank))
-        return 0;
-    return romBankSlots+bankSlotIDs[bank]*0x4000;
-}
-
-const char* getRomBasename() {
-    return basename;
+    siprintf(nameBuf, "%s.cht", gameboy->getRomBasename());
+    gameboy->getCheatEngine()->saveCheats(nameBuf);
 }
 
 
@@ -500,19 +410,3 @@ void forceReleaseKey(int key) {
 int mapGbKey(int gbKey) {
     return keys[gbKey];
 }
-
-char* getRomTitle() {
-    return romTitle;
-}
-
-const char *mbcName[] = {"ROM","MBC1","MBC2","MBC3","MBC4","MBC5","MBC7","HUC3","HUC1"};
-
-void printRomInfo() {
-    consoleClear();
-    iprintf("ROM Title: \"%s\"\n", romTitle);
-    iprintf("Cartridge type: %.2x (%s)\n", mapper, mbcName[MBC]);
-    iprintf("ROM Size: %.2x (%d banks)\n", romSize, numRomBanks);
-    iprintf("RAM Size: %.2x (%d banks)\n", ramSize, numRamBanks);
-}
-
-

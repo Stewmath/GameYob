@@ -11,19 +11,19 @@
 
 #define TO_INT(a) ( (a) >= 'a' ? (a) - 'a' + 10 : (a) >= 'A' ? (a) - 'A' + 10 : (a) - '0')
 
-bool     cheatsEnabled = true;
-cheat_t  cheats[MAX_CHEATS];
-int numCheats=0;
+CheatEngine::CheatEngine(Gameboy* g) {
+    gameboy = g;
+    cheatsEnabled = true;
+    numCheats = 0;
+    cheatsRomTitle[0] = '\0';
+}
 
-// Use this to check whether another rom has been loaded
-char cheatsRomTitle[20] = "\0";
-
-void enableCheats (bool enable)
+void CheatEngine::enableCheats (bool enable)
 {
     cheatsEnabled = enable;
 }
 
-bool addCheat (const char *str)
+bool CheatEngine::addCheat (const char *str)
 {
     int len;
     int i = numCheats;
@@ -41,7 +41,7 @@ bool addCheat (const char *str)
 
     // GameGenie AAA-BBB-CCC
     if (len == 11) {
-        cheats[i].flags |= FLAG_GAMEGENIE;
+        cheats[i].flags |= CHEAT_FLAG_GAMEGENIE;
         
         cheats[i].data = TO_INT(str[0]) << 4 | TO_INT(str[1]);
         cheats[i].address = TO_INT(str[6]) << 12 | TO_INT(str[2]) << 8 | 
@@ -56,7 +56,7 @@ bool addCheat (const char *str)
     }
     // GameGenie (6digit version) AAA-BBB
     else if (len == 7) {
-        cheats[i].flags |= FLAG_GAMEGENIE1;
+        cheats[i].flags |= CHEAT_FLAG_GAMEGENIE1;
 
         cheats[i].data = TO_INT(str[0]) << 4 | TO_INT(str[1]);
         cheats[i].address = TO_INT(str[6]) << 12 | TO_INT(str[2]) << 8 | 
@@ -66,7 +66,7 @@ bool addCheat (const char *str)
     }
     // Gameshark AAAAAAAA
     else if (len == 8) {
-        cheats[i].flags |= FLAG_GAMESHARK;
+        cheats[i].flags |= CHEAT_FLAG_GAMESHARK;
         
         cheats[i].data = TO_INT(str[2]) << 4 | TO_INT(str[3]);
         cheats[i].bank = TO_INT(str[0]) << 4 | TO_INT(str[1]);
@@ -83,29 +83,29 @@ bool addCheat (const char *str)
     return true;
 }
 
-void toggleCheat (int i, bool enabled) 
+void CheatEngine::toggleCheat (int i, bool enabled) 
 {
     if (enabled) {
-        cheats[i].flags |= FLAG_ENABLED;
-        if ((cheats[i].flags & FLAG_TYPE_MASK) != FLAG_GAMESHARK) {
-            for (int j=0; j<numRomBanks; j++) {
-                if (isRomBankLoaded(j))
+        cheats[i].flags |= CHEAT_FLAG_ENABLED;
+        if ((cheats[i].flags & CHEAT_FLAG_TYPE_MASK) != CHEAT_FLAG_GAMESHARK) {
+            for (int j=0; j<gameboy->getNumRomBanks(); j++) {
+                if (gameboy->isRomBankLoaded(j))
                     applyGGCheatsToBank(j);
             }
         }
     }
     else {
         unapplyGGCheat(i);
-        cheats[i].flags &= ~FLAG_ENABLED;
+        cheats[i].flags &= ~CHEAT_FLAG_ENABLED;
     }
 }
 
-void unapplyGGCheat(int cheat) {
-    if ((cheats[cheat].flags & FLAG_TYPE_MASK) != FLAG_GAMESHARK) {
+void CheatEngine::unapplyGGCheat(int cheat) {
+    if ((cheats[cheat].flags & CHEAT_FLAG_TYPE_MASK) != CHEAT_FLAG_GAMESHARK) {
         for (unsigned int i=0; i<cheats[cheat].patchedBanks.size(); i++) {
             int bank = cheats[cheat].patchedBanks[i];
-            if (isRomBankLoaded(bank)) {
-                getRomBank(bank)[cheats[cheat].address&0x3fff] = cheats[cheat].patchedValues[i];
+            if (gameboy->isRomBankLoaded(bank)) {
+                gameboy->getRomBank(bank)[cheats[cheat].address&0x3fff] = cheats[cheat].patchedValues[i];
             }
         }
         cheats[cheat].patchedBanks = std::vector<int>();
@@ -113,15 +113,15 @@ void unapplyGGCheat(int cheat) {
     }
 }
 
-void applyGGCheatsToBank(int bank) {
-	u8* bankPtr = getRomBank(bank);
+void CheatEngine::applyGGCheatsToBank(int bank) {
+	u8* bankPtr = gameboy->getRomBank(bank);
     for (int i=0; i<numCheats; i++) {
-        if (cheats[i].flags & FLAG_ENABLED && ((cheats[i].flags & FLAG_TYPE_MASK) != FLAG_GAMESHARK)) {
+        if (cheats[i].flags & CHEAT_FLAG_ENABLED && ((cheats[i].flags & CHEAT_FLAG_TYPE_MASK) != CHEAT_FLAG_GAMESHARK)) {
 
             int bankSlot = cheats[i].address/0x4000;
             if ((bankSlot == 0 && bank == 0) || (bankSlot == 1 && bank != 0)) {
                 int address = cheats[i].address&0x3fff;
-                if (((cheats[i].flags & FLAG_TYPE_MASK) == FLAG_GAMEGENIE1 || bankPtr[address] == cheats[i].compare) && 
+                if (((cheats[i].flags & CHEAT_FLAG_TYPE_MASK) == CHEAT_FLAG_GAMEGENIE1 || bankPtr[address] == cheats[i].compare) && 
                         find(cheats[i].patchedBanks.begin(), cheats[i].patchedBanks.end(), bank) == cheats[i].patchedBanks.end()) {
 
                     cheats[i].patchedBanks.push_back(bank);
@@ -133,41 +133,39 @@ void applyGGCheatsToBank(int bank) {
     }
 }
 
-void applyGSCheats (void) ITCM_CODE;
-
-void applyGSCheats (void) 
-{
+void CheatEngine::applyGSCheats() {
     int i;
     int compareBank;
 
     for (i = 0; i < numCheats; i++) {
-        if (cheats[i].flags & FLAG_ENABLED && ((cheats[i].flags & FLAG_TYPE_MASK) == FLAG_GAMESHARK)) {
+        if (cheats[i].flags & CHEAT_FLAG_ENABLED && ((cheats[i].flags & CHEAT_FLAG_TYPE_MASK) == CHEAT_FLAG_GAMESHARK)) {
             switch (cheats[i].bank & 0xf0) {
                 case 0x90:
-                    compareBank = wramBank;
-                    wramBank = cheats[i].bank & 0x7;
-                    writeMemory(cheats[i].address, cheats[i].data);
-                    wramBank = compareBank;
+                    compareBank = gameboy->getWramBank();
+                    gameboy->setWramBank(cheats[i].bank & 0x7);
+                    gameboy->writeMemory(cheats[i].address, cheats[i].data);
+                    gameboy->setWramBank(compareBank);
                     break;
                 case 0x80: /* TODO : Find info and stuff */
                     break;
                 case 0x00:
-                    writeMemory(cheats[i].address, cheats[i].data);
+                    gameboy->writeMemory(cheats[i].address, cheats[i].data);
                     break;
             }
         }
     }
 }
 
-void loadCheats(const char* filename) {
-    if (strcmp(cheatsRomTitle, getRomTitle()) == 0) {
+void CheatEngine::loadCheats(const char* filename) {
+    // TODO: get rid of the "cheatsRomTitle" stuff
+    if (strcmp(cheatsRomTitle, gameboy->getRomTitle()) == 0) {
         // Rom hasn't been changed
         for (int i=0; i<numCheats; i++)
             unapplyGGCheat(i);
     }
     else
         // Rom has been changed
-        strncpy(cheatsRomTitle, getRomTitle(), 20);
+        strncpy(cheatsRomTitle, gameboy->getRomTitle(), 20);
     numCheats = 0;
 
     // Begin loading new cheat file
@@ -204,11 +202,26 @@ void loadCheats(const char* filename) {
     enableMenuOption("Manage Cheats");
 }
 
+void CheatEngine::saveCheats(const char* filename) {
+    if (numCheats == 0)
+        return;
+    FILE* file = fopen(filename, "w");
+    for (int i=0; i<numCheats; i++) {
+        fiprintf(file, "%s %d%s\n", cheats[i].cheatString, !!(cheats[i].flags & CHEAT_FLAG_ENABLED), cheats[i].name);
+    }
+    fclose(file);
+}
+
+// Menu code
+
 const int cheatsPerPage=18;
 int cheatMenuSelection=0;
 bool cheatMenu_gameboyWasPaused;
+CheatEngine* ch; // cheat engine to display the menu for
 
 void redrawCheatMenu() {
+    int numCheats = ch->getNumCheats();
+
     int numPages = (numCheats-1)/cheatsPerPage+1;
 
     int page = cheatMenuSelection/cheatsPerPage;
@@ -217,10 +230,10 @@ void redrawCheatMenu() {
     iprintf("%d/%d\n\n", page+1, numPages);
     for (int i=page*cheatsPerPage; i<numCheats && i < (page+1)*cheatsPerPage; i++) {
         int nameColor = (cheatMenuSelection == i ? CONSOLE_COLOR_LIGHT_YELLOW : CONSOLE_COLOR_WHITE);
-        iprintfColored(nameColor, cheats[i].name);
-        for (unsigned int j=0; j<25-strlen(cheats[i].name); j++)
+        iprintfColored(nameColor, ch->cheats[i].name);
+        for (unsigned int j=0; j<25-strlen(ch->cheats[i].name); j++)
             iprintf(" ");
-        if (cheats[i].flags & FLAG_ENABLED) {
+        if (ch->isCheatEnabled(i)) {
             if (cheatMenuSelection == i) {
                 iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, "* ");
                 iprintfColored(CONSOLE_COLOR_LIGHT_GREEN, "On");
@@ -244,6 +257,8 @@ void redrawCheatMenu() {
 
 void updateCheatMenu() {
     bool redraw=false;
+    int numCheats = ch->getNumCheats();
+
     if (cheatMenuSelection >= numCheats) {
         cheatMenuSelection = 0;
     }
@@ -261,7 +276,7 @@ void updateCheatMenu() {
         }
     }
     else if (keyJustPressed(KEY_RIGHT | KEY_LEFT)) {
-        toggleCheat(cheatMenuSelection, !(cheats[cheatMenuSelection].flags & FLAG_ENABLED));
+        ch->toggleCheat(cheatMenuSelection, !ch->isCheatEnabled(cheatMenuSelection));
         redraw = true;
     }
     else if (keyJustPressed(KEY_R)) {
@@ -279,7 +294,7 @@ void updateCheatMenu() {
     if (keyJustPressed(KEY_B)) {
         closeSubMenu();
         if (!cheatMenu_gameboyWasPaused)
-            unpauseGameboy();
+            gameboy->unpauseGameboy();
     }
 
     if (redraw)
@@ -287,23 +302,15 @@ void updateCheatMenu() {
 }
 
 bool startCheatMenu() {
-    if (numCheats == 0)
+    ch = gameboy->getCheatEngine();
+
+    if (ch == NULL || ch->getNumCheats() == 0)
         return false;
 
-    cheatMenu_gameboyWasPaused = isGameboyPaused();
-    pauseGameboy();
+    cheatMenu_gameboyWasPaused = gameboy->isGameboyPaused();
+    gameboy->pauseGameboy();
     displaySubMenu(updateCheatMenu);
     redrawCheatMenu();
 
     return true;
-}
-
-void saveCheats(const char* filename) {
-    if (numCheats == 0)
-        return;
-    FILE* file = fopen(filename, "w");
-    for (int i=0; i<numCheats; i++) {
-        fiprintf(file, "%s %d%s\n", cheats[i].cheatString, !!(cheats[i].flags & FLAG_ENABLED), cheats[i].name);
-    }
-    fclose(file);
 }
