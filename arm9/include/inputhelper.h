@@ -48,6 +48,8 @@ extern int maxLoadedRomBanks;
 
 extern bool suspendStateExists;
 
+extern u8 buttonsPressed;
+
 
 extern FILE* saveFile;
 

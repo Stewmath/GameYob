@@ -474,7 +474,7 @@ void Gameboy::initMMU()
     mapMemory();
     for (int i=0; i<8; i++)
         memset(wram[i], 0, 0x1000);
-    memset(hram, 0, 0x200); // Initializes sprites and IO registers
+    memset(highram, 0, 0x1000); // Initializes sprites and IO registers
 
     writeIO(0x02, 0x00);
     writeIO(0x05, 0x00);
@@ -607,12 +607,7 @@ u8 Gameboy::readIO(u8 ioReg)
     switch (ioReg)
     {
         case 0x00:
-            if (!(ioRam[ioReg]&0x20))
-                return 0xc0 | (ioRam[ioReg] & 0xF0) | (buttonsPressed & 0xF);
-            else if (!(ioRam[ioReg]&0x10))
-                return 0xc0 | (ioRam[ioReg] & 0xF0) | ((buttonsPressed & 0xF0)>>4);
-            else
-                return ioRam[ioReg];
+            return sgbReadP1();
         case 0x10: // NR10, sweep register 1, bit 7 set on read
             return ioRam[ioReg] | 0x80;
         case 0x11: // NR11, sound length/pattern duty 1, bits 5-0 set on read
@@ -703,7 +698,7 @@ void nifiTimeoutFunc() {
     printLog("Nifi timeout\n");
     if (nifiTryAgain) {
         nifiSendid--;
-        sendPacketByte(55, gameboy->ioRam[0x01]);
+        //sendPacketByte(55, gameboy->ioRam[0x01]);
         nifiSendid++;
         nifiTryAgain = false;
     }
@@ -731,7 +726,7 @@ void Gameboy::writeIO(u8 ioReg, u8 val) {
         case 0x02:
             {
                 ioRam[ioReg] = val;
-                if (!nifiEnabled) {
+                if (true || !nifiEnabled) {
                     if (val & 0x80 && val & 0x01) {
                         serialCounter = clockSpeed/1024;
                         if (cyclesToExecute > serialCounter)
@@ -744,7 +739,7 @@ void Gameboy::writeIO(u8 ioReg, u8 val) {
                 linkSendData = ioRam[0x01];
                 if (val & 0x80) {
                     if (transferWaiting) {
-                        sendPacketByte(56, ioRam[0x01]);
+                        //sendPacketByte(56, ioRam[0x01]);
                         ioRam[0x01] = linkReceivedData;
                         requestInterrupt(SERIAL);
                         ioRam[ioReg] &= ~0x80;
@@ -753,7 +748,7 @@ void Gameboy::writeIO(u8 ioReg, u8 val) {
                     if (val & 1) {
                         nifiTryAgain = true;
                         timerStart(2, ClockDivider_64, 10000, nifiTimeoutFunc);
-                        sendPacketByte(55, ioRam[0x01]);
+                        //sendPacketByte(55, ioRam[0x01]);
                         nifiSendid++;
                     }
                 }
@@ -977,6 +972,8 @@ handleSoundReg:
 }
 
 void Gameboy::refreshP1() {
+    int controller = sgbGetActiveController();
+
     // Check if input register is being used for sgb packets
     if (sgbPacketBit == -1) {
         if ((ioRam[0x00] & 0x30) == 0x30) {
@@ -986,9 +983,9 @@ void Gameboy::refreshP1() {
         else {
             ioRam[0x00] &= 0xF0;
             if (!(ioRam[0x00]&0x20))
-                ioRam[0x00] |= (buttonsPressed & 0xF);
+                ioRam[0x00] |= (controllers[controller] & 0xF);
             else
-                ioRam[0x00] |= ((buttonsPressed & 0xF0)>>4);
+                ioRam[0x00] |= ((controllers[controller] & 0xF0)>>4);
         }
         ioRam[0x00] |= 0xc0;
     }

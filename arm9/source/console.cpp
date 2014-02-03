@@ -418,6 +418,14 @@ ConsoleSubMenu menuList[] = {
             {"Channel 3", chan3Func, 2, {"Off","On"}, 1},
             {"Channel 4", chan4Func, 2, {"Off","On"}, 1}
         }
+    },
+    {
+        "Link",
+        2,
+        {
+            {"Host", nifiHostMenu, 0, {}, 0},
+            {"Client", nifiClientMenu, 0, {}, 0},
+        }
     }
 };
 const int numMenus = sizeof(menuList)/sizeof(ConsoleSubMenu);
@@ -556,6 +564,9 @@ void redrawMenu() {
 
 // Called each vblank while the menu is on
 void updateMenu() {
+    if (!isMenuOn())
+        return;
+
     if (subMenuUpdateFunc != 0) {
         subMenuUpdateFunc();
         return;

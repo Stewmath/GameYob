@@ -400,3 +400,19 @@ void Gameboy::sgbHandleP1(u8 val) {
         }
     }
 }
+
+u8 Gameboy::sgbReadP1() {
+    u8 p1 = ioRam[0x00];
+
+    if (sgbMode) {
+        if ((p1 & 0x30) == 0x30)
+            return 0xff - sgbSelectedController;
+    }
+
+    if (!(p1&0x20))
+        return 0xc0 | (p1 & 0xF0) | (controllers[sgbSelectedController] & 0xF);
+    else if (!(p1&0x10))
+        return 0xc0 | (p1 & 0xF0) | ((controllers[sgbSelectedController] & 0xF0)>>4);
+    else
+        return p1;
+}

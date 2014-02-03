@@ -29,6 +29,8 @@ int keysForceReleased=0;
 int repeatStartTimer=0;
 int repeatTimer=0;
 
+u8 buttonsPressed;
+
 char* biosPath = NULL;
 char* borderPath = NULL;
 char* romPath = NULL;

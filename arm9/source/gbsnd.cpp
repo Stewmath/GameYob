@@ -56,6 +56,20 @@ void SoundEngine::init()
     {
         pcmVals[i] = analog[i]*0x70;
     }
+    chan1SweepTime = 0;
+    chan1SweepCounter = 0;
+    chan1SweepDir = 0;
+    chan1SweepAmount = 0;
+    memset(chanLen, 0, sizeof(chanLen));
+    memset(chanLenCounter, 0, sizeof(chanLenCounter));
+    memset(chanUseLen, 0, sizeof(chanUseLen));
+    memset(chanFreq, 0, sizeof(chanFreq));
+    memset(chanVol, 0, sizeof(chanVol));
+    memset(chanEnvDir, 0, sizeof(chanEnvDir));
+    memset(chanEnvCounter, 0, sizeof(chanEnvCounter));
+    memset(chanEnvSweep, 0, sizeof(chanEnvSweep));
+    memset(chanVol, 0, sizeof(chanVol));
+
     refresh();
 }
 

@@ -18,7 +18,6 @@
 #include "gbs.h"
 #include "libfat_fake.h"
 
-
 const int maxWaitCycles=1000000;
 
 Gameboy::Gameboy() {
@@ -74,6 +73,11 @@ void Gameboy::init()
     dividerCounter = 256;
     serialCounter = 0;
 
+    cyclesToEvent = 0;
+    extraCycles = 0;
+    soundCycles = 0;
+    cyclesSinceVblank = 0;
+
     initGbPrinter();
 
     // Timer stuff
@@ -92,6 +96,8 @@ void Gameboy::init()
 
     initGFX();
     initSND();
+
+    //sgbActiveController = 0;
 }
 
 void Gameboy::initSND() {
@@ -254,8 +260,6 @@ void Gameboy::gameboyCheckInput() {
 
 // This is called 60 times per gameboy second, even if the lcd is off.
 void Gameboy::gameboyUpdateVBlank() {
-    gameboyFrameCounter++;
-
     readKeys();
     if (isMenuOn())
         updateMenu();
@@ -265,15 +269,25 @@ void Gameboy::gameboyUpdateVBlank() {
             gbsCheckInput();
     }
 
+    nifiCheckInput();
+
     if (gameboyPaused) {
         muteSND();
         while (gameboyPaused) {
             swiWaitForVBlank();
             readKeys();
+            gameboyCheckInput();
             updateMenu();
+            nifiCheckInput();
         }
         unmuteSND();
     }
+
+    int oldIME = REG_IME;
+    REG_IME = 0;
+    nifiUpdateInput();
+    gameboyFrameCounter++;
+    REG_IME = oldIME;
 
 	if (gbsMode) {
         drawScreen(); // Just because it syncs with vblank...
@@ -358,8 +372,6 @@ bool Gameboy::isGameboyPaused() {
     return gameboyPaused;
 }
 
-int soundCycles=0;
-int extraCycles;
 void Gameboy::runEmul()
 {
     for (;;)
@@ -391,9 +403,9 @@ void Gameboy::runEmul()
                 setEventCycles(serialCounter);
 
             if (transferReady) {
-                if (nifiEnabled) {
+                if (false && nifiEnabled) {
                     if (!(ioRam[0x02] & 1)) {
-                        sendPacketByte(56, linkSendData);
+                        //sendPacketByte(56, linkSendData);
                         timerStop(2);
                     }
                 }

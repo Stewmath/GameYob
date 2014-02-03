@@ -1305,7 +1305,6 @@ void drawScanline_P2(int scanline) {
     // Always set this, since it's checked in the drawSprites function
     renderingState[scanline].spritesOn = gameboy->ioRam[0x40] & 0x2;
 
-    /*
     if (scanline == 0) {
         lineModified = true;
         bgPalettesModified = true;
@@ -1313,8 +1312,7 @@ void drawScanline_P2(int scanline) {
         spritesModified = true;
         mapsModified = true;
     }
-    */
-    if (scanline == gameboy->ioRam[0x4a]) { // First line of the window
+    else if (scanline == gameboy->ioRam[0x4a]) { // First line of the window
         lineModified = true;
         mapsModified = true;
     }

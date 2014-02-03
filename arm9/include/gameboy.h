@@ -162,6 +162,8 @@ class Gameboy {
         void printRomInfo();
         void loadBios(const char* filename);
 
+        u8 controllers[4];
+
 
         // variables
         int scanlineCounter;
@@ -220,7 +222,6 @@ class Gameboy {
         u8* hram;
         u8* ioRam;
 
-        u8 spriteData[];
         int wramBank;
         int vramBank;
 
@@ -242,10 +243,10 @@ class Gameboy {
 
         // cpu variables
         // TODO: try dtcm
-        struct Registers gbRegs;
         int halt;
         int ime;
         int extraCycles;
+        int soundCycles;
         int cyclesToExecute;
 
     private:
@@ -287,8 +288,6 @@ class Gameboy {
         u8 cgbFlag;
         u8 romSize;
 
-        u8 buttonsPressed;
-
         int maxLoadedRomBanks;
         int numLoadedRomBanks;
         u8* romBankSlots; // Each 0x4000 bytes = one slot
@@ -303,6 +302,9 @@ class Gameboy {
     public:
         void initSGB();
         void sgbHandleP1(u8 val);
+        u8 sgbReadP1();
+        void sgbSetActiveController(u8 controller) { sgbActiveController = controller; }
+        inline u8 sgbGetActiveController() { return sgbActiveController; }
 
         u8 sgbMap[20*18];
 
@@ -333,8 +335,9 @@ class Gameboy {
         u8 sgbCommand;
 
         u8 sgbNumControllers;
-        u8 sgbSelectedController;
+        u8 sgbSelectedController; // Which controller is being observed
         u8 sgbButtonsChecked;
+        u8 sgbActiveController; // Which controller does this DS act as
 
         // Data for various different sgb commands
         struct SgbCmdData {
@@ -368,3 +371,5 @@ const mbcWrite mbcWrites[] = {
 extern bool biosExists;
 
 extern Gameboy* gameboy;
+
+extern struct Registers gbRegs;
