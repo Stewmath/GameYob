@@ -573,8 +573,13 @@ u8 Gameboy::readMemory(u16 addr)
 {
 #ifndef SPEEDHAX
     int area = addr>>13;
-    if (area & 0x04) { // Addr >= 0x8000
-        if (area == 0xe/2) {
+    if (!(area & 0x4)) {
+        return memory[addr>>12][addr&0xfff];
+    }
+    else {
+        if (area == 0xc/2)
+            return memory[addr>>12][addr&0xfff];
+        else if (area == 0xe/2) {
             if (addr >= 0xff00)
                 return readIO(addr&0xff);
             // Check for echo area
@@ -590,6 +595,7 @@ u8 Gameboy::readMemory(u16 addr)
                 return 0xff;
         }
     }
+
 #endif
 
     return memory[addr>>12][addr&0xfff];
@@ -687,7 +693,6 @@ void Gameboy::writeMemory(u16 addr, u8 val)
             return;
 
     }
-
     if (writeFunc != NULL)
         (*this.*writeFunc)(addr, val);
 }
