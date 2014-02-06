@@ -315,19 +315,17 @@ void hyperSoundFunc(int value) {
 }
 
 void setAutoSaveFunc(int value) {
-    if (gameboy->isRomLoaded()) {
-        muteSND();
-        if (autoSavingEnabled)
-            gameboy->gameboySyncAutosave();
-        else
-            gameboy->saveGame(); // Synchronizes save file with filesystem
-        autoSavingEnabled = value;
-        if (gameboy->getNumRamBanks() && !gbsMode && !autoSavingEnabled)
-            enableMenuOption("Exit without saving");
-        else
-            disableMenuOption("Exit without saving");
-        unmuteSND();
-    }
+    muteSND();
+    if (autoSavingEnabled)
+        gameboy->gameboySyncAutosave();
+    else
+        gameboy->saveGame(); // Synchronizes save file with filesystem
+    autoSavingEnabled = value;
+    if (gameboy->isRomLoaded() && gameboy->getNumRamBanks() && !gbsMode && !autoSavingEnabled)
+        enableMenuOption("Exit without saving");
+    else
+        disableMenuOption("Exit without saving");
+    unmuteSND();
 }
 
 struct MenuOption {
