@@ -2,19 +2,19 @@
 #include <stdio.h>
 #include <vector>
 #include "time.h"
-#include "cheats.h"
 
 #ifdef DS
 #include <nds.h>
 #endif
 
-#define MAX_ROM_BANKS   0x200
 #define MAX_SRAM_SIZE   0x20000
 
 #define GB			0
 #define CGB			1
 
+class CheatEngine;
 class SoundEngine;
+class RomFile;
 
 // Be careful changing this; it affects save state compatibility.
 struct clockStruct
@@ -63,9 +63,21 @@ class Gameboy {
 
         Gameboy();
         void init();
+        void initGBMode();
+        void initGBCMode();
         void initSND();
 
-        void setEventCycles(int cycles) ITCM_CODE;
+        inline void setEventCycles(int cycles) {
+            if (cycles < cyclesToEvent) {
+                cyclesToEvent = cycles;
+                /*
+                   if (cyclesToEvent <= 0) {
+                   cyclesToEvent = 1;
+                   }
+                   */
+            }
+        }
+
 
         void gameboyCheckInput();
         void gameboyUpdateVBlank();
@@ -75,21 +87,23 @@ class Gameboy {
         void pause();
         void unpause();
         bool isGameboyPaused();
-        void runEmul() ITCM_CODE;
+        int runEmul() ITCM_CODE;
         void initGameboyMode();
         void checkLYC();
-        void updateLCD(int cycles) ITCM_CODE;
+        int updateLCD(int cycles) ITCM_CODE;
         void updateTimers(int cycles) ITCM_CODE;
         void requestInterrupt(int id);
         void setDoubleSpeed(int val);
 
-        int loadRom(char* filename);
+        void setRomFile(RomFile* r);
         void unloadRom();
+        void printRomInfo();
+        bool isRomLoaded();
+
         int loadSave();
         int saveGame();
         void gameboySyncAutosave();
         void updateAutosave();
-
 
         void saveState(int num);
         int loadState(int num);
@@ -98,7 +112,10 @@ class Gameboy {
 
         inline int getCyclesSinceVblank() { return cyclesSinceVblank + extraCycles; }
         inline bool isDoubleSpeed() { return doubleSpeed; }
+
         inline CheatEngine* getCheatEngine() { return cheatEngine; }
+        inline SoundEngine* getSoundEngine() { return soundEngine; }
+        inline RomFile* getRomFile() { return romFile; }
 
         // gbcpu.cpp
         void initCPU();
@@ -128,9 +145,6 @@ class Gameboy {
         bool updateHblankDMA();
         void latchClock();
 
-        void doRumble(bool rumbleVal);
-
-        inline int getNumRomBanks() { return numRomBanks; }
         inline int getNumRamBanks() { return numRamBanks; }
         inline u8 getWramBank() { return wramBank; }
         inline void setWramBank(u8 bank) { wramBank = bank; }
@@ -150,18 +164,7 @@ class Gameboy {
         void m5w (u16 addr, u8 val);
         void h3w (u16 addr, u8 val);
 
-        // gbio.h
-        void gbioInit();
         void writeSaveFileSectors(int startSector, int numSectors);
-        void loadRomBank();
-        bool isRomBankLoaded(int bank);
-        u8* getRomBank(int bank);
-        const char* getRomBasename();
-
-        char* getRomTitle();
-        void printRomInfo();
-        void loadBios(const char* filename);
-
         u8 controllers[4];
 
 
@@ -186,14 +189,9 @@ class Gameboy {
 
         // mmu variables
 
-        u8* romSlot0;
-        u8* romSlot1;
-
         clockStruct gbClock;
 
-        int numRomBanks;
         int numRamBanks;
-        bool hasRumble;
         int rumbleValue;
         int lastRumbleValue;
 
@@ -209,8 +207,6 @@ class Gameboy {
         // whether the bios is mapped to memory
         bool biosOn;
 
-        u8 bios[0x900];
-
         // memory[x][yyy] = ram value at xyyy
         u8* memory[0x10];
 
@@ -225,7 +221,6 @@ class Gameboy {
         int wramBank;
         int vramBank;
 
-        int MBC;
         int memoryModel;
         bool hasClock;
         int romBank;
@@ -248,10 +243,18 @@ class Gameboy {
         int extraCycles;
         int soundCycles;
         int cyclesToExecute;
+        int cyclesUntilSwap;
+//        struct Registers gbRegs;
+        
+        int fps;
 
     private:
         CheatEngine* cheatEngine;
         SoundEngine* soundEngine;
+        RomFile* romFile;
+
+        FILE* saveFile;
+        char savename[256];
 
         // mmu functions
         void refreshRomBank(int bank);
@@ -263,7 +266,6 @@ class Gameboy {
 
         // variables
         volatile bool gameboyPaused;
-        int fps;
         bool resettingGameboy;
 
         bool wroteToSramThisFrame;
@@ -273,26 +275,6 @@ class Gameboy {
 
         void (Gameboy::*writeFunc)(u16, u8);
         u8 (Gameboy::*readFunc)(u16);
-
-        // gbio.cpp
-        FILE* romFile;
-        FILE* saveFile;
-        char filename[256];
-        char savename[256];
-        char basename[256];
-        char romTitle[20];
-
-        // Values taken from the cartridge header
-        u8 ramSize;
-        u8 mapper;
-        u8 cgbFlag;
-        u8 romSize;
-
-        int maxLoadedRomBanks;
-        int numLoadedRomBanks;
-        u8* romBankSlots; // Each 0x4000 bytes = one slot
-        int bankSlotIDs[MAX_ROM_BANKS]; // Keeps track of which bank occupies which slot
-        std::vector<int> lastBanksUsed;
 
         bool suspendStateExists;
 
@@ -367,8 +349,6 @@ const mbcWrite mbcWrites[] = {
     &Gameboy::m0w, &Gameboy::m1w, &Gameboy::m2w, &Gameboy::m3w, NULL, &Gameboy::m5w, NULL, &Gameboy::h3w, &Gameboy::h1w
 };
 
-
-extern bool biosExists;
 
 extern Gameboy* gameboy;
 

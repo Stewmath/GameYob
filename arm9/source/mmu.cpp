@@ -1,24 +1,20 @@
 #include <stdio.h>
 #include <cstdlib>
+#include "libfat_fake.h"
 #include "mmu.h"
 #include "gameboy.h"
 #include "gbgfx.h"
 #include "gbsnd.h"
 #include "inputhelper.h"
-#include "main.h"
 #include "nifi.h"
 #include "sgb.h"
 #include "console.h"
 #include "gbs.h"
 #include "timer.h"
+#include "romfile.h"
 #ifdef DS
 #include <nds.h>
 #endif
-
-int rumbleInserted = 0;
-// whether the bios exists and has been loaded
-bool biosExists = false;
-
 
 
 #define refreshVramBank() { \
@@ -29,13 +25,13 @@ bool biosExists = false;
 
 void Gameboy::refreshRomBank(int bank) 
 {
-    if (bank < numRomBanks) {
+    if (bank < romFile->getNumRomBanks()) {
         romBank = bank;
-        loadRomBank(); 
-        memory[0x4] = romSlot1;
-        memory[0x5] = romSlot1+0x1000;
-        memory[0x6] = romSlot1+0x2000;
-        memory[0x7] = romSlot1+0x3000; 
+        romFile->loadRomBank(romBank); 
+        memory[0x4] = romFile->romSlot1;
+        memory[0x5] = romFile->romSlot1+0x1000;
+        memory[0x6] = romFile->romSlot1+0x2000;
+        memory[0x7] = romFile->romSlot1+0x3000; 
     }
     else
         printLog("Tried to access bank %x\n", bank);
@@ -369,7 +365,7 @@ void Gameboy::m5w (u16 addr, u8 val) {
             val &= 0xf;
             /* MBC5 might have a rumble motor, which is triggered by the
              * 4th bit of the value written */
-            if (hasRumble) {
+            if (romFile->hasRumble()) {
                 if (rumbleStrength) {
                     if (rumbleInserted) {
                         rumbleValue = (val & 0x8) ? 1 : 0;
@@ -458,10 +454,10 @@ void Gameboy::initMMU()
     HuC3Shift = 0;
 
     /* Rockman8 by Yang Yang uses a silghtly different MBC1 variant */
-    rockmanMapper = !strcmp(getRomTitle(), "ROCKMAN 99");
+    rockmanMapper = !strcmp(romFile->getRomTitle(), "ROCKMAN 99");
 
-    readFunc = mbcReads[MBC];
-    writeFunc = mbcWrites[MBC];
+    readFunc = mbcReads[romFile->getMBC()];
+    writeFunc = mbcWrites[romFile->getMBC()];
 
     biosOn = false;
     if (biosExists && !probingForBorder && !gbsMode) {
@@ -501,12 +497,12 @@ void Gameboy::initMMU()
 
 void Gameboy::mapMemory() {
     if (biosOn)
-        memory[0x0] = bios;
+        memory[0x0] = romFile->bios;
     else
-        memory[0x0] = romSlot0;
-    memory[0x1] = romSlot0+0x1000;
-    memory[0x2] = romSlot0+0x2000;
-    memory[0x3] = romSlot0+0x3000;
+        memory[0x0] = romFile->romSlot0;
+    memory[0x1] = romFile->romSlot0+0x1000;
+    memory[0x2] = romFile->romSlot0+0x2000;
+    memory[0x3] = romFile->romSlot0+0x3000;
     refreshRomBank(romBank);
     refreshRamBank(currentRamBank);
     refreshVramBank();
@@ -537,7 +533,7 @@ void Gameboy::latchClock()
     time_t difference = now - gbClock.last;
     struct tm* lt = gmtime((const time_t *)&difference);
 
-    switch (MBC) {
+    switch (romFile->getMBC()) {
         case MBC3:
             gbClock.mbc3.s += lt->tm_sec;
             OVERFLOW(gbClock.mbc3.s, 60, gbClock.mbc3.m);
@@ -698,25 +694,6 @@ void Gameboy::writeMemory(u16 addr, u8 val)
 }
 
 
-bool nifiTryAgain = false;
-void nifiTimeoutFunc() {
-    printLog("Nifi timeout\n");
-    if (nifiTryAgain) {
-        nifiSendid--;
-        //sendPacketByte(55, gameboy->ioRam[0x01]);
-        nifiSendid++;
-        nifiTryAgain = false;
-    }
-    else {
-        // There was no response from nifi, assume no connection.
-        printLog("No nifi response received\n");
-        gameboy->ioRam[0x01] = 0xff;
-        gameboy->requestInterrupt(SERIAL);
-        gameboy->ioRam[0x02] &= ~0x80;
-        timerStop(2);
-    }
-}
-
 void Gameboy::writeIO(u8 ioReg, u8 val) {
     switch (ioReg)
     {
@@ -725,38 +702,21 @@ void Gameboy::writeIO(u8 ioReg, u8 val) {
                 sgbHandleP1(val);
             else {
                 ioRam[0x00] = val;
+#ifdef SPEEDHAX
                 refreshP1();
+#endif
             }
             return;
         case 0x02:
             {
                 ioRam[ioReg] = val;
-                if (true || !nifiEnabled) {
-                    if (val & 0x80 && val & 0x01) {
-                        serialCounter = clockSpeed/1024;
-                        if (cyclesToExecute > serialCounter)
-                            cyclesToExecute = serialCounter;
-                    }
-                    else
-                        serialCounter = 0;
-                    return;
+                if (val & 0x80 && val & 0x01) {
+                    serialCounter = clockSpeed/1024;
+                    if (cyclesToExecute > serialCounter)
+                        cyclesToExecute = serialCounter;
                 }
-                linkSendData = ioRam[0x01];
-                if (val & 0x80) {
-                    if (transferWaiting) {
-                        //sendPacketByte(56, ioRam[0x01]);
-                        ioRam[0x01] = linkReceivedData;
-                        requestInterrupt(SERIAL);
-                        ioRam[ioReg] &= ~0x80;
-                        transferWaiting = false;
-                    }
-                    if (val & 1) {
-                        nifiTryAgain = true;
-                        timerStart(2, ClockDivider_64, 10000, nifiTimeoutFunc);
-                        //sendPacketByte(55, ioRam[0x01]);
-                        nifiSendid++;
-                    }
-                }
+                else
+                    serialCounter = 0;
                 return;
             }
         case 0x04:
@@ -882,7 +842,6 @@ handleSoundReg:
         case 0x45:
             ioRam[ioReg] = val;
             checkLYC();
-            cyclesToExecute = -1;
             return;
         case 0x68:
             ioRam[ioReg] = val;
@@ -907,7 +866,7 @@ handleSoundReg:
             // Special register, used by the gameboy bios
         case 0x50:
             biosOn = 0;
-            memory[0x0] = romSlot0;
+            memory[0x0] = romFile->romSlot0;
             initGameboyMode();
             return;
         case 0x55: // CGB DMA
@@ -937,6 +896,7 @@ handleSoundReg:
                         writeVram16(dmaDest, dmaSource);
                         dmaDest += 0x10;
                         dmaSource += 0x10;
+                        dmaDest &= 0x1FF0;
                     }
                     extraCycles += dmaLength*8*(doubleSpeed+1);
                     dmaLength = 0;
@@ -962,12 +922,14 @@ handleSoundReg:
             return;
         case 0x0F: // IF
             ioRam[ioReg] = val;
-            if (val & ioRam[0xff])
+            interruptTriggered = val & ioRam[0xff];
+            if (interruptTriggered)
                 cyclesToExecute = -1;
             break;
         case 0xFF: // IE
             ioRam[ioReg] = val;
-            if (val & ioRam[0x0f])
+            interruptTriggered = val & ioRam[0x0f];
+            if (interruptTriggered)
                 cyclesToExecute = -1;
             break;
         default:
@@ -1003,13 +965,9 @@ bool Gameboy::updateHblankDMA()
         writeVram16(dmaDest, dmaSource);
         dmaDest += 16;
         dmaSource += 16;
+        dmaDest &= 0x1FF0;
         dmaLength --;
-        if (dmaLength == 0)
-        {
-            ioRam[0x55] = 0xFF;
-        }
-        else
-            ioRam[0x55] = dmaLength-1;
+        ioRam[0x55] = dmaLength-1;
         ioRam[0x51] = dmaSource>>8;
         ioRam[0x52] = dmaSource&0xff;
         ioRam[0x53] = dmaDest>>8;
@@ -1020,20 +978,16 @@ bool Gameboy::updateHblankDMA()
         return false;
 }
 
+// This bypasses libfat's cache to directly write a single sector of the save 
+// file. This reduces lag.
+void Gameboy::writeSaveFileSectors(int startSector, int numSectors) {
+    if (saveFileSectors[startSector] == -1) {
+        flushFatCache();
+        return;
+    }
+    devoptab_t* devops = (devoptab_t*)GetDeviceOpTab ("sd");
+    PARTITION* partition = (PARTITION*)devops->deviceData;
+    CACHE* cache = partition->cache;
 
-void Gameboy::doRumble(bool rumbleVal)
-{
-    if (rumbleInserted == 1)
-    {
-        setRumble(rumbleVal);
-    }
-    else if (rumbleInserted == 2)
-    {
-        GBA_BUS[0x1FE0000/2] = 0xd200;
-        GBA_BUS[0x0000000/2] = 0x1500;
-        GBA_BUS[0x0020000/2] = 0xd200;
-        GBA_BUS[0x0040000/2] = 0x1500;
-        GBA_BUS[0x1E20000/2] = rumbleVal ? (0xF0 + rumbleStrength) : 0x08;
-        GBA_BUS[0x1FC0000/2] = 0x1500;
-    }
+	_FAT_disc_writeSectors(cache->disc, saveFileSectors[startSector], numSectors, gameboy->externRam+startSector*512);
 }

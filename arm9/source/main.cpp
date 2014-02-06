@@ -19,6 +19,9 @@
 #include "cheats.h"
 #include "gbs.h"
 #include "common.h"
+#include "romfile.h"
+
+void updateVBlank();
 
 time_t rawTime;
 time_t lastRawTime;
@@ -26,6 +29,10 @@ time_t lastRawTime;
 volatile SharedData* sharedData;
 
 Gameboy* gameboy;
+Gameboy* gb1;
+Gameboy* gb2;
+
+RomFile* romFile = NULL;
 
 // This is used to signal sleep mode starting or ending.
 void fifoValue32Handler(u32 value, void* user_data) {
@@ -56,26 +63,47 @@ void fifoValue32Handler(u32 value, void* user_data) {
     }
 }
 
+void loadRom(const char* filename) {
+    if (romFile != NULL)
+        delete romFile;
+
+    romFile = new RomFile(filename);
+    gameboy->setRomFile(romFile);
+}
+
+void unloadRom() {
+    gameboy->unloadRom();
+
+    if (romFile != NULL) {
+        delete romFile;
+        romFile = NULL;
+    }
+}
+
+void setMainGb(int id) {
+    if (id == 1)
+        gameboy = gb1;
+    else
+        gameboy = gb2;
+
+    refreshGFX();
+    gameboy->getSoundEngine()->refresh();
+}
 
 void selectRom() {
-    gameboy->unloadRom();
+    unloadRom();
 
     loadFileChooserState(&romChooserState);
     const char* extraExtensions[] = {"gbs"};
     char* filename = startFileChooser(extraExtensions, true);
     saveFileChooserState(&romChooserState);
 
+    loadRom(filename);
+
     if (!biosExists) {
-        FILE* file;
-        file = fopen("gbc_bios.bin", "rb");
-        biosExists = file != NULL;
-        if (biosExists) {
-            fread(gameboy->bios, 1, 0x900, file);
-            fclose(file);
-        }
+        gameboy->getRomFile()->loadBios("gbc_bios.bin");
     }
 
-    gameboy->loadRom(filename);
     free(filename);
 
     updateScreens();
@@ -83,74 +111,12 @@ void selectRom() {
     initializeGameboyFirstTime();
 }
 
-void initGBMode() {
-    if (sgbModeOption != 0 && gameboy->romSlot0[0x14b] == 0x33 && gameboy->romSlot0[0x146] == 0x03)
-        gameboy->resultantGBMode = 2;
-    else {
-        gameboy->resultantGBMode = 0;
-    }
-}
-void initGBCMode() {
-    if (sgbModeOption == 2 && gameboy->romSlot0[0x14b] == 0x33 && gameboy->romSlot0[0x146] == 0x03)
-        gameboy->resultantGBMode = 2;
-    else {
-        gameboy->resultantGBMode = 1;
-    }
-}
-void initializeGameboy() {
-    enableSleepMode();
-
-    if (gbsMode) {
-        gameboy->resultantGBMode = 1; // GBC
-        probingForBorder = false;
-    }
-    else {
-        switch(gbcModeOption) {
-            case 0: // GB
-                initGBMode();
-                break;
-            case 1: // GBC if needed
-                if (gameboy->romSlot0[0x143] == 0xC0)
-                    initGBCMode();
-                else
-                    initGBMode();
-                break;
-            case 2: // GBC
-                if (gameboy->romSlot0[0x143] == 0x80 || gameboy->romSlot0[0x143] == 0xC0)
-                    initGBCMode();
-                else
-                    initGBMode();
-                break;
-        }
-
-        bool sgbEnhanced = gameboy->romSlot0[0x14b] == 0x33 && gameboy->romSlot0[0x146] == 0x03;
-        if (sgbEnhanced && gameboy->resultantGBMode != 2 && probingForBorder) {
-            gameboy->resultantGBMode = 2;
-        }
-        else {
-            probingForBorder = false;
-        }
-    } // !gbsMode
-
-    gameboy->init();
-
-    if (!gbsMode && !probingForBorder && gameboy->checkStateExists(-1)) {
-        gameboy->loadState(-1);
-    }
-
-    if (gbsMode)
-        gbsInit();
-
-    // We haven't calculated the # of cycles to the next hardware event.
-    gameboy->cyclesToEvent = 1;
-}
-
 void initializeGameboyFirstTime() {
     if (sgbBordersEnabled)
         probingForBorder = true; // This will be ignored if starting in sgb mode, or if there is no sgb mode.
     sgbBorderLoaded = false; // Effectively unloads any sgb border
 
-    initializeGameboy();
+    gameboy->init();
 
     if (gbsMode) {
         disableMenuOption("State Slot");
@@ -216,14 +182,18 @@ int main(int argc, char* argv[])
     // However there may have been something wrong with it in dsi mode.
     fifoSendValue32(FIFO_USER_03, ((u32)sharedData)&0x00ffffff);
 
-    gameboy = new Gameboy();
+    gb1 = new Gameboy();
+//    gb2 = new Gameboy();
+
+    setMainGb(1);
 
     initInput();
     setMenuDefaults();
     readConfigFile();
+        lcdMainOnBottom();
     swiWaitForVBlank();
     swiWaitForVBlank();
-    // initGFX is called in initializeGameboy, but I also call it from here to
+    // initGFX is called in gameboy->init, but I also call it from here to
     // set up the vblank handler asap.
     initGFX();
 
@@ -231,7 +201,7 @@ int main(int argc, char* argv[])
 
     if (argc >= 2) {
         char* filename = argv[1];
-        gameboy->loadRom(filename);
+        loadRom(filename);
         updateScreens();
         initializeGameboyFirstTime();
     }
@@ -239,7 +209,82 @@ int main(int argc, char* argv[])
         selectRom();
     }
 
-    gameboy->runEmul();
+    for (;;) {
+        if (!gameboy->isGameboyPaused())
+            gameboy->runEmul();
+        updateVBlank();
+    }
 
     return 0;
+}
+
+void updateVBlank() {
+    readKeys();
+    if (isMenuOn())
+        updateMenu();
+    else {
+        gameboy->gameboyCheckInput();
+        if (gbsMode)
+            gbsCheckInput();
+    }
+
+    nifiCheckInput();
+
+    /*
+       if (gameboy->isGameboyPaused()) {
+       muteSND();
+       while (gameboyPaused) {
+       swiWaitForVBlank();
+       readKeys();
+       gameboyCheckInput();
+       updateMenu();
+       nifiCheckInput();
+       }
+       unmuteSND();
+       }
+       */
+
+    int oldIME = REG_IME;
+    REG_IME = 0;
+    nifiUpdateInput();
+    REG_IME = oldIME;
+
+    if (gbsMode) {
+        drawScreen(); // Just because it syncs with vblank...
+    }
+    else {
+        drawScreen();
+    }
+
+    if (isConsoleOn() && !isMenuOn() && !consoleDebugOutput && (rawTime > lastRawTime))
+    {
+        setPrintConsole(menuConsole);
+        consoleClear();
+        int line=0;
+        if (fpsOutput) {
+            consoleClear();
+            iprintf("FPS: %d\n", gameboy->fps);
+            line++;
+        }
+        gameboy->fps = 0;
+        if (timeOutput) {
+            for (; line<23-1; line++)
+                iprintf("\n");
+            char *timeString = ctime(&rawTime);
+            for (int i=0;; i++) {
+                if (timeString[i] == ':') {
+                    timeString += i-2;
+                    break;
+                }
+            }
+            char s[50];
+            strncpy(s, timeString, 50);
+            s[5] = '\0';
+            int spaces = 31-strlen(s);
+            for (int i=0; i<spaces; i++)
+                iprintf(" ");
+            iprintf("%s\n", s);
+        }
+        lastRawTime = rawTime;
+    }
 }

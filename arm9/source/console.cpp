@@ -200,7 +200,7 @@ void stateDeleteFunc(int value) {
 void resetFunc(int value) {
     closeMenu();
     updateScreens();
-    initializeGameboy();
+    gameboy->init();
 }
 void returnFunc(int value) {
     closeMenu();
@@ -315,17 +315,19 @@ void hyperSoundFunc(int value) {
 }
 
 void setAutoSaveFunc(int value) {
-    muteSND();
-    if (autoSavingEnabled)
-        gameboy->gameboySyncAutosave();
-    else
-        gameboy->saveGame(); // Synchronizes save file with filesystem
-    autoSavingEnabled = value;
-    if (gameboy->getNumRamBanks() && !gbsMode && !autoSavingEnabled)
-        enableMenuOption("Exit without saving");
-    else
-        disableMenuOption("Exit without saving");
-    unmuteSND();
+    if (gameboy->isRomLoaded()) {
+        muteSND();
+        if (autoSavingEnabled)
+            gameboy->gameboySyncAutosave();
+        else
+            gameboy->saveGame(); // Synchronizes save file with filesystem
+        autoSavingEnabled = value;
+        if (gameboy->getNumRamBanks() && !gbsMode && !autoSavingEnabled)
+            enableMenuOption("Exit without saving");
+        else
+            disableMenuOption("Exit without saving");
+        unmuteSND();
+    }
 }
 
 struct MenuOption {
@@ -704,10 +706,7 @@ void enableMenuOption(const char* optionName) {
         for (int j=0; j<menuList[i].numOptions; j++) {
             if (strcmpi(optionName, menuList[i].options[j].name) == 0) {
                 menuList[i].options[j].enabled = true;
-                /*
-                if (isMenuOn())
-                    redrawMenu();
-                    */
+                return;
             }
         }
     }
@@ -717,10 +716,7 @@ void disableMenuOption(const char* optionName) {
         for (int j=0; j<menuList[i].numOptions; j++) {
             if (strcmpi(optionName, menuList[i].options[j].name) == 0) {
                 menuList[i].options[j].enabled = false;
-                /*
-                if (isMenuOn())
-                    redrawMenu();
-                    */
+                return;
             }
         }
     }

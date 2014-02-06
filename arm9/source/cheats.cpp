@@ -8,14 +8,20 @@
 #include "cheats.h"
 #include "inputhelper.h"
 #include "gbgfx.h"
+#include "romfile.h"
 
 #define TO_INT(a) ( (a) >= 'a' ? (a) - 'a' + 10 : (a) >= 'A' ? (a) - 'A' + 10 : (a) - '0')
 
 CheatEngine::CheatEngine(Gameboy* g) {
     gameboy = g;
+    romFile = gameboy->getRomFile();
     cheatsEnabled = true;
     numCheats = 0;
     cheatsRomTitle[0] = '\0';
+}
+
+void CheatEngine::setRomFile(RomFile* r) {
+    romFile = r;
 }
 
 void CheatEngine::enableCheats (bool enable)
@@ -88,8 +94,8 @@ void CheatEngine::toggleCheat (int i, bool enabled)
     if (enabled) {
         cheats[i].flags |= CHEAT_FLAG_ENABLED;
         if ((cheats[i].flags & CHEAT_FLAG_TYPE_MASK) != CHEAT_FLAG_GAMESHARK) {
-            for (int j=0; j<gameboy->getNumRomBanks(); j++) {
-                if (gameboy->isRomBankLoaded(j))
+            for (int j=0; j<romFile->getNumRomBanks(); j++) {
+                if (romFile->isRomBankLoaded(j))
                     applyGGCheatsToBank(j);
             }
         }
@@ -104,8 +110,8 @@ void CheatEngine::unapplyGGCheat(int cheat) {
     if ((cheats[cheat].flags & CHEAT_FLAG_TYPE_MASK) != CHEAT_FLAG_GAMESHARK) {
         for (unsigned int i=0; i<cheats[cheat].patchedBanks.size(); i++) {
             int bank = cheats[cheat].patchedBanks[i];
-            if (gameboy->isRomBankLoaded(bank)) {
-                gameboy->getRomBank(bank)[cheats[cheat].address&0x3fff] = cheats[cheat].patchedValues[i];
+            if (romFile->isRomBankLoaded(bank)) {
+                romFile->getRomBank(bank)[cheats[cheat].address&0x3fff] = cheats[cheat].patchedValues[i];
             }
         }
         cheats[cheat].patchedBanks = std::vector<int>();
@@ -114,7 +120,7 @@ void CheatEngine::unapplyGGCheat(int cheat) {
 }
 
 void CheatEngine::applyGGCheatsToBank(int bank) {
-	u8* bankPtr = gameboy->getRomBank(bank);
+	u8* bankPtr = romFile->getRomBank(bank);
     for (int i=0; i<numCheats; i++) {
         if (cheats[i].flags & CHEAT_FLAG_ENABLED && ((cheats[i].flags & CHEAT_FLAG_TYPE_MASK) != CHEAT_FLAG_GAMESHARK)) {
 
@@ -158,14 +164,14 @@ void CheatEngine::applyGSCheats() {
 
 void CheatEngine::loadCheats(const char* filename) {
     // TODO: get rid of the "cheatsRomTitle" stuff
-    if (strcmp(cheatsRomTitle, gameboy->getRomTitle()) == 0) {
+    if (strcmp(cheatsRomTitle, romFile->getRomTitle()) == 0) {
         // Rom hasn't been changed
         for (int i=0; i<numCheats; i++)
             unapplyGGCheat(i);
     }
     else
         // Rom has been changed
-        strncpy(cheatsRomTitle, gameboy->getRomTitle(), 20);
+        strncpy(cheatsRomTitle, romFile->getRomTitle(), 20);
     numCheats = 0;
 
     // Begin loading new cheat file

@@ -1,3 +1,5 @@
 void selectRom();
-void initializeGameboy();
+void loadRom(const char* filename);
 void initializeGameboyFirstTime();
+
+void setMainGb(int id);

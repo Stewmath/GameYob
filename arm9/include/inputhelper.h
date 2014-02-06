@@ -34,26 +34,16 @@ enum {
     KEY_SCALE, KEY_RESET
 };
 
-/*
-extern char filename[256];
-extern char savename[256];
-extern char basename[256];
-*/
+extern char* biosPath;
 
 extern bool fastForwardMode; // controlled by the toggle hotkey
 extern bool fastForwardKey;  // only while its hotkey is pressed
-
-
-extern int maxLoadedRomBanks;
-
-extern bool suspendStateExists;
-
 extern u8 buttonsPressed;
 
-
-extern FILE* saveFile;
-
 extern char* borderPath;
+extern bool biosExists;
+extern int rumbleInserted;
+
 
 void initInput();
 void flushFatCache();
@@ -70,4 +60,5 @@ bool keyJustPressed(int key);
 void forceReleaseKey(int key);
 int mapGbKey(int gbKey); // Maps a "functional" key to a physical key.
 
-//void loadBios(const char* filename);
+void doRumble(bool rumbleVal);
+

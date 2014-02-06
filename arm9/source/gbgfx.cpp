@@ -10,7 +10,6 @@
 #include "gbs.h"
 #include "gbgfx.h"
 #include "mmu.h"
-#include "main.h"
 #include "gameboy.h"
 #include "sgb.h"
 #include "console.h"
@@ -181,6 +180,9 @@ typedef struct
 void drawLine(int gbLine) ITCM_CODE;
 
 void drawLine(int gbLine) {
+    if (gbGraphicsDisabled || hblankDisabled)
+        return;
+
     ScanlineStruct *state = &drawingState[gbLine];
 
     if (screenDisabled) {
@@ -396,8 +398,6 @@ void doHBlank(int line) {
             setBackdropColorSub(RGB15(0,0,0));
     }
 
-    if (gbGraphicsDisabled || hblankDisabled)
-        return;
     int gbLine = line-screenOffsY;
 
     if (gbLine >= 144 || gbLine <= 0)
@@ -1274,7 +1274,7 @@ void drawSprites(u8* data, int tall) {
     }
 }
 
-void drawScanline(int scanline) ITCM_CODE;
+void drawScanline(int scanline);
 
 int winX;
 // Called after mode 2
@@ -1302,8 +1302,10 @@ void drawScanline_P2(int scanline) {
     else if (winX < 167 && gameboy->ioRam[0x4a] <= scanline)
         winPosY++;
 
+    ScanlineStruct* state = &renderingState[scanline];
+
     // Always set this, since it's checked in the drawSprites function
-    renderingState[scanline].spritesOn = gameboy->ioRam[0x40] & 0x2;
+    state->spritesOn = gameboy->ioRam[0x40] & 0x2;
 
     if (scanline == 0) {
         lineModified = true;
@@ -1317,21 +1319,21 @@ void drawScanline_P2(int scanline) {
         mapsModified = true;
     }
     else if (!lineModified) {
-        renderingState[scanline].modified = false;
+        state->modified = false;
         return;
     }
 
-    renderingState[scanline].modified = true;
+    state->modified = true;
 
-    renderingState[scanline].spritesModified = spritesModified;
+    state->spritesModified = spritesModified;
     if (spritesModified) {
         for (int i=0; i<0xa0; i++)
-            renderingState[scanline].spriteData[i] = gameboy->hram[i];
-        renderingState[scanline].tallSprites = !!(gameboy->ioRam[0x40]&4);
+            state->spriteData[i] = gameboy->hram[i];
+        state->tallSprites = !!(gameboy->ioRam[0x40]&4);
         spritesModified = false;
     }
 
-    renderingState[scanline].mapsModified = mapsModified;
+    state->mapsModified = mapsModified;
     if (mapsModified) {
         mapsModified = false;
 
@@ -1349,16 +1351,16 @@ void drawScanline_P2(int scanline) {
         else
             bgMap = 0;
 
-        renderingState[scanline].bgMap = bgMap;
-        renderingState[scanline].winMap = winMap;
+        state->bgMap = bgMap;
+        state->winMap = winMap;
 
         if (gameboy->gbMode != CGB && !(gameboy->ioRam[0x40] & 1)) {
-            renderingState[scanline].winColor0Cnt = BG_MAP_BASE(off_map_base) | 3;
-            renderingState[scanline].winCnt = BG_MAP_BASE(off_map_base) | 3;
-            renderingState[scanline].winOverlayCnt = BG_MAP_BASE(off_map_base) | 3;
-            renderingState[scanline].bgColor0Cnt = BG_MAP_BASE(off_map_base) | 3;
-            renderingState[scanline].bgCnt = BG_MAP_BASE(off_map_base) | 3;
-            renderingState[scanline].bgOverlayCnt = BG_MAP_BASE(off_map_base) | 3;
+            state->winColor0Cnt = BG_MAP_BASE(off_map_base) | 3;
+            state->winCnt = BG_MAP_BASE(off_map_base) | 3;
+            state->winOverlayCnt = BG_MAP_BASE(off_map_base) | 3;
+            state->bgColor0Cnt = BG_MAP_BASE(off_map_base) | 3;
+            state->bgCnt = BG_MAP_BASE(off_map_base) | 3;
+            state->bgOverlayCnt = BG_MAP_BASE(off_map_base) | 3;
         }
         else {
             bool priorityOn = gameboy->gbMode == CGB && gameboy->ioRam[0x40] & 1;
@@ -1366,42 +1368,42 @@ void drawScanline_P2(int scanline) {
             int winMapBase = map_base[winMap];
             int bgMapBase = map_base[bgMap];
 
-            renderingState[scanline].tileSigned = tileSigned;
+            state->tileSigned = tileSigned;
 
             int tileBase = (tileSigned ? 6 : 4);
 
-            renderingState[scanline].winColor0Cnt = (BG_MAP_BASE(color0_map_base[winMap]) | BG_TILE_BASE(0) | win_color0_priority);
-            renderingState[scanline].winCnt = (BG_MAP_BASE(winMapBase) | BG_TILE_BASE(tileBase) | win_priority);
-            renderingState[scanline].bgColor0Cnt = (BG_MAP_BASE(color0_map_base[bgMap]) | BG_TILE_BASE(0) | bg_color0_priority);
-            renderingState[scanline].bgCnt = (BG_MAP_BASE(bgMapBase) | BG_TILE_BASE(tileBase) | bg_priority);
+            state->winColor0Cnt = (BG_MAP_BASE(color0_map_base[winMap]) | BG_TILE_BASE(0) | win_color0_priority);
+            state->winCnt = (BG_MAP_BASE(winMapBase) | BG_TILE_BASE(tileBase) | win_priority);
+            state->bgColor0Cnt = (BG_MAP_BASE(color0_map_base[bgMap]) | BG_TILE_BASE(0) | bg_color0_priority);
+            state->bgCnt = (BG_MAP_BASE(bgMapBase) | BG_TILE_BASE(tileBase) | bg_priority);
 
-            renderingState[scanline].winAllCnt = (BG_MAP_BASE(winMapBase) | BG_TILE_BASE(tileBase+4) | win_all_priority);
-            renderingState[scanline].bgAllCnt = (BG_MAP_BASE(bgMapBase) | BG_TILE_BASE(tileBase+4) | bg_all_priority);
+            state->winAllCnt = (BG_MAP_BASE(winMapBase) | BG_TILE_BASE(tileBase+4) | win_all_priority);
+            state->bgAllCnt = (BG_MAP_BASE(bgMapBase) | BG_TILE_BASE(tileBase+4) | bg_all_priority);
 
             if (priorityOn) {
-                renderingState[scanline].winOverlayCnt = (BG_MAP_BASE(overlay_map_base[winMap]) | BG_TILE_BASE(tileBase) | win_overlay_priority);
-                renderingState[scanline].bgOverlayCnt = (BG_MAP_BASE(overlay_map_base[bgMap]) | BG_TILE_BASE(tileBase) | bg_overlay_priority);
+                state->winOverlayCnt = (BG_MAP_BASE(overlay_map_base[winMap]) | BG_TILE_BASE(tileBase) | win_overlay_priority);
+                state->bgOverlayCnt = (BG_MAP_BASE(overlay_map_base[bgMap]) | BG_TILE_BASE(tileBase) | bg_overlay_priority);
             }
             else {
                 // Give these layers the same priority as the regular layers.
-                renderingState[scanline].winOverlayCnt = (BG_MAP_BASE(overlay_map_base[winMap]) | BG_TILE_BASE(tileBase) | win_priority);
-                renderingState[scanline].bgOverlayCnt = (BG_MAP_BASE(overlay_map_base[bgMap]) | BG_TILE_BASE(tileBase) | bg_priority);
+                state->winOverlayCnt = (BG_MAP_BASE(overlay_map_base[winMap]) | BG_TILE_BASE(tileBase) | win_priority);
+                state->bgOverlayCnt = (BG_MAP_BASE(overlay_map_base[bgMap]) | BG_TILE_BASE(tileBase) | bg_priority);
             }
         }
 
         bool winOn = (gameboy->ioRam[0x40] & 0x20) && winX < 167 && gameboy->ioRam[0x4a] < 144 && gameboy->ioRam[0x4a] <= scanline;
-        renderingState[scanline].winOn = winOn;
-        renderingState[scanline].hofs = gameboy->ioRam[0x43];
-        renderingState[scanline].vofs = gameboy->ioRam[0x42];
-        renderingState[scanline].winX = winX;
-        renderingState[scanline].winPosY = winPosY;
-        renderingState[scanline].winY = gameboy->ioRam[0x4a];
+        state->winOn = winOn;
+        state->hofs = gameboy->ioRam[0x43];
+        state->vofs = gameboy->ioRam[0x42];
+        state->winX = winX;
+        state->winPosY = winPosY;
+        state->winY = gameboy->ioRam[0x4a];
     }
 
-    renderingState[scanline].bgPalettesModified = bgPalettesModified;
+    state->bgPalettesModified = bgPalettesModified;
     if (bgPalettesModified) {
         bgPalettesModified = false;
-        renderingState[scanline].bgPal = gameboy->ioRam[0x47];
+        state->bgPal = gameboy->ioRam[0x47];
 
         // Hash is helpful for more-or-less static screens using tons of colours.
         int hash=0;
@@ -1409,28 +1411,30 @@ void drawScanline_P2(int scanline) {
             hash = ((hash << 5) + hash) + ((int*)bgPaletteData)[i];
         }
 
-        if (renderingState[scanline].bgHash != hash ||
+        if (state->bgHash != hash ||
                 scanline == 0) {    // Just to be safe in case of hash collision
 
-            renderingState[scanline].bgHash = hash;
+            state->bgHash = hash;
             for (int i=0; i<0x40; i++) {
-                renderingState[scanline].bgPaletteData[i] = bgPaletteData[i];
+                state->bgPaletteData[i] = bgPaletteData[i];
             }
         }
     }
 
-    renderingState[scanline].sprPalettesModified = sprPalettesModified;
+    state->sprPalettesModified = sprPalettesModified;
     if (sprPalettesModified) {
         sprPalettesModified = false;
-        renderingState[scanline].sprPal[0] = gameboy->ioRam[0x48];
-        renderingState[scanline].sprPal[1] = gameboy->ioRam[0x49];
+        state->sprPal[0] = gameboy->ioRam[0x48];
+        state->sprPal[1] = gameboy->ioRam[0x49];
         for (int i=0; i<0x40; i++) {
-            renderingState[scanline].sprPaletteData[i] = sprPaletteData[i];
+            state->sprPaletteData[i] = sprPaletteData[i];
         }
     }
 
     lineModified = false;
 }
+
+void writeVram(u16 addr, u8 val);
 
 void writeVram(u16 addr, u8 val) {
     u8 old = gameboy->vram[gameboy->vramBank][addr];
@@ -1469,6 +1473,8 @@ void writeVram(u16 addr, u8 val) {
         }
     }
 }
+
+void writeVram16(u16 dest, u16 src);
 void writeVram16(u16 dest, u16 src) {
     bool writingToMapFlags = (gameboy->vramBank == 1 && dest >= 0x1800);
     bool changed=false;

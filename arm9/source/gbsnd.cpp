@@ -105,7 +105,6 @@ void SoundEngine::refresh() {
 void SoundEngine::setSoundEventCycles(int cycles) {
     if (cyclesToSoundEvent > cycles) {
         cyclesToSoundEvent = cycles;
-        gameboy->setEventCycles(cyclesToSoundEvent);
     }
 }
 
@@ -216,7 +215,7 @@ void SoundEngine::handleSoundRegister(u8 ioReg, u8 val)
                 chanLen[0] = val&0x3F;
                 chanLenCounter[0] = (64-chanLen[0])*clockSpeed/256;
                 if (chanUseLen[0])
-                    setSoundEventCycles(chan1SweepCounter);
+                    setSoundEventCycles(chanLenCounter[0]);
                 sharedData->chanDuty[0] = val>>6;
                 refreshSoundDuty(0);
                 sendUpdateMessage(0);

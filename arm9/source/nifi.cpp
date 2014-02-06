@@ -1,5 +1,6 @@
 #include <nds.h>
 #include <dswifi9.h>
+#include "romfile.h"
 #include "nifi.h"
 #include "mmu.h"
 #include "main.h"
@@ -218,7 +219,7 @@ void nifiHostMenu(int value) {
     printf("Host ID: %d\n\n", hostId);
     printf("Press B to give up.\n\n");
 
-    bool willConnect;
+    bool willConnect=false;
     while (!foundClient) {
         swiWaitForVBlank();
         swiWaitForVBlank();
@@ -227,7 +228,7 @@ void nifiHostMenu(int value) {
         if (keyJustPressed(KEY_B))
             break;
 
-        char* romTitle = gameboy->getRomTitle();
+        char* romTitle = gameboy->getRomFile()->getRomTitle();
         nifiSendPacket(NIFI_CMD_HOST, (u8*)romTitle, strlen(romTitle)+1);
     }
 

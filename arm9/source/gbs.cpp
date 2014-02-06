@@ -8,6 +8,7 @@
 #include "main.h"
 #include "gbsnd.h"
 #include "console.h"
+#include "romfile.h"
 
 #define READ16(src) (*(src) | *(src+1)<<8)
 
@@ -55,7 +56,7 @@ void gbsRedraw() {
 }
 
 void gbsLoadSong() {
-    u8* romSlot0 = gameboy->getRomBank(0);
+    u8* romSlot0 = gameboy->getRomFile()->getRomBank(0);
     gameboy->initMMU();
     gameboy->ime = 0;
 
@@ -104,7 +105,7 @@ void gbsReadHeader() {
 }
 
 void gbsInit() {
-    u8* romSlot0 = gameboy->getRomBank(0);
+    u8* romSlot0 = gameboy->getRomFile()->getRomBank(0);
 
     if (gbsConsole == 0) {
         gbsConsole = (PrintConsole*)malloc(sizeof(PrintConsole));

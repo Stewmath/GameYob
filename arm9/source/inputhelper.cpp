@@ -22,6 +22,7 @@
 #include "gbs.h"
 #include "common.h"
 #include "filechooser.h"
+#include "romfile.h"
 
 int keysPressed=0;
 int lastKeysPressed=0;
@@ -37,6 +38,9 @@ char* romPath = NULL;
 
 bool fastForwardMode = false; // controlled by the toggle hotkey
 bool fastForwardKey = false;  // only while its hotkey is pressed
+
+bool biosExists = false;
+int rumbleInserted = 0;
 
 
 void initInput()
@@ -273,7 +277,6 @@ void generalParseConfig(const char* line) {
                 free(biosPath);
             biosPath = (char*)malloc(strlen(value)+1);
             strcpy(biosPath, value);
-            gameboy->loadBios(biosPath);
         }
         else if (strcmpi(parameter, "borderfile") == 0) {
             if (borderPath != 0)
@@ -357,8 +360,8 @@ void writeConfigFile() {
     controlsPrintConfig(file);
     fclose(file);
 
-    char nameBuf[100];
-    siprintf(nameBuf, "%s.cht", gameboy->getRomBasename());
+    char nameBuf[256];
+    siprintf(nameBuf, "%s.cht", gameboy->getRomFile()->getBasename());
     gameboy->getCheatEngine()->saveCheats(nameBuf);
 }
 
@@ -411,4 +414,21 @@ void forceReleaseKey(int key) {
 
 int mapGbKey(int gbKey) {
     return keys[gbKey];
+}
+
+void doRumble(bool rumbleVal)
+{
+    if (rumbleInserted == 1)
+    {
+        setRumble(rumbleVal);
+    }
+    else if (rumbleInserted == 2)
+    {
+        GBA_BUS[0x1FE0000/2] = 0xd200;
+        GBA_BUS[0x0000000/2] = 0x1500;
+        GBA_BUS[0x0020000/2] = 0xd200;
+        GBA_BUS[0x0040000/2] = 0x1500;
+        GBA_BUS[0x1E20000/2] = rumbleVal ? (0xF0 + rumbleStrength) : 0x08;
+        GBA_BUS[0x1FC0000/2] = 0x1500;
+    }
 }
