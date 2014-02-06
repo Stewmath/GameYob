@@ -177,7 +177,7 @@ typedef struct
 // Games tend to modify the graphics in the middle of being drawn.
 // These changes are recorded and applied during DS hblank.
 
-void drawLine(int gbLine) ITCM_CODE;
+void drawLine(int gbLine);
 
 void drawLine(int gbLine) {
     if (gbGraphicsDisabled || hblankDisabled)
@@ -384,7 +384,7 @@ void drawLine(int gbLine) {
         drawSprites(state->spriteData, state->tallSprites);
 }
 
-void doHBlank(int line) ITCM_CODE;
+void doHBlank(int line);
 
 void doHBlank(int line) {
     if (line >= 192)
@@ -1291,7 +1291,7 @@ void drawScanline(int scanline)
     }
 }
 
-void drawScanline_P2(int scanline) ITCM_CODE;
+void drawScanline_P2(int scanline);
 
 // Called after mode 3
 void drawScanline_P2(int scanline) {
@@ -1327,8 +1327,7 @@ void drawScanline_P2(int scanline) {
 
     state->spritesModified = spritesModified;
     if (spritesModified) {
-        for (int i=0; i<0xa0; i++)
-            state->spriteData[i] = gameboy->hram[i];
+        memcpy(state->spriteData, gameboy->hram, 0xa0);
         state->tallSprites = !!(gameboy->ioRam[0x40]&4);
         spritesModified = false;
     }

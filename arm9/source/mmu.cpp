@@ -565,35 +565,7 @@ void Gameboy::latchClock()
     gbClock.last = now;
 }
 
-u8 Gameboy::readMemory(u16 addr)
-{
-#ifndef SPEEDHAX
-    int area = addr>>13;
-    if (!(area & 0x4)) {
-        return memory[addr>>12][addr&0xfff];
-    }
-    else {
-        if (area == 0xc/2)
-            return memory[addr>>12][addr&0xfff];
-        else if (area == 0xe/2) {
-            if (addr >= 0xff00)
-                return readIO(addr&0xff);
-            // Check for echo area
-            else if (addr < 0xfe00)
-                addr -= 0x2000;
-        }
-        /* Check if in range a000-bfff */
-        else if (area == 0xa/2) {
-            /* Check if there's an handler for this mbc */
-            if (readFunc != NULL)
-                return (*this.*readFunc)(addr);
-            else if (!numRamBanks)
-                return 0xff;
-        }
-    }
-
-#endif
-
+u8 Gameboy::readMemoryFast(u16 addr) {
     return memory[addr>>12][addr&0xfff];
 }
 
@@ -662,19 +634,36 @@ u8 Gameboy::readIO(u8 ioReg)
 #endif
 }
 
-void Gameboy::writeMemory(u16 addr, u8 val)
-{
-    switch (addr >> 12)
+u8 Gameboy::readMemoryOther(u16 addr) {
+    int area = addr>>12;
+    if (!(area & 0x8) || area == 0xc || area == 0xd) {
+        return memory[area][addr&0xfff];
+    }
+    if (area == 0xf) {
+        if (addr >= 0xff00)
+            return readIO(addr&0xff);
+        // Check for echo area
+        else if (addr < 0xfe00)
+            addr -= 0x2000;
+    }
+    /* Check if in range a000-bfff */
+    else if (area == 0xa || area == 0xb) {
+        /* Check if there's an handler for this mbc */
+        if (readFunc != NULL)
+            return (*this.*readFunc)(addr);
+        else if (!numRamBanks)
+            return 0xff;
+    }
+    return memory[area][addr&0xfff];
+}
+
+void Gameboy::writeMemoryOther(u16 addr, u8 val) {
+    int area = addr>>12;
+    switch (area)
     {
         case 0x8:
         case 0x9:
             writeVram(addr&0x1fff, val);
-            return;
-        case 0xC:
-            wram[0][addr&0xFFF] = val;
-            return;
-        case 0xD:
-            wram[wramBank][addr&0xFFF] = val;
             return;
         case 0xE: // Echo area
             wram[0][addr&0xFFF] = val;
@@ -687,12 +676,10 @@ void Gameboy::writeMemory(u16 addr, u8 val)
             else // Echo area
                 wram[wramBank][addr&0xFFF] = val;
             return;
-
     }
     if (writeFunc != NULL)
         (*this.*writeFunc)(addr, val);
 }
-
 
 void Gameboy::writeIO(u8 ioReg, u8 val) {
     switch (ioReg)

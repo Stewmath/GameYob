@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <vector>
 #include "time.h"
+#include "gbgfx.h"
 
 #ifdef DS
 #include <nds.h>
@@ -135,12 +136,41 @@ class Gameboy {
 
         void initMMU();
         void mapMemory();
-        u8 readMemory(u16 addr) ITCM_CODE;
+//        u8 readMemory(u16 addr) ITCM_CODE;
+        u8 readMemoryFast(u16 addr) ITCM_CODE;
         u16 readMemory16(u16 addr);
         u8 readIO(u8 ioReg) ITCM_CODE;
-        void writeMemory(u16 addr, u8 val) ITCM_CODE;
+//        void writeMemory(u16 addr, u8 val) ITCM_CODE;
         void writeIO(u8 ioReg, u8 val) ITCM_CODE;
         void refreshP1();
+        u8 readMemoryOther(u16 addr);
+        void writeMemoryOther(u16 addr, u8 val);
+
+inline u8 readMemory(u16 addr)
+{
+    int area = addr>>12;
+    if (!(area & 0x8) || area == 0xc || area == 0xd) {
+        return memory[area][addr&0xfff];
+    }
+    else
+        return readMemoryOther(addr);
+}
+inline void writeMemory(u16 addr, u8 val)
+{
+    int area = addr>>12;
+    if (area == 0xc) {
+        // Checking for this first is a tiny bit more efficient.
+        wram[0][addr&0xfff] = val;
+        return;
+    }
+    else if (area == 0xd) {
+        wram[wramBank][addr&0xfff] = val;
+        return;
+    }
+    writeMemoryOther(addr, val);
+}
+
+
 
         bool updateHblankDMA();
         void latchClock();

@@ -195,6 +195,8 @@ int Gameboy::runOpcode(int cycles) {
 
     register int totalCycles=0;
 
+    static u8 (Gameboy::*readMem)(u16) = &Gameboy::readMemory;
+
     while (totalCycles < cyclesToExecute)
     {
         u8 opcode = *pcAddr;
