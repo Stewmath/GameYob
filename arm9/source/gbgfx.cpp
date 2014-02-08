@@ -80,9 +80,6 @@ bool changedMap[2][0x400];
 int changedMapQueueLength[2];
 u16 changedMapQueue[2][0x400];
 
-u8 bgPaletteData[0x40] ALIGN(4);
-u8 sprPaletteData[0x40] ALIGN(4);
-
 int winPosY=0;
 
 bool lineModified;
@@ -541,8 +538,6 @@ void initGFX()
     for (int i=0; i<128; i++)
         sprites[i].attr0 = ATTR0_DISABLED;
 
-    initGFXPalette();
-
     gbGraphicsDisabled = true;
     swiWaitForVBlank();
 
@@ -573,39 +568,6 @@ void initGFX()
 
     checkBorder();
     refreshGFX();
-}
-
-void initGFXPalette() {
-    memset(bgPaletteData, 0xff, 0x40);
-    if (gameboy->gbMode == GB) {
-        sprPaletteData[0] = 0xff;
-        sprPaletteData[1] = 0xff;
-        sprPaletteData[2] = 0x15|((0x15&7)<<5);
-        sprPaletteData[3] = (0x15>>3)|(0x15<<2);
-        sprPaletteData[4] = 0xa|((0xa&7)<<5);
-        sprPaletteData[5] = (0xa>>3)|(0xa<<2);
-        sprPaletteData[6] = 0;
-        sprPaletteData[7] = 0;
-        sprPaletteData[8] = 0xff;
-        sprPaletteData[9] = 0xff;
-        sprPaletteData[10] = 0x15|((0x15&7)<<5);
-        sprPaletteData[11] = (0x15>>3)|(0x15<<2);
-        sprPaletteData[12] = 0xa|((0xa&7)<<5);
-        sprPaletteData[13] = (0xa>>3)|(0xa<<2);
-        sprPaletteData[14] = 0;
-        sprPaletteData[15] = 0;
-        bgPaletteData[0] = 0xff;
-        bgPaletteData[1] = 0xff;
-        bgPaletteData[2] = 0x15|((0x15&7)<<5);
-        bgPaletteData[3] = (0x15>>3)|(0x15<<2);
-        bgPaletteData[4] = 0xa|((0xa&7)<<5);
-        bgPaletteData[5] = (0xa>>3)|(0xa<<2);
-        bgPaletteData[6] = 0;
-        bgPaletteData[7] = 0;
-    }
-    // This prevents some flickering when loading roms
-    for (int i=0; i<8; i++)
-        updateBgPalette_GBC(i, bgPaletteData+i*8);
 }
 
 void refreshGFX() {
@@ -965,7 +927,7 @@ void setGFXMask(int mask) {
     if (gfxMask == 0) {
         if (loadedBorderType != BORDER_NONE) {
             videoBgEnable(3);
-            BG_PALETTE[0] = bgPaletteData[0] | bgPaletteData[1]<<8;
+            BG_PALETTE[0] = gameboy->bgPaletteData[0] | gameboy->bgPaletteData[1]<<8;
         }
         winPosY = -1;
     }
@@ -1039,7 +1001,7 @@ void setSgbMap(u8* src) {
     if (sgbBordersEnabled) {
         loadSGBBorder();
 
-        BG_PALETTE[0] = bgPaletteData[0] | bgPaletteData[1]<<8;
+        BG_PALETTE[0] = gameboy->bgPaletteData[0] | gameboy->bgPaletteData[1]<<8;
         if (probingForBorder) {
             probingForBorder = false;
             gameboy->resetGameboy();
@@ -1407,7 +1369,7 @@ void drawScanline_P2(int scanline) {
         // Hash is helpful for more-or-less static screens using tons of colours.
         int hash=0;
         for (int i=0; i<0x10; i++) {
-            hash = ((hash << 5) + hash) + ((int*)bgPaletteData)[i];
+            hash = ((hash << 5) + hash) + ((int*)gameboy->bgPaletteData)[i];
         }
 
         if (state->bgHash != hash ||
@@ -1415,7 +1377,7 @@ void drawScanline_P2(int scanline) {
 
             state->bgHash = hash;
             for (int i=0; i<0x40; i++) {
-                state->bgPaletteData[i] = bgPaletteData[i];
+                state->bgPaletteData[i] = gameboy->bgPaletteData[i];
             }
         }
     }
@@ -1426,7 +1388,7 @@ void drawScanline_P2(int scanline) {
         state->sprPal[0] = gameboy->ioRam[0x48];
         state->sprPal[1] = gameboy->ioRam[0x49];
         for (int i=0; i<0x40; i++) {
-            state->sprPaletteData[i] = sprPaletteData[i];
+            state->sprPaletteData[i] = gameboy->sprPaletteData[i];
         }
     }
 
@@ -1586,39 +1548,24 @@ void handleVideoRegister(u8 ioReg, u8 val) {
                 lineModified = true;
                 spritesModified = true;
             }
-            gameboy->ioRam[0x40] = val;
-            if (!(val & 0x80)) {
-                gameboy->ioRam[0x44] = 0;
-                gameboy->ioRam[0x41] &= ~3; // Set video mode 0
-            }
             return;
         case 0x46:				// DMA
             {
-                int src = val << 8;
-                u8* mem = gameboy->memory[src>>12];
-                src &= 0xfff;
-                for (int i=0; i<0xA0; i++) {
-                    u8 val = mem[src++];
-                    gameboy->hram[i] = val;
-                }
                 lineModified = true;
                 spritesModified = true;
 
-                gameboy->ioRam[ioReg] = val;
                 //printLog("dma write %d\n", gameboy->ioRam[0x44]);
                 return;
             }
         case 0x42:
         case 0x43:
             if (val != gameboy->ioRam[ioReg]) {
-                gameboy->ioRam[ioReg] = val;
                 lineModified = true;
                 mapsModified = true;
             }
             break;
         case 0x4B: // winX
             if (val != gameboy->ioRam[ioReg]) {
-                gameboy->ioRam[ioReg] = val;
             }
             break;
         case 0x4A: // winY
@@ -1630,59 +1577,45 @@ void handleVideoRegister(u8 ioReg, u8 val) {
             }
             lineModified = true;
             mapsModified = true;
-            gameboy->ioRam[ioReg] = val;
             break;
         case 0x47:				// BG Palette (GB classic only)
             if (gameboy->gbMode == GB && gameboy->ioRam[0x47] != val) {
                 lineModified = true;
                 bgPalettesModified = true;
             }
-            gameboy->ioRam[0x47] = val;
             return;
         case 0x48:				// Spr Palette (GB classic only)
             if (gameboy->gbMode == GB && gameboy->ioRam[0x48] != val) {
                 lineModified = true;
                 sprPalettesModified = true;
             }
-            gameboy->ioRam[0x48] = val;
             return;
         case 0x49:				// Spr Palette (GB classic only)
             if (gameboy->gbMode == GB && gameboy->ioRam[0x49] != val) {
                 lineModified = true;
                 sprPalettesModified = true;
             }
-            gameboy->ioRam[0x49] = val;
             return;
         case 0x69:				// BG Palette Data (GBC only)
             {
                 int index = gameboy->ioRam[0x68] & 0x3F;
-                if (bgPaletteData[index] != val) {
-                    bgPaletteData[index] = val;
+                if (gameboy->bgPaletteData[index] != val) {
                     lineModified = true;
                     bgPalettesModified = true;
                 }
-
-                if (gameboy->ioRam[0x68] & 0x80)
-                    gameboy->ioRam[0x68] = 0x80 | (gameboy->ioRam[0x68]+1);
-                gameboy->ioRam[0x69] = bgPaletteData[gameboy->ioRam[0x68]&0x3F];
                 return;
             }
         case 0x6B:				// Sprite Palette Data (GBC only)
             {
                 int index = gameboy->ioRam[0x6A] & 0x3F;
-                if (sprPaletteData[index] != val) {
-                    sprPaletteData[index] = val;
+                if (gameboy->sprPaletteData[index] != val) {
                     lineModified = true;
                     sprPalettesModified = true;
                 }
-
-                if (gameboy->ioRam[0x6A] & 0x80)
-                    gameboy->ioRam[0x6A] = 0x80 | (gameboy->ioRam[0x6A]+1);
-                gameboy->ioRam[0x6B] = sprPaletteData[gameboy->ioRam[0x6A]&0x3F];
                 return;
             }
         default:
-            gameboy->ioRam[ioReg] = val;
+            return;
     }
 }
 

@@ -29,7 +29,7 @@
 #define zeroSet()	(locF & 0x80)
 #define negativeSet()	(locF & 0x40)
 #define halfSet()		(locF & 0x20)
-#define numberedGbReg(n)	((u8 *) &gbRegs + reg8Offsets[n])
+#define numberedGbReg(n)	((u8 *) &g_gbRegs + reg8Offsets[n])
 
 #define carryBit() 	(locF & 0x10 ? 1 : 0)
 
@@ -88,7 +88,7 @@ DTCM_DATA
 
 
 /*
-struct Registers Gameboy::gbRegs;
+struct Registers Gameboy::g_gbRegs;
 #ifdef DS
 DTCM_BSS
 #endif
@@ -137,13 +137,13 @@ int Gameboy::handleInterrupts(unsigned int interruptTriggered)
 
     ime = 0;
 
-    quickWrite(--gbRegs.sp.w, gbRegs.pc.b.h);
-    quickWrite(--gbRegs.sp.w, gbRegs.pc.b.l);
+    quickWrite(--g_gbRegs.sp.w, g_gbRegs.pc.b.h);
+    quickWrite(--g_gbRegs.sp.w, g_gbRegs.pc.b.l);
 
     /* __builtin_ffs returns the first bit set plus one */
     int irqNo = __builtin_ffs(interruptTriggered) - 1;
     /* Jump to the vector */
-    gbRegs.pc.w = isrVectors[irqNo];
+    g_gbRegs.pc.w = isrVectors[irqNo];
     /* Clear the IF bit */
     ioRam[0x0F] &= ~(1<<irqNo);
 
@@ -162,8 +162,8 @@ const u8 reg8Offsets[] DTCM_DATA = {
     offsetof(struct Registers, af.b.h)
 };
 
-#define setPC(val) { gbRegs.pc.w = (val); pcAddr = &memory[(gbRegs.pc.w)>>12][(gbRegs.pc.w)&0xfff]; firstPcAddr=pcAddr;} 
-#define getPC() (gbRegs.pc.w+(pcAddr-firstPcAddr))
+#define setPC(val) { g_gbRegs.pc.w = (val); pcAddr = &memory[(g_gbRegs.pc.w)>>12][(g_gbRegs.pc.w)&0xfff]; firstPcAddr=pcAddr;} 
+#define getPC() (g_gbRegs.pc.w+(pcAddr-firstPcAddr))
 #define readPC() *(pcAddr++)
 #define readPC_noinc() (*pcAddr)
 #define readPC16() ((*pcAddr) | ((*(pcAddr+1))<<8)); pcAddr += 2
@@ -178,7 +178,7 @@ const u8 reg8Offsets[] DTCM_DATA = {
                     totalCycles -= 4; \
                 }
 
-struct Registers gbRegs DTCM_BSS;
+struct Registers g_gbRegs DTCM_BSS;
 
 int cyclesToExecute DTCM_BSS;
 
@@ -188,14 +188,12 @@ int Gameboy::runOpcode(int cycles) {
     cyclesToExecute = cycles;
     // Having these commonly-used registers in local variables should improve speed
     register u8* pcAddr;
-    pcAddr = memory[gbRegs.pc.w>>12]+(gbRegs.pc.w&0xfff);
+    pcAddr = memory[g_gbRegs.pc.w>>12]+(g_gbRegs.pc.w&0xfff);
     firstPcAddr = pcAddr;
-    int locSP=gbRegs.sp.w;
-    int  locF =gbRegs.af.b.l;
+    int locSP=g_gbRegs.sp.w;
+    int  locF =g_gbRegs.af.b.l;
 
     register int totalCycles=0;
-
-    static u8 (Gameboy::*readMem)(u16) = &Gameboy::readMemory;
 
     while (totalCycles < cyclesToExecute)
     {
@@ -215,7 +213,7 @@ int Gameboy::runOpcode(int cycles) {
                 (*numberedGbReg(opcode>>3)) = readPC();
                 break;
             case 0x3E:		// LD A, n		8
-                gbRegs.af.b.h = readPC();
+                g_gbRegs.af.b.h = readPC();
                 break;
                 /* These are equivalent to NOPs. */
             case 0x7F:		// LD A, A		4
@@ -227,22 +225,22 @@ int Gameboy::runOpcode(int cycles) {
             case 0x6D:		// LD L, L		4
                 break;
             case 0x78:		// LD A, B		4
-                gbRegs.af.b.h = gbRegs.bc.b.h;
+                g_gbRegs.af.b.h = g_gbRegs.bc.b.h;
                 break;
             case 0x79:		// LD A, C		4
-                gbRegs.af.b.h = gbRegs.bc.b.l;
+                g_gbRegs.af.b.h = g_gbRegs.bc.b.l;
                 break;
             case 0x7A:		// LD A, D		4
-                gbRegs.af.b.h = gbRegs.de.b.h;
+                g_gbRegs.af.b.h = g_gbRegs.de.b.h;
                 break;
             case 0x7B:		// LD A, E		4
-                gbRegs.af.b.h = gbRegs.de.b.l;
+                g_gbRegs.af.b.h = g_gbRegs.de.b.l;
                 break;
             case 0x7C:		// LD A, H		4
-                gbRegs.af.b.h = gbRegs.hl.b.h;
+                g_gbRegs.af.b.h = g_gbRegs.hl.b.h;
                 break;
             case 0x7D:		// LD A, L		4
-                gbRegs.af.b.h = gbRegs.hl.b.l;
+                g_gbRegs.af.b.h = g_gbRegs.hl.b.l;
                 break;
             case 0x41:		// LD B, C		4
             case 0x42:		// LD B, D		4
@@ -277,25 +275,25 @@ int Gameboy::runOpcode(int cycles) {
                 (*numberedGbReg((opcode>>3)&7)) = *numberedGbReg(opcode&7);
                 break;
             case 0x47:		// LD B, A		4
-                gbRegs.bc.b.h = gbRegs.af.b.h;
+                g_gbRegs.bc.b.h = g_gbRegs.af.b.h;
                 break;
             case 0x4F:		// LD C, A		4
-                gbRegs.bc.b.l = gbRegs.af.b.h;
+                g_gbRegs.bc.b.l = g_gbRegs.af.b.h;
                 break;
             case 0x57:		// LD D, A		4
-                gbRegs.de.b.h = gbRegs.af.b.h;
+                g_gbRegs.de.b.h = g_gbRegs.af.b.h;
                 break;
             case 0x5F:		// LD E, A		4
-                gbRegs.de.b.l = gbRegs.af.b.h;
+                g_gbRegs.de.b.l = g_gbRegs.af.b.h;
                 break;
             case 0x67:		// LD H, A		4
-                gbRegs.hl.b.h = gbRegs.af.b.h;
+                g_gbRegs.hl.b.h = g_gbRegs.af.b.h;
                 break;
             case 0x6F:		// LD L, A		4
-                gbRegs.hl.b.l = gbRegs.af.b.h;
+                g_gbRegs.hl.b.l = g_gbRegs.af.b.h;
                 break;
             case 0x7E:		// LD A, (hl)	8
-                gbRegs.af.b.h = readMemory(gbRegs.hl.w);
+                g_gbRegs.af.b.h = readMemory(g_gbRegs.hl.w);
                 break;
             case 0x46:		// LD B, (hl)	8
             case 0x4E:		// LD C, (hl)	8
@@ -303,10 +301,10 @@ int Gameboy::runOpcode(int cycles) {
             case 0x5E:		// LD E, (hl)	8
             case 0x66:		// LD H, (hl)	8
             case 0x6E:		// LD L, (hl)	8
-                (*numberedGbReg((opcode>>3)&7)) = readMemory(gbRegs.hl.w);
+                (*numberedGbReg((opcode>>3)&7)) = readMemory(g_gbRegs.hl.w);
                 break;
             case 0x77:		// LD (hl), A	8
-                writeMemory(gbRegs.hl.w, gbRegs.af.b.h);
+                writeMemory(g_gbRegs.hl.w, g_gbRegs.af.b.h);
                 break;
             case 0x70:		// LD (hl), B	8
             case 0x71:		// LD (hl), C	8
@@ -314,75 +312,75 @@ int Gameboy::runOpcode(int cycles) {
             case 0x73:		// LD (hl), E	8
             case 0x74:		// LD (hl), H	8
             case 0x75:		// LD (hl), L	8
-                writeMemory(gbRegs.hl.w, *numberedGbReg(opcode&7));
+                writeMemory(g_gbRegs.hl.w, *numberedGbReg(opcode&7));
                 break;
             case 0x36:		// LD (hl), n	12
-                writeMemory(gbRegs.hl.w, readPC_noinc());
+                writeMemory(g_gbRegs.hl.w, readPC_noinc());
                 pcAddr++;
                 break;
             case 0x0A:		// LD A, (BC)	8
-                gbRegs.af.b.h = readMemory(gbRegs.bc.w);
+                g_gbRegs.af.b.h = readMemory(g_gbRegs.bc.w);
                 break;
             case 0x1A:		// LD A, (de)	8
-                gbRegs.af.b.h = readMemory(gbRegs.de.w);
+                g_gbRegs.af.b.h = readMemory(g_gbRegs.de.w);
                 break;
             case 0xFA:		// LD A, (nn)	16
-                gbRegs.af.b.h = readMemory(readPC16_noinc());
+                g_gbRegs.af.b.h = readMemory(readPC16_noinc());
                 pcAddr += 2;
                 break;
             case 0x02:		// LD (BC), A	8
-                writeMemory(gbRegs.bc.w, gbRegs.af.b.h);
+                writeMemory(g_gbRegs.bc.w, g_gbRegs.af.b.h);
                 break;
             case 0x12:		// LD (de), A	8
-                writeMemory(gbRegs.de.w, gbRegs.af.b.h);
+                writeMemory(g_gbRegs.de.w, g_gbRegs.af.b.h);
                 break;
             case 0xEA:		// LD (nn), A	16
-                writeMemory(readPC16_noinc(), gbRegs.af.b.h);
+                writeMemory(readPC16_noinc(), g_gbRegs.af.b.h);
                 pcAddr += 2;
                 break;
             case 0xF2:		// LDH A, (C)	8
-                gbRegs.af.b.h = readIO(gbRegs.bc.b.l);
+                g_gbRegs.af.b.h = readIO(g_gbRegs.bc.b.l);
                 break;
             case 0xE2:		// LDH (C), A	8
-                writeIO(gbRegs.bc.b.l, gbRegs.af.b.h);
+                writeIO(g_gbRegs.bc.b.l, g_gbRegs.af.b.h);
                 break;
             case 0x3A:		// LDD A, (hl)	8
-                gbRegs.af.b.h = readMemory(gbRegs.hl.w--);
+                g_gbRegs.af.b.h = readMemory(g_gbRegs.hl.w--);
                 break;
             case 0x32:		// LDD (hl), A	8
-                writeMemory(gbRegs.hl.w--, gbRegs.af.b.h);
+                writeMemory(g_gbRegs.hl.w--, g_gbRegs.af.b.h);
                 break;
             case 0x2A:		// LDI A, (hl)	8
-                gbRegs.af.b.h = readMemory(gbRegs.hl.w++);
+                g_gbRegs.af.b.h = readMemory(g_gbRegs.hl.w++);
                 break;
             case 0x22:		// LDI (hl), A	8
-                writeMemory(gbRegs.hl.w++, gbRegs.af.b.h);
+                writeMemory(g_gbRegs.hl.w++, g_gbRegs.af.b.h);
                 break;
             case 0xE0:		// LDH (n), A   12
-                writeIO(readPC_noinc(), gbRegs.af.b.h);
+                writeIO(readPC_noinc(), g_gbRegs.af.b.h);
                 pcAddr++;
                 break;
             case 0xF0:		// LDH A, (n)   12
-                gbRegs.af.b.h = readIO(readPC_noinc());
+                g_gbRegs.af.b.h = readIO(readPC_noinc());
                 pcAddr++;
                 break;
 
                 // 16-bit loads
 
             case 0x01:		// LD BC, nn	12
-                gbRegs.bc.w = readPC16();
+                g_gbRegs.bc.w = readPC16();
                 break;
             case 0x11:		// LD de, nn	12
-                gbRegs.de.w = readPC16();
+                g_gbRegs.de.w = readPC16();
                 break;
             case 0x21:		// LD hl, nn	12
-                gbRegs.hl.w = readPC16();
+                g_gbRegs.hl.w = readPC16();
                 break;
             case 0x31:		// LD SP, nn	12
                 locSP = readPC16();
                 break;
             case 0xF9:		// LD SP, hl	8
-                locSP = gbRegs.hl.w;
+                locSP = g_gbRegs.hl.w;
                 break;
             case 0xF8:		// LDHL SP, n   12
                 {
@@ -392,7 +390,7 @@ int Gameboy::runOpcode(int cycles) {
                         setCFlag();
                     if ((locSP&0xF)+(val&0xF) > 0xF)
                         setHFlag();
-                    gbRegs.hl.w = locSP+(s8)val;
+                    g_gbRegs.hl.w = locSP+(s8)val;
                     break;
                 }
             case 0x08:		// LD (nn), SP	20
@@ -404,10 +402,10 @@ int Gameboy::runOpcode(int cycles) {
                 }
             case 0xF5:		// PUSH AF
 #ifdef SPEEDHAX
-                quickWrite(--locSP, gbRegs.af.b.h);
+                quickWrite(--locSP, g_gbRegs.af.b.h);
                 quickWrite(--locSP, locF);
 #else
-                writeMemory(--locSP, gbRegs.af.b.h);
+                writeMemory(--locSP, g_gbRegs.af.b.h);
                 writeMemory(--locSP, locF);
 #endif
                 break;
@@ -415,45 +413,45 @@ int Gameboy::runOpcode(int cycles) {
                 // Better to use writeMemory than writeMemory.
             case 0xC5:		// PUSH BC			16
 #ifdef SPEEDHAX
-                quickWrite(--locSP, gbRegs.bc.b.h);
-                quickWrite(--locSP, gbRegs.bc.b.l);
+                quickWrite(--locSP, g_gbRegs.bc.b.h);
+                quickWrite(--locSP, g_gbRegs.bc.b.l);
 #else
-                writeMemory(--locSP, gbRegs.bc.b.h);
-                writeMemory(--locSP, gbRegs.bc.b.l);
+                writeMemory(--locSP, g_gbRegs.bc.b.h);
+                writeMemory(--locSP, g_gbRegs.bc.b.l);
 #endif
                 break;
             case 0xD5:		// PUSH de			16
 #ifdef SPEEDHAX
-                quickWrite(--locSP, gbRegs.de.b.h);
-                quickWrite(--locSP, gbRegs.de.b.l);
+                quickWrite(--locSP, g_gbRegs.de.b.h);
+                quickWrite(--locSP, g_gbRegs.de.b.l);
 #else
-                writeMemory(--locSP, gbRegs.de.b.h);
-                writeMemory(--locSP, gbRegs.de.b.l);
+                writeMemory(--locSP, g_gbRegs.de.b.h);
+                writeMemory(--locSP, g_gbRegs.de.b.l);
 #endif
                 break;
             case 0xE5:		// PUSH hl			16
 #ifdef SPEEDHAX
-                quickWrite(--locSP, gbRegs.hl.b.h);
-                quickWrite(--locSP, gbRegs.hl.b.l);
+                quickWrite(--locSP, g_gbRegs.hl.b.h);
+                quickWrite(--locSP, g_gbRegs.hl.b.l);
 #else
-                writeMemory(--locSP, gbRegs.hl.b.h);
-                writeMemory(--locSP, gbRegs.hl.b.l);
+                writeMemory(--locSP, g_gbRegs.hl.b.h);
+                writeMemory(--locSP, g_gbRegs.hl.b.l);
 #endif
                 break;
             case 0xF1:		// POP AF				12
                 locF = quickRead(locSP++) & 0xF0;
-                gbRegs.af.b.h = quickRead(locSP++);
+                g_gbRegs.af.b.h = quickRead(locSP++);
                 break;
             case 0xC1:		// POP BC				12
-                gbRegs.bc.w = quickRead16(locSP);
+                g_gbRegs.bc.w = quickRead16(locSP);
                 locSP += 2;
                 break;
             case 0xD1:		// POP de				12
-                gbRegs.de.w = quickRead16(locSP);
+                g_gbRegs.de.w = quickRead16(locSP);
                 locSP += 2;
                 break;
             case 0xE1:		// POP hl				12
-                gbRegs.hl.w = quickRead16(locSP);
+                g_gbRegs.hl.w = quickRead16(locSP);
                 locSP += 2;
                 break;
 
@@ -461,13 +459,13 @@ int Gameboy::runOpcode(int cycles) {
             case 0x87:		// ADD A, A			4
                 {
                     locF = 0;
-                    u8 r = gbRegs.af.b.h;
+                    u8 r = g_gbRegs.af.b.h;
                     if (r + r > 0xFF)
                         setCFlag();
                     if ((r & 0xF) + (r & 0xF) > 0xF)
                         setHFlag();
-                    gbRegs.af.b.h += r;
-                    if (gbRegs.af.b.h == 0)
+                    g_gbRegs.af.b.h += r;
+                    if (g_gbRegs.af.b.h == 0)
                         setZFlag();
                     break;
                 }
@@ -480,25 +478,25 @@ int Gameboy::runOpcode(int cycles) {
                 {
                     locF = 0;
                     u8 r = *numberedGbReg(opcode&7);
-                    if (gbRegs.af.b.h + r > 0xFF)
+                    if (g_gbRegs.af.b.h + r > 0xFF)
                         setCFlag();
-                    if ((gbRegs.af.b.h & 0xF) + (r & 0xF) > 0xF)
+                    if ((g_gbRegs.af.b.h & 0xF) + (r & 0xF) > 0xF)
                         setHFlag();
-                    gbRegs.af.b.h += r;
-                    if (gbRegs.af.b.h == 0)
+                    g_gbRegs.af.b.h += r;
+                    if (g_gbRegs.af.b.h == 0)
                         setZFlag();
                     break;
                 }
             case 0x86:		// ADD A, (hl)	8
                 {
                     locF = 0;
-                    int val = readMemory(gbRegs.hl.w);
-                    if (gbRegs.af.b.h + val > 0xFF)
+                    int val = readMemory(g_gbRegs.hl.w);
+                    if (g_gbRegs.af.b.h + val > 0xFF)
                         setCFlag();
-                    if ((gbRegs.af.b.h & 0xF) + (val & 0xF) > 0xF)
+                    if ((g_gbRegs.af.b.h & 0xF) + (val & 0xF) > 0xF)
                         setHFlag();
-                    gbRegs.af.b.h += val;
-                    if (gbRegs.af.b.h == 0)
+                    g_gbRegs.af.b.h += val;
+                    if (g_gbRegs.af.b.h == 0)
                         setZFlag();
                     break;
                 }
@@ -506,12 +504,12 @@ int Gameboy::runOpcode(int cycles) {
                 {
                     locF = 0;
                     int val = readPC();
-                    if (gbRegs.af.b.h + val > 0xFF)
+                    if (g_gbRegs.af.b.h + val > 0xFF)
                         setCFlag();
-                    if ((gbRegs.af.b.h & 0xF) + (val & 0xF) > 0xF)
+                    if ((g_gbRegs.af.b.h & 0xF) + (val & 0xF) > 0xF)
                         setHFlag();
-                    gbRegs.af.b.h += val;
-                    if (gbRegs.af.b.h == 0)
+                    g_gbRegs.af.b.h += val;
+                    if (g_gbRegs.af.b.h == 0)
                         setZFlag();
                     break;
                 }
@@ -521,13 +519,13 @@ int Gameboy::runOpcode(int cycles) {
                 {
                     int val = carryBit();
                     locF = 0;
-                    u8 r = gbRegs.af.b.h;
+                    u8 r = g_gbRegs.af.b.h;
                     if (r + r + val > 0xFF)
                         setCFlag();
                     if ((r & 0xF) + (r & 0xF) + val > 0xF)
                         setHFlag();
-                    gbRegs.af.b.h += r + val;
-                    if (gbRegs.af.b.h == 0)
+                    g_gbRegs.af.b.h += r + val;
+                    if (g_gbRegs.af.b.h == 0)
                         setZFlag();
                     break;
                 }
@@ -541,26 +539,26 @@ int Gameboy::runOpcode(int cycles) {
                     int val = carryBit();
                     locF = 0;
                     u8 r = *numberedGbReg(opcode&7);
-                    if (gbRegs.af.b.h + r + val > 0xFF)
+                    if (g_gbRegs.af.b.h + r + val > 0xFF)
                         setCFlag();
-                    if ((gbRegs.af.b.h & 0xF) + (r & 0xF) + val > 0xF)
+                    if ((g_gbRegs.af.b.h & 0xF) + (r & 0xF) + val > 0xF)
                         setHFlag();
-                    gbRegs.af.b.h += r + val;
-                    if (gbRegs.af.b.h == 0)
+                    g_gbRegs.af.b.h += r + val;
+                    if (g_gbRegs.af.b.h == 0)
                         setZFlag();
                     break;
                 }
             case 0x8E:		// ADC A, (hl)	8
                 {
-                    int val = readMemory(gbRegs.hl.w);
+                    int val = readMemory(g_gbRegs.hl.w);
                     int val2 = carryBit();
                     locF = 0;
-                    if (gbRegs.af.b.h + val + val2 > 0xFF)
+                    if (g_gbRegs.af.b.h + val + val2 > 0xFF)
                         setCFlag();
-                    if ((gbRegs.af.b.h & 0xF) + (val & 0xF) + val2 > 0xF)
+                    if ((g_gbRegs.af.b.h & 0xF) + (val & 0xF) + val2 > 0xF)
                         setHFlag();
-                    gbRegs.af.b.h += val + val2;
-                    if (gbRegs.af.b.h == 0)
+                    g_gbRegs.af.b.h += val + val2;
+                    if (g_gbRegs.af.b.h == 0)
                         setZFlag();
                     break;
                 }
@@ -569,19 +567,19 @@ int Gameboy::runOpcode(int cycles) {
                     int val = readPC();
                     int val2 = carryBit();
                     locF = 0;
-                    if (gbRegs.af.b.h + val + val2 > 0xFF)
+                    if (g_gbRegs.af.b.h + val + val2 > 0xFF)
                         setCFlag();
-                    if ((gbRegs.af.b.h & 0xF) + (val & 0xF) + val2 > 0xF)
+                    if ((g_gbRegs.af.b.h & 0xF) + (val & 0xF) + val2 > 0xF)
                         setHFlag();
-                    gbRegs.af.b.h += val + val2;
-                    if (gbRegs.af.b.h == 0)
+                    g_gbRegs.af.b.h += val + val2;
+                    if (g_gbRegs.af.b.h == 0)
                         setZFlag();
                     break;
                 }
 
             case 0x97:		// SUB A, A			4
                 {
-                    gbRegs.af.b.h = 0;
+                    g_gbRegs.af.b.h = 0;
                     clearCFlag();
                     clearHFlag();
                     setZFlag();
@@ -597,25 +595,25 @@ int Gameboy::runOpcode(int cycles) {
                 {
                     locF = FLAG_N;
                     u8 r = *numberedGbReg(opcode&7);
-                    if (gbRegs.af.b.h < r)
+                    if (g_gbRegs.af.b.h < r)
                         setCFlag();
-                    if ((gbRegs.af.b.h & 0xF) < (r & 0xF))
+                    if ((g_gbRegs.af.b.h & 0xF) < (r & 0xF))
                         setHFlag();
-                    gbRegs.af.b.h -= r;
-                    if (gbRegs.af.b.h == 0)
+                    g_gbRegs.af.b.h -= r;
+                    if (g_gbRegs.af.b.h == 0)
                         setZFlag();
                     break;
                 }
             case 0x96:		// SUB A, (hl)	8
                 {
                     locF = FLAG_N;
-                    int val = readMemory(gbRegs.hl.w);
-                    if (gbRegs.af.b.h < val)
+                    int val = readMemory(g_gbRegs.hl.w);
+                    if (g_gbRegs.af.b.h < val)
                         setCFlag();
-                    if ((gbRegs.af.b.h & 0xF) < (val & 0xF))
+                    if ((g_gbRegs.af.b.h & 0xF) < (val & 0xF))
                         setHFlag();
-                    gbRegs.af.b.h -= val;
-                    if (gbRegs.af.b.h == 0)
+                    g_gbRegs.af.b.h -= val;
+                    if (g_gbRegs.af.b.h == 0)
                         setZFlag();
                     break;
                 }
@@ -623,27 +621,27 @@ int Gameboy::runOpcode(int cycles) {
                 {
                     locF = FLAG_N;
                     int val = readPC();
-                    if (gbRegs.af.b.h < val)
+                    if (g_gbRegs.af.b.h < val)
                         setCFlag();
-                    if ((gbRegs.af.b.h & 0xF) < (val & 0xF))
+                    if ((g_gbRegs.af.b.h & 0xF) < (val & 0xF))
                         setHFlag();
-                    gbRegs.af.b.h -= val;
-                    if (gbRegs.af.b.h == 0)
+                    g_gbRegs.af.b.h -= val;
+                    if (g_gbRegs.af.b.h == 0)
                         setZFlag();
                     break;
 
                 }
             case 0x9F:		// SBC A, A			4
                 {
-                    u8 r = gbRegs.af.b.h;
+                    u8 r = g_gbRegs.af.b.h;
                     int val2 = carryBit();
                     locF = FLAG_N;
                     if (val2 /* != 0 */) {
                         setCFlag();
                         setHFlag();
                     }
-                    gbRegs.af.b.h -= (r + val2);
-                    if (gbRegs.af.b.h == 0)
+                    g_gbRegs.af.b.h -= (r + val2);
+                    if (g_gbRegs.af.b.h == 0)
                         setZFlag();
                     break;
                 }
@@ -657,26 +655,26 @@ int Gameboy::runOpcode(int cycles) {
                     u8 r = *numberedGbReg(opcode&7);
                     int val2 = carryBit();
                     locF = FLAG_N;
-                    if (gbRegs.af.b.h < r + val2)
+                    if (g_gbRegs.af.b.h < r + val2)
                         setCFlag();
-                    if ((gbRegs.af.b.h & 0xF) < (r & 0xF) + val2)
+                    if ((g_gbRegs.af.b.h & 0xF) < (r & 0xF) + val2)
                         setHFlag();
-                    gbRegs.af.b.h -= (r + val2);
-                    if (gbRegs.af.b.h == 0)
+                    g_gbRegs.af.b.h -= (r + val2);
+                    if (g_gbRegs.af.b.h == 0)
                         setZFlag();
                     break;
                 }
             case 0x9E:		// SBC A, (hl)	8
                 {
                     int val2 = carryBit();
-                    int val = readMemory(gbRegs.hl.w);
+                    int val = readMemory(g_gbRegs.hl.w);
                     locF = FLAG_N;
-                    if (gbRegs.af.b.h < val + val2)
+                    if (g_gbRegs.af.b.h < val + val2)
                         setCFlag();
-                    if ((gbRegs.af.b.h & 0xF) < (val & 0xF)+val2)
+                    if ((g_gbRegs.af.b.h & 0xF) < (val & 0xF)+val2)
                         setHFlag();
-                    gbRegs.af.b.h -= val + val2;
-                    if (gbRegs.af.b.h == 0)
+                    g_gbRegs.af.b.h -= val + val2;
+                    if (g_gbRegs.af.b.h == 0)
                         setZFlag();
                     break;
                 }
@@ -685,19 +683,19 @@ int Gameboy::runOpcode(int cycles) {
                     int val = readPC();
                     int val2 = carryBit();
                     locF = FLAG_N;
-                    if (gbRegs.af.b.h <val + val2)
+                    if (g_gbRegs.af.b.h <val + val2)
                         setCFlag();
-                    if ((gbRegs.af.b.h & 0xF) < (val & 0xF)+val2)
+                    if ((g_gbRegs.af.b.h & 0xF) < (val & 0xF)+val2)
                         setHFlag();
-                    gbRegs.af.b.h -= (val + val2);
-                    if (gbRegs.af.b.h == 0)
+                    g_gbRegs.af.b.h -= (val + val2);
+                    if (g_gbRegs.af.b.h == 0)
                         setZFlag();
                     break;
                 }
 
             case 0xA7:		// AND A, A		4
                 locF = FLAG_H;
-                if (gbRegs.af.b.h == 0)
+                if (g_gbRegs.af.b.h == 0)
                     locF |= FLAG_Z;
                 break;
             case 0xA0:		// AND A, B		4
@@ -707,26 +705,26 @@ int Gameboy::runOpcode(int cycles) {
             case 0xA4:		// AND A, H		4
             case 0xA5:		// AND A, L		4
                 locF = FLAG_H;
-                gbRegs.af.b.h &= *numberedGbReg(opcode&7);
-                if (gbRegs.af.b.h == 0)
+                g_gbRegs.af.b.h &= *numberedGbReg(opcode&7);
+                if (g_gbRegs.af.b.h == 0)
                     setZFlag();
                 break;
             case 0xA6:		// AND A, (hl)	8
                 locF = FLAG_H;
-                gbRegs.af.b.h &= readMemory(gbRegs.hl.w);
-                if (gbRegs.af.b.h == 0)
+                g_gbRegs.af.b.h &= readMemory(g_gbRegs.hl.w);
+                if (g_gbRegs.af.b.h == 0)
                     setZFlag();
                 break;
             case 0xE6:		// AND A, n			8
                 locF = FLAG_H;
-                gbRegs.af.b.h &= readPC();
-                if (gbRegs.af.b.h == 0)
+                g_gbRegs.af.b.h &= readPC();
+                if (g_gbRegs.af.b.h == 0)
                     setZFlag();
                 break;
 
             case 0xB7:		// OR A, A			4
                 locF = 0;
-                if (gbRegs.af.b.h == 0)
+                if (g_gbRegs.af.b.h == 0)
                     locF |= FLAG_Z;
                 break;
             case 0xB0:		// OR A, B			4
@@ -736,25 +734,25 @@ int Gameboy::runOpcode(int cycles) {
             case 0xB4:		// OR A, H			4
             case 0xB5:		// OR A, L			4
                 locF = 0;
-                gbRegs.af.b.h |= *numberedGbReg(opcode&7);
-                if (gbRegs.af.b.h == 0)
+                g_gbRegs.af.b.h |= *numberedGbReg(opcode&7);
+                if (g_gbRegs.af.b.h == 0)
                     setZFlag();
                 break;
             case 0xB6:		// OR A, (hl)		8
                 locF = 0;
-                gbRegs.af.b.h |= readMemory(gbRegs.hl.w);
-                if (gbRegs.af.b.h == 0)
+                g_gbRegs.af.b.h |= readMemory(g_gbRegs.hl.w);
+                if (g_gbRegs.af.b.h == 0)
                     setZFlag();
                 break;
             case 0xF6:		// OR A, n			4
                 locF = 0;
-                gbRegs.af.b.h |= readPC();
-                if (gbRegs.af.b.h == 0)
+                g_gbRegs.af.b.h |= readPC();
+                if (g_gbRegs.af.b.h == 0)
                     setZFlag();
                 break;
 
             case 0xAF:		// XOR A, A			4
-                gbRegs.af.b.h = 0;
+                g_gbRegs.af.b.h = 0;
                 locF = FLAG_Z;
                 break;
             case 0xA8:		// XOR A, B			4
@@ -764,20 +762,20 @@ int Gameboy::runOpcode(int cycles) {
             case 0xAC:		// XOR A, H			4
             case 0xAD:		// XOR A, L			4
                 locF = 0;
-                gbRegs.af.b.h ^= *numberedGbReg(opcode&7);
-                if (gbRegs.af.b.h == 0)
+                g_gbRegs.af.b.h ^= *numberedGbReg(opcode&7);
+                if (g_gbRegs.af.b.h == 0)
                     setZFlag();
                 break;
             case 0xAE:		// XOR A, (hl)	8
                 locF = 0;
-                gbRegs.af.b.h ^= readMemory(gbRegs.hl.w);
-                if (gbRegs.af.b.h == 0)
+                g_gbRegs.af.b.h ^= readMemory(g_gbRegs.hl.w);
+                if (g_gbRegs.af.b.h == 0)
                     setZFlag();
                 break;
             case 0xEE:		// XOR A, n			8
                 locF = 0;
-                gbRegs.af.b.h ^= readPC();
-                if (gbRegs.af.b.h == 0)
+                g_gbRegs.af.b.h ^= readPC();
+                if (g_gbRegs.af.b.h == 0)
                     setZFlag();
                 break;
 
@@ -798,23 +796,23 @@ int Gameboy::runOpcode(int cycles) {
                 {
                     locF = FLAG_N;
                     u8 r = *numberedGbReg(opcode&7);
-                    if (gbRegs.af.b.h < r)
+                    if (g_gbRegs.af.b.h < r)
                         setCFlag();
-                    if ((gbRegs.af.b.h & 0xF) < (r & 0xF))
+                    if ((g_gbRegs.af.b.h & 0xF) < (r & 0xF))
                         setHFlag();
-                    if (gbRegs.af.b.h - r == 0)
+                    if (g_gbRegs.af.b.h - r == 0)
                         setZFlag();
                     break;
                 }
             case 0xBE:		// CP (hl)			8
                 {
                     locF = FLAG_N;
-                    int val = readMemory(gbRegs.hl.w);
-                    if (gbRegs.af.b.h < val)
+                    int val = readMemory(g_gbRegs.hl.w);
+                    if (g_gbRegs.af.b.h < val)
                         setCFlag();
-                    if ((gbRegs.af.b.h & 0xF) < (val & 0xF))
+                    if ((g_gbRegs.af.b.h & 0xF) < (val & 0xF))
                         setHFlag();
-                    if (gbRegs.af.b.h - val == 0)
+                    if (g_gbRegs.af.b.h - val == 0)
                         setZFlag();
                     break;
                 }
@@ -822,11 +820,11 @@ int Gameboy::runOpcode(int cycles) {
                 {
                     locF = FLAG_N;
                     int val = readPC();
-                    if (gbRegs.af.b.h < val)
+                    if (g_gbRegs.af.b.h < val)
                         setCFlag();
-                    if ((gbRegs.af.b.h & 0xF) < (val & 0xF))
+                    if ((g_gbRegs.af.b.h & 0xF) < (val & 0xF))
                         setHFlag();
-                    if (gbRegs.af.b.h - val == 0)
+                    if (g_gbRegs.af.b.h - val == 0)
                         setZFlag();
                     break;
                 }
@@ -835,10 +833,10 @@ int Gameboy::runOpcode(int cycles) {
             case 0x3C:		// INC A				4
                 {
                     locF &= FLAG_C;
-                    gbRegs.af.b.h++;
-                    if (gbRegs.af.b.h == 0)
+                    g_gbRegs.af.b.h++;
+                    if (g_gbRegs.af.b.h == 0)
                         setZFlag();
-                    if ((gbRegs.af.b.h & 0xF) == 0)
+                    if ((g_gbRegs.af.b.h & 0xF) == 0)
                         setHFlag();
                     break;
                 }
@@ -862,8 +860,8 @@ int Gameboy::runOpcode(int cycles) {
             case 0x34:		// INC (hl)		12
                 {
                     locF &= FLAG_C;
-                    u8 val = readMemory(gbRegs.hl.w)+1;
-                    writeMemory(gbRegs.hl.w, val);
+                    u8 val = readMemory(g_gbRegs.hl.w)+1;
+                    writeMemory(g_gbRegs.hl.w, val);
                     if (val == 0)
                         setZFlag();
                     if ((val & 0xF) == 0)
@@ -874,10 +872,10 @@ int Gameboy::runOpcode(int cycles) {
             case 0x3D:		// DEC A				4
                 {
                     locF &= FLAG_C;
-                    gbRegs.af.b.h--;
-                    if (gbRegs.af.b.h == 0)
+                    g_gbRegs.af.b.h--;
+                    if (g_gbRegs.af.b.h == 0)
                         setZFlag();
-                    if ((gbRegs.af.b.h & 0xF) == 0xF)
+                    if ((g_gbRegs.af.b.h & 0xF) == 0xF)
                         setHFlag();
                     setNFlag();
                     break;
@@ -903,8 +901,8 @@ int Gameboy::runOpcode(int cycles) {
             case 0x35:		// DEC (hl)			12
                 {
                     locF &= FLAG_C;
-                    u8 val = readMemory(gbRegs.hl.w)-1;
-                    writeMemory(gbRegs.hl.w, val);
+                    u8 val = readMemory(g_gbRegs.hl.w)-1;
+                    writeMemory(g_gbRegs.hl.w, val);
                     if (val == 0)
                         setZFlag();
                     if ((val & 0xF) == 0xF)
@@ -917,35 +915,35 @@ int Gameboy::runOpcode(int cycles) {
 
             case 0x09:		// ADD hl, BC		8
                 locF &= FLAG_Z;
-                if (gbRegs.hl.w + gbRegs.bc.w > 0xFFFF)
+                if (g_gbRegs.hl.w + g_gbRegs.bc.w > 0xFFFF)
                     setCFlag();
-                if ((gbRegs.hl.w & 0xFFF) + (gbRegs.bc.w & 0xFFF) > 0xFFF)
+                if ((g_gbRegs.hl.w & 0xFFF) + (g_gbRegs.bc.w & 0xFFF) > 0xFFF)
                     setHFlag();
-                gbRegs.hl.w += gbRegs.bc.w;
+                g_gbRegs.hl.w += g_gbRegs.bc.w;
                 break;
             case 0x19:		// ADD hl, de		8
                 locF &= FLAG_Z;
-                if (gbRegs.hl.w + gbRegs.de.w > 0xFFFF)
+                if (g_gbRegs.hl.w + g_gbRegs.de.w > 0xFFFF)
                     setCFlag();
-                if ((gbRegs.hl.w & 0xFFF) + (gbRegs.de.w & 0xFFF) > 0xFFF)
+                if ((g_gbRegs.hl.w & 0xFFF) + (g_gbRegs.de.w & 0xFFF) > 0xFFF)
                     setHFlag();
-                gbRegs.hl.w += gbRegs.de.w;
+                g_gbRegs.hl.w += g_gbRegs.de.w;
                 break;
             case 0x29:		// ADD hl, hl		8
                 locF &= FLAG_Z;
-                if (gbRegs.hl.w + gbRegs.hl.w > 0xFFFF)
+                if (g_gbRegs.hl.w + g_gbRegs.hl.w > 0xFFFF)
                     setCFlag();
-                if ((gbRegs.hl.w & 0xFFF) + (gbRegs.hl.w & 0xFFF) > 0xFFF)
+                if ((g_gbRegs.hl.w & 0xFFF) + (g_gbRegs.hl.w & 0xFFF) > 0xFFF)
                     setHFlag();
-                gbRegs.hl.w += gbRegs.hl.w;
+                g_gbRegs.hl.w += g_gbRegs.hl.w;
                 break;
             case 0x39:		// ADD hl, SP		8
                 locF &= FLAG_Z;
-                if (gbRegs.hl.w + locSP > 0xFFFF)
+                if (g_gbRegs.hl.w + locSP > 0xFFFF)
                     setCFlag();
-                if ((gbRegs.hl.w & 0xFFF) + (locSP & 0xFFF) > 0xFFF)
+                if ((g_gbRegs.hl.w & 0xFFF) + (locSP & 0xFFF) > 0xFFF)
                     setHFlag();
-                gbRegs.hl.w += locSP;
+                g_gbRegs.hl.w += locSP;
                 break;
 
             case 0xE8:		// ADD SP, n		16
@@ -960,26 +958,26 @@ int Gameboy::runOpcode(int cycles) {
                     break;
                 }
             case 0x03:		// INC BC				8
-                gbRegs.bc.w++;
+                g_gbRegs.bc.w++;
                 break;
             case 0x13:		// INC de				8
-                gbRegs.de.w++;
+                g_gbRegs.de.w++;
                 break;
             case 0x23:		// INC hl				8
-                gbRegs.hl.w++;
+                g_gbRegs.hl.w++;
                 break;
             case 0x33:		// INC SP				8
                 locSP++;
                 break;
 
             case 0x0B:		// DEC BC				8
-                gbRegs.bc.w--;
+                g_gbRegs.bc.w--;
                 break;
             case 0x1B:		// DEC de				8
-                gbRegs.de.w--;
+                g_gbRegs.de.w--;
                 break;
             case 0x2B:		// DEC hl				8
-                gbRegs.hl.w--;
+                g_gbRegs.hl.w--;
                 break;
             case 0x3B:		// DEC SP				8
                 locSP--;
@@ -987,7 +985,7 @@ int Gameboy::runOpcode(int cycles) {
 
             case 0x27:		// DAA					4
                 {
-                    int a = gbRegs.af.b.h;
+                    int a = g_gbRegs.af.b.h;
 
                     if (!negativeSet())
                     {
@@ -1016,13 +1014,13 @@ int Gameboy::runOpcode(int cycles) {
                     if (a == 0)
                         setZFlag();
 
-                    gbRegs.af.b.h = a;
+                    g_gbRegs.af.b.h = a;
 
                 }
                 break;
 
             case 0x2F:		// CPL					4
-                gbRegs.af.b.h = ~gbRegs.af.b.h;
+                g_gbRegs.af.b.h = ~g_gbRegs.af.b.h;
                 setNFlag();
                 setHFlag();
                 break;
@@ -1093,21 +1091,21 @@ int Gameboy::runOpcode(int cycles) {
             case 0x07:		// RLCA 4
                 {
                     locF = 0;
-                    int val = gbRegs.af.b.h;
-                    gbRegs.af.b.h <<= 1;
+                    int val = g_gbRegs.af.b.h;
+                    g_gbRegs.af.b.h <<= 1;
                     if (val & 0x80)
                     {
                         setCFlag();
-                        gbRegs.af.b.h |= 1;
+                        g_gbRegs.af.b.h |= 1;
                     }
                     break;
                 }
 
             case 0x17:		// RLA					4
                 {
-                    int val = (gbRegs.af.b.h & 0x80);
-                    gbRegs.af.b.h <<= 1;
-                    gbRegs.af.b.h |= carryBit();
+                    int val = (g_gbRegs.af.b.h & 0x80);
+                    g_gbRegs.af.b.h <<= 1;
+                    g_gbRegs.af.b.h |= carryBit();
                     locF = 0;
                     if (val)
                         setCFlag();
@@ -1117,21 +1115,21 @@ int Gameboy::runOpcode(int cycles) {
             case 0x0F:		// RRCA 4
                 {
                     locF = 0;
-                    int val = gbRegs.af.b.h;
-                    gbRegs.af.b.h >>= 1;
+                    int val = g_gbRegs.af.b.h;
+                    g_gbRegs.af.b.h >>= 1;
                     if ((val & 1))
                     {
                         setCFlag();
-                        gbRegs.af.b.h |= 0x80;
+                        g_gbRegs.af.b.h |= 0x80;
                     }
                     break;
                 }
 
             case 0x1F:		// RRA					4
                 {
-                    int val = gbRegs.af.b.h & 1;
-                    gbRegs.af.b.h >>= 1;
-                    gbRegs.af.b.h |= (carryBit() << 7);
+                    int val = g_gbRegs.af.b.h & 1;
+                    g_gbRegs.af.b.h >>= 1;
+                    g_gbRegs.af.b.h |= (carryBit() << 7);
                     locF = 0;
                     if (val)
                         setCFlag();
@@ -1186,7 +1184,7 @@ int Gameboy::runOpcode(int cycles) {
                     break;
                 }
             case 0xE9:		// JP (hl)	4
-                setPC(gbRegs.hl.w);
+                setPC(g_gbRegs.hl.w);
                 break;
             case 0x18:		// JR n 12
                 OP_JR(true);
@@ -1396,13 +1394,13 @@ int Gameboy::runOpcode(int cycles) {
                     case 0x37:		// SWAP A			8
                         {
                             locF = 0;
-                            u8 r = gbRegs.af.b.h;
+                            u8 r = g_gbRegs.af.b.h;
                             int val = r >> 4;
                             r <<= 4;
                             r |= val;
                             if (r == 0)
                                 setZFlag();
-                            gbRegs.af.b.h = r;
+                            g_gbRegs.af.b.h = r;
                             break;
                         }
                     case 0x30:		// SWAP B			8
@@ -1426,11 +1424,11 @@ int Gameboy::runOpcode(int cycles) {
                     case 0x36:		// SWAP (hl)		16
                         {
                             locF = 0;
-                            int val = readMemory(gbRegs.hl.w);
+                            int val = readMemory(g_gbRegs.hl.w);
                             int val2 = val >> 4;
                             val <<= 4;
                             val |= val2;
-                            writeMemory(gbRegs.hl.w, val);
+                            writeMemory(g_gbRegs.hl.w, val);
                             if (val == 0)
                                 setZFlag();
                             break;
@@ -1439,16 +1437,16 @@ int Gameboy::runOpcode(int cycles) {
                     case 0x07:		// RLC A					8
                         {
                             locF = 0;
-                            u8 r = gbRegs.af.b.h;
+                            u8 r = g_gbRegs.af.b.h;
                             r <<= 1;
-                            if (((gbRegs.af.b.h) & 0x80) != 0)
+                            if (((g_gbRegs.af.b.h) & 0x80) != 0)
                             {
                                 setCFlag();
                                 r |= 1;
                             }
                             if (r == 0)
                                 setZFlag();
-                            gbRegs.af.b.h = r;
+                            g_gbRegs.af.b.h = r;
                             break;
                         }
                     case 0x00:		// RLC B					8
@@ -1476,7 +1474,7 @@ int Gameboy::runOpcode(int cycles) {
                     case 0x06:		// RLC (hl)				16
                         {
                             locF = 0;
-                            int val = readMemory(gbRegs.hl.w);
+                            int val = readMemory(g_gbRegs.hl.w);
                             int val2 = val;
                             val2 <<= 1;
                             if ((val & 0x80) != 0)
@@ -1486,13 +1484,13 @@ int Gameboy::runOpcode(int cycles) {
                             }
                             if (val2 == 0)
                                 setZFlag();
-                            writeMemory(gbRegs.hl.w, val2);
+                            writeMemory(g_gbRegs.hl.w, val2);
                             break;
 
                         }
                     case 0x17:		// RL A				8
                         {
-                            u8 r = gbRegs.af.b.h;
+                            u8 r = g_gbRegs.af.b.h;
                             int val = (r & 0x80);
                             r <<= 1;
                             r |= carryBit();
@@ -1501,7 +1499,7 @@ int Gameboy::runOpcode(int cycles) {
                                 setCFlag();
                             if (r == 0)
                                 setZFlag();
-                            gbRegs.af.b.h = r;
+                            g_gbRegs.af.b.h = r;
                             break;
                         }
                     case 0x10:		// RL B				8
@@ -1526,7 +1524,7 @@ int Gameboy::runOpcode(int cycles) {
                         }
                     case 0x16:		// RL (hl)			16
                         {
-                            u8 val2 = readMemory(gbRegs.hl.w);
+                            u8 val2 = readMemory(g_gbRegs.hl.w);
                             int val = (val2 & 0x80);
                             val2 <<= 1;
                             val2 |= carryBit();
@@ -1535,13 +1533,13 @@ int Gameboy::runOpcode(int cycles) {
                                 setCFlag();
                             if (val2 == 0)
                                 setZFlag();
-                            writeMemory(gbRegs.hl.w, val2);
+                            writeMemory(g_gbRegs.hl.w, val2);
                             break;
                         }
                     case 0x0F:		// RRC A					8
                         {
                             locF = 0;
-                            u8 r = gbRegs.af.b.h;
+                            u8 r = g_gbRegs.af.b.h;
                             int val = r;
                             r >>= 1;
                             if (val&1)
@@ -1551,7 +1549,7 @@ int Gameboy::runOpcode(int cycles) {
                             }
                             if (r == 0)
                                 setZFlag();
-                            gbRegs.af.b.h = r;
+                            g_gbRegs.af.b.h = r;
                             break;
                         }
                     case 0x08:		// RRC B					8
@@ -1579,7 +1577,7 @@ int Gameboy::runOpcode(int cycles) {
                     case 0x0E:		// RRC (hl)				16
                         {
                             locF = 0;
-                            u8 val2 = readMemory(gbRegs.hl.w);
+                            u8 val2 = readMemory(g_gbRegs.hl.w);
                             int val = val2;
                             val2 >>= 1;
                             if ((val & 1) != 0)
@@ -1589,13 +1587,13 @@ int Gameboy::runOpcode(int cycles) {
                             }
                             if (val2 == 0)
                                 setZFlag();
-                            writeMemory(gbRegs.hl.w, val2);
+                            writeMemory(g_gbRegs.hl.w, val2);
                             break;
                         }
 
                     case 0x1F:		// RR A					8
                         {
-                            u8 r = gbRegs.af.b.h;
+                            u8 r = g_gbRegs.af.b.h;
                             int val = r & 1;
                             r >>= 1;
                             r |= carryBit() << 7;
@@ -1604,7 +1602,7 @@ int Gameboy::runOpcode(int cycles) {
                                 setCFlag();
                             if (r == 0)
                                 setZFlag();
-                            gbRegs.af.b.h = r;
+                            g_gbRegs.af.b.h = r;
                             break;
                         }
                     case 0x18:		// RR B					8
@@ -1629,7 +1627,7 @@ int Gameboy::runOpcode(int cycles) {
                         }
                     case 0x1E:		// RR (hl)			16
                         {
-                            u8 val2 = readMemory(gbRegs.hl.w);
+                            u8 val2 = readMemory(g_gbRegs.hl.w);
                             int val = val2 & 1;
                             val2 >>= 1;
                             val2 |= carryBit() << 7;
@@ -1638,7 +1636,7 @@ int Gameboy::runOpcode(int cycles) {
                                 setCFlag();
                             if (val2 == 0)
                                 setZFlag();
-                            writeMemory(gbRegs.hl.w, val2);
+                            writeMemory(g_gbRegs.hl.w, val2);
                             break;
                         }
 
@@ -1646,14 +1644,14 @@ int Gameboy::runOpcode(int cycles) {
                     case 0x27:		// SLA A				8
                         {
                             locF = 0;
-                            u8 r = gbRegs.af.b.h;
+                            u8 r = g_gbRegs.af.b.h;
                             int val = (r & 0x80);
                             r <<= 1;
                             if (val)
                                 setCFlag();
                             if (r == 0)
                                 setZFlag();
-                            gbRegs.af.b.h = r;
+                            g_gbRegs.af.b.h = r;
                             break;
                         }
                     case 0x20:		// SLA B				8
@@ -1678,21 +1676,21 @@ int Gameboy::runOpcode(int cycles) {
                     case 0x26:		// SLA (hl)			16
                         {
                             locF = 0;
-                            u8 val2 = readMemory(gbRegs.hl.w);
+                            u8 val2 = readMemory(g_gbRegs.hl.w);
                             int val = (val2 & 0x80);
                             val2 <<= 1;
                             if (val)
                                 setCFlag();
                             if (val2 == 0)
                                 setZFlag();
-                            writeMemory(gbRegs.hl.w, val2);
+                            writeMemory(g_gbRegs.hl.w, val2);
                             break;
                         }
 
                     case 0x2F:		// SRA A				8
                         {
                             locF = 0;
-                            u8 r = gbRegs.af.b.h;
+                            u8 r = g_gbRegs.af.b.h;
                             if (r & 1)
                                 setCFlag();
                             r >>= 1;
@@ -1700,7 +1698,7 @@ int Gameboy::runOpcode(int cycles) {
                                 r |= 0x80;
                             if (r == 0)
                                 setZFlag();
-                            gbRegs.af.b.h = r;
+                            g_gbRegs.af.b.h = r;
                             break;
                         }
                     case 0x28:		// SRA B				8
@@ -1726,7 +1724,7 @@ int Gameboy::runOpcode(int cycles) {
                     case 0x2E:		// SRA (hl)			16
                         {
                             locF = 0;
-                            int val = readMemory(gbRegs.hl.w);
+                            int val = readMemory(g_gbRegs.hl.w);
                             if (val & 1)
                                 setCFlag();
                             val >>= 1;
@@ -1734,20 +1732,20 @@ int Gameboy::runOpcode(int cycles) {
                                 val |= 0x80;
                             if (val == 0)
                                 setZFlag();
-                            writeMemory(gbRegs.hl.w, val);
+                            writeMemory(g_gbRegs.hl.w, val);
                             break;
                         }
 
                     case 0x3F:		// SRL A				8
                         {
                             locF = 0;
-                            u8 r = gbRegs.af.b.h;
+                            u8 r = g_gbRegs.af.b.h;
                             if (r & 1)
                                 setCFlag();
                             r >>= 1;
                             if (r == 0)
                                 setZFlag();
-                            gbRegs.af.b.h = r;
+                            g_gbRegs.af.b.h = r;
                             break;
                         }
                     case 0x38:		// SRL B				8
@@ -1771,13 +1769,13 @@ int Gameboy::runOpcode(int cycles) {
                     case 0x3E:		// SRL (hl)			16
                         {
                             locF = 0;
-                            int val = readMemory(gbRegs.hl.w);
+                            int val = readMemory(g_gbRegs.hl.w);
                             if (val & 1)
                                 setCFlag();
                             val >>= 1;
                             if (val == 0)
                                 setZFlag();
-                            writeMemory(gbRegs.hl.w, val);
+                            writeMemory(g_gbRegs.hl.w, val);
                             break;
                         }
 
@@ -1790,7 +1788,7 @@ int Gameboy::runOpcode(int cycles) {
                     case 0x77:		// BIT 6, A
                     case 0x7F:		// BIT 7, A
                         {
-                            if (((gbRegs.af.b.h) & (1<<((opcode>>3)&7))) == 0)
+                            if (((g_gbRegs.af.b.h) & (1<<((opcode>>3)&7))) == 0)
                                 setZFlag();
                             else
                                 clearZFlag();
@@ -1903,7 +1901,7 @@ int Gameboy::runOpcode(int cycles) {
                         setHFlag();
                         break;
                     case 0x46:		// BIT 0, (hl)      12
-                        if ((readMemory(gbRegs.hl.w) & 0x1) == 0)
+                        if ((readMemory(g_gbRegs.hl.w) & 0x1) == 0)
                             setZFlag();
                         else
                             clearZFlag();
@@ -1911,7 +1909,7 @@ int Gameboy::runOpcode(int cycles) {
                         setHFlag();
                         break;
                     case 0x4E:		// BIT 1, (hl)
-                        if ((readMemory(gbRegs.hl.w) & 0x2) == 0)
+                        if ((readMemory(g_gbRegs.hl.w) & 0x2) == 0)
                             setZFlag();
                         else
                             clearZFlag();
@@ -1919,7 +1917,7 @@ int Gameboy::runOpcode(int cycles) {
                         setHFlag();
                         break;
                     case 0x56:		// BIT 2, (hl)
-                        if ((readMemory(gbRegs.hl.w) & 0x4) == 0)
+                        if ((readMemory(g_gbRegs.hl.w) & 0x4) == 0)
                             setZFlag();
                         else
                             clearZFlag();
@@ -1927,7 +1925,7 @@ int Gameboy::runOpcode(int cycles) {
                         setHFlag();
                         break;
                     case 0x5E:		// BIT 3, (hl)
-                        if ((readMemory(gbRegs.hl.w) & 0x8) == 0)
+                        if ((readMemory(g_gbRegs.hl.w) & 0x8) == 0)
                             setZFlag();
                         else
                             clearZFlag();
@@ -1935,7 +1933,7 @@ int Gameboy::runOpcode(int cycles) {
                         setHFlag();
                         break;
                     case 0x66:		// BIT 4, (hl)
-                        if ((readMemory(gbRegs.hl.w) & 0x10) == 0)
+                        if ((readMemory(g_gbRegs.hl.w) & 0x10) == 0)
                             setZFlag();
                         else
                             clearZFlag();
@@ -1943,7 +1941,7 @@ int Gameboy::runOpcode(int cycles) {
                         setHFlag();
                         break;
                     case 0x6E:		// BIT 5, (hl)
-                        if ((readMemory(gbRegs.hl.w) & 0x20) == 0)
+                        if ((readMemory(g_gbRegs.hl.w) & 0x20) == 0)
                             setZFlag();
                         else
                             clearZFlag();
@@ -1951,7 +1949,7 @@ int Gameboy::runOpcode(int cycles) {
                         setHFlag();
                         break;
                     case 0x76:		// BIT 6, (hl)
-                        if ((readMemory(gbRegs.hl.w) & 0x40) == 0)
+                        if ((readMemory(g_gbRegs.hl.w) & 0x40) == 0)
                             setZFlag();
                         else
                             clearZFlag();
@@ -1959,7 +1957,7 @@ int Gameboy::runOpcode(int cycles) {
                         setHFlag();
                         break;
                     case 0x7E:		// BIT 7, (hl)
-                        if ((readMemory(gbRegs.hl.w) & 0x80) == 0)
+                        if ((readMemory(g_gbRegs.hl.w) & 0x80) == 0)
                             setZFlag();
                         else
                             clearZFlag();
@@ -1967,453 +1965,453 @@ int Gameboy::runOpcode(int cycles) {
                         setHFlag();
                         break;
                     case 0xC0:		// SET 0, B
-                        gbRegs.bc.b.h |= 1;
+                        g_gbRegs.bc.b.h |= 1;
                         break;
                     case 0xC1:		// SET 0, C
-                        gbRegs.bc.b.l |= 1;
+                        g_gbRegs.bc.b.l |= 1;
                         break;
                     case 0xC2:		// SET 0, D
-                        gbRegs.de.b.h |= 1;
+                        g_gbRegs.de.b.h |= 1;
                         break;
                     case 0xC3:		// SET 0, E
-                        gbRegs.de.b.l |= 1;
+                        g_gbRegs.de.b.l |= 1;
                         break;
                     case 0xC4:		// SET 0, H
-                        gbRegs.hl.b.h |= 1;
+                        g_gbRegs.hl.b.h |= 1;
                         break;
                     case 0xC5:		// SET 0, L
-                        gbRegs.hl.b.l |= 1;
+                        g_gbRegs.hl.b.l |= 1;
                         break;
                     case 0xC6:		// SET 0, (hl)  16
                         {
-                            int val = readMemory(gbRegs.hl.w);
+                            int val = readMemory(g_gbRegs.hl.w);
                             val |= 1;
-                            writeMemory(gbRegs.hl.w, val);
+                            writeMemory(g_gbRegs.hl.w, val);
                             break;
                         }
                     case 0xC7:		// SET 0, A
-                        gbRegs.af.b.h |= 1;
+                        g_gbRegs.af.b.h |= 1;
                         break;
                     case 0xC8:		// SET 1, B
-                        gbRegs.bc.b.h |= 2;
+                        g_gbRegs.bc.b.h |= 2;
                         break;
                     case 0xC9:		// SET 1, C
-                        gbRegs.bc.b.l |= 2;
+                        g_gbRegs.bc.b.l |= 2;
                         break;
                     case 0xCA:		// SET 1, D
-                        gbRegs.de.b.h |= 2;
+                        g_gbRegs.de.b.h |= 2;
                         break;
                     case 0xCB:		// SET 1, E
-                        gbRegs.de.b.l |= 2;
+                        g_gbRegs.de.b.l |= 2;
                         break;
                     case 0xCC:		// SET 1, H
-                        gbRegs.hl.b.h |= 2;
+                        g_gbRegs.hl.b.h |= 2;
                         break;
                     case 0xCD:		// SET 1, L
-                        gbRegs.hl.b.l |= 2;
+                        g_gbRegs.hl.b.l |= 2;
                         break;
                     case 0xCE:		// SET 1, (hl)
                         {
-                            int val = readMemory(gbRegs.hl.w);
+                            int val = readMemory(g_gbRegs.hl.w);
                             val |= 2;
-                            writeMemory(gbRegs.hl.w, val);
+                            writeMemory(g_gbRegs.hl.w, val);
                             break;
                         }
                     case 0xCF:		// SET 1, A
-                        gbRegs.af.b.h |= 2;
+                        g_gbRegs.af.b.h |= 2;
                         break;
                     case 0xD0:		// SET 2, B
-                        gbRegs.bc.b.h |= 4;
+                        g_gbRegs.bc.b.h |= 4;
                         break;
                     case 0xD1:		// SET 2, C
-                        gbRegs.bc.b.l |= 4;
+                        g_gbRegs.bc.b.l |= 4;
                         break;
                     case 0xD2:		// SET 2, D
-                        gbRegs.de.b.h |= 4;
+                        g_gbRegs.de.b.h |= 4;
                         break;
                     case 0xD3:		// SET 2, E
-                        gbRegs.de.b.l |= 4;
+                        g_gbRegs.de.b.l |= 4;
                         break;
                     case 0xD4:		// SET 2, H
-                        gbRegs.hl.b.h |= 4;
+                        g_gbRegs.hl.b.h |= 4;
                         break;
                     case 0xD5:		// SET 2, L
-                        gbRegs.hl.b.l |= 4;
+                        g_gbRegs.hl.b.l |= 4;
                         break;
                     case 0xD6:		// SET 2, (hl)
                         {
-                            int val = readMemory(gbRegs.hl.w);
+                            int val = readMemory(g_gbRegs.hl.w);
                             val |= 4;
-                            writeMemory(gbRegs.hl.w, val);
+                            writeMemory(g_gbRegs.hl.w, val);
                             break;
                         }
                     case 0xD7:		// SET 2, A
-                        gbRegs.af.b.h |= 4;
+                        g_gbRegs.af.b.h |= 4;
                         break;
                     case 0xD8:		// SET 3, B
-                        gbRegs.bc.b.h |= 8;
+                        g_gbRegs.bc.b.h |= 8;
                         break;
                     case 0xD9:		// SET 3, C
-                        gbRegs.bc.b.l |= 8;
+                        g_gbRegs.bc.b.l |= 8;
                         break;
                     case 0xDA:		// SET 3, D
-                        gbRegs.de.b.h |= 8;
+                        g_gbRegs.de.b.h |= 8;
                         break;
                     case 0xDB:		// SET 3, E
-                        gbRegs.de.b.l |= 8;
+                        g_gbRegs.de.b.l |= 8;
                         break;
                     case 0xDC:		// SET 3, H
-                        gbRegs.hl.b.h |= 8;
+                        g_gbRegs.hl.b.h |= 8;
                         break;
                     case 0xDD:		// SET 3, L
-                        gbRegs.hl.b.l |= 8;
+                        g_gbRegs.hl.b.l |= 8;
                         break;
                     case 0xDE:		// SET 3, (hl)
                         {
-                            int val = readMemory(gbRegs.hl.w);
+                            int val = readMemory(g_gbRegs.hl.w);
                             val |= 8;
-                            writeMemory(gbRegs.hl.w, val);
+                            writeMemory(g_gbRegs.hl.w, val);
                             break;
                         }
                     case 0xDF:		// SET 3, A
-                        gbRegs.af.b.h |= 8;
+                        g_gbRegs.af.b.h |= 8;
                         break;
                     case 0xE0:		// SET 4, B
-                        gbRegs.bc.b.h |= 0x10;
+                        g_gbRegs.bc.b.h |= 0x10;
                         break;
                     case 0xE1:		// SET 4, C
-                        gbRegs.bc.b.l |= 0x10;
+                        g_gbRegs.bc.b.l |= 0x10;
                         break;
                     case 0xE2:		// SET 4, D
-                        gbRegs.de.b.h |= 0x10;
+                        g_gbRegs.de.b.h |= 0x10;
                         break;
                     case 0xE3:		// SET 4, E
-                        gbRegs.de.b.l |= 0x10;
+                        g_gbRegs.de.b.l |= 0x10;
                         break;
                     case 0xE4:		// SET 4, H
-                        gbRegs.hl.b.h |= 0x10;
+                        g_gbRegs.hl.b.h |= 0x10;
                         break;
                     case 0xE5:		// SET 4, L
-                        gbRegs.hl.b.l |= 0x10;
+                        g_gbRegs.hl.b.l |= 0x10;
                         break;
                     case 0xE6:		// SET 4, (hl)
                         {
-                            int val = readMemory(gbRegs.hl.w);
+                            int val = readMemory(g_gbRegs.hl.w);
                             val |= 0x10;
-                            writeMemory(gbRegs.hl.w, val);
+                            writeMemory(g_gbRegs.hl.w, val);
                             break;
                         }
                     case 0xE7:		// SET 4, A
-                        gbRegs.af.b.h |= 0x10;
+                        g_gbRegs.af.b.h |= 0x10;
                         break;
                     case 0xE8:		// SET 5, B
-                        gbRegs.bc.b.h |= 0x20;
+                        g_gbRegs.bc.b.h |= 0x20;
                         break;
                     case 0xE9:		// SET 5, C
-                        gbRegs.bc.b.l |= 0x20;
+                        g_gbRegs.bc.b.l |= 0x20;
                         break;
                     case 0xEA:		// SET 5, D
-                        gbRegs.de.b.h |= 0x20;
+                        g_gbRegs.de.b.h |= 0x20;
                         break;
                     case 0xEB:		// SET 5, E
-                        gbRegs.de.b.l |= 0x20;
+                        g_gbRegs.de.b.l |= 0x20;
                         break;
                     case 0xEC:		// SET 5, H
-                        gbRegs.hl.b.h |= 0x20;
+                        g_gbRegs.hl.b.h |= 0x20;
                         break;
                     case 0xED:		// SET 5, L
-                        gbRegs.hl.b.l |= 0x20;
+                        g_gbRegs.hl.b.l |= 0x20;
                         break;
                     case 0xEE:		// SET 5, (hl)
                         {
-                            int val = readMemory(gbRegs.hl.w);
+                            int val = readMemory(g_gbRegs.hl.w);
                             val |= 0x20;
-                            writeMemory(gbRegs.hl.w, val);
+                            writeMemory(g_gbRegs.hl.w, val);
                             break;
                         }
                     case 0xEF:		// SET 5, A
-                        gbRegs.af.b.h |= 0x20;
+                        g_gbRegs.af.b.h |= 0x20;
                         break;
                     case 0xF0:		// SET 6, B
-                        gbRegs.bc.b.h |= 0x40;
+                        g_gbRegs.bc.b.h |= 0x40;
                         break;
                     case 0xF1:		// SET 6, C
-                        gbRegs.bc.b.l |= 0x40;
+                        g_gbRegs.bc.b.l |= 0x40;
                         break;
                     case 0xF2:		// SET 6, D
-                        gbRegs.de.b.h |= 0x40;
+                        g_gbRegs.de.b.h |= 0x40;
                         break;
                     case 0xF3:		// SET 6, E
-                        gbRegs.de.b.l |= 0x40;
+                        g_gbRegs.de.b.l |= 0x40;
                         break;
                     case 0xF4:		// SET 6, H
-                        gbRegs.hl.b.h |= 0x40;
+                        g_gbRegs.hl.b.h |= 0x40;
                         break;
                     case 0xF5:		// SET 6, L
-                        gbRegs.hl.b.l |= 0x40;
+                        g_gbRegs.hl.b.l |= 0x40;
                         break;
                     case 0xF6:		// SET 6, (hl)
                         {
-                            int val = readMemory(gbRegs.hl.w);
+                            int val = readMemory(g_gbRegs.hl.w);
                             val |= 0x40;
-                            writeMemory(gbRegs.hl.w, val);
+                            writeMemory(g_gbRegs.hl.w, val);
                             break;
                         }
                     case 0xF7:		// SET 6, A
-                        gbRegs.af.b.h |= 0x40;
+                        g_gbRegs.af.b.h |= 0x40;
                         break;
                     case 0xF8:		// SET 7, B
-                        gbRegs.bc.b.h |= 0x80;
+                        g_gbRegs.bc.b.h |= 0x80;
                         break;
                     case 0xF9:		// SET 7, C
-                        gbRegs.bc.b.l |= 0x80;
+                        g_gbRegs.bc.b.l |= 0x80;
                         break;
                     case 0xFA:		// SET 7, D
-                        gbRegs.de.b.h |= 0x80;
+                        g_gbRegs.de.b.h |= 0x80;
                         break;
                     case 0xFB:		// SET 7, E
-                        gbRegs.de.b.l |= 0x80;
+                        g_gbRegs.de.b.l |= 0x80;
                         break;
                     case 0xFC:		// SET 7, H
-                        gbRegs.hl.b.h |= 0x80;
+                        g_gbRegs.hl.b.h |= 0x80;
                         break;
                     case 0xFD:		// SET 7, L
-                        gbRegs.hl.b.l |= 0x80;
+                        g_gbRegs.hl.b.l |= 0x80;
                         break;
                     case 0xFE:		// SET 7, (hl)
                         {
-                            int val = readMemory(gbRegs.hl.w);
+                            int val = readMemory(g_gbRegs.hl.w);
                             val |= 0x80;
-                            writeMemory(gbRegs.hl.w, val);
+                            writeMemory(g_gbRegs.hl.w, val);
                             break;
                         }
                     case 0xFF:		// SET 7, A
-                        gbRegs.af.b.h |= 0x80;
+                        g_gbRegs.af.b.h |= 0x80;
                         break;
 
                     case 0x80:		// RES 0, B
-                        gbRegs.bc.b.h &= 0xFE;
+                        g_gbRegs.bc.b.h &= 0xFE;
                         break;
                     case 0x81:		// RES 0, C
-                        gbRegs.bc.b.l &= 0xFE;
+                        g_gbRegs.bc.b.l &= 0xFE;
                         break;
                     case 0x82:		// RES 0, D
-                        gbRegs.de.b.h &= 0xFE;
+                        g_gbRegs.de.b.h &= 0xFE;
                         break;
                     case 0x83:		// RES 0, E
-                        gbRegs.de.b.l &= 0xFE;
+                        g_gbRegs.de.b.l &= 0xFE;
                         break;
                     case 0x84:		// RES 0, H
-                        gbRegs.hl.b.h &= 0xFE;
+                        g_gbRegs.hl.b.h &= 0xFE;
                         break;
                     case 0x85:		// RES 0, L
-                        gbRegs.hl.b.l &= 0xFE;
+                        g_gbRegs.hl.b.l &= 0xFE;
                         break;
                     case 0x86:		// RES 0, (hl)
                         {
-                            int val = readMemory(gbRegs.hl.w);
+                            int val = readMemory(g_gbRegs.hl.w);
                             val &= 0xFE;
-                            writeMemory(gbRegs.hl.w, val);
+                            writeMemory(g_gbRegs.hl.w, val);
                             break;
                         }
                     case 0x87:		// RES 0, A
-                        gbRegs.af.b.h &= 0xFE;
+                        g_gbRegs.af.b.h &= 0xFE;
                         break;
                     case 0x88:		// RES 1, B
-                        gbRegs.bc.b.h &= 0xFD;
+                        g_gbRegs.bc.b.h &= 0xFD;
                         break;
                     case 0x89:		// RES 1, C
-                        gbRegs.bc.b.l &= 0xFD;
+                        g_gbRegs.bc.b.l &= 0xFD;
                         break;
                     case 0x8A:		// RES 1, D
-                        gbRegs.de.b.h &= 0xFD;
+                        g_gbRegs.de.b.h &= 0xFD;
                         break;
                     case 0x8B:		// RES 1, E
-                        gbRegs.de.b.l &= 0xFD;
+                        g_gbRegs.de.b.l &= 0xFD;
                         break;
                     case 0x8C:		// RES 1, H
-                        gbRegs.hl.b.h &= 0xFD;
+                        g_gbRegs.hl.b.h &= 0xFD;
                         break;
                     case 0x8D:		// RES 1, L
-                        gbRegs.hl.b.l &= 0xFD;
+                        g_gbRegs.hl.b.l &= 0xFD;
                         break;
                     case 0x8E:		// RES 1, (hl)
                         {
-                            int val = readMemory(gbRegs.hl.w);
+                            int val = readMemory(g_gbRegs.hl.w);
                             val &= 0xFD;
-                            writeMemory(gbRegs.hl.w, val);
+                            writeMemory(g_gbRegs.hl.w, val);
                             break;
                         }
                     case 0x8F:		// RES 1, A
-                        gbRegs.af.b.h &= 0xFD;
+                        g_gbRegs.af.b.h &= 0xFD;
                         break;
                     case 0x90:		// RES 2, B
-                        gbRegs.bc.b.h &= 0xFB;
+                        g_gbRegs.bc.b.h &= 0xFB;
                         break;
                     case 0x91:		// RES 2, C
-                        gbRegs.bc.b.l &= 0xFB;
+                        g_gbRegs.bc.b.l &= 0xFB;
                         break;
                     case 0x92:		// RES 2, D
-                        gbRegs.de.b.h &= 0xFB;
+                        g_gbRegs.de.b.h &= 0xFB;
                         break;
                     case 0x93:		// RES 2, E
-                        gbRegs.de.b.l &= 0xFB;
+                        g_gbRegs.de.b.l &= 0xFB;
                         break;
                     case 0x94:		// RES 2, H
-                        gbRegs.hl.b.h &= 0xFB;
+                        g_gbRegs.hl.b.h &= 0xFB;
                         break;
                     case 0x95:		// RES 2, L
-                        gbRegs.hl.b.l &= 0xFB;
+                        g_gbRegs.hl.b.l &= 0xFB;
                         break;
                     case 0x96:		// RES 2, (hl)
                         {
-                            int val = readMemory(gbRegs.hl.w);
+                            int val = readMemory(g_gbRegs.hl.w);
                             val &= 0xFB;
-                            writeMemory(gbRegs.hl.w, val);
+                            writeMemory(g_gbRegs.hl.w, val);
                             break;
                         }
                     case 0x97:		// RES 2, A
-                        gbRegs.af.b.h &= 0xFB;
+                        g_gbRegs.af.b.h &= 0xFB;
                         break;
                     case 0x98:		// RES 3, B
-                        gbRegs.bc.b.h &= 0xF7;
+                        g_gbRegs.bc.b.h &= 0xF7;
                         break;
                     case 0x99:		// RES 3, C
-                        gbRegs.bc.b.l &= 0xF7;
+                        g_gbRegs.bc.b.l &= 0xF7;
                         break;
                     case 0x9A:		// RES 3, D
-                        gbRegs.de.b.h &= 0xF7;
+                        g_gbRegs.de.b.h &= 0xF7;
                         break;
                     case 0x9B:		// RES 3, E
-                        gbRegs.de.b.l &= 0xF7;
+                        g_gbRegs.de.b.l &= 0xF7;
                         break;
                     case 0x9C:		// RES 3, H
-                        gbRegs.hl.b.h &= 0xF7;
+                        g_gbRegs.hl.b.h &= 0xF7;
                         break;
                     case 0x9D:		// RES 3, L
-                        gbRegs.hl.b.l &= 0xF7;
+                        g_gbRegs.hl.b.l &= 0xF7;
                         break;
                     case 0x9E:		// RES 3, (hl)
                         {
-                            int val = readMemory(gbRegs.hl.w);
+                            int val = readMemory(g_gbRegs.hl.w);
                             val &= 0xF7;
-                            writeMemory(gbRegs.hl.w, val);
+                            writeMemory(g_gbRegs.hl.w, val);
                             break;
                         }
                     case 0x9F:		// RES 3, A
-                        gbRegs.af.b.h &= 0xF7;
+                        g_gbRegs.af.b.h &= 0xF7;
                         break;
                     case 0xA0:		// RES 4, B
-                        gbRegs.bc.b.h &= 0xEF;
+                        g_gbRegs.bc.b.h &= 0xEF;
                         break;
                     case 0xA1:		// RES 4, C
-                        gbRegs.bc.b.l &= 0xEF;
+                        g_gbRegs.bc.b.l &= 0xEF;
                         break;
                     case 0xA2:		// RES 4, D
-                        gbRegs.de.b.h &= 0xEF;
+                        g_gbRegs.de.b.h &= 0xEF;
                         break;
                     case 0xA3:		// RES 4, E
-                        gbRegs.de.b.l &= 0xEF;
+                        g_gbRegs.de.b.l &= 0xEF;
                         break;
                     case 0xA4:		// RES 4, H
-                        gbRegs.hl.b.h &= 0xEF;
+                        g_gbRegs.hl.b.h &= 0xEF;
                         break;
                     case 0xA5:		// RES 4, L
-                        gbRegs.hl.b.l &= 0xEF;
+                        g_gbRegs.hl.b.l &= 0xEF;
                         break;
                     case 0xA6:		// RES 4, (hl)
                         {
-                            int val = readMemory(gbRegs.hl.w);
+                            int val = readMemory(g_gbRegs.hl.w);
                             val &= 0xEF;
-                            writeMemory(gbRegs.hl.w, val);
+                            writeMemory(g_gbRegs.hl.w, val);
                             break;
                         }
                     case 0xA7:		// RES 4, A
-                        gbRegs.af.b.h &= 0xEF;
+                        g_gbRegs.af.b.h &= 0xEF;
                         break;
                     case 0xA8:		// RES 5, B
-                        gbRegs.bc.b.h &= 0xDF;
+                        g_gbRegs.bc.b.h &= 0xDF;
                         break;
                     case 0xA9:		// RES 5, C
-                        gbRegs.bc.b.l &= 0xDF;
+                        g_gbRegs.bc.b.l &= 0xDF;
                         break;
                     case 0xAA:		// RES 5, D
-                        gbRegs.de.b.h &= 0xDF;
+                        g_gbRegs.de.b.h &= 0xDF;
                         break;
                     case 0xAB:		// RES 5, E
-                        gbRegs.de.b.l &= 0xDF;
+                        g_gbRegs.de.b.l &= 0xDF;
                         break;
                     case 0xAC:		// RES 5, H
-                        gbRegs.hl.b.h &= 0xDF;
+                        g_gbRegs.hl.b.h &= 0xDF;
                         break;
                     case 0xAD:		// RES 5, L
-                        gbRegs.hl.b.l &= 0xDF;
+                        g_gbRegs.hl.b.l &= 0xDF;
                         break;
                     case 0xAE:		// RES 5, (hl)
                         {
-                            int val = readMemory(gbRegs.hl.w);
+                            int val = readMemory(g_gbRegs.hl.w);
                             val &= 0xDF;
-                            writeMemory(gbRegs.hl.w, val);
+                            writeMemory(g_gbRegs.hl.w, val);
                             break;
                         }
                     case 0xAF:		// RES 5, A
-                        gbRegs.af.b.h &= 0xDF;
+                        g_gbRegs.af.b.h &= 0xDF;
                         break;
                     case 0xB0:		// RES 6, B
-                        gbRegs.bc.b.h &= 0xBF;
+                        g_gbRegs.bc.b.h &= 0xBF;
                         break;
                     case 0xB1:		// RES 6, C
-                        gbRegs.bc.b.l &= 0xBF;
+                        g_gbRegs.bc.b.l &= 0xBF;
                         break;
                     case 0xB2:		// RES 6, D
-                        gbRegs.de.b.h &= 0xBF;
+                        g_gbRegs.de.b.h &= 0xBF;
                         break;
                     case 0xB3:		// RES 6, E
-                        gbRegs.de.b.l &= 0xBF;
+                        g_gbRegs.de.b.l &= 0xBF;
                         break;
                     case 0xB4:		// RES 6, H
-                        gbRegs.hl.b.h &= 0xBF;
+                        g_gbRegs.hl.b.h &= 0xBF;
                         break;
                     case 0xB5:		// RES 6, L
-                        gbRegs.hl.b.l &= 0xBF;
+                        g_gbRegs.hl.b.l &= 0xBF;
                         break;
                     case 0xB6:		// RES 6, (hl)
                         {
-                            int val = readMemory(gbRegs.hl.w);
+                            int val = readMemory(g_gbRegs.hl.w);
                             val &= 0xBF;
-                            writeMemory(gbRegs.hl.w, val);
+                            writeMemory(g_gbRegs.hl.w, val);
                             break;
                         }
                     case 0xB7:		// RES 6, A
-                        gbRegs.af.b.h &= 0xBF;
+                        g_gbRegs.af.b.h &= 0xBF;
                         break;
                     case 0xB8:		// RES 7, B
-                        gbRegs.bc.b.h &= 0x7F;
+                        g_gbRegs.bc.b.h &= 0x7F;
                         break;
                     case 0xB9:		// RES 7, C
-                        gbRegs.bc.b.l &= 0x7F;
+                        g_gbRegs.bc.b.l &= 0x7F;
                         break;
                     case 0xBA:		// RES 7, D
-                        gbRegs.de.b.h &= 0x7F;
+                        g_gbRegs.de.b.h &= 0x7F;
                         break;
                     case 0xBB:		// RES 7, E
-                        gbRegs.de.b.l &= 0x7F;
+                        g_gbRegs.de.b.l &= 0x7F;
                         break;
                     case 0xBC:		// RES 7, H
-                        gbRegs.hl.b.h &= 0x7F;
+                        g_gbRegs.hl.b.h &= 0x7F;
                         break;
                     case 0xBD:		// RES 7, L
-                        gbRegs.hl.b.l &= 0x7F;
+                        g_gbRegs.hl.b.l &= 0x7F;
                         break;
                     case 0xBE:		// RES 7, (hl)
                         {
-                            int val = readMemory(gbRegs.hl.w);
+                            int val = readMemory(g_gbRegs.hl.w);
                             val &= 0x7F;
-                            writeMemory(gbRegs.hl.w, val);
+                            writeMemory(g_gbRegs.hl.w, val);
                             break;
                         }
                     case 0xBF:		// RES 7, A
-                        gbRegs.af.b.h &= 0x7F;
+                        g_gbRegs.af.b.h &= 0x7F;
                         break;
                     default:
                         break;
@@ -2429,8 +2427,8 @@ end:
         *haltBugAddr = 0x76;
         haltBugAddr = NULL;
     }
-    gbRegs.af.b.l = locF;
-    gbRegs.pc.w += (pcAddr-firstPcAddr);
-    gbRegs.sp.w = locSP;
+    g_gbRegs.af.b.l = locF;
+    g_gbRegs.pc.w += (pcAddr-firstPcAddr);
+    g_gbRegs.sp.w = locSP;
     return totalCycles;
 }

@@ -21,9 +21,6 @@ extern volatile int loadedBorderType;
 extern bool customBorderExists;
 extern bool sgbBorderLoaded;
 
-extern u8 bgPaletteData[0x40];
-extern u8 sprPaletteData[0x40];
-
 void doAtVBlank(void (*func)(void));
 
 void drawScanline(int scanline);
@@ -31,7 +28,6 @@ void drawScanline_P2(int scanline);
 void drawScreen();
 
 void initGFX();
-void initGFXPalette();
 void refreshGFX();
 void clearGFX();
 void refreshSgbPalette();

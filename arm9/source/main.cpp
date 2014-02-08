@@ -27,8 +27,10 @@ time_t rawTime;
 time_t lastRawTime;
 
 volatile SharedData* sharedData;
+volatile SharedData* dummySharedData;
 
 Gameboy* gameboy;
+
 Gameboy* gb1;
 Gameboy* gb2;
 
@@ -68,11 +70,13 @@ void loadRom(const char* filename) {
         delete romFile;
 
     romFile = new RomFile(filename);
-    gameboy->setRomFile(romFile);
+    gb1->setRomFile(romFile);
+    gb2->setRomFile(romFile);
 }
 
 void unloadRom() {
-    gameboy->unloadRom();
+    gb1->unloadRom();
+    gb2->unloadRom();
 
     if (romFile != NULL) {
         delete romFile;
@@ -81,13 +85,23 @@ void unloadRom() {
 }
 
 void setMainGb(int id) {
-    if (id == 1)
-        gameboy = gb1;
-    else
-        gameboy = gb2;
+    Gameboy* otherGameboy;
 
-    refreshGFX();
+    if (id == 1) {
+        gameboy = gb1;
+        otherGameboy = gb2;
+    }
+    else {
+        gameboy = gb2;
+        otherGameboy = gb1;
+    }
+
+    if (gameboy && gameboy->isRomLoaded()) {
+        refreshGFX();
+    }
+    gameboy->getSoundEngine()->unmute();
     gameboy->getSoundEngine()->refresh();
+    otherGameboy->getSoundEngine()->mute();
 }
 
 void selectRom() {
@@ -116,7 +130,8 @@ void initializeGameboyFirstTime() {
         probingForBorder = true; // This will be ignored if starting in sgb mode, or if there is no sgb mode.
     sgbBorderLoaded = false; // Effectively unloads any sgb border
 
-    gameboy->init();
+    gb1->init();
+    gb2->init();
 
     if (gbsMode) {
         disableMenuOption("State Slot");
@@ -176,6 +191,7 @@ int main(int argc, char* argv[])
     fifoSetValue32Handler(FIFO_USER_02, fifoValue32Handler, NULL);
 
     sharedData = (SharedData*)memUncached(malloc(sizeof(SharedData)));
+    dummySharedData = (SharedData*)memUncached(malloc(sizeof(SharedData)));
     sharedData->scalingOn = false;
     sharedData->enableSleepMode = true;
     // It might make more sense to use "fifoSendAddress" here.
@@ -183,7 +199,7 @@ int main(int argc, char* argv[])
     fifoSendValue32(FIFO_USER_03, ((u32)sharedData)&0x00ffffff);
 
     gb1 = new Gameboy();
-//    gb2 = new Gameboy();
+    gb2 = new Gameboy();
 
     setMainGb(1);
 
@@ -210,8 +226,10 @@ int main(int argc, char* argv[])
     }
 
     for (;;) {
-        if (!gameboy->isGameboyPaused())
-            gameboy->runEmul();
+        if (!gb1->isGameboyPaused())
+            gb1->runEmul();
+        if (!gb2->isGameboyPaused())
+            gb2->runEmul();
         updateVBlank();
     }
 

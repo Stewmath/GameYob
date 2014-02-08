@@ -37,6 +37,12 @@ inline void FIFO_SEND(u32 message) {
 SoundEngine::SoundEngine(Gameboy* g) {
     setGameboy(g);
     sampleData = (u8*)memUncached(malloc(0x20));
+
+    unmute();
+}
+
+SoundEngine::~SoundEngine() {
+    free(sampleData);
 }
 
 void SoundEngine::setGameboy(Gameboy* g) {
@@ -48,8 +54,6 @@ void SoundEngine::init()
     // Send the cached mirror to preserve dsi compatibility.
     // Because of this, on arm9, always use the local sampleData which is 
     // uncached.
-    sharedData->sampleData = (u8*)memCached(sampleData);
-
     static double analog[] = { -1, -0.8667, -0.7334, -0.6, -0.4668, -0.3335, -0.2, -0.067, 0.0664, 0.2, 0.333, 0.4668, 0.6, 0.7334, 0.8667, 1  } ;
     int i;
     for (i=0; i<16; i++)
@@ -69,16 +73,16 @@ void SoundEngine::init()
     memset(chanEnvCounter, 0, sizeof(chanEnvCounter));
     memset(chanEnvSweep, 0, sizeof(chanEnvSweep));
     memset(chanVol, 0, sizeof(chanVol));
-
-    refresh();
 }
 
 void SoundEngine::refresh() {
+
     soundEnable();
     if (soundDisabled)
         return;
 
-    sharedData->chanOn = 0;
+    sharedPtr->sampleData = (u8*)memCached(sampleData);
+    sharedPtr->chanOn = 0;
 
     // Ordering note: Writing a byte to FF26 with bit 7 set enables writes to
     // the other registers. With bit 7 unset, writes are ignored.
@@ -102,6 +106,16 @@ void SoundEngine::refresh() {
         handleSoundRegister(0x23, gameboy->readIO(0x23)|0x80);
 }
 
+void SoundEngine::mute() {
+    // sharedPtr accesses won't affect the main soundEngine
+    muted = true;
+    sharedPtr = dummySharedData;
+}
+void SoundEngine::unmute() {
+    muted = false;
+    sharedPtr = sharedData;
+}
+
 void SoundEngine::setSoundEventCycles(int cycles) {
     if (cyclesToSoundEvent > cycles) {
         cyclesToSoundEvent = cycles;
@@ -113,7 +127,7 @@ void SoundEngine::updateSound(int cycles)
     if (soundDisabled)
         return;
     bool changed=false;
-    if ((sharedData->chanOn & CHAN_1) && chan1SweepTime != 0)
+    if ((sharedPtr->chanOn & CHAN_1) && chan1SweepTime != 0)
     {
         chan1SweepCounter -= cycles;
         while (chan1SweepCounter <= 0)
@@ -122,7 +136,7 @@ void SoundEngine::updateSound(int cycles)
             chanFreq[0] += (chanFreq[0]>>chan1SweepAmount)*chan1SweepDir;
             if (chanFreq[0] > 0x7FF)
             {
-                sharedData->chanOn &= ~CHAN_1;
+                sharedPtr->chanOn &= ~CHAN_1;
                 gameboy->clearSoundChannel(CHAN_1);
             }
             else {
@@ -131,12 +145,12 @@ void SoundEngine::updateSound(int cycles)
             changed = true;
         }
 
-        if (sharedData->chanOn & CHAN_1)
+        if (sharedPtr->chanOn & CHAN_1)
             setSoundEventCycles(chan1SweepCounter);
     }
     for (int i=0; i<4; i++)
     {
-        if (i != 2 && sharedData->chanOn & (1<<i))
+        if (i != 2 && sharedPtr->chanOn & (1<<i))
         {
             if (chanEnvSweep[i] != 0)
             {
@@ -159,12 +173,12 @@ void SoundEngine::updateSound(int cycles)
     }
     for (int i=0; i<4; i++)
     {
-        if ((sharedData->chanOn & (1<<i)) && chanUseLen[i])
+        if ((sharedPtr->chanOn & (1<<i)) && chanUseLen[i])
         {
             chanLenCounter[i] -= cycles;
             if (chanLenCounter[i] <= 0)
             {
-                sharedData->chanOn &= ~(1<<i);
+                sharedPtr->chanOn &= ~(1<<i);
                 changed = true;
                 if (i==0)
                     gameboy->clearSoundChannel(CHAN_1);
@@ -183,6 +197,8 @@ void SoundEngine::updateSound(int cycles)
         if (hyperSound)
             sendUpdateMessage(-1);
         else {
+            if (muted)
+                return;
             // Force immediate update, even though hyperSound isn't on.
             FIFO_SEND(GBSND_UPDATE_COMMAND<<28 | 4);
         }
@@ -191,7 +207,7 @@ void SoundEngine::updateSound(int cycles)
 
 void SoundEngine::soundUpdateVBlank() {
     // This debug stuff helps when debugging Pokemon Diamond
-    //printLog("%d\n", sharedData->fifosSent-sharedData->fifosReceived);
+    //printLog("%d\n", sharedPtr->fifosSent-sharedPtr->fifosReceived);
 }
 
 void SoundEngine::handleSoundRegister(u8 ioReg, u8 val)
@@ -216,7 +232,7 @@ void SoundEngine::handleSoundRegister(u8 ioReg, u8 val)
                 chanLenCounter[0] = (64-chanLen[0])*clockSpeed/256;
                 if (chanUseLen[0])
                     setSoundEventCycles(chanLenCounter[0]);
-                sharedData->chanDuty[0] = val>>6;
+                sharedPtr->chanDuty[0] = val>>6;
                 refreshSoundDuty(0);
                 sendUpdateMessage(0);
                 break;
@@ -255,7 +271,7 @@ void SoundEngine::handleSoundRegister(u8 ioReg, u8 val)
                 if (chanUseLen[0])
                     setSoundEventCycles(chanLenCounter[0]);
 
-                sharedData->chanOn |= CHAN_1;
+                sharedPtr->chanOn |= CHAN_1;
                 chanVol[0] = gameboy->readIO(0x12)>>4;
                 if (chan1SweepTime != 0) {
                     chan1SweepCounter = clockSpeed/(128/chan1SweepTime);
@@ -275,7 +291,7 @@ void SoundEngine::handleSoundRegister(u8 ioReg, u8 val)
             chanLenCounter[1] = (64-chanLen[1])*clockSpeed/256;
             if (chanUseLen[1])
                 setSoundEventCycles(chanLenCounter[1]);
-            sharedData->chanDuty[1] = val>>6;
+            sharedPtr->chanDuty[1] = val>>6;
             sendUpdateMessage(1);
             break;
             // Volume / Envelope
@@ -312,7 +328,7 @@ void SoundEngine::handleSoundRegister(u8 ioReg, u8 val)
                 chanLenCounter[1] = (64-chanLen[1])*clockSpeed/256;
                 if (chanUseLen[1])
                     setSoundEventCycles(chanLenCounter[1]);
-                sharedData->chanOn |= CHAN_2;
+                sharedPtr->chanOn |= CHAN_2;
                 chanVol[1] = gameboy->readIO(0x17)>>4;
 
                 refreshSoundVolume(1, false);
@@ -326,7 +342,7 @@ void SoundEngine::handleSoundRegister(u8 ioReg, u8 val)
         case 0x1A:
             if ((val & 0x80) == 0)
             {
-                sharedData->chanOn &= ~CHAN_3;
+                sharedPtr->chanOn &= ~CHAN_3;
                 sendUpdateMessage(2);
             }
             break;
@@ -378,7 +394,7 @@ void SoundEngine::handleSoundRegister(u8 ioReg, u8 val)
 
             if ((val & 0x80) && (gameboy->readIO(0x1a) & 0x80))
             {
-                sharedData->chanOn |= CHAN_3;
+                sharedPtr->chanOn |= CHAN_3;
                 chanLenCounter[2] = (256-chanLen[2])*clockSpeed/256;
                 if (chanUseLen[2])
                     setSoundEventCycles(chanLenCounter[2]);
@@ -414,7 +430,7 @@ void SoundEngine::handleSoundRegister(u8 ioReg, u8 val)
             chan4FreqRatio = val&0x7;
             if (chan4FreqRatio == 0)
                 chan4FreqRatio = 0.5;
-            sharedData->lfsr7Bit = val&0x8;
+            sharedPtr->lfsr7Bit = val&0x8;
             refreshSoundFreq(3);
             sendUpdateMessage(3);
             break;
@@ -426,7 +442,7 @@ void SoundEngine::handleSoundRegister(u8 ioReg, u8 val)
                 chanLenCounter[3] = (64-chanLen[3])*clockSpeed/256;
                 if (chanUseLen[3])
                     setSoundEventCycles(chanLenCounter[3]);
-                sharedData->chanOn |= CHAN_4;
+                sharedPtr->chanOn |= CHAN_4;
                 chanVol[3] = gameboy->readIO(0x21)>>4;
                 refreshSoundVolume(3, false);
                 sendStartMessage(3);
@@ -434,15 +450,15 @@ void SoundEngine::handleSoundRegister(u8 ioReg, u8 val)
             break;
             // GENERAL REGISTERS
         case 0x24:
-            if ((sharedData->volControl&0x7) != (val&0x7)) {
-                sharedData->volControl = val;
+            if ((sharedPtr->volControl&0x7) != (val&0x7)) {
+                sharedPtr->volControl = val;
                 sendGlobalVolumeMessage();
             }
             else
-                sharedData->volControl = val;
+                sharedPtr->volControl = val;
             break;
         case 0x25:
-            sharedData->chanOutput = val;
+            sharedPtr->chanOutput = val;
             for (int i=0; i<4; i++)
                 refreshSoundPan(i);
             sendUpdateMessage(-1);
@@ -451,7 +467,7 @@ void SoundEngine::handleSoundRegister(u8 ioReg, u8 val)
         case 0x26:
             if (!(val&0x80))
             {
-                sharedData->chanOn = 0;
+                sharedPtr->chanOn = 0;
                 
                 sendUpdateMessage(-1);
             }
@@ -490,75 +506,78 @@ void SoundEngine::updateSoundSample(int byte) {
 // the sound should be updated.
 // NOTE: scale transfer, which is done by arm7, tends to interfere with this.
 void SoundEngine::synchronizeSound() {
+    if (muted)
+        return;
+
     int cycles = gameboy->getCyclesSinceVblank();
     if (gameboy->isDoubleSpeed())
         cycles /= 2;
 
-    if (sharedData->hyperSound &&
-            (!sharedData->scaleTransferReady) && // Scale transfer eats up a lot of arm7's time
-            !(sharedData->frameFlip_Gameboy != sharedData->frameFlip_DS || sharedData->dsCycles >= cycles)) {
+    if (sharedPtr->hyperSound &&
+            (!sharedPtr->scaleTransferReady) && // Scale transfer eats up a lot of arm7's time
+            !(sharedPtr->frameFlip_Gameboy != sharedPtr->frameFlip_DS || sharedPtr->dsCycles >= cycles)) {
 
-        sharedData->cycles = cycles;
-        while (sharedData->cycles != -1) { // Wait for arm7 to set sharedData->cycles.
-            if (sharedData->scaleTransferReady) { // Is arm7 doing the scale transfer? If so ABORT
-                sharedData->cycles = -1;
+        sharedPtr->cycles = cycles;
+        while (sharedPtr->cycles != -1) { // Wait for arm7 to set sharedPtr->cycles.
+            if (sharedPtr->scaleTransferReady) { // Is arm7 doing the scale transfer? If so ABORT
+                sharedPtr->cycles = -1;
                 goto sendByFifo;
             }
         }
     }
     else {
 sendByFifo:
-        FIFO_SEND(sharedData->message);
+        FIFO_SEND(sharedPtr->message);
     }
 }
 
 void SoundEngine::sendStartMessage(int i) {
-    sharedData->message = GBSND_START_COMMAND<<20 | i;
+    sharedPtr->message = GBSND_START_COMMAND<<20 | i;
     synchronizeSound();
 }
 
 void SoundEngine::sendUpdateMessage(int i) {
     if (i == -1)
         i = 4;
-    sharedData->message = GBSND_UPDATE_COMMAND<<20 | i;
+    sharedPtr->message = GBSND_UPDATE_COMMAND<<20 | i;
     synchronizeSound();
 }
 
 void SoundEngine::sendGlobalVolumeMessage() {
-    sharedData->message = GBSND_MASTER_VOLUME_COMMAND<<20;
+    sharedPtr->message = GBSND_MASTER_VOLUME_COMMAND<<20;
     synchronizeSound();
 }
 
 
 
 void SoundEngine::refreshSoundPan(int i) {
-    if ((sharedData->chanOutput & (1<<i)) && (sharedData->chanOutput & (1<<(i+4))))
-        sharedData->chanPan[i] = 64;
-    else if (sharedData->chanOutput & (1<<i))
-        sharedData->chanPan[i] = 127;
-    else if (sharedData->chanOutput & (1<<(i+4)))
-        sharedData->chanPan[i] = 0;
+    if ((sharedPtr->chanOutput & (1<<i)) && (sharedPtr->chanOutput & (1<<(i+4))))
+        sharedPtr->chanPan[i] = 64;
+    else if (sharedPtr->chanOutput & (1<<i))
+        sharedPtr->chanPan[i] = 127;
+    else if (sharedPtr->chanOutput & (1<<(i+4)))
+        sharedPtr->chanPan[i] = 0;
     else {
-        sharedData->chanPan[i] = 128;   // Special signal
+        sharedPtr->chanPan[i] = 128;   // Special signal
     }
 }
 
 void SoundEngine::refreshSoundVolume(int i, bool send)
 {
-    if (!(sharedData->chanOn & (1<<i)) || !sharedData->chanEnabled[i])
+    if (!(sharedPtr->chanOn & (1<<i)) || !sharedPtr->chanEnabled[i])
     {
         return;
     }
 
     int volume = chanVol[i];
 
-    if (send && sharedData->chanRealVol[i] != volume) {
-        sharedData->chanRealVol[i] = volume;
-        sharedData->message = GBSND_VOLUME_COMMAND<<20 | i;
+    if (send && sharedPtr->chanRealVol[i] != volume) {
+        sharedPtr->chanRealVol[i] = volume;
+        sharedPtr->message = GBSND_VOLUME_COMMAND<<20 | i;
         synchronizeSound();
     }
     else
-        sharedData->chanRealVol[i] = volume;
+        sharedPtr->chanRealVol[i] = volume;
 }
 
 void SoundEngine::refreshSoundFreq(int i) {
@@ -574,11 +593,11 @@ void SoundEngine::refreshSoundFreq(int i) {
         //freq = 0xaaa;
         //printLog("%.2x: Freq %x\n", ioRam[0x22], freq);
     }
-    sharedData->chanRealFreq[i] = freq;
+    sharedPtr->chanRealFreq[i] = freq;
 }
 
 void SoundEngine::refreshSoundDuty(int i) {
-    if ((sharedData->chanOn & (1<<i))) {
+    if ((sharedPtr->chanOn & (1<<i))) {
     }
 }
 

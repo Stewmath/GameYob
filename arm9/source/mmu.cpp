@@ -663,7 +663,9 @@ void Gameboy::writeMemoryOther(u16 addr, u8 val) {
     {
         case 0x8:
         case 0x9:
-            writeVram(addr&0x1fff, val);
+            if (isMainGameboy())
+                writeVram(addr&0x1fff, val);
+            vram[vramBank][addr&0x1fff] = val;
             return;
         case 0xE: // Echo area
             wram[0][addr&0xFFF] = val;
@@ -805,19 +807,63 @@ handleSoundReg:
             if (val & 0x80)
                 setSoundChannel(CHAN_4);
             goto handleSoundReg;
-        case 0x40:
         case 0x42:
         case 0x43:
-        case 0x46:
         case 0x47:
         case 0x48:
         case 0x49:
         case 0x4A:
         case 0x4B:
-        case 0x69:
-        case 0x6B:
-            handleVideoRegister(ioReg, val);
+            if (isMainGameboy())
+                handleVideoRegister(ioReg, val);
+            ioRam[ioReg] = val;
             return;
+        case 0x69: // CGB BG Palette
+            if (isMainGameboy())
+                handleVideoRegister(ioReg, val);
+            {
+                int index = gameboy->ioRam[0x68] & 0x3F;
+                bgPaletteData[index] = val;
+            }
+            if (ioRam[0x68] & 0x80)
+                ioRam[0x68] = 0x80 | (ioRam[0x68]+1);
+            ioRam[0x69] = bgPaletteData[ioRam[0x68]&0x3F];
+            return;
+        case 0x6B: // CGB Sprite palette
+            if (isMainGameboy())
+                handleVideoRegister(ioReg, val);
+            {
+                int index = gameboy->ioRam[0x6A] & 0x3F;
+                sprPaletteData[index] = val;
+            }
+            if (ioRam[0x6A] & 0x80)
+                ioRam[0x6A] = 0x80 | (ioRam[0x6A]+1);
+            ioRam[0x6B] = sprPaletteData[ioRam[0x6A]&0x3F];
+            return;
+        case 0x46: // Sprite DMA
+            if (isMainGameboy())
+                handleVideoRegister(ioReg, val);
+            ioRam[ioReg] = val;
+            {
+                int src = val << 8;
+                u8* mem = gameboy->memory[src>>12];
+                src &= 0xfff;
+                for (int i=0; i<0xA0; i++) {
+                    u8 val = mem[src++];
+                    gameboy->hram[i] = val;
+                }
+            }
+            return;
+        case 0x40: // LCDC
+            if (isMainGameboy())
+                handleVideoRegister(ioReg, val);
+            ioRam[ioReg] = val;
+            if (!(val & 0x80)) {
+                gameboy->ioRam[0x44] = 0;
+                gameboy->ioRam[0x41] &= ~3; // Set video mode 0
+            }
+            return;
+
         case 0x41:
             ioRam[ioReg] &= 0x7;
             ioRam[ioReg] |= val&0xF8;
@@ -880,9 +926,10 @@ handleSoundReg:
                     int i;
                     for (i=0; i<dmaLength; i++)
                     {
-                        writeVram16(dmaDest, dmaSource);
-                        dmaDest += 0x10;
-                        dmaSource += 0x10;
+                        if (isMainGameboy())
+                            writeVram16(dmaDest, dmaSource);
+                        for (int i=0; i<16; i++)
+                            vram[vramBank][dmaDest++] = quickRead(dmaSource++);
                         dmaDest &= 0x1FF0;
                     }
                     extraCycles += dmaLength*8*(doubleSpeed+1);

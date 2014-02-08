@@ -47,6 +47,8 @@ Gameboy::Gameboy() {
 
     cheatEngine = new CheatEngine(this);
     soundEngine = new SoundEngine(this);
+    if (this != gameboy)
+        soundEngine->mute();
 }
 
 void Gameboy::init()
@@ -122,7 +124,10 @@ void Gameboy::init()
     memset(vram[0], 0, 0x2000);
     memset(vram[1], 0, 0x2000);
 
-    initGFX();
+    initGFXPalette();
+    if (isMainGameboy()) {
+        initGFX();
+    }
     initSND();
 
     sgbActiveController = 0;
@@ -187,6 +192,39 @@ void Gameboy::initSND() {
 
     soundEngine->init();
 }
+
+// Called either from startup, or when the BIOS writes to FF50.
+void Gameboy::initGameboyMode() {
+    gbRegs.af.b.l = 0xB0;
+    gbRegs.bc.w = 0x0013;
+    gbRegs.de.w = 0x00D8;
+    gbRegs.hl.w = 0x014D;
+    switch(resultantGBMode) {
+        case 0: // GB
+            gbRegs.af.b.h = 0x01;
+            gbMode = GB;
+            if (romFile->romSlot0[0x143] == 0x80 || romFile->romSlot0[0x143] == 0xC0)
+                // Init the palette in case the bios overwrote it, since it 
+                // assumed it was starting in GBC mode.
+                initGFXPalette();
+            break;
+        case 1: // GBC
+            gbRegs.af.b.h = 0x11;
+            if (gbaModeOption)
+                gbRegs.bc.b.h |= 1;
+            gbMode = CGB;
+            break;
+        case 2: // SGB
+            sgbMode = true;
+            gbRegs.af.b.h = 0x01;
+            gbMode = GB;
+            initSGB();
+            break;
+    }
+
+    memcpy(&g_gbRegs, &gbRegs, sizeof(Registers));
+}
+
 
 void Gameboy::gameboyCheckInput() {
     static int autoFireCounterA=0, autoFireCounterB=0;
@@ -344,6 +382,7 @@ bool Gameboy::isGameboyPaused() {
 
 int Gameboy::runEmul()
 {
+    memcpy(&g_gbRegs, &gbRegs, sizeof(Registers));
     for (;;)
     {
         cyclesToEvent -= extraCycles;
@@ -421,39 +460,45 @@ int Gameboy::runEmul()
             interruptTriggered = ioRam[0x0F] & ioRam[0xFF];
         }
 
-        if (ret)
+        if (ret) {
+            memcpy(&gbRegs, &g_gbRegs, sizeof(Registers));
             return ret;
+        }
     }
 }
 
-// Called either from startup, or when the BIOS writes to FF50.
-void Gameboy::initGameboyMode() {
-    gbRegs.af.b.l = 0xB0;
-    gbRegs.bc.w = 0x0013;
-    gbRegs.de.w = 0x00D8;
-    gbRegs.hl.w = 0x014D;
-    switch(resultantGBMode) {
-        case 0: // GB
-            gbRegs.af.b.h = 0x01;
-            gbMode = GB;
-            if (romFile->romSlot0[0x143] == 0x80 || romFile->romSlot0[0x143] == 0xC0)
-                // Init the palette in case the bios overwrote it, since it 
-                // assumed it was starting in GBC mode.
-                initGFXPalette();
-            break;
-        case 1: // GBC
-            gbRegs.af.b.h = 0x11;
-            if (gbaModeOption)
-                gbRegs.bc.b.h |= 1;
-            gbMode = CGB;
-            break;
-        case 2: // SGB
-            sgbMode = true;
-            gbRegs.af.b.h = 0x01;
-            gbMode = GB;
-            initSGB();
-            break;
+void Gameboy::initGFXPalette() {
+    memset(bgPaletteData, 0xff, 0x40);
+    if (gbMode == GB) {
+        sprPaletteData[0] = 0xff;
+        sprPaletteData[1] = 0xff;
+        sprPaletteData[2] = 0x15|((0x15&7)<<5);
+        sprPaletteData[3] = (0x15>>3)|(0x15<<2);
+        sprPaletteData[4] = 0xa|((0xa&7)<<5);
+        sprPaletteData[5] = (0xa>>3)|(0xa<<2);
+        sprPaletteData[6] = 0;
+        sprPaletteData[7] = 0;
+        sprPaletteData[8] = 0xff;
+        sprPaletteData[9] = 0xff;
+        sprPaletteData[10] = 0x15|((0x15&7)<<5);
+        sprPaletteData[11] = (0x15>>3)|(0x15<<2);
+        sprPaletteData[12] = 0xa|((0xa&7)<<5);
+        sprPaletteData[13] = (0xa>>3)|(0xa<<2);
+        sprPaletteData[14] = 0;
+        sprPaletteData[15] = 0;
+        bgPaletteData[0] = 0xff;
+        bgPaletteData[1] = 0xff;
+        bgPaletteData[2] = 0x15|((0x15&7)<<5);
+        bgPaletteData[3] = (0x15>>3)|(0x15<<2);
+        bgPaletteData[4] = 0xa|((0xa&7)<<5);
+        bgPaletteData[5] = (0xa>>3)|(0xa<<2);
+        bgPaletteData[6] = 0;
+        bgPaletteData[7] = 0;
     }
+}
+
+bool Gameboy::isMainGameboy() {
+    return this == gameboy;
 }
 
 void Gameboy::checkLYC() {
@@ -503,7 +548,8 @@ inline int Gameboy::updateLCD(int cycles)
             {
                 ioRam[0x41]++; // Set mode 3
                 scanlineCounter += 172<<doubleSpeed;
-                drawScanline(ioRam[0x44]);
+                if (isMainGameboy())
+                    drawScanline(ioRam[0x44]);
             }
             break;
         case 3:
@@ -515,7 +561,8 @@ inline int Gameboy::updateLCD(int cycles)
 
                 scanlineCounter += 204<<doubleSpeed;
 
-                drawScanline_P2(ioRam[0x44]);
+                if (isMainGameboy())
+                    drawScanline_P2(ioRam[0x44]);
                 if (updateHblankDMA()) {
                     extraCycles += 8<<doubleSpeed;
                 }
@@ -691,7 +738,10 @@ bool Gameboy::isRomLoaded() {
 int Gameboy::loadSave()
 {
     strcpy(savename, romFile->getBasename());
-    strcat(savename, ".sav");
+    if (isMainGameboy())
+        strcat(savename, ".sav");
+    else
+        strcat(savename, ".sa2");
 
     if (gbsMode)
         numRamBanks = 1;
@@ -794,11 +844,6 @@ int Gameboy::loadSave()
         if (!found) {
             printLog("couldn't find save file sector\n");
         }
-    }
-
-    if (numRamBanks == 1) {
-        writeSaveFileSectors(0, 8);
-        writeSaveFileSectors(8, 8);
     }
 
     return 0;

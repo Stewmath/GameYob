@@ -67,6 +67,8 @@ class Gameboy {
         void initGBMode();
         void initGBCMode();
         void initSND();
+        void initGFXPalette();
+        bool isMainGameboy();
 
         inline void setEventCycles(int cycles) {
             if (cycles < cyclesToEvent) {
@@ -248,6 +250,10 @@ inline void writeMemory(u16 addr, u8 val)
         u8* hram;
         u8* ioRam;
 
+        u8 bgPaletteData[0x40] ALIGN(4);
+        u8 sprPaletteData[0x40] ALIGN(4);
+
+
         int wramBank;
         int vramBank;
 
@@ -274,7 +280,7 @@ inline void writeMemory(u16 addr, u8 val)
         int soundCycles;
         int cyclesToExecute;
         int cyclesUntilSwap;
-//        struct Registers gbRegs;
+        struct Registers gbRegs;
         
         int fps;
 
@@ -382,4 +388,4 @@ const mbcWrite mbcWrites[] = {
 
 extern Gameboy* gameboy;
 
-extern struct Registers gbRegs;
+extern struct Registers g_gbRegs;

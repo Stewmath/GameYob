@@ -1,6 +1,7 @@
 #ifdef DS
 #include <nds.h>
 #endif
+#include "common.h"
 
 class Gameboy;
 
@@ -13,10 +14,13 @@ class Gameboy;
 class SoundEngine {
     public:
         SoundEngine(Gameboy* g);
+        ~SoundEngine();
         void setGameboy(Gameboy* g);
 
         void init();
         void refresh();
+        void mute();
+        void unmute();
 
         // Should be moved out of here
         void setSoundEventCycles(int cycles);
@@ -57,6 +61,10 @@ class SoundEngine {
 
         int pcmVals[16];
         u8* sampleData;
+
+        bool muted;
+
+        volatile SharedData* sharedPtr;
 
         Gameboy* gameboy;
 };
