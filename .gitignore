@@ -4,3 +4,6 @@
 *.elf
 build/
 gameyob.nds
+gameyob
+gameyob.ini
+LOG
