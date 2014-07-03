@@ -16,8 +16,8 @@ TARGET :=	gameyob
 # all directories are relative to this makefile
 #---------------------------------------------------------------------------------
 BUILD		:=	build
-SOURCES		:=	source
-INCLUDES	:=	include ../include
+SOURCES		:=	source ../../common
+INCLUDES	:=	include ../include ../../include
 DATA		:=
 GFX			:= gfx/
 

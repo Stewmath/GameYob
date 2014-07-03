@@ -1,0 +1,173 @@
+Blip_Buffer 0.4.0 Notes
+-----------------------
+Author : Shay Green <hotpop.com@blargg>
+Website: http://www.slack.net/~ant/
+Forum  : http://groups.google.com/group/blargg-sound-libs
+
+Overview
+--------
+Blip_Buffer buffers samples at the current sampling rate until they are read
+out. Blip_Synth adds waveforms into a Blip_Buffer, specified by amplitude
+changes at times given in the source clock rate. To generate sound, setup one
+or more Blip_Buffers and Blip_Synths, add sound waves, then read samples as
+needed.
+
+Waveform amplitude changes are specified to Blip_Synth in time units at the
+source clock rate, relative to the beginning of the current time frame. When a
+time frame is ended at time T, what was time T becomes time 0, and all samples
+before that are made available for reading from the Blip_Buffer using
+read_samples(). Time frames can be whatever length is convenient, and can
+differ in length from one frame to the next. Also, samples don't need to be
+read immediately after each time frame; unread samples accumulate in the buffer
+until they're read (but also reduce the available free space for new
+synthesis).
+
+This sets up a Blip_Buffer at a 1MHz input clock rate, 44.1kHz output sample
+rate:
+
+	Blip_Buffer buf;
+	buf.clock_rate( 1000000 );
+	if ( buf.set_sample_rate( 44100 ) )
+		out_of_memory();
+
+This sets up a Blip_Synth with good sound quality, an amplitude range of 20
+(for a waveform that goes from -10 to 10), at 50% volume, outputting to buf:
+
+	Blip_Synth<blip_good_quality,20> synth;
+	synth.volume( 0.50 );
+	synth.output( &buf );
+
+See the demos for examples of adding a waveform and reading samples.
+
+
+Treble and Bass Equalization
+----------------------------
+Treble and bass frequency equalization can be adjusted. Blip_Synth::treble_eq(
+treble_dB ) sets the treble level (in dB), where 0.0 dB gives normal treble;
+-200.0 dB is quite muffled, and 5.0 dB emphasizes treble for an extra crisp
+sound. Blip_Buffer::bass_freq( freq_hz ) sets the frequency where bass response
+starts to diminish; 15 Hz is normal, 0 Hz gives maximum bass, and 15000 Hz
+removes all bass.
+
+Bass    Treble      Type
+- - - - - - - - - - - - - - - - - - - - - - - -
+1 Hz     0.0 dB     Flat equalization
+1 Hz    +5.0 dB     Extra crisp sound
+16 Hz   -8.0 dB     Default equalization
+180 Hz  -8.0 dB     TV Speaker
+2000 Hz -47.0 dB    Handheld game speaker
+
+For example, to simulate a TV speaker, call buf.bass_freq( 180 ) and
+synth.treble_eq( -8.0 ). The best way to find parameters is to write a program
+which allows interactive control over bass and treble.
+
+For more information about blip_eq_t, which allows several parameters for
+low-pass equalization, post to the forum.
+
+
+Limitations
+-----------
+The length passed to Blip_Buffer::set_sample_rate() specifies the length of the
+buffer in milliseconds. At the default time resolution, the resulting buffer
+currently can't be more than about 65000 samples, which works out to almost
+1500 milliseconds at the common 44.1kHz sample rate. This is much more than
+necessary for most uses.
+
+The output sample rate should be around 44-48kHz for best results. Since
+synthesis is band-limited, there's almost no reason to use a higher sample
+rate.
+
+The ratio of input clock rate to output sample rate has limited precision (at
+the default time resolution, rounded to nearest 1/65536th), so you won't get
+the exact sample rate you requested. However, it is *exact*, so whatever the
+input/output ratio is internally rounded to, it will generate exactly that many
+output samples for each second of input. For example if you set the clock rate
+to 768000 Hz and the sample rate to 48000 Hz (a ratio it can represent
+exactly), there will always be exactly one sample generated for every 16 clocks
+of input.
+
+For an example of rounding, setting a clock rate of 1000000Hz (1MHz) and sample
+rate of 44100 Hz results in an actual sample rate of 44097.9 Hz, causing an
+unnoticeable shift in frequency. If you're running 60 frames of sound per
+second and expecting exactly 735 samples each frame (to keep synchronized with
+graphics), your code will require some changes. This isn't a problem in
+practice because the computer's sound output itself probably doesn't run at
+*exactly* the claimed sample rate, and it's better to synchronize graphics with
+sound rather than the other way around. Put another way, even if this library
+could generate exactly 735 samples per frame, every frame, you would still have
+audio problems (try generating a sine wave manually and see). Post to the forum
+if you'd like to discuss this issue further.
+
+
+Advanced Topics
+---------------
+There are more advanced topics not covered here, some of which aren't fully
+worked out. Some of these are: using multiple clock rates, more efficient
+synthesis, higher resampling ratio accuracy, an mini-version in the C language,
+sound quality issues, mixing samples directly into a Blip_Buffer. I lack
+feedback from people using the library so I haven't been able to complete
+design of these features. Post to the forum and we can work on adding these
+features.
+
+
+Solving Problems
+----------------
+If you're having problems, try the following:
+
+- Enable debugging support in your environment. This enables assertions and
+other run-time checks.
+
+- Turn the compiler's optimizer is off. Sometimes an optimizer generates bad
+code.
+
+- If multiple threads are being used, ensure that only one at a time is
+accessing objects from the library. This library is not in general thread-safe,
+though independent objects can be used in separate threads.
+
+- If all else fails, see if the demos work.
+
+
+Internal Operation
+------------------
+Understanding the basic internal operation might help in proper use of
+Blip_Synth. There are two main aspects: what Blip_Synth does, and how samples
+are stored internally to Blip_Buffer. A description of the core algorithm and
+example code showing the essentials is available on the web:
+
+	http://www.slack.net/~ant/bl-synth/
+
+When adding a band-limited amplitude transition, the waveform differs based on
+the relative position of the transition with respect to output samples. Adding
+a transition between two samples requires a different waveform than one
+centered on one sample. Blip_Synth stores the waveforms at several small
+increments of differing alignment and selects the proper one based on the
+source time.
+
+Blip_Synth adds step waveforms, which start at zero and end up at the final
+amplitude, extending infinitely into the future. This would be hard to handle
+given a finite buffer size, so the sample buffer holds the *differences*
+between each sample, rather than the absolute sample values. For example, the
+waveform 0, 0, 1, 1, 1, 0, 0 is stored in a Blip_Buffer as 0, 0, +1, 0, 0, -1,
+0. With this scheme, adding a change in amplitude at any position in the buffer
+simply requires adding the proper values around that position; no other samples
+in the buffer need to be modified. The extension of the final amplitude occurs
+when reading samples out, by keeping a running sum of all samples up to
+present.
+
+The above should make it clearer how Blip_Synth::offset() gets its flexibility,
+and that there is no penalty for making full use of this by adding amplitude
+transitions in whatever order is convenient. Blip_Synth::update() simply keeps
+track of the current amplitude and calls offset() with the change, so it's no
+worse except being limited to a single waveform.
+
+
+Thanks
+------
+Thanks to Jsr (FamiTracker author), the Mednafen team (multi-system emulator),
+and ShizZie (Nhes GMB author) for using and giving feedback for the library.
+Thanks to Disch for his interest and discussions about the synthesis algorithm
+itself, and for writing his own implementation of it (Schpune). Thanks to
+Xodnizel for Festalon, whose sound quality got me interested in video game
+sound emulation in the first place, and where I first came up with the
+algorithm while optimizing its brute-force filter.
+
