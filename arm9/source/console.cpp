@@ -797,6 +797,11 @@ void setupScaledScreens2() {
 void setupScaledScreens1() {
     powerOff(backlights[!gameScreen]);
 
+    if (!singleScreenMode) {
+        // Disable sub screen for 1 frame
+        REG_DISPCNT_SUB &= ~(3<<16);
+    }
+
     // By next vblank, the scaled image will be ready.
     doAtVBlank(setupScaledScreens2);
 }
