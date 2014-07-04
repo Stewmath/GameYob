@@ -194,7 +194,6 @@ int main(int argc, char* argv[])
 {
     REG_POWERCNT = POWER_ALL & ~(POWER_MATRIX | POWER_3D_CORE); // don't need 3D
     consoleDebugInit(DebugDevice_CONSOLE);
-    lcdMainOnTop();
 
     defaultExceptionHandler();
 

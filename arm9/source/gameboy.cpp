@@ -145,7 +145,7 @@ void gameboyCheckInput() {
         fastForwardMode = !fastForwardMode;
 
     if (advanceFrame || keyJustPressed(mapGbKey(KEY_MENU) | mapGbKey(KEY_MENU_PAUSE) | KEY_TOUCH)) {
-        if (keyJustPressed(mapGbKey(KEY_MENU_PAUSE)))
+        if (keyJustPressed(mapGbKey(KEY_MENU_PAUSE)) || singleScreenMode)
             pauseGameboy();
 
         advanceFrame = 0;

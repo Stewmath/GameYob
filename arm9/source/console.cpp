@@ -29,7 +29,8 @@ bool consoleInitialized = false;
 int menu=0;
 int option = -1;
 char printMessage[33];
-int consoleScreen;
+int gameScreen;
+int singleScreenMode;
 int stateNum=0;
 PrintConsole* menuConsole;
 
@@ -147,7 +148,8 @@ void saveSettingsFunc(int value) {
     printMenuMessage("Saving settings...");
     muteSND();
     writeConfigFile();
-    unmuteSND();
+    if (!isGameboyPaused())
+        unmuteSND();
     printMenuMessage("Settings saved.");
 }
 
@@ -214,8 +216,22 @@ void biosEnableFunc(int value) {
 }
 
 void setScreenFunc(int value) {
-    consoleScreen = !value;
+    gameScreen = value;
     updateScreens();
+}
+
+void setSingleScreenFunc(int value) {
+    if (value != singleScreenMode) {
+        singleScreenMode = value;
+        if (singleScreenMode)
+            pauseGameboy();
+
+        if (isMenuOn()) {
+            // Swap game screen
+            // This will invoke updateScreens, incidentally.
+            setMenuOption("Game Screen", !gameScreen);
+        }
+    }
 }
 
 void setScaleModeFunc(int value) {
@@ -371,9 +387,10 @@ ConsoleSubMenu menuList[] = {
     },
     {
         "Display",
-        6,
+        7,
         {
             {"Game Screen", setScreenFunc, 2, {"Top","Bottom"}, 0},
+            {"Single Screen", setSingleScreenFunc, 2, {"Off","On"}, 0},
             {"Scaling", setScaleModeFunc, 3, {"Off","Aspect","Full"}, 0},
             {"Scale Filter", setScaleFilterFunc, 2, {"Off","On"}, 1},
             {"SGB Borders", sgbBorderEnableFunc, 2, {"Off","On"}, 1},
@@ -753,7 +770,7 @@ void printLog(const char *format, ...) {
 // updateScreens helper functions
 
 void enableConsoleBacklight2() {
-    powerOn(backlights[consoleScreen]);
+    powerOn(backlights[!gameScreen]);
 }
 void enableConsoleBacklight() {
     // For some reason, waiting 2 frames helps eliminate a white flash.
@@ -764,62 +781,84 @@ void enableConsoleBacklight() {
 void setupScaledScreens2() {
     REG_DISPCNT &= ~(3<<16); // Disable main display
     REG_DISPCNT_SUB |= 1<<16; // Enable sub display
-    if (consoleScreen == 0)
-        lcdMainOnTop();
-    else
+    if (gameScreen == 0)
         lcdMainOnBottom();
-    powerOn(backlights[!consoleScreen]);
+    else
+        lcdMainOnTop();
+    powerOn(backlights[gameScreen]);
 
     refreshScaleMode();
 }
 
 // 1 frame delay
 void setupScaledScreens1() {
-    powerOff(backlights[consoleScreen]);
-    REG_DISPCNT_SUB &= ~(3<<16); // Disable sub display (for 1 frame. Gotta hide the ugliness...)
+    powerOff(backlights[!gameScreen]);
 
     // By next vblank, the scaled image will be ready.
     doAtVBlank(setupScaledScreens2);
 }
 
 void setupUnscaledScreens() {
-    int screensToSet[2];
-
-    REG_DISPCNT &= ~(3<<16);
-    REG_DISPCNT |= 1<<16; // Enable main display
-
     if (!consoleInitialized) {
         consoleDemoInit(); // Or, consoleInit(menuConsole, ...)
         setPrintConsole(menuConsole);
         BG_PALETTE_SUB[8*16 - 1] = RGB15(17,17,17); // Grey (replaces a color established in consoleDemoInit)
         consoleInitialized = true;
     }
-    if (consoleScreen == 0)
-        lcdMainOnBottom();
-    else
-        lcdMainOnTop();
 
-    screensToSet[!consoleScreen] = true;
-
-    if (!(fpsOutput || timeOutput || consoleDebugOutput || isMenuOn() || isFileChooserOn())) {
-        screensToSet[consoleScreen] = false;
-        REG_DISPCNT_SUB &= ~(3<<16); // Disable sub display
+    if (gameScreen == 0) {
+        if (singleScreenMode && (isMenuOn() || isFileChooserOn()))
+            lcdMainOnBottom();
+        else
+            lcdMainOnTop();
     }
     else {
-        screensToSet[consoleScreen] = true;
-        REG_DISPCNT_SUB &= ~(3<<16);
-        REG_DISPCNT_SUB |= 1<<16; // Enable sub display
+        if (singleScreenMode && (isMenuOn() || isFileChooserOn()))
+            lcdMainOnTop();
+        else
+            lcdMainOnBottom();
     }
 
-    for (int i=0; i<2; i++) {
-        if (screensToSet[i]) {
-            if (i == consoleScreen)
-                doAtVBlank(enableConsoleBacklight);
-            else
-                powerOn(backlights[i]);
+    if (singleScreenMode) {
+        powerOn(backlights[gameScreen]);
+        powerOff(backlights[!gameScreen]);
+        if (isMenuOn() || isFileChooserOn()) {
+            REG_DISPCNT &= ~(3<<16);
+            REG_DISPCNT_SUB |= 1<<16;
         }
-        else
-            powerOff(backlights[i]);
+        else {
+            REG_DISPCNT_SUB &= ~(3<<16);
+            REG_DISPCNT |= 1<<16;
+        }
+    }
+    else {
+        REG_DISPCNT &= ~(3<<16);
+        REG_DISPCNT |= 1<<16; // Enable main display
+
+        int screensToSet[2];
+
+        screensToSet[gameScreen] = true;
+
+        if (!(fpsOutput || timeOutput || consoleDebugOutput || isMenuOn() || isFileChooserOn())) {
+            screensToSet[!gameScreen] = false;
+            REG_DISPCNT_SUB &= ~(3<<16); // Disable sub display
+        }
+        else {
+            screensToSet[!gameScreen] = true;
+            REG_DISPCNT_SUB &= ~(3<<16);
+            REG_DISPCNT_SUB |= 1<<16; // Enable sub display
+        }
+
+        for (int i=0; i<2; i++) {
+            if (screensToSet[i]) {
+                if (i == !gameScreen)
+                    doAtVBlank(enableConsoleBacklight);
+                else
+                    powerOn(backlights[i]);
+            }
+            else
+                powerOff(backlights[i]);
+        }
     }
 }
 

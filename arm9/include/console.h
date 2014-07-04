@@ -13,6 +13,8 @@ extern bool sgbBordersEnabled;
 extern bool autoSavingEnabled;
 extern bool printerEnabled;
 extern int stateNum;
+extern int singleScreenMode;
+extern int gameScreen;
 extern PrintConsole* menuConsole;
 
 extern volatile int consoleSelectedRow; // This line is given a different backdrop
