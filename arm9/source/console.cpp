@@ -168,7 +168,8 @@ void stateSaveFunc(int value) {
     printMenuMessage("Saving state...");
     muteSND();
     saveState(stateNum);
-    unmuteSND();
+    if (!isGameboyPaused())
+        unmuteSND();
     printMenuMessage("State saved.");
     // Will activate the other state options
     stateSelectFunc(stateNum);
@@ -187,7 +188,8 @@ void stateDeleteFunc(int value) {
     deleteState(stateNum);
     // Will grey out the other state options
     stateSelectFunc(stateNum);
-    unmuteSND();
+    if (!isGameboyPaused())
+        unmuteSND();
 }
 void resetFunc(int value) {
     closeMenu();
@@ -336,7 +338,8 @@ void setAutoSaveFunc(int value) {
         enableMenuOption("Exit without saving");
     else
         disableMenuOption("Exit without saving");
-    unmuteSND();
+    if (!isGameboyPaused())
+        unmuteSND();
 }
 
 struct MenuOption {
