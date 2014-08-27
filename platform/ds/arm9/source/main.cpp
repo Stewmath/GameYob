@@ -10,9 +10,8 @@
 #include "inputhelper.h"
 #include "filechooser.h"
 #include "timer.h"
-#include "gbsnd.h"
+#include "soundengine.h"
 #include "gameboy.h"
-#include "mmu.h"
 #include "main.h"
 #include "console.h"
 #include "nifi.h"
@@ -20,6 +19,7 @@
 #include "gbs.h"
 #include "common.h"
 #include "romfile.h"
+#include "menu.h"
 
 void updateVBlank();
 

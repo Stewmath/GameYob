@@ -1,23 +1,26 @@
+#ifdef DS
+#include "libfat_fake.h"
+#include "common.h"
+#endif
+
+#include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <dirent.h>
 #include <unistd.h>
 #include "gbprinter.h"
 #include "gameboy.h"
-#include "common.h"
 #include "gbgfx.h"
-#include "gbsnd.h"
-#include "mmu.h"
+#include "soundengine.h"
 #include "timer.h"
 #include "main.h"
 #include "inputhelper.h"
 #include "nifi.h"
 #include "console.h"
 #include "cheats.h"
-#include "sgb.h"
 #include "gbs.h"
-#include "libfat_fake.h"
 #include "romfile.h"
+#include "menu.h"
 
 const int maxWaitCycles=1000000;
 
@@ -119,7 +122,9 @@ void Gameboy::init()
     periods[3] = clockSpeed/16384;
     timerPeriod = periods[0];
 
+#ifdef DS
     timerStop(2);
+#endif
 
     memset(vram[0], 0, 0x2000);
     memset(vram[1], 0, 0x2000);
@@ -304,7 +309,11 @@ void Gameboy::gameboyCheckInput() {
     if (keyJustPressed(mapGbKey(KEY_FAST_FORWARD_TOGGLE)))
         fastForwardMode = !fastForwardMode;
 
-    if (keyJustPressed(mapGbKey(KEY_MENU) | mapGbKey(KEY_MENU_PAUSE) | KEY_TOUCH)) {
+    if (keyJustPressed(mapGbKey(KEY_MENU) | mapGbKey(KEY_MENU_PAUSE)
+#ifdef DS
+                | KEY_TOUCH
+#endif
+                )) {
         if (keyJustPressed(mapGbKey(KEY_MENU_PAUSE)))
             pause();
 
@@ -318,12 +327,14 @@ void Gameboy::gameboyCheckInput() {
         setMenuOption("Scaling", !getMenuOption("Scaling"));
     }
 
+#ifdef DS
     if (fastForwardKey || fastForwardMode) {
         sharedData->hyperSound = false;
     }
     else {
         sharedData->hyperSound = hyperSound;
     }
+#endif
 
     if (keyJustPressed(mapGbKey(KEY_RESET)))
         resetGameboy();
@@ -415,7 +426,9 @@ int Gameboy::runEmul()
                 if (false && nifiEnabled) {
                     if (!(ioRam[0x02] & 1)) {
                         //sendPacketByte(56, linkSendData);
+#ifdef DS
                         timerStop(2);
+#endif
                     }
                 }
                 else if (printerEnabled) {
@@ -700,7 +713,7 @@ void Gameboy::setRomFile(RomFile* r) {
         cheatEngine->loadCheats("");
     else {
         char nameBuf[256];
-        siprintf(nameBuf, "%s.cht", romFile->getBasename());
+        sprintf(nameBuf, "%s.cht", romFile->getBasename());
         cheatEngine->loadCheats(nameBuf);
     }
 }
@@ -724,11 +737,13 @@ void Gameboy::unloadRom() {
 const char *mbcNames[] = {"ROM","MBC1","MBC2","MBC3","MBC4","MBC5","MBC7","HUC3","HUC1"};
 
 void Gameboy::printRomInfo() {
+#ifdef DS
     consoleClear();
-    iprintf("ROM Title: \"%s\"\n", romFile->getRomTitle());
-    iprintf("Cartridge type: %.2x (%s)\n", romFile->getMapper(), mbcNames[romFile->getMBC()]);
-    iprintf("ROM Size: %.2x (%d banks)\n", romFile->romSlot0[0x148], romFile->getNumRomBanks());
-    iprintf("RAM Size: %.2x (%d banks)\n", romFile->getRamSize(), numRamBanks);
+#endif
+    printf("ROM Title: \"%s\"\n", romFile->getRomTitle());
+    printf("Cartridge type: %.2x (%s)\n", romFile->getMapper(), mbcNames[romFile->getMBC()]);
+    printf("ROM Size: %.2x (%d banks)\n", romFile->romSlot0[0x148], romFile->getNumRomBanks());
+    printf("RAM Size: %.2x (%d banks)\n", romFile->getRamSize(), numRamBanks);
 }
 
 bool Gameboy::isRomLoaded() {
@@ -823,6 +838,7 @@ int Gameboy::loadSave()
     // Get the save file's sectors on the sd card.
     // I do this by writing a byte, then finding the area of the cache marked dirty.
 
+#ifdef DS
     flushFatCache();
     devoptab_t* devops = (devoptab_t*)GetDeviceOpTab ("sd");
     PARTITION* partition = (PARTITION*)devops->deviceData;
@@ -845,6 +861,7 @@ int Gameboy::loadSave()
             printLog("couldn't find save file sector\n");
         }
     }
+#endif
 
     return 0;
 }
@@ -964,9 +981,9 @@ void Gameboy::saveState(int stateNum) {
     char statename[100];
 
     if (stateNum == -1)
-        siprintf(statename, "%s.yss", romFile->getBasename());
+        sprintf(statename, "%s.yss", romFile->getBasename());
     else
-        siprintf(statename, "%s.ys%d", romFile->getBasename(), stateNum);
+        sprintf(statename, "%s.ys%d", romFile->getBasename(), stateNum);
     outFile = fopen(statename, "w");
 
     if (outFile == 0) {
@@ -1036,9 +1053,9 @@ int Gameboy::loadState(int stateNum) {
     memset(&state, 0, sizeof(StateStruct));
 
     if (stateNum == -1)
-        siprintf(statename, "%s.yss", romFile->getBasename());
+        sprintf(statename, "%s.yss", romFile->getBasename());
     else
-        siprintf(statename, "%s.ys%d", romFile->getBasename(), stateNum);
+        sprintf(statename, "%s.ys%d", romFile->getBasename(), stateNum);
     inFile = fopen(statename, "r");
 
     if (inFile == 0) {
@@ -1154,9 +1171,9 @@ void Gameboy::deleteState(int stateNum) {
     char statename[256];
 
     if (stateNum == -1)
-        siprintf(statename, "%s.yss", romFile->getBasename());
+        sprintf(statename, "%s.yss", romFile->getBasename());
     else
-        siprintf(statename, "%s.ys%d", romFile->getBasename(), stateNum);
+        sprintf(statename, "%s.ys%d", romFile->getBasename(), stateNum);
     unlink(statename);
 }
 
@@ -1167,9 +1184,9 @@ bool Gameboy::checkStateExists(int stateNum) {
     char statename[256];
 
     if (stateNum == -1)
-        siprintf(statename, "%s.yss", romFile->getBasename());
+        sprintf(statename, "%s.yss", romFile->getBasename());
     else
-        siprintf(statename, "%s.ys%d", romFile->getBasename(), stateNum);
+        sprintf(statename, "%s.ys%d", romFile->getBasename(), stateNum);
     return access(statename, R_OK) == 0;
     /*
     file = fopen(statename, "r");

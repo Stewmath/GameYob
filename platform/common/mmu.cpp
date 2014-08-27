@@ -1,20 +1,21 @@
+#ifdef DS
+#include "libfat_fake.h"
+#endif
+
 #include <stdio.h>
 #include <cstdlib>
-#include "libfat_fake.h"
+#include <string.h>
 #include "mmu.h"
 #include "gameboy.h"
 #include "gbgfx.h"
-#include "gbsnd.h"
+#include "soundengine.h"
 #include "inputhelper.h"
 #include "nifi.h"
-#include "sgb.h"
 #include "console.h"
+#include "menu.h"
 #include "gbs.h"
 #include "timer.h"
 #include "romfile.h"
-#ifdef DS
-#include <nds.h>
-#endif
 
 
 #define refreshVramBank() { \
@@ -1015,6 +1016,7 @@ bool Gameboy::updateHblankDMA()
 // This bypasses libfat's cache to directly write a single sector of the save 
 // file. This reduces lag.
 void Gameboy::writeSaveFileSectors(int startSector, int numSectors) {
+#ifdef DS
     if (saveFileSectors[startSector] == -1) {
         flushFatCache();
         return;
@@ -1024,4 +1026,5 @@ void Gameboy::writeSaveFileSectors(int startSector, int numSectors) {
     CACHE* cache = partition->cache;
 
 	_FAT_disc_writeSectors(cache->disc, saveFileSectors[startSector], numSectors, gameboy->externRam+startSector*512);
+#endif
 }

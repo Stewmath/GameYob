@@ -11,12 +11,12 @@
 #include "gbgfx.h"
 #include "mmu.h"
 #include "gameboy.h"
-#include "sgb.h"
 #include "console.h"
+#include "menu.h"
 #include "filechooser.h"
 #include "inputhelper.h"
 #include "common.h"
-#include "gbsnd.h"
+#include "soundengine.h"
 
 
 #define BACKDROP_COLOUR RGB15(0,0,0)
@@ -91,9 +91,6 @@ bool spritesModified;
 
 // Whether to wait for vblank if emulation is running behind schedule
 int interruptWaitMode=0;
-
-bool windowDisabled = false;
-bool hblankDisabled = false;
 
 int scaleMode;
 int scaleFilter=1;
@@ -421,6 +418,13 @@ void hblankHandler()
     doHBlank(line);
 }
 
+std::vector<void (*)()> vblankTasks;
+
+void doAtVBlank(void (*func)(void)) {
+    vblankTasks.push_back(func);
+}
+
+
 // Triggered on line 235, middle of vblank
 void vcountHandler() {
     // These vram banks may have been allocated to arm7 for scaling stuff.
@@ -438,12 +442,6 @@ void vcountHandler() {
     lineCompleted[0] = true;
 }
 
-
-std::vector<void (*)()> vblankTasks;
-
-void doAtVBlank(void (*func)(void)) {
-    vblankTasks.push_back(func);
-}
 
 bool filterFlip=false;
 void vblankHandler()
@@ -921,7 +919,7 @@ void refreshScaleMode() {
     REG_BG3PD_SUB = BG2PD;
 }
 
-void setGFXMask(int mask) {
+void setSgbMask(int mask) {
     gfxMask = mask;
     printLog("Mask %d\n", gfxMask);
     if (gfxMask == 0) {

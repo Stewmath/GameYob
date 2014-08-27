@@ -90,11 +90,23 @@ class Gameboy {
         void pause();
         void unpause();
         bool isGameboyPaused();
-        int runEmul() ITCM_CODE;
+        int runEmul()
+#ifdef DS
+            ITCM_CODE
+#endif
+            ;
         void initGameboyMode();
         void checkLYC();
-        int updateLCD(int cycles) ITCM_CODE;
-        void updateTimers(int cycles) ITCM_CODE;
+        int updateLCD(int cycles)
+#ifdef DS
+            ITCM_CODE
+#endif
+            ;
+        void updateTimers(int cycles)
+#ifdef DS
+            ITCM_CODE
+#endif
+            ;
         void requestInterrupt(int id);
         void setDoubleSpeed(int val);
 
@@ -125,7 +137,11 @@ class Gameboy {
         void enableInterrupts();
         void disableInterrupts();
         int handleInterrupts(unsigned int interruptTriggered);
-        int runOpcode(int cycles) ITCM_CODE;
+        int runOpcode(int cycles)
+#ifdef DS
+            ITCM_CODE
+#endif
+            ;
 
         inline u8 quickRead(u16 addr) { return memory[addr>>12][addr&0xFFF]; }
         inline u8 quickReadIO(u8 addr) { return ioRam[addr]; }
@@ -139,11 +155,23 @@ class Gameboy {
         void initMMU();
         void mapMemory();
 //        u8 readMemory(u16 addr) ITCM_CODE;
-        u8 readMemoryFast(u16 addr) ITCM_CODE;
+        u8 readMemoryFast(u16 addr)
+#ifdef DS
+            ITCM_CODE
+#endif
+            ;
         u16 readMemory16(u16 addr);
-        u8 readIO(u8 ioReg) ITCM_CODE;
+        u8 readIO(u8 ioReg)
+#ifdef DS
+            ITCM_CODE
+#endif
+            ;
 //        void writeMemory(u16 addr, u8 val) ITCM_CODE;
-        void writeIO(u8 ioReg, u8 val) ITCM_CODE;
+        void writeIO(u8 ioReg, u8 val)
+#ifdef DS
+            ITCM_CODE
+#endif
+            ;
         void refreshP1();
         u8 readMemoryOther(u16 addr);
         void writeMemoryOther(u16 addr, u8 val);
@@ -250,8 +278,17 @@ inline void writeMemory(u16 addr, u8 val)
         u8* hram;
         u8* ioRam;
 
-        u8 bgPaletteData[0x40] ALIGN(4);
-        u8 sprPaletteData[0x40] ALIGN(4);
+        u8 bgPaletteData[0x40]
+#ifdef DS
+        ALIGN(4)
+#endif
+    ;
+
+        u8 sprPaletteData[0x40]
+#ifdef DS
+        ALIGN(4)
+#endif
+    ;
 
 
         int wramBank;

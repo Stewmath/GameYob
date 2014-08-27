@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include "mmu.h"
 #include "gbgfx.h"
-#include "gbsnd.h"
+#include "soundengine.h"
 #include "gameboy.h"
 #include "main.h"
 #ifdef DS
@@ -151,7 +151,11 @@ int Gameboy::handleInterrupts(unsigned int interruptTriggered)
     return 20;
 }
 
-const u8 reg8Offsets[] DTCM_DATA = {
+const u8 reg8Offsets[]
+#ifdef DS
+DTCM_DATA
+#endif
+= {
     offsetof(struct Registers, bc.b.h),
     offsetof(struct Registers, bc.b.l),
     offsetof(struct Registers, de.b.h),
@@ -178,12 +182,30 @@ const u8 reg8Offsets[] DTCM_DATA = {
                     totalCycles -= 4; \
                 }
 
-struct Registers g_gbRegs DTCM_BSS;
+struct Registers g_gbRegs
+#ifdef DS
+DTCM_BSS
+#endif
+;
 
-int cyclesToExecute DTCM_BSS;
+int cyclesToExecute
+#ifdef DS
+DTCM_BSS
+#endif
+;
 
-u8* haltBugAddr DTCM_BSS = NULL;
-u8* firstPcAddr DTCM_BSS;
+u8* haltBugAddr
+#ifdef DS
+DTCM_BSS
+#endif
+= NULL;
+
+u8* firstPcAddr
+#ifdef DS
+DTCM_BSS
+#endif
+;
+
 int Gameboy::runOpcode(int cycles) {
     cyclesToExecute = cycles;
     // Having these commonly-used registers in local variables should improve speed

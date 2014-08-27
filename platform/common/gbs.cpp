@@ -1,13 +1,14 @@
 // GBS files contain music ripped from a game.
-#include <nds.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include "gbs.h"
-#include "common.h"
 #include "inputhelper.h"
-#include "mmu.h"
 #include "gameboy.h"
 #include "main.h"
-#include "gbsnd.h"
+#include "soundengine.h"
 #include "console.h"
+#include "menu.h"
 #include "romfile.h"
 
 #define READ16(src) (*(src) | *(src+1)<<8)
@@ -33,24 +34,24 @@ void gbsRedraw() {
     
     PrintConsole* oldPrintConsole = getPrintConsole();
     setPrintConsole(gbsConsole);
-    iprintf("\33[0;0H"); // Cursor to upper-left corner
+    printf("\33[0;0H"); // Cursor to upper-left corner
 
-    iprintf("Song %d of %d\33[0K\n", gbsSelectedSong+1, gbsNumSongs);
+    printf("Song %d of %d\33[0K\n", gbsSelectedSong+1, gbsNumSongs);
     if (gbsPlayingSong == -1)
-        iprintf("(Not playing)\33[0K\n\n");
+        printf("(Not playing)\33[0K\n\n");
     else
-        iprintf("(Playing %d)\33[0K\n\n", gbsPlayingSong+1);
+        printf("(Playing %d)\33[0K\n\n", gbsPlayingSong+1);
 
     // Print music information
     for (int i=0; i<3; i++) {
         for (int j=0; j<32; j++) {
             char c = gbsHeader[0x10+i*0x20+j];
             if (c == 0)
-                iprintf(" ");
+                printf(" ");
             else
-                iprintf("%c", c);
+                printf("%c", c);
         }
-        iprintf("\n");
+        printf("\n");
     }
     setPrintConsole(oldPrintConsole);
 }
@@ -111,10 +112,12 @@ void gbsInit() {
         gbsConsole = (PrintConsole*)malloc(sizeof(PrintConsole));
         memcpy(gbsConsole, &defaultConsole, sizeof(PrintConsole));
     }
+#ifdef DS
     videoSetMode(MODE_0_2D);
     consoleInit(gbsConsole, gbsConsole->bgLayer, BgType_Text4bpp, BgSize_T_256x256, gbsConsole->mapBase, gbsConsole->gfxBase, true, true);
     setPrintConsole(gbsConsole);
     videoBgEnable(0);
+#endif
 
     u8 firstSong=   gbsHeader[0x05]-1;
 

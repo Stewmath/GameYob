@@ -1,3 +1,7 @@
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include "main.h"
 #include "romfile.h"
 #include "gbs.h"
 #include "console.h"
@@ -13,21 +17,28 @@
 */
 
 
+#ifdef DS
 extern bool __dsimode;
+#endif
 
 RomFile::RomFile(const char* f) {
 
     romFile=NULL;
+#ifdef DS
     if (__dsimode)
         maxLoadedRomBanks = 512; // 8 megabytes
     else
         maxLoadedRomBanks = 128; // 2 megabytes
+#else
+    maxLoadedRomBanks = 512;
+#endif
+
     romBankSlots = (u8*)malloc(maxLoadedRomBanks*0x4000);
 
     strcpy(filename, f);
 
     // Check if this is a GBS file
-    gbsMode = (strcmpi(strrchr(filename, '.'), ".gbs") == 0);
+    gbsMode = (strcasecmp(strrchr(filename, '.'), ".gbs") == 0);
 
     romFile = fopen(filename, "rb");
     if (romFile == NULL)
@@ -41,6 +52,7 @@ RomFile::RomFile(const char* f) {
         gbsReadHeader();
         fseek(romFile, 0, SEEK_END);
         numRomBanks = (ftell(romFile)-0x70+0x3fff)/0x4000; // Get number of banks, rounded up
+        printf("%.2x\n", numRomBanks);
     }
     else {
         fseek(romFile, 0, SEEK_END);

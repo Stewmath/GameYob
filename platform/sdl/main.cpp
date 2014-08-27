@@ -1,13 +1,14 @@
 #include <SDL/SDL.h>
 #include <stdio.h>
 #include "global.h"
-#include "GBGFX.h"
-#include "GBSND.h"
-#include "GBCPU.h"
-#include "InputHelper.h"
-#include "Gameboy.h"
-#include "Timer.h"
-#include "MMU.h"
+#include "gbgfx.h"
+#include "soundengine.h"
+#include "inputhelper.h"
+#include "gameboy.h"
+#include "console.h"
+#include "gbs.h"
+#include "romfile.h"
+#include "menu.h"
 
 //#ifndef WX_PRECOMP
 //#include "wx-2.8/wx/wx.h"
@@ -15,8 +16,20 @@
 
 //int _main();
 
+time_t rawTime;
+
+extern int scale;
+
 extern int quit;
 SDL_Surface* screen;
+
+Gameboy* gameboy;
+RomFile* romFile = NULL;
+
+
+int main(int argc, char* argv[]);
+void updateVBlank();
+
 
 int main(int argc, char* argv[])//(int argc, char* argv[])
 {
@@ -38,38 +51,32 @@ int main(int argc, char* argv[])//(int argc, char* argv[])
 
 	SDL_FillRect(screen, NULL, SDL_MapRGB(screen->format, 255, 255, 255));
 
-	SDL_WM_SetCaption("Gameboy Emulator", NULL);
+	SDL_WM_SetCaption("GameYob", NULL);
+
+    gameboy = new Gameboy();
 
 	initInput();
-	loadProgram(argv[1]);
 
-	FILE* file;
-	file = fopen("gbc_bios.bin", "rb");
-	//file = fopen("DMG_ROM.bin", "rb");
-	fread(bios, 1, 0x900, file);
-	Timer* fpsTimer = (Timer*)malloc(sizeof(Timer));
+    setMenuDefaults();
+    readConfigFile();
 
-	loadSave();
-    initMMU();
-	initCPU();
-	initLCD();
-	initGFX();
-	initSND();
-	startTimer(fpsTimer);
+    if (argc >= 2) {
+        char* filename = argv[1];
+        romFile = new RomFile(filename);
+        gameboy->setRomFile(romFile);
+    }
+    else {
+        printf("Give me a gameboy rom pls\n");
+        return 1;
+    }
+
+    gameboy->init();
+
 	for (;;)
 	{
-		runEmul();
-		//printf("%d\n", val);
-		if (handleEvents() == 1 || quit)		// Input mostly
-		{
-			break;
-		}
-		if (getTimerTicks(fpsTimer) >= 1000)
-		{
-			//fprintf(stdout, "FPS: %d\n", fps);
-			fps = 0;
-			startTimer(fpsTimer);
-		}
+        if (!gameboy->isGameboyPaused())
+            gameboy->runEmul();
+        updateVBlank();
 	}
 
 	//fclose(logFile);
@@ -77,8 +84,24 @@ int main(int argc, char* argv[])//(int argc, char* argv[])
 	return 0;
 }
 
-void printLog(const char *format, ...) {
-    va_list args;
-    va_start(args, format);
-    vprintf(format, args);
+void updateVBlank() {
+    readKeys();
+    if (isMenuOn())
+        updateMenu();
+    else {
+        gameboy->gameboyCheckInput();
+        if (gbsMode)
+            gbsCheckInput();
+    }
+
+    if (gbsMode) {
+        drawScreen(); // Just because it syncs with vblank...
+    }
+    else {
+        drawScreen();
+    }
+}
+
+void selectRom() {
+
 }

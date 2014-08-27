@@ -1,12 +1,14 @@
 #include "Sync_Audio.h"
 #include "Blip_Buffer.h"
 #include "SDL.h"
-#include "MMU.h"
-#include "Timer.h"
 #include "soundengine.h"
 #include "gameboy.h"
 #include <math.h>
 #include <time.h>
+
+#define BUFFERSIZE 2048
+#define FREQUENCY 44100
+
 
 u16 lfsr=0xffff;
 int noiseVal;
@@ -44,14 +46,27 @@ float updateBufferLimit;
 int updateBufferCount;
 int panic;
 
-Timer* soundTimer;
-
 Sync_Audio audio;
 Blip_Buffer buf;
 Blip_Synth<blip_low_quality,20> synth;
 
-void initSND()
+
+void handleSDLCallback(void* userdata, Uint8* buffer, int len);
+
+SoundEngine::SoundEngine(Gameboy* g)
 {
+    setGameboy(g);
+}
+
+SoundEngine::~SoundEngine() {
+
+}
+
+void SoundEngine::setGameboy(Gameboy* g) {
+    gameboy = g;
+}
+
+void SoundEngine::init() {
 	audio.stop();
 	SDL_AudioSpec as;
 	as.freq = FREQUENCY;
@@ -87,15 +102,23 @@ void initSND()
 	srand(time(NULL));
 }
 
-void updateSoundSample() {
+void SoundEngine::refresh() {
+
 }
 
+void SoundEngine::mute() {
+
+}
+
+void SoundEngine::unmute() {
+
+}
+
+
 int timePassed = 0;
-void updateSound(int cycles)
+void SoundEngine::updateSound(int cycles)
 {
-	if (turbo)
-		cycles /= 4;
-	if (doubleSpeed)
+	if (gameboy->doubleSpeed)
 		cycles /= 2;
 	timePassed += cycles;
 //	chanOn[0] = 0;
@@ -119,7 +142,7 @@ void updateSound(int cycles)
 			if (chanFreq[0] > 0x7FF)
 			{
 				chanOn[0] = 0;
-				clearChan1();
+				gameboy->clearSoundChannel(CHAN_1);
 			}
 		}
 	}
@@ -186,9 +209,9 @@ void updateSound(int cycles)
 				{
 					chanOn[i] = 0;
 					if (i==0)
-						clearChan1();
+						gameboy->clearSoundChannel(CHAN_1);
 					else
-						clearChan2();
+						gameboy->clearSoundChannel(CHAN_2);
 				}
 			}
 		}
@@ -201,7 +224,7 @@ void updateSound(int cycles)
 		static double analog[] = { -1, -0.8667, -0.7334, -0.6, -0.4668, -0.3335, -0.2, -0.067, 0.0664, 0.2, 0.333, 0.4668, 0.6, 0.7334, 0.8667, 1  } ;
 		if (chanVol[2] >= 0)
 		{
-			int wavTone = ioRam[0x30+(chan3WavPos/2)];
+			int wavTone = gameboy->ioRam[0x30+(chan3WavPos/2)];
 			wavTone = chan3WavPos%2? wavTone&0xF : wavTone>>4;
 			if (chanToOut1[2])
 				tone1 += (analog[wavTone])*(0xF >> chanVol[2]);
@@ -227,7 +250,7 @@ void updateSound(int cycles)
 			{
 				chanOn[2] = 0;
 				chanPolarityCounter[2] = 0;
-				clearChan3();
+				gameboy->clearSoundChannel(CHAN_3);
 			}
 		}
 	}
@@ -276,7 +299,7 @@ void updateSound(int cycles)
 			if (chanLenCounter[3] <= 0)
 			{
 				chanOn[3] = 0;
-				clearChan4();
+				gameboy->clearSoundChannel(CHAN_4);
 			}
 		}
 	}
@@ -302,13 +325,28 @@ void updateSound(int cycles)
 	}
 }
 
-void handleSoundRegister(u16 addr, u8 val)
+
+void SoundEngine::setSoundEventCycles(int cycles) {
+    if (cyclesToSoundEvent > cycles) {
+        cyclesToSoundEvent = cycles;
+    }
+}
+
+void SoundEngine::soundUpdateVBlank() {
+
+}
+
+void SoundEngine::updateSoundSample() {
+}
+
+
+void SoundEngine::handleSoundRegister(u8 ioReg, u8 val)
 {
-	switch (addr)
+	switch (ioReg)
 	{
 		// CHANNEL 1
 		// Sweep
-		case 0xFF10:
+		case 0x10:
 			//if (val&7 != 0)
 			//	printf("sweep\n");
 			chan1SweepTime = (val>>4)&0x7;
@@ -318,95 +356,87 @@ void handleSoundRegister(u16 addr, u8 val)
 			chan1SweepAmount = (val&0x7);
 			break;
 		// Length / Duty
-		case 0xFF11:
+		case 0x11:
 			chanLen[0] = val&0x3F;
 			chanLenCounter[0] = (64-chanLen[0])*clockSpeed/256;
 			chanDuty[0] = val>>6;
-			ioRam[addr&0xFF] = val;
 			break;
 		// Envelope
-		case 0xFF12:
+		case 0x12:
 			chanVol[0] = val>>4;
 			if (val & 0x8)
 				chanEnvDir[0] = 1;
 			else
 				chanEnvDir[0] = -1;
 			chanEnvSweep[0] = val&0x7;
-			ioRam[addr&0xFF] = val;
 			break;
 		// Frequency (low)
-		case 0xFF13:
+		case 0x13:
 			chanFreq[0] &= 0x700;
 			chanFreq[0] |= val;
-			ioRam[addr&0xFF] = val;
 			break;
 		// Frequency (high)
-		case 0xFF14:
+		case 0x14:
 			chanFreq[0] &= 0xFF;
 			chanFreq[0] |= (val&0x7)<<8;
 			if (val & 0x80)
 			{
 				chanLenCounter[0] = (64-chanLen[0])*clockSpeed/256;
 				chanOn[0] = 1;
-				chanVol[0] = ioRam[0x12]>>4;
+				chanVol[0] = gameboy->ioRam[0x12]>>4;
 				if (chan1SweepTime != 0)
 					chan1SweepCounter = clockSpeed/(128/chan1SweepTime);
-				setChan1();
+				gameboy->setSoundChannel(CHAN_1);
 			}
 			if (val & 0x40)
 				chanUseLen[0] = 1;
 			else
 				chanUseLen[0] = 0;
-			ioRam[addr&0xFF] = val;
 			break;
 		// CHANNEL 2
 		// Length / Duty
-		case 0xFF16:
+		case 0x16:
 			chanLen[1] = val&0x3F;
 			chanLenCounter[1] = (64-chanLen[1])*clockSpeed/256;
 			chanDuty[1] = val>>6;
-			ioRam[addr&0xFF] = val;
 			break;
 		// Envelope
-		case 0xFF17:
+		case 0x17:
 			chanVol[1] = val>>4;
 			if (val & 0x8)
 				chanEnvDir[1] = 1;
 			else
 				chanEnvDir[1] = -1;
 			chanEnvSweep[1] = val&0x7;
-			ioRam[addr&0xFF] = val;
 			break;
 		// Frequency (low)
-		case 0xFF18:
+		case 0x18:
 			chanFreq[1] &= 0x700;
 			chanFreq[1] |= val;
-			ioRam[addr&0xFF] = val;
 			break;
 		// Frequency (high)
-		case 0xFF19:
+		case 0x19:
 			chanFreq[1] &= 0xFF;
 			chanFreq[1] |= (val&0x7)<<8;
 			if (val & 0x80)
 			{
 				chanLenCounter[1] = (64-chanLen[1])*clockSpeed/256;
 				chanOn[1] = 1;
-				chanVol[1] = ioRam[0x17]>>4;
-				setChan2();
+				chanVol[1] = gameboy->ioRam[0x17]>>4;
+				gameboy->setSoundChannel(CHAN_2);
 			}
 			if (val & 0x40)
 				chanUseLen[1] = 1;
 			else
 				chanUseLen[1] = 0;
-			ioRam[addr&0xFF] = val;
 			break;
 		// CHANNEL 3
 		// On/Off
-		case 0xFF1A:
+		case 0x1A:
 			if ((val & 0x80) == 0)
 			{
 				chanOn[2] = 0;
-				clearChan3();
+				gameboy->clearSoundChannel(CHAN_3);
 				//buf.clear();
 				//printf("chan3off\n");
 			}
@@ -415,41 +445,36 @@ void handleSoundRegister(u16 addr, u8 val)
 				//chanOn[2] = 1;
 				//printf("chan3on?\n");
 			}
-			ioRam[addr&0xFF] = val;
 			break;
 		// Length
-		case 0xFF1B:
+		case 0x1B:
 			chanLen[2] = val;
-			ioRam[addr&0xFF] = val;
 			break;
 		// Volume
-		case 0xFF1C:
+		case 0x1C:
 			{
 				chanVol[2] = (val>>5)&3;
 				chanVol[2]--;
 				if (chanVol[2] < 0)
 					chanPolarityCounter[2] = 0;
-				ioRam[addr&0xFF] = val;
 				break;
 			}
 		// Frequency (low)
-		case 0xFF1D:
+		case 0x1D:
 			chanFreq[2] &= 0xFF00;
 			chanFreq[2] |= val;
-			ioRam[addr&0xFF] = val;
-			ioRam[addr&0xFF] = val;
 			break;
 		// Frequency (high)
-		case 0xFF1E:
+		case 0x1E:
 			chanFreq[2] &= 0xFF;
 			chanFreq[2] |= (val&7)<<8;
-			if ((val & 0x80) && (ioRam[0x1A] & 0x80))
+			if ((val & 0x80) && (gameboy->ioRam[0x1A] & 0x80))
 			{
 				//buf.clear();
 				chanOn[2] = 1;
 				chanLenCounter[2] = (256-chanLen[2])*clockSpeed/256;
 				chanPolarityCounter[2] = clockSpeed/(65536/(2048-chanFreq[2])*32);
-				setChan3();
+				gameboy->setSoundChannel(CHAN_3);
 			}
 			if (val & 0x40)
 			{
@@ -460,53 +485,47 @@ void handleSoundRegister(u16 addr, u8 val)
 			{
 				chanUseLen[2] = 0;
 			}
-			ioRam[addr&0xFF] = val;
 			break;
 		// CHANNEL 4
 		// Length
-		case 0xFF20:
+		case 0x20:
 			chanLen[3] = val&0x1F;
-			ioRam[addr&0xFF] = val;
 			break;
 		// Volume
-		case 0xFF21:
+		case 0x21:
 			chanVol[3] = val>>4;
 			if (val & 0x8)
 				chanEnvDir[3] = 1;
 			else
 				chanEnvDir[3] = -1;
 			chanEnvSweep[3] = val&0x7;
-			ioRam[addr&0xFF] = val;
 			break;
 		// Frequency
-		case 0xFF22:
+		case 0x22:
 			chanFreq[3] = val>>4;
 			chan4FreqRatio = val&0x7;
 			if (chan4FreqRatio == 0)
 				chan4FreqRatio = 0.5;
 			chan4Width = !!(val&0x8);
-			ioRam[addr&0xFF] = val;
 			break;
 		// Start
-		case 0xFF23:
+		case 0x23:
 			if (val&0x80)
 			{
 				chanLenCounter[3] = (64-chanLen[3])*clockSpeed/256;
-				chanVol[3] = ioRam[0x21]>>4;
+				chanVol[3] = gameboy->ioRam[0x21]>>4;
 				chanOn[3] = 1;
                 lfsr = 0x7fff;
                 chanPolarityCounter[3] = 0;
 			}
 			chanUseLen[3] = !!(val&0x40);
-			ioRam[addr&0xFF] = val;
 			break;
-		case 0xFF24:
+		case 0x24:
 			//printf("Access volume\n");
 			SO1Vol = val&0x7;
 			SO2Vol = (val>>4)&0x7;
-			ioRam[0x24] = val;
 			break;
-		case 0xFF25:
+		case 0x25:
 			chanToOut1[0] = !!(val&0x1);
 			chanToOut1[1] = !!(val&0x2);
 			chanToOut1[2] = !!(val&0x4);
@@ -515,21 +534,18 @@ void handleSoundRegister(u16 addr, u8 val)
 			chanToOut2[1] = !!(val&0x20);
 			chanToOut2[2] = !!(val&0x40);
 			chanToOut2[3] = !!(val&0x80);
-			ioRam[0x25] = val;
 			break;
-		case 0xFF26:
-			ioRam[0x26] &= 0x7F;
-			ioRam[0x26] |= val&0x80;
+		case 0x26:
 			if (!(val&0x80))
 			{
 				chanOn[0] = 0;
 				chanOn[1] = 0;
 				chanOn[2] = 0;
 				chanOn[3] = 0;
-				clearChan1();
-				clearChan2();
-				clearChan3();
-				clearChan4();
+				gameboy->clearSoundChannel(CHAN_1);
+				gameboy->clearSoundChannel(CHAN_2);
+				gameboy->clearSoundChannel(CHAN_3);
+				gameboy->clearSoundChannel(CHAN_4);
 			}
 			break;
 		default:
@@ -551,4 +567,19 @@ void handleSDLCallback(void* userdata, Uint8* buffer, int len)
 	bufferPosition = 0;
 	for (i=0; i<BUFFERSIZE; i++)
 		playbackBuffer[i] = 0;
+}
+
+// Global functions
+
+void muteSND() {
+
+}
+void unmuteSND() {
+
+}
+void enableChannel(int i) {
+
+}
+void disableChannel(int i) {
+
 }

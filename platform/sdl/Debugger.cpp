@@ -2,13 +2,13 @@
 #include <iostream>
 #include <string.h>
 #include <sstream>
-#include "GBCPU.h"
-#include "MMU.h"
+#include "gameboy.h"
 
 using namespace std;
 
 //int debugMode=0;
 
+/*
 void printOp(int opcode)
 {
 	gbPC--;
@@ -87,14 +87,14 @@ void parseCommand()
 			stream >> hex >> readWatchAddr;
 			printf("Watching %d:%x\n", bankWatchAddr, readWatchAddr);
 		}
-		/*else if (word.compare("p") == 0)
+		else if (word.compare("p") == 0)
 		{
 			stream >> word;
 			if (word.compare("banks") == 0)
 				printf("ROM: %d\tRAM: %d\n", currentRomBank, currentRamBank);
 			else
 				printf("af: %x\tbc: %x\nde: %x\thl: %x\n", af.w, bc.w, de.w, hl.w);
-		}*/
+		}
 	}
 }
 
@@ -109,3 +109,4 @@ void saveLog()
 	fclose(logFile);
 	logFile = fopen("LOG", "a");
 }
+*/

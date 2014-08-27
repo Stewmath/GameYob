@@ -1,58 +1,31 @@
 #pragma once
 #include <stdarg.h>
 #include <stdio.h>
+
+#ifdef DS
+
 #include <nds.h>
 
-extern bool consoleInitialized;
-extern bool consoleDebugOutput;
-extern int gbcModeOption;
-extern bool gbaModeOption;
-extern int sgbModeOption;
-extern int biosEnabled;
-extern bool soundDisabled;
-extern bool hyperSound;
-extern bool customBordersEnabled;
-extern bool sgbBordersEnabled;
-extern bool autoSavingEnabled;
-extern bool printerEnabled;
-extern int stateNum;
+#else
+
+struct PrintConsole {
+
+};
+
+#endif
+
 extern PrintConsole* menuConsole;
-
-extern bool fpsOutput;
-extern bool timeOutput;
-
-extern int rumbleStrength;
 
 extern volatile int consoleSelectedRow; // This line is given a different backdrop
 
 
-void setMenuDefaults();
-
-void displayMenu();
-void closeMenu(); // updateScreens may need to be called after this
-bool isMenuOn();
 bool isConsoleOn(); // Returns true if the sub-screen's console is set up.
 
-void redrawMenu();
-void updateMenu();
-void printMenuMessage(const char* s);
-
-void displaySubMenu(void (*updateFunc)());
-void closeSubMenu();
-
-int getMenuOption(const char* name);
-void setMenuOption(const char* name, int value);
-void enableMenuOption(const char* name);
-void disableMenuOption(const char* name);
-
-void menuParseConfig(const char* line);
-void menuPrintConfig(FILE* file);
+void clearConsole();
+PrintConsole* getDefaultConsole();
 
 void updateScreens(bool waitToFinish=false);
 
-
-void setPrintConsole(PrintConsole* console);
-PrintConsole* getPrintConsole();
 
 void consoleSetPosColor(int x, int y, int color);
 void consoleSetLineColor(int line, int color);
@@ -61,8 +34,12 @@ void printLog(const char* format, ...);
 
 int checkRumble();
 
+
 void disableSleepMode();
 void enableSleepMode();
+
+void setPrintConsole(PrintConsole* console);
+PrintConsole* getPrintConsole();
 
 
 enum {

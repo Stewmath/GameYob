@@ -33,7 +33,8 @@ CFLAGS	:=	-Wall -Wno-psabi -DNO_VIZ\
 			#-O3 -fpeel-loops -fno-pic -finline -fearly-inlining \
 
 CFLAGS	+=	$(INCLUDE) -DARM9 -DDS
-CXXFLAGS	:=	$(CFLAGS) -fno-rtti -fno-exceptions
+CXXFLAGS	:=	$(CFLAGS) -fno-rtti -fno-exceptions \
+			-include "typedefs.h"
 
 ASFLAGS	:=	$(ARCH) -march=armv5te -mtune=arm946e-s $(CFLAGS)
 

@@ -1,4 +1,5 @@
-#include "sgb.h"
+#include <stdlib.h>
+#include <string.h>
 #include "gameboy.h"
 #include "console.h"
 #include "mmu.h"
@@ -36,9 +37,11 @@ void Gameboy::doVramTransfer(u8* dest) {
 }
 
 void Gameboy::setBackdrop(u16 val) {
+#ifdef DS
     if (loadedBorderType == BORDER_SGB)
         BG_PALETTE[0] = val;
     BG_PALETTE[15*16+1] = val; // "off map" palette, for when the screen is disabled
+#endif
     for (int i=0; i<4; i++) {
         bgPaletteData[i*8] = val&0xff;
         bgPaletteData[i*8+1] = val>>8;
@@ -281,7 +284,7 @@ void Gameboy::sgbPalSet(int block) {
         sgbLoadAttrFile(sgbPacket[9]&0x3f);
     }
     if (sgbPacket[9]&0x40)
-        setGFXMask(0);
+        setSgbMask(0);
 }
 void Gameboy::sgbPalTrn(int block) {
     doVramTransfer(sgbPalettes);
@@ -320,11 +323,11 @@ void Gameboy::sgbAttrTrn(int block) {
 void Gameboy::sgbAttrSet(int block) {
     sgbLoadAttrFile(sgbPacket[1]&0x3f);
     if (sgbPacket[1]&0x40)
-        setGFXMask(0);
+        setSgbMask(0);
 }
 
 void Gameboy::sgbMask(int block) {
-    setGFXMask(sgbPacket[1]&3);
+    setSgbMask(sgbPacket[1]&3);
 }
 
 void (Gameboy::*sgbCommands[])(int) = {

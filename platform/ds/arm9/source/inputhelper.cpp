@@ -1,5 +1,7 @@
 #include <nds.h>
 #include <fat.h>
+#include "libfat_fake.h"
+#include "common.h"
 
 #include <vector>
 #include <stdio.h>
@@ -8,19 +10,16 @@
 #include <dirent.h>
 #include <unistd.h>
 
-#include "libfat_fake.h"
 #include "inputhelper.h"
-#include "mmu.h"
 #include "gameboy.h"
 #include "main.h"
 #include "console.h"
+#include "menu.h"
 #include "nifi.h"
 #include "gbgfx.h"
-#include "gbsnd.h"
+#include "soundengine.h"
 #include "cheats.h"
-#include "sgb.h"
 #include "gbs.h"
-#include "common.h"
 #include "filechooser.h"
 #include "romfile.h"
 
@@ -111,20 +110,20 @@ void controlsParseConfig(const char* line2) {
     if ((equalsPos = strrchr(line, '=')) != 0 && equalsPos != line+strlen(line)-1) {
         *equalsPos = '\0';
 
-        if (strcmpi(line, "config") == 0) {
+        if (strcasecmp(line, "config") == 0) {
             selectedKeyConfig = atoi(equalsPos+1);
         }
         else {
             int dsKey = -1;
             for (int i=0; i<12; i++) {
-                if (strcmpi(line, dsKeyNames[i]) == 0) {
+                if (strcasecmp(line, dsKeyNames[i]) == 0) {
                     dsKey = i;
                     break;
                 }
             }
             int gbKey = -1;
             for (int i=0; i<NUM_GB_KEYS; i++) {
-                if (strcmpi(equalsPos+1, gbKeyNames[i]) == 0) {
+                if (strcasecmp(equalsPos+1, gbKeyNames[i]) == 0) {
                     gbKey = i;
                     break;
                 }
@@ -138,11 +137,11 @@ void controlsParseConfig(const char* line2) {
     }
 }
 void controlsPrintConfig(FILE* file) {
-    fiprintf(file, "config=%d\n", selectedKeyConfig);
+    fprintf(file, "config=%d\n", selectedKeyConfig);
     for (unsigned int i=0; i<keyConfigs.size(); i++) {
-        fiprintf(file, "(%s)\n", keyConfigs[i].name);
+        fprintf(file, "(%s)\n", keyConfigs[i].name);
         for (int j=0; j<12; j++) {
-            fiprintf(file, "%s=%s\n", dsKeyNames[j], gbKeyNames[keyConfigs[i].gbKeys[j]]);
+            fprintf(file, "%s=%s\n", dsKeyNames[j], gbKeyNames[keyConfigs[i].gbKeys[j]]);
         }
     }
 }
@@ -194,7 +193,7 @@ void updateKeyConfigChooser() {
         keyConfigs.push_back(KeyConfig(*config));
         selectedKeyConfig = keyConfigs.size()-1;
         char name[32];
-        siprintf(name, "Custom %d", keyConfigs.size()-1);
+        sprintf(name, "Custom %d", keyConfigs.size()-1);
         strcpy(keyConfigs.back().name, name);
         option = -1;
         redraw = true;
@@ -265,20 +264,20 @@ void generalParseConfig(const char* line) {
         const char* parameter = line;
         const char* value = equalsPos+1;
 
-        if (strcmpi(parameter, "rompath") == 0) {
+        if (strcasecmp(parameter, "rompath") == 0) {
             if (romPath != 0)
                 free(romPath);
             romPath = (char*)malloc(strlen(value)+1);
             strcpy(romPath, value);
             romChooserState.directory = romPath;
         }
-        else if (strcmpi(parameter, "biosfile") == 0) {
+        else if (strcasecmp(parameter, "biosfile") == 0) {
             if (biosPath != 0)
                 free(biosPath);
             biosPath = (char*)malloc(strlen(value)+1);
             strcpy(biosPath, value);
         }
-        else if (strcmpi(parameter, "borderfile") == 0) {
+        else if (strcasecmp(parameter, "borderfile") == 0) {
             if (borderPath != 0)
                 free(borderPath);
             borderPath = (char*)malloc(strlen(value)+1);
@@ -294,17 +293,17 @@ void generalParseConfig(const char* line) {
 
 void generalPrintConfig(FILE* file) {
     if (romPath == 0)
-        fiprintf(file, "rompath=\n");
+        fprintf(file, "rompath=\n");
     else
-        fiprintf(file, "rompath=%s\n", romPath);
+        fprintf(file, "rompath=%s\n", romPath);
     if (biosPath == 0)
-        fiprintf(file, "biosfile=\n");
+        fprintf(file, "biosfile=\n");
     else
-        fiprintf(file, "biosfile=%s\n", biosPath);
+        fprintf(file, "biosfile=%s\n", biosPath);
     if (borderPath == 0)
-        fiprintf(file, "borderfile=\n");
+        fprintf(file, "borderfile=\n");
     else
-        fiprintf(file, "borderfile=%s\n", borderPath);
+        fprintf(file, "borderfile=%s\n", borderPath);
 }
 
 bool readConfigFile() {
@@ -325,13 +324,13 @@ bool readConfigFile() {
             if ((endBrace = strrchr(line, ']')) != 0) {
                 *endBrace = '\0';
                 const char* section = line+1;
-                if (strcmpi(section, "general") == 0) {
+                if (strcasecmp(section, "general") == 0) {
                     configParser = generalParseConfig;
                 }
-                else if (strcmpi(section, "console") == 0) {
+                else if (strcasecmp(section, "console") == 0) {
                     configParser = menuParseConfig;
                 }
-                else if (strcmpi(section, "controls") == 0) {
+                else if (strcasecmp(section, "controls") == 0) {
                     configParser = controlsParseConfig;
                 }
             }
@@ -352,16 +351,16 @@ end:
 
 void writeConfigFile() {
     FILE* file = fopen("/gameyob.ini", "w");
-    fiprintf(file, "[general]\n");
+    fprintf(file, "[general]\n");
     generalPrintConfig(file);
-    fiprintf(file, "[console]\n");
+    fprintf(file, "[console]\n");
     menuPrintConfig(file);
-    fiprintf(file, "[controls]\n");
+    fprintf(file, "[controls]\n");
     controlsPrintConfig(file);
     fclose(file);
 
     char nameBuf[256];
-    siprintf(nameBuf, "%s.cht", gameboy->getRomFile()->getBasename());
+    sprintf(nameBuf, "%s.cht", gameboy->getRomFile()->getBasename());
     gameboy->getCheatEngine()->saveCheats(nameBuf);
 }
 

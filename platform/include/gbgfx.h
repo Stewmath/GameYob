@@ -9,7 +9,9 @@ enum Icons {
     ICON_PRINTER
 };
 
+#ifdef DS
 extern volatile int dsFrameCounter;
+#endif
 
 extern bool probingForBorder;
 
@@ -21,16 +23,16 @@ extern volatile int loadedBorderType;
 extern bool customBorderExists;
 extern bool sgbBorderLoaded;
 
-void doAtVBlank(void (*func)(void));
 
-void drawScanline(int scanline);
-void drawScanline_P2(int scanline);
-void drawScreen();
+void doAtVBlank(void (*func)(void));
 
 void initGFX();
 void refreshGFX();
 void clearGFX();
-void refreshSgbPalette();
+
+void drawScanline(int scanline);
+void drawScanline_P2(int scanline);
+void drawScreen();
 
 void displayIcon(int iconid);
 
@@ -39,7 +41,9 @@ int loadBorder(const char* filename); // Loads the border to vram
 void checkBorder(); // Decides what kind of border to use, invokes loadBorder if necessary
 
 void refreshScaleMode();
-void setGFXMask(int mask);
+
+void refreshSgbPalette();
+void setSgbMask(int mask);
 void setSgbTiles(u8* src, u8 flags);
 void setSgbMap(u8* src);
 

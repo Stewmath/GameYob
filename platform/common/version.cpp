@@ -1,7 +1,12 @@
+#ifdef DS
 #include <nds/arm9/console.h>
+#endif
+
 #include <stdio.h>
 
 void printVersionInfo() {
+#ifdef DS
     consoleClear();
-    iprintf("GameYob %s\n", VERSION_STRING);
+#endif
+    printf("GameYob %s\n", VERSION_STRING);
 }

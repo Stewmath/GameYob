@@ -1,9 +1,9 @@
 #include <string.h>
 #include <algorithm>
-#include <nds.h>
 #include "gameboy.h"
 #include "mmu.h"
 #include "console.h"
+#include "menu.h"
 #include "main.h"
 #include "cheats.h"
 #include "inputhelper.h"
@@ -213,7 +213,7 @@ void CheatEngine::saveCheats(const char* filename) {
         return;
     FILE* file = fopen(filename, "w");
     for (int i=0; i<numCheats; i++) {
-        fiprintf(file, "%s %d%s\n", cheats[i].cheatString, !!(cheats[i].flags & CHEAT_FLAG_ENABLED), cheats[i].name);
+        fprintf(file, "%s %d%s\n", cheats[i].cheatString, !!(cheats[i].flags & CHEAT_FLAG_ENABLED), cheats[i].name);
     }
     fclose(file);
 }
@@ -231,14 +231,16 @@ void redrawCheatMenu() {
     int numPages = (numCheats-1)/cheatsPerPage+1;
 
     int page = cheatMenuSelection/cheatsPerPage;
+#ifdef DS
     consoleClear();
-    iprintf("          Cheat Menu      ");
-    iprintf("%d/%d\n\n", page+1, numPages);
+#endif
+    printf("          Cheat Menu      ");
+    printf("%d/%d\n\n", page+1, numPages);
     for (int i=page*cheatsPerPage; i<numCheats && i < (page+1)*cheatsPerPage; i++) {
         int nameColor = (cheatMenuSelection == i ? CONSOLE_COLOR_LIGHT_YELLOW : CONSOLE_COLOR_WHITE);
         iprintfColored(nameColor, ch->cheats[i].name);
         for (unsigned int j=0; j<25-strlen(ch->cheats[i].name); j++)
-            iprintf(" ");
+            printf(" ");
         if (ch->isCheatEnabled(i)) {
             if (cheatMenuSelection == i) {
                 iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, "* ");
@@ -262,6 +264,7 @@ void redrawCheatMenu() {
 }
 
 void updateCheatMenu() {
+#ifdef DS
     bool redraw=false;
     int numCheats = ch->getNumCheats();
 
@@ -305,6 +308,7 @@ void updateCheatMenu() {
 
     if (redraw)
         doAtVBlank(redrawCheatMenu);
+#endif
 }
 
 bool startCheatMenu() {

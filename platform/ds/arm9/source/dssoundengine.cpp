@@ -13,8 +13,9 @@
 #include "mmu.h"
 #include "console.h"
 #include "gameboy.h"
-#include "gbsnd.h"
+#include "soundengine.h"
 #include "common.h"
+#include "menu.h"
 
 const DutyCycle dutyIndex[4] = {DutyCycle_12, DutyCycle_25, DutyCycle_50, DutyCycle_75};
 

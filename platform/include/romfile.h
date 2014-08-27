@@ -1,5 +1,8 @@
 #pragma once
+#ifdef DS
 #include <nds.h>
+#endif
+
 #include <stdio.h>
 #include <vector>
 

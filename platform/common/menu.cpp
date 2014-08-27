@@ -1,27 +1,28 @@
-#include <nds.h>
+#ifdef DS
+#include "common.h"
+#endif
+
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include "menu.h"
 #include "gbprinter.h"
 #include "console.h"
 #include "inputhelper.h"
 #include "filechooser.h"
-#include "gbsnd.h"
+#include "soundengine.h"
 #include "main.h"
 #include "gameboy.h"
-#include "mmu.h"
 #include "nifi.h"
 #include "cheats.h"
 #include "gbgfx.h"
 #include "gbs.h"
-#include "common.h"
-#include "3in1.h"
 
 
 void printVersionInfo(); // Defined in version.cpp
 
 void subMenuGenericUpdateFunc(); // Private function here
 
-
-const int screenTileWidth = 32;
-const int backlights[] = {PM_BACKLIGHT_TOP, PM_BACKLIGHT_BOTTOM};
 
 bool consoleDebugOutput = false;
 bool menuOn = false;
@@ -31,7 +32,12 @@ int option = -1;
 char printMessage[33];
 int consoleScreen;
 int stateNum=0;
+
+bool windowDisabled;
+bool hblankDisabled;
+
 PrintConsole* menuConsole;
+
 
 int gbcModeOption;
 bool gbaModeOption;
@@ -48,8 +54,6 @@ bool printerEnabled;
 
 // how/when the bios should be used
 int biosEnabled;
-
-volatile int consoleSelectedRow = -1;
 
 void (*subMenuUpdateFunc)();
 
@@ -68,7 +72,7 @@ extern int rumbleInserted;
 
 // Private function used for simple submenus
 void subMenuGenericUpdateFunc() {
-    if (keyJustPressed(KEY_A) || keyJustPressed(KEY_B))
+    if (keyJustPressed(MENU_KEY_A) || keyJustPressed(MENU_KEY_B))
         closeSubMenu();
 }
 
@@ -252,15 +256,19 @@ void hblankEnableFunc(int value) {
 }
 void windowEnableFunc(int value) {
     windowDisabled = !value;
+#ifdef DS
     if (windowDisabled)
         REG_DISPCNT &= ~DISPLAY_WIN0_ON;
     else
         REG_DISPCNT |= DISPLAY_WIN0_ON;
+#endif
 }
 void soundEnableFunc(int value) {
     soundDisabled = !value;
+#ifdef DS
     sharedData->fifosSent++;
     fifoSendValue32(FIFO_USER_01, GBSND_MUTE_COMMAND<<20);
+#endif
 }
 void romInfoFunc(int value) {
     displaySubMenu(subMenuGenericUpdateFunc);
@@ -298,9 +306,11 @@ void setRumbleFunc(int value) {
 
 void hyperSoundFunc(int value) {
     hyperSound = value;
+#ifdef DS
     sharedData->hyperSound = value;
     sharedData->fifosSent++;
     fifoSendValue32(FIFO_USER_01, GBSND_HYPERSOUND_ENABLE_COMMAND<<20 | hyperSound);
+#endif
 }
 
 void setAutoSaveFunc(int value) {
@@ -315,10 +325,6 @@ void setAutoSaveFunc(int value) {
     else
         disableMenuOption("Exit without saving");
     unmuteSND();
-}
-
-void swapFunc(int value) {
-    setMainGb(value+1);
 }
 
 struct MenuOption {
@@ -411,6 +417,7 @@ ConsoleSubMenu menuList[] = {
             {"Channel 4", chan4Func, 2, {"Off","On"}, 1}
         }
     },
+    /*
     {
         "Link",
         3,
@@ -420,6 +427,7 @@ ConsoleSubMenu menuList[] = {
             {"Swap", swapFunc, 2, {"1","2"}, 0}
         }
     }
+    */
 };
 const int numMenus = sizeof(menuList)/sizeof(ConsoleSubMenu);
 
@@ -434,8 +442,10 @@ void setMenuDefaults() {
         }
     }
 
+#ifdef DS
     menuConsole = (PrintConsole*)malloc(sizeof(PrintConsole));
-    memcpy(menuConsole, consoleGetDefault(), sizeof(PrintConsole));
+    memcpy(menuConsole, getDefaultConsole(), sizeof(PrintConsole));
+#endif
 }
 
 void displayMenu() {
@@ -451,22 +461,18 @@ void displayMenu() {
 void closeMenu() {
     menuOn = false;
     setPrintConsole(menuConsole);
-    consoleClear();
+    clearConsole();
     gameboy->unpause();
 }
 
 bool isMenuOn() {
     return menuOn;
 }
-bool isConsoleOn() {
-    return consoleInitialized;
-}
-
 
 void redrawMenu() {
     PrintConsole* oldConsole = getPrintConsole();
     setPrintConsole(menuConsole);
-    consoleClear();
+    clearConsole();
 
     // Top line: submenu
     int pos=0;
@@ -476,10 +482,10 @@ void redrawMenu() {
         iprintfColored(CONSOLE_COLOR_LIGHT_GREEN, "<");
     }
     else
-        iprintf("<");
+        printf("<");
     pos++;
     for (; pos<nameStart; pos++)
-        iprintf(" ");
+        printf(" ");
     if (option == -1) {
         iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, "* ");
         pos += 2;
@@ -494,12 +500,12 @@ void redrawMenu() {
         pos += 2;
     }
     for (; pos < 31; pos++)
-        iprintf(" ");
+        printf(" ");
     if (option == -1)
         iprintfColored(CONSOLE_COLOR_LIGHT_GREEN, ">");
     else
-        iprintf(">");
-    iprintf("\n");
+        printf(">");
+    printf("\n");
 
     // Rest of the lines: options
     for (int i=0; i<menuList[menu].numOptions; i++) {
@@ -513,7 +519,7 @@ void redrawMenu() {
 
         if (menuList[menu].options[i].numValues == 0) {
             for (unsigned int j=0; j<(32-strlen(menuList[menu].options[i].name))/2-2; j++)
-                iprintf(" ");
+                printf(" ");
             if (i == option) {
                 iprintfColored(option_color, "* %s *\n\n", menuList[menu].options[i].name);
             }
@@ -522,7 +528,7 @@ void redrawMenu() {
         }
         else {
             for (unsigned int j=0; j<16-strlen(menuList[menu].options[i].name); j++)
-                iprintf(" ");
+                printf(" ");
             if (i == option) {
                 iprintfColored(option_color, "* ");
                 iprintfColored(option_color, "%s  ", menuList[menu].options[i].name);
@@ -531,11 +537,11 @@ void redrawMenu() {
                 iprintfColored(option_color, " *");
             }
             else {
-                iprintf("  ");
+                printf("  ");
                 iprintfColored(option_color, "%s  ", menuList[menu].options[i].name);
                 iprintfColored(option_color, "%s", menuList[menu].options[i].values[menuList[menu].options[i].selection]);
             }
-            iprintf("\n\n");
+            printf("\n\n");
         }
     }
 
@@ -543,11 +549,11 @@ void redrawMenu() {
     if (printMessage[0] != '\0') {
         int newlines = 23-(menuList[menu].numOptions*2+2)-1;
         for (int i=0; i<newlines; i++)
-            iprintf("\n");
+            printf("\n");
         int spaces = 31-strlen(printMessage);
         for (int i=0; i<spaces; i++)
-            iprintf(" ");
-        iprintf("%s\n", printMessage);
+            printf(" ");
+        printf("%s\n", printMessage);
 
         printMessage[0] = '\0';
     }
@@ -567,19 +573,19 @@ void updateMenu() {
 
     bool redraw = false;
     // Get input
-    if (keyPressedAutoRepeat(KEY_UP)) {
+    if (keyPressedAutoRepeat(MENU_KEY_UP)) {
         option--;
         if (option < -1)
             option = menuList[menu].numOptions-1;
         redraw = true;
     }
-    else if (keyPressedAutoRepeat(KEY_DOWN)) {
+    else if (keyPressedAutoRepeat(MENU_KEY_DOWN)) {
         option++;
         if (option >= menuList[menu].numOptions)
             option = -1;
         redraw = true;
     }
-    else if (keyPressedAutoRepeat(KEY_LEFT)) {
+    else if (keyPressedAutoRepeat(MENU_KEY_LEFT)) {
         if (option == -1) {
             menu--;
             if (menu < 0)
@@ -594,7 +600,7 @@ void updateMenu() {
         }
         redraw = true;
     }
-    else if (keyPressedAutoRepeat(KEY_RIGHT)) {
+    else if (keyPressedAutoRepeat(MENU_KEY_RIGHT)) {
         if (option == -1) {
             menu++;
             if (menu >= numMenus)
@@ -609,19 +615,19 @@ void updateMenu() {
         }
         redraw = true;
     }
-    else if (keyJustPressed(KEY_A)) {
-        forceReleaseKey(KEY_A);
+    else if (keyJustPressed(MENU_KEY_A)) {
+        forceReleaseKey(MENU_KEY_A);
         if (option >= 0 && menuList[menu].options[option].numValues == 0 && menuList[menu].options[option].enabled) {
             menuList[menu].options[option].function(menuList[menu].options[option].selection);
         }
         redraw = true;
     }
-    else if (keyJustPressed(KEY_B)) {
-        forceReleaseKey(KEY_B);
+    else if (keyJustPressed(MENU_KEY_B)) {
+        forceReleaseKey(MENU_KEY_B);
         closeMenu();
         updateScreens();
     }
-    else if (keyJustPressed(KEY_L)) {
+    else if (keyJustPressed(MENU_KEY_L)) {
         menu--;
         if (menu < 0)
             menu = numMenus-1;
@@ -629,7 +635,7 @@ void updateMenu() {
             option = menuList[menu].numOptions-1;
         redraw = true;
     }
-    else if (keyJustPressed(KEY_R)) {
+    else if (keyJustPressed(MENU_KEY_R)) {
         menu++;
         if (menu >= numMenus)
             menu = 0;
@@ -649,17 +655,17 @@ void printMenuMessage(const char* s) {
     strncpy(printMessage, s, 33);
 
     if (hadPreviousMessage) {
-        iprintf("\r");
+        printf("\r");
     }
     else {
         int newlines = 23-(menuList[menu].numOptions*2+2)-1;
         for (int i=0; i<newlines; i++)
-            iprintf("\n");
+            printf("\n");
     }
     int spaces = 31-strlen(printMessage);
     for (int i=0; i<spaces; i++)
-        iprintf(" ");
-    iprintf("%s", printMessage);
+        printf(" ");
+    printf("%s", printMessage);
 }
 
 void displaySubMenu(void (*updateFunc)()) {
@@ -674,7 +680,7 @@ void closeSubMenu() {
 int getMenuOption(const char* optionName) {
     for (int i=0; i<numMenus; i++) {
         for (int j=0; j<menuList[i].numOptions; j++) {
-            if (strcmpi(optionName, menuList[i].options[j].name) == 0) {
+            if (strcasecmp(optionName, menuList[i].options[j].name) == 0) {
                 return menuList[i].options[j].selection;
             }
         }
@@ -684,7 +690,7 @@ int getMenuOption(const char* optionName) {
 void setMenuOption(const char* optionName, int value) {
     for (int i=0; i<numMenus; i++) {
         for (int j=0; j<menuList[i].numOptions; j++) {
-            if (strcmpi(optionName, menuList[i].options[j].name) == 0) {
+            if (strcasecmp(optionName, menuList[i].options[j].name) == 0) {
                 menuList[i].options[j].selection = value;
                 menuList[i].options[j].function(value);
                 return;
@@ -695,7 +701,7 @@ void setMenuOption(const char* optionName, int value) {
 void enableMenuOption(const char* optionName) {
     for (int i=0; i<numMenus; i++) {
         for (int j=0; j<menuList[i].numOptions; j++) {
-            if (strcmpi(optionName, menuList[i].options[j].name) == 0) {
+            if (strcasecmp(optionName, menuList[i].options[j].name) == 0) {
                 menuList[i].options[j].enabled = true;
                 return;
             }
@@ -705,7 +711,7 @@ void enableMenuOption(const char* optionName) {
 void disableMenuOption(const char* optionName) {
     for (int i=0; i<numMenus; i++) {
         for (int j=0; j<menuList[i].numOptions; j++) {
-            if (strcmpi(optionName, menuList[i].options[j].name) == 0) {
+            if (strcasecmp(optionName, menuList[i].options[j].name) == 0) {
                 menuList[i].options[j].enabled = false;
                 return;
             }
@@ -714,7 +720,7 @@ void disableMenuOption(const char* optionName) {
 }
 
 void menuParseConfig(const char* line) {
-    char* equalsPos = strchr(line, '=');
+    char* equalsPos = (char*)strchr(line, '=');
     if (equalsPos == 0)
         return;
     *equalsPos = '\0';
@@ -723,7 +729,7 @@ void menuParseConfig(const char* line) {
     int val = atoi(value);
     for (int i=0; i<numMenus; i++) {
         for (int j=0; j<menuList[i].numOptions; j++) {
-            if (strcmpi(menuList[i].options[j].name, option) == 0 && menuList[i].options[j].numValues != 0) {
+            if (strcasecmp(menuList[i].options[j].name, option) == 0 && menuList[i].options[j].numValues != 0) {
                 menuList[i].options[j].selection = val;
                 menuList[i].options[j].function(val);
                 return;
@@ -736,212 +742,8 @@ void menuPrintConfig(FILE* file) {
     for (int i=0; i<numMenus; i++) {
         for (int j=0; j<menuList[i].numOptions; j++) {
             if (menuList[i].options[j].numValues != 0)
-                fiprintf(file, "%s=%d\n", menuList[i].options[j].name, menuList[i].options[j].selection);
+                fprintf(file, "%s=%d\n", menuList[i].options[j].name, menuList[i].options[j].selection);
         }
     }
 }
 
-void printLog(const char *format, ...) {
-    if (isMenuOn() || sharedData->scalingOn)
-        return;
-    va_list args;
-    va_start(args, format);
-
-    if (consoleDebugOutput)
-        viprintf(format, args);
-}
-
-
-// updateScreens helper functions
-
-void enableConsoleBacklight2() {
-    powerOn(backlights[consoleScreen]);
-}
-void enableConsoleBacklight() {
-    // For some reason, waiting 2 frames helps eliminate a white flash.
-    doAtVBlank(enableConsoleBacklight2);
-}
-
-// 2 frames delay
-void setupScaledScreens2() {
-    REG_DISPCNT &= ~(3<<16); // Disable main display
-    REG_DISPCNT_SUB |= 1<<16; // Enable sub display
-    if (consoleScreen == 0)
-        lcdMainOnTop();
-    else
-        lcdMainOnBottom();
-    powerOn(backlights[!consoleScreen]);
-
-    refreshScaleMode();
-}
-
-// 1 frame delay
-void setupScaledScreens1() {
-    powerOff(backlights[consoleScreen]);
-    REG_DISPCNT_SUB &= ~(3<<16); // Disable sub display (for 1 frame. Gotta hide the ugliness...)
-
-    // By next vblank, the scaled image will be ready.
-    doAtVBlank(setupScaledScreens2);
-}
-
-void setupUnscaledScreens() {
-    int screensToSet[2];
-
-    REG_DISPCNT &= ~(3<<16);
-    REG_DISPCNT |= 1<<16; // Enable main display
-
-    if (!consoleInitialized) {
-        consoleDemoInit(); // Or, consoleInit(menuConsole, ...)
-        setPrintConsole(menuConsole);
-        BG_PALETTE_SUB[8*16 - 1] = RGB15(17,17,17); // Grey (replaces a color established in consoleDemoInit)
-        consoleInitialized = true;
-    }
-    if (consoleScreen == 0)
-        lcdMainOnBottom();
-    else
-        lcdMainOnTop();
-
-    screensToSet[!consoleScreen] = true;
-
-    if (!(fpsOutput || timeOutput || consoleDebugOutput || isMenuOn() || isFileChooserOn())) {
-        screensToSet[consoleScreen] = false;
-        REG_DISPCNT_SUB &= ~(3<<16); // Disable sub display
-    }
-    else {
-        screensToSet[consoleScreen] = true;
-        REG_DISPCNT_SUB &= ~(3<<16);
-        REG_DISPCNT_SUB |= 1<<16; // Enable sub display
-    }
-
-    for (int i=0; i<2; i++) {
-        if (screensToSet[i]) {
-            if (i == consoleScreen)
-                doAtVBlank(enableConsoleBacklight);
-            else
-                powerOn(backlights[i]);
-        }
-        else
-            powerOff(backlights[i]);
-    }
-}
-
-void updateScreens(bool waitToFinish) {
-    if (!gbsMode && !isMenuOn() && !isFileChooserOn() && scaleMode != 0) {
-        // Manage screens with scaling enabled:
-        sharedData->scalingOn = 1;
-
-        // The VRAM used for the console will be overwritten, so...
-        consoleInitialized = false;
-
-
-        doAtVBlank(setupScaledScreens1);
-
-        if (waitToFinish) {
-            swiWaitForVBlank();
-            swiWaitForVBlank();
-        }
-    }
-    else {
-        // Manage screens normally
-        sharedData->scalingOn = 0;
-
-        doAtVBlank(setupUnscaledScreens);
-        if (waitToFinish)
-            swiWaitForVBlank();
-    }
-}
-
-
-// Console helper functions
-
-PrintConsole* printConsole;
-
-void setPrintConsole(PrintConsole* console) {
-    printConsole = console;
-    consoleSelect(console);
-}
-
-PrintConsole* getPrintConsole() {
-    return printConsole;
-}
-
-void consoleSetPosColor(int x, int y, int color) {
-    u16* map = BG_MAP_RAM_SUB(22);
-    map[y*32+x] &= ~TILE_PALETTE(15);
-    map[y*32+x] |= TILE_PALETTE(color);
-}
-
-void consoleSetLineColor(int line, int color) {
-    u16* map = BG_MAP_RAM_SUB(22);
-    for (int i=0; i<32; i++) {
-        map[line*32+i] &= ~TILE_PALETTE(15);
-        map[line*32+i] |= TILE_PALETTE(color);
-    }
-}
-
-void iprintfColored(int palette, const char *format, ...) {
-    va_list args;
-    va_start(args, format);
-
-    PrintConsole* console = getPrintConsole();
-    int x = console->cursorX;
-    int y = console->cursorY;
-
-    char s[100];
-    vsiprintf(s, format, args);
-
-    u16* dest = BG_MAP_RAM_SUB(22)+y*32+x;
-    for (uint i=0; i<strlen(s); i++) {
-        if (s[i] == '\n') {
-            x = 0;
-            y++;
-        }
-        else {
-            *(dest++) = s[i] | TILE_PALETTE(palette);
-            x++;
-            if (x == 32) {
-                x = 0;
-                y++;
-            }
-        }
-    }
-    console->cursorX = x;
-    console->cursorY = y;
-    //iprintf(s);
-}
-
-
-int checkRumble() {
-    if (__dsimode)
-        return 0;
-
-    sysSetCartOwner(BUS_OWNER_ARM9);
-
-    OpenNorWrite();
-    uint32 rumbleID = ReadNorFlashID();
-    CloseNorWrite();
-
-
-    if (isRumbleInserted())
-        return 1; //Warioware / Official rumble found.
-    else if (rumbleID != 0)
-        return 2; //3in1 found
-    else
-        return 0; //No rumble found
-}
-
-// Misc stuff
-
-void disableSleepMode() {
-    if (sharedData->enableSleepMode) {
-        sharedData->enableSleepMode = false;
-        fifoSendValue32(FIFO_PM, PM_REQ_SLEEP_DISABLE);
-    }
-}
-
-void enableSleepMode() {
-    if (!sharedData->enableSleepMode) {
-        sharedData->enableSleepMode = true;
-        fifoSendValue32(FIFO_PM, PM_REQ_SLEEP_ENABLE);
-    }
-}

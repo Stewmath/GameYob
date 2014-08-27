@@ -1,7 +1,6 @@
 #ifdef DS
-#include <nds.h>
+#include "common.h" // ARM7/ARM9 common stuff
 #endif
-#include "common.h"
 
 class Gameboy;
 
@@ -22,13 +21,16 @@ class SoundEngine {
         void mute();
         void unmute();
 
-        // Should be moved out of here
-        void setSoundEventCycles(int cycles);
-        void updateSound(int cycles) ITCM_CODE;
+        void updateSound(int cycles)
+#ifdef DS
+            ITCM_CODE
+#endif
+            ;
 
+        void setSoundEventCycles(int cycles); // Should be moved out of here
         void soundUpdateVBlank();
-        void handleSoundRegister(u8 ioReg, u8 val);
         void updateSoundSample();
+        void handleSoundRegister(u8 ioReg, u8 val);
 
         int cyclesToSoundEvent;
 
@@ -45,6 +47,7 @@ class SoundEngine {
         void updateSoundSample(int byte);
 
 
+#ifdef DS
         double chan4FreqRatio;
         int chan1SweepTime;
         int chan1SweepCounter;
@@ -65,6 +68,7 @@ class SoundEngine {
         bool muted;
 
         volatile SharedData* sharedPtr;
+#endif
 
         Gameboy* gameboy;
 };
