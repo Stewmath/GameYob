@@ -137,8 +137,13 @@ int Gameboy::handleInterrupts(unsigned int interruptTriggered)
 
     ime = 0;
 
+#ifdef SPEEDHAX
     quickWrite(--g_gbRegs.sp.w, g_gbRegs.pc.b.h);
     quickWrite(--g_gbRegs.sp.w, g_gbRegs.pc.b.l);
+#else
+    writeMemory(--g_gbRegs.sp.w, g_gbRegs.pc.b.h);
+    writeMemory(--g_gbRegs.sp.w, g_gbRegs.pc.b.l);
+#endif
 
     /* __builtin_ffs returns the first bit set plus one */
     int irqNo = __builtin_ffs(interruptTriggered) - 1;

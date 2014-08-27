@@ -72,7 +72,7 @@ extern int rumbleInserted;
 
 // Private function used for simple submenus
 void subMenuGenericUpdateFunc() {
-    if (keyJustPressed(MENU_KEY_A) || keyJustPressed(MENU_KEY_B))
+    if (keyJustPressed(mapMenuKey(MENU_KEY_A)) || keyJustPressed(mapMenuKey(MENU_KEY_B)))
         closeSubMenu();
 }
 
@@ -573,19 +573,19 @@ void updateMenu() {
 
     bool redraw = false;
     // Get input
-    if (keyPressedAutoRepeat(MENU_KEY_UP)) {
+    if (keyPressedAutoRepeat(mapMenuKey(MENU_KEY_UP))) {
         option--;
         if (option < -1)
             option = menuList[menu].numOptions-1;
         redraw = true;
     }
-    else if (keyPressedAutoRepeat(MENU_KEY_DOWN)) {
+    else if (keyPressedAutoRepeat(mapMenuKey(MENU_KEY_DOWN))) {
         option++;
         if (option >= menuList[menu].numOptions)
             option = -1;
         redraw = true;
     }
-    else if (keyPressedAutoRepeat(MENU_KEY_LEFT)) {
+    else if (keyPressedAutoRepeat(mapMenuKey(MENU_KEY_LEFT))) {
         if (option == -1) {
             menu--;
             if (menu < 0)
@@ -600,7 +600,7 @@ void updateMenu() {
         }
         redraw = true;
     }
-    else if (keyPressedAutoRepeat(MENU_KEY_RIGHT)) {
+    else if (keyPressedAutoRepeat(mapMenuKey(MENU_KEY_RIGHT))) {
         if (option == -1) {
             menu++;
             if (menu >= numMenus)
@@ -615,19 +615,19 @@ void updateMenu() {
         }
         redraw = true;
     }
-    else if (keyJustPressed(MENU_KEY_A)) {
+    else if (keyJustPressed(mapMenuKey(MENU_KEY_A))) {
         forceReleaseKey(MENU_KEY_A);
         if (option >= 0 && menuList[menu].options[option].numValues == 0 && menuList[menu].options[option].enabled) {
             menuList[menu].options[option].function(menuList[menu].options[option].selection);
         }
         redraw = true;
     }
-    else if (keyJustPressed(MENU_KEY_B)) {
+    else if (keyJustPressed(mapMenuKey(MENU_KEY_B))) {
         forceReleaseKey(MENU_KEY_B);
         closeMenu();
         updateScreens();
     }
-    else if (keyJustPressed(MENU_KEY_L)) {
+    else if (keyJustPressed(mapMenuKey(MENU_KEY_L))) {
         menu--;
         if (menu < 0)
             menu = numMenus-1;
@@ -635,7 +635,7 @@ void updateMenu() {
             option = menuList[menu].numOptions-1;
         redraw = true;
     }
-    else if (keyJustPressed(MENU_KEY_R)) {
+    else if (keyJustPressed(mapMenuKey(MENU_KEY_R))) {
         menu++;
         if (menu >= numMenus)
             menu = 0;

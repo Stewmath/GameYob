@@ -118,6 +118,7 @@ void SoundEngine::unmute() {
 int timePassed = 0;
 void SoundEngine::updateSound(int cycles)
 {
+    setSoundEventCycles(50);
 	if (gameboy->doubleSpeed)
 		cycles /= 2;
 	timePassed += cycles;

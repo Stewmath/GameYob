@@ -228,8 +228,10 @@ int main(int argc, char* argv[])
     for (;;) {
         if (!gb1->isGameboyPaused())
             gb1->runEmul();
+        /*
         if (!gb2->isGameboyPaused())
             gb2->runEmul();
+            */
         updateVBlank();
     }
 

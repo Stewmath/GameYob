@@ -9,7 +9,7 @@ CC = g++
 
 DEBUG = -ggdb
 
-CFLAGS = -Wall -O2 -include "typedefs.h" `sdl-config --cflags` \
+CFLAGS = -Wall -include "typedefs.h" `sdl-config --cflags` \
 		 -DVERSION_STRING=\"`git describe --always --abbrev=4`\" \
 		 -c $(patsubst %,-I%,$(INCLUDE)) $(DEBUG) \
 
@@ -21,7 +21,7 @@ all: $(OBJS)
 	g++ $(OBJS) $(LFLAGS) -o gameyob
 
 clean:
-	\rm *.o ../sdl.a
+	\rm *.o ../common/*.o
 
 depend: $(SOURCES)
 	$(CC) -M $(CFLAGS) $^ > $@

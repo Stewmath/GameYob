@@ -38,14 +38,10 @@ int BGOn = 1;
 int winOn = 0;
 int scale = 3;
 
-int drawVram = 0;
-
 u32 bgPalettes[8][4];
 u32* bgPalettesRef[8][4];
-u8 bgPaletteData[0x40];
 u32 sprPalettes[8][4];
 u32* sprPalettesRef[8][4];
-u8 sprPaletteData[0x40];
 
 int changedTileQueueLength;
 u16 changedTileQueue[0x300];
@@ -73,6 +69,9 @@ Uint32 bgPixelsTrue[256];
 u8 bgPixelsLow[256];
 Uint32 bgPixelsTrueLow[256];
 
+
+bool bgPalettesModified[8];
+bool sprPalettesModified[8];
 
 
 // Private functions
@@ -135,7 +134,9 @@ void initGFX()
 		bgPalettesRef[i][2] = &bgPalettes[i][2];
 		bgPalettesRef[i][3] = &bgPalettes[i][3];
 	}
-	//drawPatternTable();
+
+    memset(bgPalettesModified, 0, sizeof(bgPalettesModified));
+    memset(sprPalettesModified, 0, sizeof(sprPalettesModified));
 }
 
 void refreshGFX() {
@@ -148,6 +149,23 @@ void clearGFX() {
 
 void drawScanline(int scanline)
 {
+    for (int i=0; i<8; i++) {
+        if (bgPalettesModified[i]) {
+            if (gameboy->gbMode == GB)
+                updateBgPaletteDMG();
+            else
+                updateBgPalette(i);
+            bgPalettesModified[i] = false;
+        }
+        if (sprPalettesModified[i]) {
+            if (gameboy->gbMode == GB)
+                updateSprPaletteDMG(i);
+            else
+                updateSprPalette(i);
+            sprPalettesModified[i] = false;
+        }
+    }
+
 	if (gameboy->ioRam[0x40] & 0x10)	// Tile Data location
 	{
 		tileAddr = 0x8000;
@@ -450,29 +468,31 @@ void writeVram16(u16 addr, u16 src) {
 }
 
 void writeHram(u16 addr, u8 val) {
-
+    gameboy->hram[addr&0x1ff] = val;
 }
 
 void handleVideoRegister(u8 ioReg, u8 val) {
     switch(ioReg) {
         case 0x47:
             if (gameboy->gbMode == GB)
-                updateBgPaletteDMG();
+                bgPalettesModified[0] = true;
+            break;
         case 0x48:
             if (gameboy->gbMode == GB)
-                updateSprPaletteDMG(0);
+                sprPalettesModified[0] = true;
             break;
         case 0x49:
             if (gameboy->gbMode == GB)
-                updateSprPaletteDMG(1);
+                sprPalettesModified[1] = true;
             break;
         case 0x69:
             if (gameboy->gbMode == CGB)
-                updateBgPalette(gameboy->ioRam[0x68]/8);
+                bgPalettesModified[(gameboy->ioRam[0x68]/8)&7] = true;
             break;
         case 0x6B:
             if (gameboy->gbMode == CGB)
-                updateSprPalette(gameboy->ioRam[0x6A]/8);
+                sprPalettesModified[(gameboy->ioRam[0x6A]/8)&7] = true;
+            break;
         default:
             break;
     }
@@ -486,10 +506,10 @@ void updateBgPalette(int paletteid)
 		int i;
 		for (i=0; i<4; i++)
 		{
-			int red = (bgPaletteData[(paletteid*8)+(i*2)]&0x1F)*multiplier;
-			int green = (((bgPaletteData[(paletteid*8)+(i*2)]&0xE0) >> 5) |
-					((bgPaletteData[(paletteid*8)+(i*2)+1]) & 0x3) << 3)*multiplier;
-			int blue = ((bgPaletteData[(paletteid*8)+(i*2)+1] >> 2) & 0x1F)*multiplier;
+			int red = (gameboy->bgPaletteData[(paletteid*8)+(i*2)]&0x1F)*multiplier;
+			int green = (((gameboy->bgPaletteData[(paletteid*8)+(i*2)]&0xE0) >> 5) |
+					((gameboy->bgPaletteData[(paletteid*8)+(i*2)+1]) & 0x3) << 3)*multiplier;
+			int blue = ((gameboy->bgPaletteData[(paletteid*8)+(i*2)+1] >> 2) & 0x1F)*multiplier;
 			bgPalettes[paletteid][i] = SDL_MapRGB(format, red, green, blue);
 		}
 	}
@@ -505,7 +525,7 @@ void updateBgPalette(int paletteid)
 
 void updateBgPaletteDMG()
 {
-	int val = gameboy->ioRam[0x47];
+	u8 val = gameboy->ioRam[0x47];
 	u8 palette[] = {val&3, (val>>2)&3, (val>>4)&3, (val>>6)};
 
 	for (int i=0; i<4; i++)
@@ -520,10 +540,10 @@ void updateSprPalette(int paletteid)
 		int i;
 		for (i=0; i<4; i++)
 		{
-			int red = (sprPaletteData[(paletteid*8)+(i*2)]&0x1F)*multiplier;
-			int green = (((sprPaletteData[(paletteid*8)+(i*2)]&0xE0) >> 5) |
-					((sprPaletteData[(paletteid*8)+(i*2)+1]) & 0x3) << 3)*multiplier;
-			int blue = ((sprPaletteData[(paletteid*8)+(i*2)+1] >> 2) & 0x1F)*multiplier;
+			int red = (gameboy->sprPaletteData[(paletteid*8)+(i*2)]&0x1F)*multiplier;
+			int green = (((gameboy->sprPaletteData[(paletteid*8)+(i*2)]&0xE0) >> 5) |
+					((gameboy->sprPaletteData[(paletteid*8)+(i*2)+1]) & 0x3) << 3)*multiplier;
+			int blue = ((gameboy->sprPaletteData[(paletteid*8)+(i*2)+1] >> 2) & 0x1F)*multiplier;
 			sprPalettes[paletteid][i] = SDL_MapRGB(format, red, green, blue);
 		}
 	}

@@ -85,7 +85,8 @@ int main(int argc, char* argv[])//(int argc, char* argv[])
 }
 
 void updateVBlank() {
-    readKeys();
+    inputUpdateVBlank();
+
     if (isMenuOn())
         updateMenu();
     else {
@@ -100,6 +101,7 @@ void updateVBlank() {
     else {
         drawScreen();
     }
+
 }
 
 void selectRom() {

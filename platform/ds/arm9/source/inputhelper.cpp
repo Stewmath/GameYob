@@ -61,17 +61,16 @@ const char* gbKeyNames[] = {"-","A","B","Left","Right","Up","Down","Start","Sele
 const char* dsKeyNames[] = {"A","B","Select","Start","Right","Left","Up","Down",
     "R","L","X","Y"};
 
-const int NUM_GB_KEYS = sizeof(gbKeyNames)/sizeof(char*);
-int keys[NUM_GB_KEYS];
+int keys[NUM_FUNC_KEYS];
 
 struct KeyConfig {
     char name[32];
-    int gbKeys[12];
+    int funcKeys[12];
 };
 KeyConfig defaultKeyConfig = {
     "Main",
-    {KEY_GB_A,KEY_GB_B,KEY_GB_SELECT,KEY_GB_START,KEY_GB_RIGHT,KEY_GB_LEFT,KEY_GB_UP,KEY_GB_DOWN,
-        KEY_MENU,KEY_FAST_FORWARD,KEY_SAVE,KEY_SCALE}
+    {FUNC_KEY_A,FUNC_KEY_B,FUNC_KEY_SELECT,FUNC_KEY_START,FUNC_KEY_RIGHT,FUNC_KEY_LEFT,FUNC_KEY_UP,FUNC_KEY_DOWN,
+        FUNC_KEY_MENU,FUNC_KEY_FAST_FORWARD,FUNC_KEY_SAVE,FUNC_KEY_SCALE}
 };
 
 std::vector<KeyConfig> keyConfigs;
@@ -79,10 +78,10 @@ unsigned int selectedKeyConfig=0;
 
 void loadKeyConfig() {
     KeyConfig* keyConfig = &keyConfigs[selectedKeyConfig];
-    for (int i=0; i<NUM_GB_KEYS; i++)
+    for (int i=0; i<NUM_FUNC_KEYS; i++)
         keys[i] = 0;
     for (int i=0; i<12; i++) {
-        keys[keyConfig->gbKeys[i]] |= BIT(i);
+        keys[keyConfig->funcKeys[i]] |= BIT(i);
     }
 }
 
@@ -102,7 +101,7 @@ void controlsParseConfig(const char* line2) {
             strncpy(config->name, name, 32);
             config->name[31] = '\0';
             for (int i=0; i<12; i++)
-                config->gbKeys[i] = KEY_NONE;
+                config->funcKeys[i] = FUNC_KEY_NONE;
         }
         return;
     }
@@ -122,7 +121,7 @@ void controlsParseConfig(const char* line2) {
                 }
             }
             int gbKey = -1;
-            for (int i=0; i<NUM_GB_KEYS; i++) {
+            for (int i=0; i<NUM_FUNC_KEYS; i++) {
                 if (strcasecmp(equalsPos+1, gbKeyNames[i]) == 0) {
                     gbKey = i;
                     break;
@@ -131,7 +130,7 @@ void controlsParseConfig(const char* line2) {
 
             if (gbKey != -1 && dsKey != -1) {
                 KeyConfig* config = &keyConfigs.back();
-                config->gbKeys[dsKey] = gbKey;
+                config->funcKeys[dsKey] = gbKey;
             }
         }
     }
@@ -141,7 +140,7 @@ void controlsPrintConfig(FILE* file) {
     for (unsigned int i=0; i<keyConfigs.size(); i++) {
         fprintf(file, "(%s)\n", keyConfigs[i].name);
         for (int j=0; j<12; j++) {
-            fprintf(file, "%s=%s\n", dsKeyNames[j], gbKeyNames[keyConfigs[i].gbKeys[j]]);
+            fprintf(file, "%s=%s\n", dsKeyNames[j], gbKeyNames[keyConfigs[i].funcKeys[j]]);
         }
     }
 }
@@ -169,9 +168,9 @@ void redrawKeyConfigChooser() {
             len--;
         }
         if (option == i) 
-            iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, "* %s | %s *\n", dsKeyNames[i], gbKeyNames[config->gbKeys[i]]);
+            iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, "* %s | %s *\n", dsKeyNames[i], gbKeyNames[config->funcKeys[i]]);
         else
-            iprintf("  %s | %s  \n", dsKeyNames[i], gbKeyNames[config->gbKeys[i]]);
+            iprintf("  %s | %s  \n", dsKeyNames[i], gbKeyNames[config->funcKeys[i]]);
     }
     iprintf("\n\n\n\nPress X to make a new config.");
     if (selectedKeyConfig != 0) /* can't erase the default */ {
@@ -228,9 +227,9 @@ void updateKeyConfigChooser() {
                 selectedKeyConfig--;
         }
         else {
-            config->gbKeys[option]--;
-            if (config->gbKeys[option] < 0)
-                config->gbKeys[option] = NUM_GB_KEYS-1;
+            config->funcKeys[option]--;
+            if (config->funcKeys[option] < 0)
+                config->funcKeys[option] = NUM_FUNC_KEYS-1;
         }
         redraw = true;
     }
@@ -241,9 +240,9 @@ void updateKeyConfigChooser() {
                 selectedKeyConfig = 0;
         }
         else {
-            config->gbKeys[option]++;
-            if (config->gbKeys[option] >= NUM_GB_KEYS)
-                config->gbKeys[option] = 0;
+            config->funcKeys[option]++;
+            if (config->funcKeys[option] >= NUM_FUNC_KEYS)
+                config->funcKeys[option] = 0;
         }
         redraw = true;
     }
@@ -411,8 +410,29 @@ void forceReleaseKey(int key) {
     keysPressed &= ~key;
 }
 
-int mapGbKey(int gbKey) {
-    return keys[gbKey];
+int mapFuncKey(int funcKey) {
+    return keys[funcKey];
+}
+
+int mapMenuKey(int menuKey) {
+    switch (menuKey) {
+        case MENU_KEY_A:
+            return KEY_A;
+        case MENU_KEY_B:
+            return KEY_B;
+        case MENU_KEY_LEFT:
+            return KEY_LEFT;
+        case MENU_KEY_RIGHT:
+            return KEY_RIGHT;
+        case MENU_KEY_UP:
+            return KEY_UP;
+        case MENU_KEY_DOWN:
+            return KEY_DOWN;
+        case MENU_KEY_R:
+            return KEY_R;
+        case MENU_KEY_L:
+            return KEY_L;
+    }
 }
 
 void doRumble(bool rumbleVal)

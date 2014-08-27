@@ -239,59 +239,59 @@ void Gameboy::gameboyCheckInput() {
     if (probingForBorder)
         return;
 
-    if (keyPressed(mapGbKey(KEY_GB_UP))) {
-        buttonsPressed &= (0xFF ^ UP);
+    if (keyPressed(mapFuncKey(FUNC_KEY_UP))) {
+        buttonsPressed &= (0xFF ^ GB_UP);
         if (!(ioRam[0x00] & 0x10))
             requestInterrupt(JOYPAD);
     }
-    if (keyPressed(mapGbKey(KEY_GB_DOWN))) {
-        buttonsPressed &= (0xFF ^ DOWN);
+    if (keyPressed(mapFuncKey(FUNC_KEY_DOWN))) {
+        buttonsPressed &= (0xFF ^ GB_DOWN);
         if (!(ioRam[0x00] & 0x10))
             requestInterrupt(JOYPAD);
     }
-    if (keyPressed(mapGbKey(KEY_GB_LEFT))) {
-        buttonsPressed &= (0xFF ^ LEFT);
+    if (keyPressed(mapFuncKey(FUNC_KEY_LEFT))) {
+        buttonsPressed &= (0xFF ^ GB_LEFT);
         if (!(ioRam[0x00] & 0x10))
             requestInterrupt(JOYPAD);
     }
-    if (keyPressed(mapGbKey(KEY_GB_RIGHT))) {
-        buttonsPressed &= (0xFF ^ RIGHT);
+    if (keyPressed(mapFuncKey(FUNC_KEY_RIGHT))) {
+        buttonsPressed &= (0xFF ^ GB_RIGHT);
         if (!(ioRam[0x00] & 0x10))
             requestInterrupt(JOYPAD);
     }
-    if (keyPressed(mapGbKey(KEY_GB_A))) {
-        buttonsPressed &= (0xFF ^ BUTTONA);
+    if (keyPressed(mapFuncKey(FUNC_KEY_A))) {
+        buttonsPressed &= (0xFF ^ GB_A);
         if (!(ioRam[0x00] & 0x20))
             requestInterrupt(JOYPAD);
     }
-    if (keyPressed(mapGbKey(KEY_GB_B))) {
-        buttonsPressed &= (0xFF ^ BUTTONB);
+    if (keyPressed(mapFuncKey(FUNC_KEY_B))) {
+        buttonsPressed &= (0xFF ^ GB_B);
         if (!(ioRam[0x00] & 0x20))
             requestInterrupt(JOYPAD);
     }
-    if (keyPressed(mapGbKey(KEY_GB_START))) {
-        buttonsPressed &= (0xFF ^ START);
+    if (keyPressed(mapFuncKey(FUNC_KEY_START))) {
+        buttonsPressed &= (0xFF ^ GB_START);
         if (!(ioRam[0x00] & 0x20))
             requestInterrupt(JOYPAD);
     }
-    if (keyPressed(mapGbKey(KEY_GB_SELECT))) {
-        buttonsPressed &= (0xFF ^ SELECT);
+    if (keyPressed(mapFuncKey(FUNC_KEY_SELECT))) {
+        buttonsPressed &= (0xFF ^ GB_SELECT);
         if (!(ioRam[0x00] & 0x20))
             requestInterrupt(JOYPAD);
     }
 
-    if (keyPressed(mapGbKey(KEY_GB_AUTO_A))) {
+    if (keyPressed(mapFuncKey(FUNC_KEY_AUTO_A))) {
         if (autoFireCounterA <= 0) {
-            buttonsPressed &= (0xFF ^ BUTTONA);
+            buttonsPressed &= (0xFF ^ GB_A);
             if (!(ioRam[0x00] & 0x20))
                 requestInterrupt(JOYPAD);
             autoFireCounterA = 2;
         }
         autoFireCounterA--;
     }
-    if (keyPressed(mapGbKey(KEY_GB_AUTO_B))) {
+    if (keyPressed(mapFuncKey(FUNC_KEY_AUTO_B))) {
         if (autoFireCounterB <= 0) {
-            buttonsPressed &= (0xFF ^ BUTTONB);
+            buttonsPressed &= (0xFF ^ GB_A);
             if (!(ioRam[0x00] & 0x20))
                 requestInterrupt(JOYPAD);
             autoFireCounterB = 2;
@@ -299,22 +299,25 @@ void Gameboy::gameboyCheckInput() {
         autoFireCounterB--;
     }
 
-    if (keyJustPressed(mapGbKey(KEY_SAVE))) {
+    gameboy->controllers[0] = buttonsPressed;
+
+
+    if (keyJustPressed(mapFuncKey(FUNC_KEY_SAVE))) {
         if (!autoSavingEnabled) {
             saveGame();
         }
     }
 
-    fastForwardKey = keyPressed(mapGbKey(KEY_FAST_FORWARD));
-    if (keyJustPressed(mapGbKey(KEY_FAST_FORWARD_TOGGLE)))
+    fastForwardKey = keyPressed(mapFuncKey(FUNC_KEY_FAST_FORWARD));
+    if (keyJustPressed(mapFuncKey(FUNC_KEY_FAST_FORWARD_TOGGLE)))
         fastForwardMode = !fastForwardMode;
 
-    if (keyJustPressed(mapGbKey(KEY_MENU) | mapGbKey(KEY_MENU_PAUSE)
+    if (keyJustPressed(mapFuncKey(FUNC_KEY_MENU) | mapFuncKey(FUNC_KEY_MENU_PAUSE)
 #ifdef DS
                 | KEY_TOUCH
 #endif
                 )) {
-        if (keyJustPressed(mapGbKey(KEY_MENU_PAUSE)))
+        if (keyJustPressed(mapFuncKey(FUNC_KEY_MENU_PAUSE)))
             pause();
 
         forceReleaseKey(0xffff);
@@ -323,7 +326,7 @@ void Gameboy::gameboyCheckInput() {
         displayMenu();
     }
 
-    if (keyJustPressed(mapGbKey(KEY_SCALE))) {
+    if (keyJustPressed(mapFuncKey(FUNC_KEY_SCALE))) {
         setMenuOption("Scaling", !getMenuOption("Scaling"));
     }
 
@@ -336,7 +339,7 @@ void Gameboy::gameboyCheckInput() {
     }
 #endif
 
-    if (keyJustPressed(mapGbKey(KEY_RESET)))
+    if (keyJustPressed(mapFuncKey(FUNC_KEY_RESET)))
         resetGameboy();
 }
 
