@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include "console.h"
 
 volatile int consoleSelectedRow;
@@ -9,7 +10,7 @@ bool isConsoleOn() {
 }
 
 void clearConsole() {
-
+    system("clear");
 }
 
 PrintConsole* getDefaultConsole() {

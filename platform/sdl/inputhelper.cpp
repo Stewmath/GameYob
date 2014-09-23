@@ -249,7 +249,24 @@ int mapFuncKey(int funcKey) {
 }
 
 int mapMenuKey(int menuKey) {
-    return 0;
+    switch (menuKey) {
+        case MENU_KEY_A:
+            return SDLK_SEMICOLON;
+        case MENU_KEY_B:
+            return SDLK_q;
+        case MENU_KEY_UP:
+            return SDLK_UP;
+        case MENU_KEY_DOWN:
+            return SDLK_DOWN;
+        case MENU_KEY_LEFT:
+            return SDLK_LEFT;
+        case MENU_KEY_RIGHT:
+            return SDLK_RIGHT;
+        case MENU_KEY_L:
+            return SDLK_a;
+        case MENU_KEY_R:
+            return SDLK_o;
+    }
 }
 
 void inputUpdateVBlank() {
