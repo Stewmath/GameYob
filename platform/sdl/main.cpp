@@ -64,6 +64,7 @@ int main(int argc, char* argv[])//(int argc, char* argv[])
         char* filename = argv[1];
         romFile = new RomFile(filename);
         gameboy->setRomFile(romFile);
+        gameboy->loadSave(1);
     }
     else {
         printf("Give me a gameboy rom pls\n");
@@ -95,13 +96,7 @@ void updateVBlank() {
             gbsCheckInput();
     }
 
-    if (gbsMode) {
-        drawScreen(); // Just because it syncs with vblank...
-    }
-    else {
-        drawScreen();
-    }
-
+    drawScreen();
 }
 
 void selectRom() {

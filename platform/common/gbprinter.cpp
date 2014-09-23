@@ -266,7 +266,7 @@ void printerSaveFile() {
             if (appending && access(filename, R_OK) != 0) {
                 // This is a failsafe, this shouldn't happen
                 appending = false;
-                printLog("The image to be appended do doesn't exist!");
+                printLog("The image to be appended to doesn't exist!");
                 continue;
             }
             else

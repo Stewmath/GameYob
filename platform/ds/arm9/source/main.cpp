@@ -71,7 +71,9 @@ void loadRom(const char* filename) {
 
     romFile = new RomFile(filename);
     gb1->setRomFile(romFile);
+    gb1->loadSave(1);
     gb2->setRomFile(romFile);
+    gb2->loadSave(2);
 }
 
 void unloadRom() {

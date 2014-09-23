@@ -35,6 +35,9 @@ void file_write(const void* buf, int bs, int size, FileHandle* h) {
 void file_gets(char* buf, int size, FileHandle* h) {
     fgets(buf, size, h->file);
 }
+void file_putc(char c, FileHandle* h) {
+    fputc(c, h->file);
+}
 
 void file_rewind(FileHandle* h) {
     rewind(h->file);

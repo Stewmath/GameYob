@@ -3,12 +3,16 @@
 #include <vector>
 #include "time.h"
 #include "gbgfx.h"
+#include "io.h"
 
 #ifdef DS
 #include <nds.h>
 #endif
 
 #define MAX_SRAM_SIZE   0x20000
+
+// IMPORTANT: This is unchanging, it DOES NOT change in double speed mode!
+#define clockSpeed 4194304
 
 #define GB			0
 #define CGB			1
@@ -54,8 +58,6 @@ struct Registers
     Register hl;
 };
 
-// IMPORTANT: This is unchanging, it DOES NOT change in double speed mode!
-#define clockSpeed 4194304
 
 
 class Gameboy {
@@ -115,7 +117,7 @@ class Gameboy {
         void printRomInfo();
         bool isRomLoaded();
 
-        int loadSave();
+        int loadSave(int saveId);
         int saveGame();
         void gameboySyncAutosave();
         void updateAutosave();
@@ -326,7 +328,7 @@ inline void writeMemory(u16 addr, u8 val)
         SoundEngine* soundEngine;
         RomFile* romFile;
 
-        FILE* saveFile;
+        FileHandle* saveFile;
         char savename[256];
 
         // mmu functions

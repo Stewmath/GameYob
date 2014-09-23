@@ -710,8 +710,6 @@ void Gameboy::setRomFile(RomFile* r) {
     romFile = r;
     cheatEngine->setRomFile(r);
 
-    loadSave();
-
     // Load cheats
     if (gbsMode)
         cheatEngine->loadCheats("");
@@ -727,7 +725,7 @@ void Gameboy::unloadRom() {
 
     gameboySyncAutosave();
     if (saveFile != NULL)
-        fclose(saveFile);
+        file_close(saveFile);
     saveFile = NULL;
     // unload previous save
     if (externRam != NULL) {
@@ -752,13 +750,16 @@ bool Gameboy::isRomLoaded() {
     return romFile != NULL;
 }
 
-int Gameboy::loadSave()
+int Gameboy::loadSave(int saveId)
 {
     strcpy(savename, romFile->getBasename());
-    if (isMainGameboy())
+    if (saveId == 1)
         strcat(savename, ".sav");
-    else
-        strcat(savename, ".sa2");
+    else {
+        char buf[10];
+        sprintf(buf, savename, ".sa%d", saveId);
+        strcat(savename, buf);
+    }
 
     if (gbsMode)
         numRamBanks = 1;
@@ -797,43 +798,40 @@ int Gameboy::loadSave()
         return 0; // GBS files don't get to save.
 
     // Now load the data.
-    saveFile = fopen(savename, "r+b");
+    saveFile = file_open(savename, "r+b");
     int neededFileSize = numRamBanks*0x2000;
     if (romFile->getMBC() == MBC3 || romFile->getMBC() == HUC3)
         neededFileSize += sizeof(clockStruct);
 
     int fileSize = 0;
     if (saveFile) {
-        fseek(saveFile, 0, SEEK_END);
-        fileSize = ftell(saveFile);
-        fseek(saveFile, 0, SEEK_SET);
+        fileSize = file_getSize(saveFile);
     }
 
     if (!saveFile || fileSize < neededFileSize) {
-        fclose(saveFile);
-
         // Extend the size of the file, or create it
         if (!saveFile) {
-            saveFile = fopen(savename, "wb");
-            fseek(saveFile, neededFileSize-1, SEEK_SET);
-            fputc(0, saveFile);
+            saveFile = file_open(savename, "wb");
+            file_seek(saveFile, neededFileSize-1, SEEK_SET);
+            file_putc(0, saveFile);
         }
         else {
-            saveFile = fopen(savename, "ab");
+            file_close(saveFile);
+            saveFile = file_open(savename, "ab");
             for (; fileSize<neededFileSize; fileSize++)
-                fputc(0, saveFile);
+                file_putc(0, saveFile);
         }
-        fclose(saveFile);
+        file_close(saveFile);
 
-        saveFile = fopen(savename, "r+b");
+        saveFile = file_open(savename, "r+b");
     }
 
-    fread(externRam, 1, 0x2000*numRamBanks, saveFile);
+    file_read(externRam, 1, 0x2000*numRamBanks, saveFile);
 
     switch (romFile->getMBC()) {
         case MBC3:
         case HUC3:
-            fread(&gbClock, 1, sizeof(gbClock), saveFile);
+            file_read(&gbClock, 1, sizeof(gbClock), saveFile);
             break;
     }
 
@@ -848,8 +846,8 @@ int Gameboy::loadSave()
 
     memset(saveFileSectors, -1, sizeof(saveFileSectors));
     for (int i=0; i<numRamBanks*0x2000/512; i++) {
-        fseek(saveFile, i*512, SEEK_SET);
-        fputc(externRam[i*512], saveFile);
+        file_seek(saveFile, i*512, SEEK_SET);
+        file_putc(externRam[i*512], saveFile);
         bool found=false;
         for (int j=0; j<FAT_CACHE_SIZE; j++) {
             if (cache->cacheEntries[j].dirty) {
@@ -873,14 +871,14 @@ int Gameboy::saveGame()
     if (numRamBanks == 0 || saveFile == NULL)
         return 0;
 
-    fseek(saveFile, 0, SEEK_SET);
+    file_seek(saveFile, 0, SEEK_SET);
 
-    fwrite(externRam, 1, 0x2000*numRamBanks, saveFile);
+    file_write(externRam, 1, 0x2000*numRamBanks, saveFile);
 
     switch (romFile->getMBC()) {
         case MBC3:
         case HUC3:
-            fwrite(&gbClock, 1, sizeof(gbClock), saveFile);
+            file_write(&gbClock, 1, sizeof(gbClock), saveFile);
             break;
     }
 
