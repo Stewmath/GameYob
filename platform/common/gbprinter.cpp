@@ -331,45 +331,45 @@ void printerSaveFile() {
         }
     }
 
-    FILE* file;
+    FileHandle* file;
     if (appending) {
-        file = fopen(filename, "r+b");
+        file = file_open(filename, "r+b");
         int temp;
 
         // Update height
-        fseek(file, 0x16, SEEK_SET);
-        fread(&temp, 4, 1, file);
+        file_seek(file, 0x16, SEEK_SET);
+        file_read(&temp, 4, 1, file);
         temp = -(height + (-temp));
-        fseek(file, 0x16, SEEK_SET);
-        fwrite(&temp, 4, 1, file);
+        file_seek(file, 0x16, SEEK_SET);
+        file_write(&temp, 4, 1, file);
 
         // Update pixelArraySize
-        fseek(file, 0x22, SEEK_SET);
-        fread(&temp, 4, 1, file);
+        file_seek(file, 0x22, SEEK_SET);
+        file_read(&temp, 4, 1, file);
         temp += pixelArraySize;
-        fseek(file, 0x22, SEEK_SET);
-        fwrite(&temp, 4, 1, file);
+        file_seek(file, 0x22, SEEK_SET);
+        file_write(&temp, 4, 1, file);
 
         // Update file size
         temp += sizeof(bmpHeader);
-        fseek(file, 0x2, SEEK_SET);
-        fwrite(&temp, 4, 1, file);
+        file_seek(file, 0x2, SEEK_SET);
+        file_write(&temp, 4, 1, file);
 
-        fclose(file);
-        file = fopen(filename, "ab");
+        file_close(file);
+        file = file_open(filename, "ab");
     }
     else { // Not appending; making a file from scratch
-        file = fopen(filename, "ab");
+        file = file_open(filename, "ab");
         WRITE_32(bmpHeader+2, sizeof(bmpHeader) + pixelArraySize);
         WRITE_32(bmpHeader+0x22, pixelArraySize);
         WRITE_32(bmpHeader+0x12, width);
         WRITE_32(bmpHeader+0x16, -height); // negative means it's top-to-bottom
-        fwrite(bmpHeader, 1, sizeof(bmpHeader), file);
+        file_write(bmpHeader, 1, sizeof(bmpHeader), file);
     }
 
-    fwrite(pixelData, 1, pixelArraySize, file);
+    file_write(pixelData, 1, pixelArraySize, file);
 
-    fclose(file);
+    file_close(file);
 
     free(pixelData);
     printerGfxIndex = 0;

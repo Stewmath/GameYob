@@ -8,6 +8,7 @@
 #include "inputhelper.h"
 #include "gameboy.h"
 #include "cheats.h"
+#include "io.h"
 
 /*
     cgbFlag = romSlot0[0x143];
@@ -40,7 +41,7 @@ RomFile::RomFile(const char* f) {
     // Check if this is a GBS file
     gbsMode = (strcasecmp(strrchr(filename, '.'), ".gbs") == 0);
 
-    romFile = fopen(filename, "rb");
+    romFile = file_open(filename, "rb");
     if (romFile == NULL)
     {
         printLog("Error opening %s.\n", filename);
@@ -48,15 +49,15 @@ RomFile::RomFile(const char* f) {
     }
 
     if (gbsMode) {
-        fread(gbsHeader, 1, 0x70, romFile);
+        file_read(gbsHeader, 1, 0x70, romFile);
         gbsReadHeader();
-        fseek(romFile, 0, SEEK_END);
-        numRomBanks = (ftell(romFile)-0x70+0x3fff)/0x4000; // Get number of banks, rounded up
+        file_seek(romFile, 0, SEEK_END);
+        numRomBanks = (file_tell(romFile)-0x70+0x3fff)/0x4000; // Get number of banks, rounded up
         printf("%.2x\n", numRomBanks);
     }
     else {
-        fseek(romFile, 0, SEEK_END);
-        numRomBanks = (ftell(romFile)+0x3fff)/0x4000; // Get number of banks, rounded up
+        file_seek(romFile, 0, SEEK_END);
+        numRomBanks = (file_tell(romFile)+0x3fff)/0x4000; // Get number of banks, rounded up
     }
 
     // Round numRomBanks to a power of 2
@@ -64,8 +65,8 @@ RomFile::RomFile(const char* f) {
     while (n < numRomBanks) n*=2;
     numRomBanks = n;
 
-    //int rawRomSize = ftell(romFile);
-    rewind(romFile);
+    //int rawRomSize = file_tell(romFile);
+    file_rewind(romFile);
 
 
     if (numRomBanks <= maxLoadedRomBanks)
@@ -85,18 +86,18 @@ RomFile::RomFile(const char* f) {
     // Read bank 0
     if (gbsMode) {
         bankSlotIDs[0] = 0;
-        fseek(romFile, 0x70, SEEK_SET);
-        fread(romBankSlots+gbsLoadAddress, 1, 0x4000-gbsLoadAddress, romFile);
+        file_seek(romFile, 0x70, SEEK_SET);
+        file_read(romBankSlots+gbsLoadAddress, 1, 0x4000-gbsLoadAddress, romFile);
     }
     else {
         bankSlotIDs[0] = 0;
-        fseek(romFile, 0, SEEK_SET);
-        fread(romBankSlots, 1, 0x4000, romFile);
+        file_seek(romFile, 0, SEEK_SET);
+        file_read(romBankSlots, 1, 0x4000, romFile);
     }
     // Read the rest of the banks
     for (int i=1; i<numLoadedRomBanks; i++) {
         bankSlotIDs[i] = i;
-        fread(romBankSlots+0x4000*i, 1, 0x4000, romFile);
+        file_read(romBankSlots+0x4000*i, 1, 0x4000, romFile);
         lastBanksUsed.push_back(i);
     }
 
@@ -163,7 +164,7 @@ RomFile::RomFile(const char* f) {
 
     // If we've loaded everything, close the rom file
     if (numRomBanks <= numLoadedRomBanks) {
-        fclose(romFile);
+        file_close(romFile);
         romFile = NULL;
     }
 
@@ -172,7 +173,7 @@ RomFile::RomFile(const char* f) {
 
 RomFile::~RomFile() {
     if (romFile != NULL)
-        fclose(romFile);
+        file_close(romFile);
     free(romBankSlots);
 }
 
@@ -188,8 +189,8 @@ void RomFile::loadRomBank(int romBank) {
     bankSlotIDs[bankToUnload] = -1;
     bankSlotIDs[romBank] = slot;
 
-    fseek(romFile, 0x4000*romBank, SEEK_SET);
-    fread(romBankSlots+slot*0x4000, 1, 0x4000, romFile);
+    file_seek(romFile, 0x4000*romBank, SEEK_SET);
+    file_read(romBankSlots+slot*0x4000, 1, 0x4000, romFile);
 
     lastBanksUsed.insert(lastBanksUsed.begin(), romBank);
 
@@ -213,16 +214,16 @@ const char* RomFile::getBasename() {
 
 
 void RomFile::loadBios(const char* filename) {
-    FILE* file;
+    FileHandle* file;
 
     if (biosExists)
         goto load;
 
-    file = fopen(filename, "rb");
+    file = file_open(filename, "rb");
     biosExists = file != NULL;
     if (biosExists) {
-        fread(bios, 1, 0x900, file);
-        fclose(file);
+        file_read(bios, 1, 0x900, file);
+        file_close(file);
     }
     else
         return;

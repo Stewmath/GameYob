@@ -1,5 +1,6 @@
 #pragma once
 #include "console.h"
+#include "io.h"
 
 extern bool consoleInitialized;
 extern bool consoleDebugOutput;
@@ -47,5 +48,5 @@ void enableMenuOption(const char* name);
 void disableMenuOption(const char* name);
 
 void menuParseConfig(const char* line);
-void menuPrintConfig(FILE* file);
+void menuPrintConfig(FileHandle* file);
 

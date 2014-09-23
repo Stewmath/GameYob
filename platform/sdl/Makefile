@@ -14,15 +14,16 @@ TARGET :=	gameyob
 #---------------------------------------------------------------------------------
 BUILD		:=	build
 SOURCES		:= . ../common Blip_Buffer-0.4.0 Blip_Buffer-0.4.0/sdl_player
-INCLUDES	:= ../include Blip_Buffer-0.4.0 Blip_Buffer-0.4.0/sdl_player /usr/include/SDL
+INCLUDES	:= ../common/include Blip_Buffer-0.4.0 Blip_Buffer-0.4.0/sdl_player /usr/include/SDL
 LIBDIRS		:= 
 DATA		:=
 
 DEBUG = -ggdb
 
-CXXFLAGS =	-Wall `sdl-config --cflags` $(DEBUG) \
+CXXFLAGS =	-O2 -Wall `sdl-config --cflags` $(DEBUG) \
 			-include "typedefs.h" \
 			-DVERSION_STRING=\"`git describe --always --abbrev=4`\" \
+			-DC_IO_FUNCTIONS \
 			$(INCLUDE)
 
 LDFLAGS = -Wall `sdl-config --libs` -lGL $(DEBUG)
@@ -64,6 +65,8 @@ export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
 			-I$(CURDIR)/$(BUILD)
 
 export LIBPATHS	:=	$(foreach dir,$(LIBDIRS),-L$(dir)/lib)
+
+export MAKEDIR	:= $(CURDIR)
  
 .PHONY: $(BUILD) clean
  
@@ -75,7 +78,7 @@ $(BUILD):
 #---------------------------------------------------------------------------------
 clean:
 	@echo clean ...
-	@rm -fr $(BUILD) *.elf *.nds* *.bin 
+	@rm -fr $(BUILD) $(TARGET)
  
 
  
@@ -85,7 +88,7 @@ else
 #---------------------------------------------------------------------------------
 # main targets
 #---------------------------------------------------------------------------------
-$(TARGET):	$(OFILES)
+$(MAKEDIR)/$(TARGET):	$(OFILES)
 	@echo linking $(notdir $@)
 	@$(LD)  $(LDFLAGS) $(LIBPATHS) $(OFILES) -o $@
 
@@ -102,14 +105,6 @@ $(TARGET):	$(OFILES)
 .FORCE:
 version.o: .FORCE
 
-
-#---------------------------------------------------------------------------------
-# you need a rule like this for each extension you use as binary data 
-#---------------------------------------------------------------------------------
-%.bin.o	:	%.bin
-#---------------------------------------------------------------------------------
-	@echo $(notdir $<)
-	@$(bin2o)
 
 -include $(DEPSDIR)/*.d
  

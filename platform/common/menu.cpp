@@ -738,11 +738,11 @@ void menuParseConfig(const char* line) {
     }
 }
 
-void menuPrintConfig(FILE* file) {
+void menuPrintConfig(FileHandle* file) {
     for (int i=0; i<numMenus; i++) {
         for (int j=0; j<menuList[i].numOptions; j++) {
             if (menuList[i].options[j].numValues != 0)
-                fprintf(file, "%s=%d\n", menuList[i].options[j].name, menuList[i].options[j].selection);
+                file_printf(file, "%s=%d\n", menuList[i].options[j].name, menuList[i].options[j].selection);
         }
     }
 }

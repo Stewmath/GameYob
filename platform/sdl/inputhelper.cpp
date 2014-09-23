@@ -18,6 +18,7 @@
 #include "gbs.h"
 #include "filechooser.h"
 #include "romfile.h"
+#include "io.h"
 
 bool keysPressed[512];
 bool keysJustPressed[512];
@@ -50,7 +51,7 @@ void flushFatCache() {
 
 void controlsParseConfig(const char* line2) {
 }
-void controlsPrintConfig(FILE* file) {
+void controlsPrintConfig(FileHandle* file) {
 }
 
 void startKeyConfigChooser() {
@@ -92,31 +93,31 @@ void generalParseConfig(const char* line) {
     }
 }
 
-void generalPrintConfig(FILE* file) {
+void generalPrintConfig(FileHandle* file) {
     if (romPath == 0)
-        fprintf(file, "rompath=\n");
+        file_printf(file, "rompath=\n");
     else
-        fprintf(file, "rompath=%s\n", romPath);
+        file_printf(file, "rompath=%s\n", romPath);
     if (biosPath == 0)
-        fprintf(file, "biosfile=\n");
+        file_printf(file, "biosfile=\n");
     else
-        fprintf(file, "biosfile=%s\n", biosPath);
+        file_printf(file, "biosfile=%s\n", biosPath);
     if (borderPath == 0)
-        fprintf(file, "borderfile=\n");
+        file_printf(file, "borderfile=\n");
     else
-        fprintf(file, "borderfile=%s\n", borderPath);
+        file_printf(file, "borderfile=%s\n", borderPath);
 }
 
 bool readConfigFile() {
-    FILE* file = fopen("/gameyob.ini", "r");
+    FileHandle* file = file_open("/gameyob.ini", "r");
     char line[100];
     void (*configParser)(const char*) = generalParseConfig;
 
     if (file == NULL)
         goto end;
 
-    while (!feof(file)) {
-        fgets(line, 100, file);
+    while (file_tell(file) < file_getSize(file)) {
+        file_gets(line, 100, file);
         char c=0;
         while (*line != '\0' && ((c = line[strlen(line)-1]) == ' ' || c == '\n' || c == '\r'))
             line[strlen(line)-1] = '\0';
@@ -139,21 +140,26 @@ bool readConfigFile() {
         else
             configParser(line);
     }
-    fclose(file);
+    file_close(file);
 end:
 
     return file != NULL;
 }
 
 void writeConfigFile() {
-    FILE* file = fopen("/gameyob.ini", "w");
-    fprintf(file, "[general]\n");
+    FileHandle* file = file_open("gameyob.ini", "w");
+    if (file == NULL) {
+        printMenuMessage("Error opening gameyob.ini.");
+        return;
+    }
+
+    file_printf(file, "[general]\n");
     generalPrintConfig(file);
-    fprintf(file, "[console]\n");
+    file_printf(file, "[console]\n");
     menuPrintConfig(file);
-    fprintf(file, "[controls]\n");
+    file_printf(file, "[controls]\n");
     controlsPrintConfig(file);
-    fclose(file);
+    file_close(file);
 
     char nameBuf[256];
     sprintf(nameBuf, "%s.cht", gameboy->getRomFile()->getBasename());

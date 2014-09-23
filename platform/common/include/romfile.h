@@ -5,6 +5,7 @@
 
 #include <stdio.h>
 #include <vector>
+#include "io.h"
 
 #define MAX_ROM_BANKS   0x200
 
@@ -47,7 +48,7 @@ class RomFile {
         int bankSlotIDs[MAX_ROM_BANKS]; // Keeps track of which bank occupies which slot
         std::vector<int> lastBanksUsed;
 
-        FILE* romFile;
+        FileHandle* romFile;
         char filename[256];
         char basename[256];
         char romTitle[20];

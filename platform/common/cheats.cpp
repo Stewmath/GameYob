@@ -9,6 +9,7 @@
 #include "inputhelper.h"
 #include "gbgfx.h"
 #include "romfile.h"
+#include "io.h"
 
 #define TO_INT(a) ( (a) >= 'a' ? (a) - 'a' + 10 : (a) >= 'A' ? (a) - 'A' + 10 : (a) - '0')
 
@@ -175,17 +176,17 @@ void CheatEngine::loadCheats(const char* filename) {
     numCheats = 0;
 
     // Begin loading new cheat file
-    FILE* file = fopen(filename, "r");
+    FileHandle* file = file_open(filename, "r");
     if (file == NULL) {
         disableMenuOption("Manage Cheats");
         return;
     }
 
-    while (!feof(file)) {
+    while (file_tell(file) < file_getSize(file)) {
         int i = numCheats;
 
         char line[100];
-        fgets(line, 100, file);
+        file_gets(line, 100, file);
 
         if (*line != '\0') {
             char* spacePos = strchr(line, ' ');
@@ -203,7 +204,7 @@ void CheatEngine::loadCheats(const char* filename) {
         }
     }
 
-    fclose(file);
+    file_close(file);
 
     enableMenuOption("Manage Cheats");
 }
@@ -211,11 +212,11 @@ void CheatEngine::loadCheats(const char* filename) {
 void CheatEngine::saveCheats(const char* filename) {
     if (numCheats == 0)
         return;
-    FILE* file = fopen(filename, "w");
+    FileHandle* file = file_open(filename, "w");
     for (int i=0; i<numCheats; i++) {
-        fprintf(file, "%s %d%s\n", cheats[i].cheatString, !!(cheats[i].flags & CHEAT_FLAG_ENABLED), cheats[i].name);
+        file_printf(file, "%s %d%s\n", cheats[i].cheatString, !!(cheats[i].flags & CHEAT_FLAG_ENABLED), cheats[i].name);
     }
-    fclose(file);
+    file_close(file);
 }
 
 // Menu code
@@ -231,9 +232,9 @@ void redrawCheatMenu() {
     int numPages = (numCheats-1)/cheatsPerPage+1;
 
     int page = cheatMenuSelection/cheatsPerPage;
-#ifdef DS
-    consoleClear();
-#endif
+
+    clearConsole();
+
     printf("          Cheat Menu      ");
     printf("%d/%d\n\n", page+1, numPages);
     for (int i=page*cheatsPerPage; i<numCheats && i < (page+1)*cheatsPerPage; i++) {
@@ -264,7 +265,6 @@ void redrawCheatMenu() {
 }
 
 void updateCheatMenu() {
-#ifdef DS
     bool redraw=false;
     int numCheats = ch->getNumCheats();
 
@@ -272,35 +272,35 @@ void updateCheatMenu() {
         cheatMenuSelection = 0;
     }
 
-    if (keyPressedAutoRepeat(KEY_UP)) {
+    if (keyPressedAutoRepeat(MENU_KEY_UP)) {
         if (cheatMenuSelection > 0) {
             cheatMenuSelection--;
             redraw = true;
         }
     }
-    else if (keyPressedAutoRepeat(KEY_DOWN)) {
+    else if (keyPressedAutoRepeat(MENU_KEY_DOWN)) {
         if (cheatMenuSelection < numCheats-1) {
             cheatMenuSelection++;
             redraw = true;
         }
     }
-    else if (keyJustPressed(KEY_RIGHT | KEY_LEFT)) {
+    else if (keyJustPressed(MENU_KEY_RIGHT) | keyJustPressed(MENU_KEY_LEFT)) {
         ch->toggleCheat(cheatMenuSelection, !ch->isCheatEnabled(cheatMenuSelection));
         redraw = true;
     }
-    else if (keyJustPressed(KEY_R)) {
+    else if (keyJustPressed(MENU_KEY_R)) {
         cheatMenuSelection += cheatsPerPage;
         if (cheatMenuSelection >= numCheats)
             cheatMenuSelection = 0;
         redraw = true;
     }
-    else if (keyJustPressed(KEY_L)) {
+    else if (keyJustPressed(MENU_KEY_L)) {
         cheatMenuSelection -= cheatsPerPage;
         if (cheatMenuSelection < 0)
             cheatMenuSelection = numCheats-1;
         redraw = true;
     }
-    if (keyJustPressed(KEY_B)) {
+    if (keyJustPressed(MENU_KEY_B)) {
         closeSubMenu();
         if (!cheatMenu_gameboyWasPaused)
             gameboy->unpause();
@@ -308,7 +308,6 @@ void updateCheatMenu() {
 
     if (redraw)
         doAtVBlank(redrawCheatMenu);
-#endif
 }
 
 bool startCheatMenu() {
