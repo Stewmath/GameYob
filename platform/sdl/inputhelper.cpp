@@ -109,7 +109,7 @@ void generalPrintConfig(FileHandle* file) {
 }
 
 bool readConfigFile() {
-    FileHandle* file = file_open("/gameyob.ini", "r");
+    FileHandle* file = file_open("gameyob.ini", "r");
     char line[100];
     void (*configParser)(const char*) = generalParseConfig;
 
