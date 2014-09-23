@@ -1,9 +1,9 @@
-#include <nds.h>
 #include <dirent.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <vector>
 #include <string>
+#include <string.h>
 #include "filechooser.h"
 #include "inputhelper.h"
 #include "console.h"
@@ -15,8 +15,13 @@
 using namespace std;
 
 // Public "states"
+#ifdef DS
 FileChooserState romChooserState = {0,"/lameboy"};
 FileChooserState borderChooserState = {0,"/"};
+#else
+FileChooserState romChooserState = {0,"."};
+FileChooserState borderChooserState = {0,"."};
+#endif
 
 // Private stuff
 const int MAX_FILENAME_LEN = 100;
@@ -62,7 +67,7 @@ int nameSortFunction(char*& a, char*& b)
     else if (bIsParent) // Sorts after
         return 1;
     else
-        return strcmpi(a, b);
+        return strcasecmp(a, b);
 }
 
 /*
@@ -218,7 +223,7 @@ char* startFileChooser(const char* extensions[], bool romExtensions, bool canQui
     DIR* dp = opendir(cwd);
     struct dirent *entry;
     if (dp == NULL) {
-        iprintf("Error opening directory.\n");
+        printf("Error opening directory.\n");
         return 0;
     }
     while (true) {
@@ -234,13 +239,13 @@ char* startFileChooser(const char* extensions[], bool romExtensions, bool canQui
             bool isRomFile = false;
             if (!(entry->d_type & DT_DIR)) {
                 for (int i=0; i<numExtensions; i++) {
-                    if (strcmpi(ext, extensions[i]) == 0) {
+                    if (strcasecmp(ext, extensions[i]) == 0) {
                         isValidExtension = true;
                         break;
                     }
                 }
                 if (romExtensions) {
-                    isRomFile = strcmpi(ext, "cgb") == 0 || strcmpi(ext, "gbc") == 0 || strcmpi(ext, "gb") == 0 || strcmpi(ext, "sgb") == 0;
+                    isRomFile = strcasecmp(ext, "cgb") == 0 || strcasecmp(ext, "gbc") == 0 || strcasecmp(ext, "gb") == 0 || strcasecmp(ext, "sgb") == 0;
                     if (isRomFile)
                         isValidExtension = true;
                 }
@@ -276,7 +281,7 @@ char* startFileChooser(const char* extensions[], bool romExtensions, bool canQui
                     numFiles++;
                 }
             }
-            else if (strcmpi(ext, "yss") == 0 && !(entry->d_type & DT_DIR)) {
+            else if (strcasecmp(ext, "yss") == 0 && !(entry->d_type & DT_DIR)) {
                 bool matched = false;
                 char buffer2[256];
                 strcpy(buffer2, entry->d_name);
@@ -320,16 +325,16 @@ char* startFileChooser(const char* extensions[], bool romExtensions, bool canQui
         bool readDirectory = false;
         while (!readDirectory) {
             // Draw the screen
-            consoleClear();
+            clearConsole();
             for (int i=scrollY; i<scrollY+filesPerPage && i<numFiles; i++) {
                 if (i == fileSelection)
-                    iprintf("* ");
+                    printf("* ");
                 else if (i == scrollY && i != 0)
-                    iprintf("^ ");
+                    printf("^ ");
                 else if (i == scrollY+filesPerPage-1 && scrollY+filesPerPage-1 != numFiles-1)
-                    iprintf("v ");
+                    printf("v ");
                 else
-                    iprintf("  ");
+                    printf("  ");
 
                 int maxLen = 30;
                 if (flags[i] & FLAG_DIRECTORY)
@@ -359,9 +364,11 @@ char* startFileChooser(const char* extensions[], bool romExtensions, bool canQui
 
             // Wait for input
             while (true) {
+#ifdef DS
                 swiWaitForVBlank();
+#endif
                 readKeys();
-                if (keyJustPressed(KEY_A)) {
+                if (keyJustPressed(mapMenuKey(MENU_KEY_A))) {
                     if (flags[fileSelection] & FLAG_DIRECTORY) {
                         if (strcmp(filenames[fileSelection], "..") == 0)
                             goto lowerDirectory;
@@ -384,7 +391,7 @@ char* startFileChooser(const char* extensions[], bool romExtensions, bool canQui
                         goto end;
                     }
                 }
-                else if (keyJustPressed(KEY_B)) {
+                else if (keyJustPressed(mapMenuKey(MENU_KEY_B))) {
                     if (numFiles >= 1 && strcmp(filenames[0], "..") == 0) {
 lowerDirectory:
                         // Select this directory when going up
@@ -399,31 +406,31 @@ lowerDirectory:
                         break;
                     }
                 }
-                else if (keyPressedAutoRepeat(KEY_UP)) {
+                else if (keyPressedAutoRepeat(mapMenuKey(MENU_KEY_UP))) {
                     if (fileSelection > 0) {
                         fileSelection--;
                         updateScrollUp();
                         break;
                     }
                 }
-                else if (keyPressedAutoRepeat(KEY_DOWN)) {
+                else if (keyPressedAutoRepeat(mapMenuKey(MENU_KEY_DOWN))) {
                     if (fileSelection < numFiles-1) {
                         fileSelection++;
                         updateScrollDown();
                         break;
                     }
                 }
-                else if (keyPressedAutoRepeat(KEY_RIGHT)) {
+                else if (keyPressedAutoRepeat(mapMenuKey(MENU_KEY_RIGHT))) {
                     fileSelection += filesPerPage/2-1;
                     updateScrollDown();
                     break;
                 }
-                else if (keyPressedAutoRepeat(KEY_LEFT)) {
+                else if (keyPressedAutoRepeat(mapMenuKey(MENU_KEY_LEFT))) {
                     fileSelection -= filesPerPage/2-1;
                     updateScrollUp();
                     break;
                 }
-                else if (keyJustPressed(KEY_Y)) {
+                else if (keyJustPressed(mapMenuKey(MENU_KEY_Y))) {
                     if (canQuit) {
                         retval = NULL;
                         goto end;
@@ -438,9 +445,11 @@ lowerDirectory:
     }
 end:
     closedir(dp);
-    consoleClear();
+    clearConsole();
+#ifdef DS
     consoleSelectedRow = -1;
     setBackdropColorSub(RGB15(0,0,0)); // Sometimes needed to un-blueify the screen
+#endif
     fileChooserOn = false;
     return retval;
 }

@@ -74,6 +74,8 @@ bool bgPalettesModified[8];
 bool sprPalettesModified[8];
 
 
+bool openglInitialized = false;
+
 // Private functions
 void drawSprite(int scanline, int spriteNum);
 
@@ -90,38 +92,40 @@ void doAtVBlank(void (*func)(void)) {
 }
 void initGFX()
 {
-	gbColors[0] = 255;
-	gbColors[1] = 192;
-	gbColors[2] = 94;
-	gbColors[3] = 0;
+    if (!openglInitialized) {
+        gbColors[0] = 255;
+        gbColors[1] = 192;
+        gbColors[2] = 94;
+        gbColors[3] = 0;
 
-	//Set Clear Color
-	glClearColor(0, 0, 0, 0);
+        //Set Clear Color
+        glClearColor(0, 0, 0, 0);
 
-	glOrtho(0, 160, 144, 0, -1, 1); //Sets orthographic (2D) projection
+        glOrtho(0, 160, 144, 0, -1, 1); //Sets orthographic (2D) projection
 
-	glRasterPos2f(0, 0);
-	glPixelZoom(scale, -scale);
+        glRasterPos2f(0, 0);
+        glPixelZoom(scale, -scale);
 
-	SDL_Surface* gbScreen = SDL_CreateRGBSurface(SDL_SWSURFACE, 256*scale, 256*scale, 32, 0, 0, 0, 0);
-	format = gbScreen->format;
+        SDL_Surface* gbScreen = SDL_CreateRGBSurface(SDL_SWSURFACE, 256*scale, 256*scale, 32, 0, 0, 0, 0);
+        format = gbScreen->format;
 
-	bgPalettes[0][0] = SDL_MapRGB(gbScreen->format, 255, 255, 255);
-	bgPalettes[0][1] = SDL_MapRGB(gbScreen->format, 192, 192, 192);
-	bgPalettes[0][2] = SDL_MapRGB(gbScreen->format, 94, 94, 94);
-	bgPalettes[0][3] = SDL_MapRGB(gbScreen->format, 0, 0, 0);
-	sprPalettes[0][0] = SDL_MapRGB(gbScreen->format, 255, 255, 255);
-	sprPalettes[0][1] = SDL_MapRGB(gbScreen->format, 192, 192, 192);
-	sprPalettes[0][2] = SDL_MapRGB(gbScreen->format, 94, 94, 94);
-	sprPalettes[0][3] = SDL_MapRGB(gbScreen->format, 0, 0, 0);
-	sprPalettes[1][0] = SDL_MapRGB(gbScreen->format, 255, 255, 255);
-	sprPalettes[1][1] = SDL_MapRGB(gbScreen->format, 192, 192, 192);
-	sprPalettes[1][2] = SDL_MapRGB(gbScreen->format, 94, 94, 94);
-	sprPalettes[1][3] = SDL_MapRGB(gbScreen->format, 0, 0, 0);
+        openglInitialized = true;
+    }
 
-	int i;
+	bgPalettes[0][0] = SDL_MapRGB(format, 255, 255, 255);
+	bgPalettes[0][1] = SDL_MapRGB(format, 192, 192, 192);
+	bgPalettes[0][2] = SDL_MapRGB(format, 94, 94, 94);
+	bgPalettes[0][3] = SDL_MapRGB(format, 0, 0, 0);
+	sprPalettes[0][0] = SDL_MapRGB(format, 255, 255, 255);
+	sprPalettes[0][1] = SDL_MapRGB(format, 192, 192, 192);
+	sprPalettes[0][2] = SDL_MapRGB(format, 94, 94, 94);
+	sprPalettes[0][3] = SDL_MapRGB(format, 0, 0, 0);
+	sprPalettes[1][0] = SDL_MapRGB(format, 255, 255, 255);
+	sprPalettes[1][1] = SDL_MapRGB(format, 192, 192, 192);
+	sprPalettes[1][2] = SDL_MapRGB(format, 94, 94, 94);
+	sprPalettes[1][3] = SDL_MapRGB(format, 0, 0, 0);
 
-	for (i=0; i<8; i++)
+	for (int i=0; i<8; i++)
 	{
 
 		sprPalettesRef[i][0] = &sprPalettes[i][0];

@@ -17,6 +17,7 @@
 #include "cheats.h"
 #include "gbgfx.h"
 #include "gbs.h"
+#include "gbmanager.h"
 
 
 void printVersionInfo(); // Defined in version.cpp
@@ -88,7 +89,7 @@ void suspendFunc(int value) {
     gameboy->saveState(-1);
     printMessage[0] = '\0';
     closeMenu();
-    selectRom();
+    mgr_selectRom();
 }
 void exitFunc(int value) {
     muteSND();
@@ -98,12 +99,12 @@ void exitFunc(int value) {
     }
     printMessage[0] = '\0';
     closeMenu();
-    selectRom();
+    mgr_selectRom();
 }
 void exitNoSaveFunc(int value) {
     muteSND();
     closeMenu();
-    selectRom();
+    mgr_selectRom();
 }
 void consoleOutputFunc(int value) {
     if (value == 0) {

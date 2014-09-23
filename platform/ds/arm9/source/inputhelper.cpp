@@ -437,7 +437,15 @@ int mapMenuKey(int menuKey) {
             return KEY_R;
         case MENU_KEY_L:
             return KEY_L;
+        case MENU_KEY_X:
+            return KEY_X;
+        case MENU_KEY_Y:
+            return KEY_Y;
     }
+}
+
+void inputUpdateVBlank() {
+    readKeys();
 }
 
 void doRumble(bool rumbleVal)

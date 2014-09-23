@@ -74,11 +74,14 @@ void SoundEngine::init()
     memset(chanEnvCounter, 0, sizeof(chanEnvCounter));
     memset(chanEnvSweep, 0, sizeof(chanEnvSweep));
     memset(chanVol, 0, sizeof(chanVol));
+
+    refresh();
 }
 
 void SoundEngine::refresh() {
 
     soundEnable();
+    unmute();
     if (soundDisabled)
         return;
 

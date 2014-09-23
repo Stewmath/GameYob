@@ -9,29 +9,17 @@
 #include "gbs.h"
 #include "romfile.h"
 #include "menu.h"
-
-//#ifndef WX_PRECOMP
-//#include "wx-2.8/wx/wx.h"
-//#endif
-
-//int _main();
+#include "gbmanager.h"
 
 time_t rawTime;
 
 extern int scale;
 
-extern int quit;
 SDL_Surface* screen;
 
-Gameboy* gameboy;
-RomFile* romFile = NULL;
 
 
-int main(int argc, char* argv[]);
-void updateVBlank();
-
-
-int main(int argc, char* argv[])//(int argc, char* argv[])
+int main(int argc, char* argv[])
 {
 	if (SDL_Init(SDL_INIT_EVERYTHING) == -1)
 		return 1;
@@ -53,52 +41,24 @@ int main(int argc, char* argv[])//(int argc, char* argv[])
 
 	SDL_WM_SetCaption("GameYob", NULL);
 
-    gameboy = new Gameboy();
+    mgr_init();
 
 	initInput();
-
     setMenuDefaults();
     readConfigFile();
 
     if (argc >= 2) {
         char* filename = argv[1];
-        romFile = new RomFile(filename);
-        gameboy->setRomFile(romFile);
-        gameboy->loadSave(1);
+        mgr_loadRom(filename);
     }
     else {
         printf("Give me a gameboy rom pls\n");
         return 1;
     }
 
-    gameboy->init();
-
-	for (;;)
-	{
-        if (!gameboy->isGameboyPaused())
-            gameboy->runEmul();
-        updateVBlank();
-	}
+    mgr_run();
 
 	//fclose(logFile);
 	SDL_Quit();
 	return 0;
-}
-
-void updateVBlank() {
-    inputUpdateVBlank();
-
-    if (isMenuOn())
-        updateMenu();
-    else {
-        gameboy->gameboyCheckInput();
-        if (gbsMode)
-            gbsCheckInput();
-    }
-
-    drawScreen();
-}
-
-void selectRom() {
-
 }
