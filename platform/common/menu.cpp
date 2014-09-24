@@ -83,7 +83,7 @@ void suspendFunc(int value) {
     muteSND();
     if (!autoSavingEnabled) {
         printMenuMessage("Saving SRAM...");
-        gameboy->saveGame();
+        mgr_save();
     }
     printMenuMessage("Saving state...");
     gameboy->saveState(-1);
@@ -93,9 +93,9 @@ void suspendFunc(int value) {
 }
 void exitFunc(int value) {
     muteSND();
-    if (!autoSavingEnabled && gameboy->getNumRamBanks() && !gbsMode) {
+    if (!autoSavingEnabled && !gbsMode) {
         printMenuMessage("Saving SRAM...");
-        gameboy->saveGame();
+        mgr_save();
     }
     printMessage[0] = '\0';
     closeMenu();
@@ -369,7 +369,7 @@ ConsoleSubMenu menuList[] = {
             {"Rumble Pak", setRumbleFunc, 4, {"Off","Low","Mid","High"}, 2},
             {"Console Output", consoleOutputFunc, 4, {"Off","Time","FPS+Time","Debug"}, 0},
             {"GB Printer", printerEnableFunc, 2, {"Off","On"}, 1},
-            {"Autosaving", setAutoSaveFunc, 2, {"Off","On"}, 1},
+            {"Autosaving", setAutoSaveFunc, 1, {"Off","On"}, 1}, // Autosaving disabled for now
             {"Save Settings", saveSettingsFunc, 0, {}, 0}
         }
     },

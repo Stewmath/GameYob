@@ -12,23 +12,17 @@ void enableNifi();
 void disableNifi();
 //void sendPacketByte(u8 command, u8 data);
 
-void nifiSendPacket(u8 command, u8* data, int dataLen);
+void nifiSendPacket(u8 command, u8* data, u32 dataLen);
+
+void nifiStop();
 
 void nifiInterLinkMenu();
-void nifiHostOrClientMenu();
-void nifiHostMenu();
-void nifiClientMenu();
 
 bool nifiIsHost();
 bool nifiIsClient();
 bool nifiIsLinked();
 
-void nifiCheckInput();
+void nifiPause();
+void nifiUnpause();
+
 void nifiUpdateInput();
-
-enum NifiCmd {
-    NIFI_CMD_HOST=0,
-    NIFI_CMD_CLIENT,
-    NIFI_CMD_INPUT,
-};
-

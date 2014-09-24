@@ -1,5 +1,8 @@
 class Gameboy;
 
+extern Gameboy* gameboy;
+extern Gameboy* gb2;
+
 void mgr_init();
 void mgr_run();
 void mgr_startGb2(const char* filename);

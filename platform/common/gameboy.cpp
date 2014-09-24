@@ -448,8 +448,6 @@ int Gameboy::runEmul()
             serialCounter -= cycles;
             if (serialCounter <= 0) {
                 serialCounter = 0;
-                linkReceivedData = 0xff;
-
                 if (linkedGameboy != NULL) {
                     linkedGameboy->cycleToSerialTransfer = cyclesSinceVblank;
                     mgr_setInternalClockGb(this);
@@ -459,14 +457,12 @@ int Gameboy::runEmul()
                     // cycle.
                 }
                 else if (printerEnabled) {
-                    sendGbPrinterByte(ioRam[0x01]);
-                    ioRam[0x01] = linkReceivedData;
+                    ioRam[0x01] = sendGbPrinterByte(ioRam[0x01]);
                 }
                 else
                     ioRam[0x01] = 0xff;
                 requestInterrupt(SERIAL);
                 ioRam[0x02] &= ~0x80;
-                linkReceivedData = -1;
             }
             else
                 setEventCycles(serialCounter);
@@ -818,8 +814,8 @@ int Gameboy::loadSave(int saveId)
 
     externRam = (u8*)malloc(numRamBanks*0x2000);
 
-    if (gbsMode)
-        return 0; // GBS files don't get to save.
+    if (gbsMode || saveId == -1)
+        return 0;
 
     // Now load the data.
     saveFile = file_open(savename, "r+b");

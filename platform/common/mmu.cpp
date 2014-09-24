@@ -828,7 +828,7 @@ handleSoundReg:
             if (isMainGameboy())
                 handleVideoRegister(ioReg, val);
             {
-                int index = gameboy->ioRam[0x68] & 0x3F;
+                int index = ioRam[0x68] & 0x3F;
                 bgPaletteData[index] = val;
             }
             if (ioRam[0x68] & 0x80)
@@ -839,7 +839,7 @@ handleSoundReg:
             if (isMainGameboy())
                 handleVideoRegister(ioReg, val);
             {
-                int index = gameboy->ioRam[0x6A] & 0x3F;
+                int index = ioRam[0x6A] & 0x3F;
                 sprPaletteData[index] = val;
             }
             if (ioRam[0x6A] & 0x80)
@@ -852,11 +852,11 @@ handleSoundReg:
             ioRam[ioReg] = val;
             {
                 int src = val << 8;
-                u8* mem = gameboy->memory[src>>12];
+                u8* mem = memory[src>>12];
                 src &= 0xfff;
                 for (int i=0; i<0xA0; i++) {
                     u8 val = mem[src++];
-                    gameboy->hram[i] = val;
+                    hram[i] = val;
                 }
             }
             return;
@@ -865,8 +865,8 @@ handleSoundReg:
                 handleVideoRegister(ioReg, val);
             ioRam[ioReg] = val;
             if (!(val & 0x80)) {
-                gameboy->ioRam[0x44] = 0;
-                gameboy->ioRam[0x41] &= ~3; // Set video mode 0
+                ioRam[0x44] = 0;
+                ioRam[0x41] &= ~3; // Set video mode 0
             }
             return;
 
@@ -1030,6 +1030,6 @@ void Gameboy::writeSaveFileSectors(int startSector, int numSectors) {
     PARTITION* partition = (PARTITION*)devops->deviceData;
     CACHE* cache = partition->cache;
 
-	_FAT_disc_writeSectors(cache->disc, saveFileSectors[startSector], numSectors, gameboy->externRam+startSector*512);
+	_FAT_disc_writeSectors(cache->disc, saveFileSectors[startSector], numSectors, externRam+startSector*512);
 #endif
 }

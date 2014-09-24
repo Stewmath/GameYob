@@ -103,7 +103,8 @@ void printerSendVariableLenData(u8 dat) {
     }
 }
 
-void sendGbPrinterByte(u8 dat) {
+u8 sendGbPrinterByte(u8 dat) {
+    u8 linkReceivedData = 0x00;
     //printLog("Byte %d = %x\n", printerPacketByte, dat);
 
     // "Byte" 6 is actually a number of bytes. The counter stays at 6 until the 
@@ -173,7 +174,7 @@ void sendGbPrinterByte(u8 dat) {
                 }
             }
             printerCmdLength--;
-            return; // printerPacketByte won't be incremented
+            return linkReceivedData; // printerPacketByte won't be incremented
 
         case 7: // Checksum (LSB)
             linkReceivedData = 0x00;
@@ -219,13 +220,13 @@ void sendGbPrinterByte(u8 dat) {
     }
 
     printerPacketByte++;
-    return;
+    return linkReceivedData;
 
 endPacket:
     printerPacketByte = 0;
     printerChecksum = 0;
     printerCmd2Index = 0;
-    return;
+    return linkReceivedData;
 }
 
 inline void WRITE_32(u8* ptr, u32 x) {

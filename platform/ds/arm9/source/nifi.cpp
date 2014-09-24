@@ -7,6 +7,12 @@
 #include "gameboy.h"
 #include "console.h"
 #include "inputhelper.h"
+#include "gbmanager.h"
+#include "menu.h"
+
+void nifiLinkTypeMenu();
+void nifiHostMenu();
+void nifiClientMenu();
 
 inline int INT_AT(u8* ptr) {
     return *ptr | *(ptr+1)<<8 | *(ptr+2)<<16 | *(ptr+3)<<24;
@@ -17,14 +23,6 @@ inline void INT_TO(u8* ptr, int i) {
     *(ptr+2) = (i>>16)&0xff;
     *(ptr+3) = (i>>24)&0xff;
 }
-
-volatile int linkReceivedData=-1;
-volatile int linkSendData;
-volatile bool transferWaiting = false;
-volatile bool readyToSend=true;
-int lastSendid = 0xff;
-volatile int nifiSendid;
-
 
 enum ClientStatus {
     CLIENT_IDLE=0,
@@ -37,13 +35,41 @@ enum HostStatus {
     HOST_WAITING,
     HOST_CONNECTED
 };
+enum LinkType {
+    LINK_CABLE=0,
+    LINK_SGB
+};
+enum NifiCmd {
+    NIFI_CMD_HOST=0,
+    NIFI_CMD_CLIENT,
+    NIFI_CMD_INPUT,
+    NIFI_CMD_TRANSFER_SRAM,
+
+    NIFI_CMD_FRAGMENT
+};
+
+const int CLIENT_FRAME_LAG = 4;
+const int FRAGMENT_SIZE = 0x4000;
+
+u8* fragmentBuffer = NULL;
+u8 lastFragment;
 
 bool nifiEnabled=true;
+bool nifiInitialized = false;
 
 volatile bool foundClient;
 volatile bool foundHost;
 bool isClient = false;
 bool isHost = false;
+
+int nifiFrameCounter;
+int nifiLinkType;
+volatile bool receivedSram;
+
+u8* nifiInputDest;      // Where input for this DS goes
+u8* nifiOtherInputDest; // Where input from other DS goes
+
+int nifiConsecutiveWaitingFrames = 0;
 
 volatile int status = 0;
 volatile u32 hostId;
@@ -53,24 +79,53 @@ char hostRomTitle[20];
 volatile u8 receivedInput[32];
 volatile bool receivedInputReady[32];
 
-const int CLIENT_FRAME_LAG = 4;
-
-void nifiSendPacket(u8 command, u8* data, int dataLen)
+void nifiSendPacket(u8 command, u8* data, u32 dataLen)
 {
-    if (!nifiEnabled)
+    if (!nifiEnabled || !nifiInitialized)
         return;
-    u8* buffer = (u8*)malloc(dataLen + 12);
+    u8* buffer = (u8*)malloc(dataLen + 10);
+    if (!buffer) {
+        printLog("Nifi out of memory\n");
+        return;
+    }
 
     buffer[0] = 'Y';
     buffer[1] = 'O';
     buffer[2] = 'B';
     buffer[3] = 'P';
     *(u32*)(buffer+4) = hostId;
-    buffer[8] = command;
-    memcpy(buffer+9, data, dataLen);
 
-    if (Wifi_RawTxFrame(9, 0x0014, (unsigned short *)buffer) != 0)
-        printLog("Nifi send error\n");
+    if (dataLen <= FRAGMENT_SIZE) {
+        buffer[8] = command;
+        memcpy(buffer+9, data, dataLen);
+
+        if (Wifi_RawTxFrame(dataLen+9, 0x0014, (unsigned short *)buffer) != 0)
+            printLog("Nifi send error\n");
+    }
+    else {
+        buffer[8] = NIFI_CMD_FRAGMENT;
+        u8 numFragments = (dataLen+(FRAGMENT_SIZE-1))/FRAGMENT_SIZE;
+
+        for (int i=0; i<numFragments; i++) {
+            int fragmentSize = FRAGMENT_SIZE;
+            if (i == numFragments-1) {
+                fragmentSize = dataLen % FRAGMENT_SIZE;
+                if (fragmentSize == 0)
+                    fragmentSize = FRAGMENT_SIZE;
+            }
+
+            INT_TO(buffer+9, dataLen);
+            buffer[9+4] = command;
+            buffer[9+5] = numFragments;
+            buffer[9+6] = i;
+            memcpy(buffer+9+0x10, data+i*FRAGMENT_SIZE, fragmentSize);
+
+            if (Wifi_RawTxFrame(dataLen+9, 0x0014, (unsigned short *)buffer) != 0)
+                printLog("Nifi send error\n");
+
+            swiWaitForVBlank(); // Excessive?
+        }
+    }
 
     free(buffer);
 }
@@ -94,6 +149,85 @@ u8* packetData(u8* packet) {
     return packet+32+9;
 }
 
+void handlePacketCommand(int command, u8* data) {
+    switch(command) {
+        case NIFI_CMD_CLIENT:
+            if (isHost && status == HOST_WAITING) {
+                foundClient = true;
+            }
+            break;
+
+        case NIFI_CMD_INPUT:
+            if (true || isClient) {
+                int num = data[0];
+                int frame1 = INT_AT(data+1);
+
+                for (int i=0; i<num; i++) {
+                    int frame = frame1+i;
+
+                    if (((frame - nifiFrameCounter)&31) < 16) {
+                        if (receivedInputReady[frame&31]) {
+                            if (receivedInput[frame&31] != data[5+i])
+                                printLog("MISMATCH\n");
+                        }
+                        else {
+                            receivedInputReady[frame&31] = true;
+                            receivedInput[frame&31] = data[5+i];
+                        }
+                    }
+                }
+            }
+            break;
+        case NIFI_CMD_TRANSFER_SRAM:
+            if (nifiLinkType == LINK_SGB) {
+                if (isClient)
+                    memcpy(gameboy->externRam, data, gameboy->getNumRamBanks()*0x2000);
+                receivedSram = true;
+            }
+            break;
+
+        case NIFI_CMD_FRAGMENT:
+            {
+                u32 totalSize = INT_AT(data);
+                u8 command = data[4];
+                u8 numFragments = data[5];
+                u8 fragment = data[6];
+
+                int fragmentSize = FRAGMENT_SIZE;
+                if (fragment == numFragments-1) {
+                    fragmentSize = totalSize % FRAGMENT_SIZE;
+                    if (fragmentSize == 0)
+                        fragmentSize = FRAGMENT_SIZE;
+                }
+
+                if (fragmentBuffer == NULL && fragment != 0)
+                    return;
+                else if (fragmentBuffer != NULL && fragment == 0)
+                    free(fragmentBuffer);
+                if (fragment == 0) {
+                    fragmentBuffer = (u8*)malloc(totalSize);
+                    lastFragment = 0;
+                }
+                else if (lastFragment+1 != fragment) {
+                    free(fragmentBuffer);
+                    lastFragment = -1;
+                    return;
+                }
+                else
+                    lastFragment++;
+
+                printLog("FRAGMENT %d\n", fragment);
+                memcpy(fragmentBuffer+fragment*FRAGMENT_SIZE, data+0x10, fragmentSize);
+
+                if (fragment == numFragments-1) {
+                    handlePacketCommand(command, fragmentBuffer);
+                    free(fragmentBuffer);
+                    lastFragment = -1;
+                }
+            }
+            break;
+    }
+}
 
 void packetHandler(int packetID, int readlength)
 {
@@ -112,43 +246,16 @@ void packetHandler(int packetID, int readlength)
     if (verifyPacket(packet, readlength)) {
         u8* data = packetData(packet);
 
-        switch(packetCommand(packet)) {
-            case NIFI_CMD_HOST:
-                if (isClient && status == CLIENT_WAITING) {
-                    foundHost = true;
-                    hostId = packetHostId(packet);
-                    strncpy(hostRomTitle, (char*)data, 19);
-                    hostRomTitle[19] = '\0';
-                }
-                break;
-            case NIFI_CMD_CLIENT:
-                if (isHost && status == HOST_WAITING) {
-                    foundClient = true;
-                }
-                break;
-
-            case NIFI_CMD_INPUT:
-                if (true || isClient) {
-                    int num = data[0];
-                    int frame1 = INT_AT(data+1);
-
-                    for (int i=0; i<num; i++) {
-                        int frame = frame1+i;
-
-                        if (receivedInputReady[frame&31]) {
-                            //printf("OVERFLOW\n");
-                        }
-                        else {
-                            if (((frame - gameboy->gameboyFrameCounter)&31) < 16) {
-                                receivedInputReady[frame&31] = true;
-                                receivedInput[frame&31] = data[5+i];
-                            }
-                        }
-                    }
-                }
-                break;
+        if (packetCommand(packet) == NIFI_CMD_HOST) {
+            if (isClient && status == CLIENT_WAITING) {
+                foundHost = true;
+                hostId = packetHostId(packet);
+                nifiLinkType = data[0];
+                strcpy(hostRomTitle, (char*)(data+8));
+            }
         }
-
+        else
+            handlePacketCommand(packetCommand(packet), data);
     }
 }
 
@@ -157,9 +264,16 @@ void Timer_10ms(void) {
 	Wifi_Timer(10);
 }
 
+void nifiStop() {
+    isClient = false;
+    isHost = false;
+    disableNifi();
+    nifiUnpause();
+}
+
 void enableNifi()
 {
-    if (nifiEnabled)
+    if (nifiInitialized)
         return;
 
 	Wifi_InitDefault(false);
@@ -196,19 +310,52 @@ void enableNifi()
 //   associated to an AP, but actively receiving and potentially transmitting
 	Wifi_EnableWifi();
 
-    transferWaiting = false;
-    nifiEnabled = true;
+    nifiInitialized = true;
 }
 
 void disableNifi() {
-    if (!nifiEnabled)
+    if (!nifiInitialized)
         return;
 
     Wifi_DisableWifi();
-    nifiEnabled = false;
+    nifiInitialized = false;
 }
 
 void nifiInterLinkMenu() {
+    int selection = 0;
+    receivedSram = false;
+
+    for (;;) {
+        swiWaitForVBlank();
+        clearConsole();
+
+        printf("\n\n");
+        if (selection == 0) {
+            iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, "* As Host\n\n");
+            iprintfColored(CONSOLE_COLOR_WHITE, "  As Client\n\n");
+        }
+        else {
+            iprintfColored(CONSOLE_COLOR_WHITE, "  As Host\n\n");
+            iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, "* As Client\n\n");
+        }
+
+        readKeys();
+        if (keyJustPressed(mapMenuKey(MENU_KEY_B)))
+            return;
+        if (keyJustPressed(mapMenuKey(MENU_KEY_A))) {
+            isHost = selection == 0;
+            if (isHost)
+                nifiLinkTypeMenu();
+            else
+                nifiClientMenu();
+            break;
+        }
+        if (keyPressedAutoRepeat(mapMenuKey(MENU_KEY_UP) | mapMenuKey(MENU_KEY_DOWN)))
+            selection = !selection;
+    }
+}
+
+void nifiLinkTypeMenu() {
     int selection = 0;
 
     for (;;) {
@@ -229,44 +376,102 @@ void nifiInterLinkMenu() {
         if (keyJustPressed(mapMenuKey(MENU_KEY_B)))
             return;
         if (keyJustPressed(mapMenuKey(MENU_KEY_A))) {
-            nifiHostOrClientMenu();
-        }
-        if (keyPressedAutoRepeat(mapMenuKey(MENU_KEY_UP) | mapMenuKey(MENU_KEY_DOWN)))
-            selection = !selection;
-    }
+            nifiLinkType = selection;
 
-    nifiHostOrClientMenu();
-}
-
-void nifiHostOrClientMenu() {
-    int selection = 0;
-
-    for (;;) {
-        swiWaitForVBlank();
-        clearConsole();
-
-        printf("\n\n");
-        if (selection == 0) {
-            iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, "* As Host\n\n");
-            iprintfColored(CONSOLE_COLOR_WHITE, "  As Client\n\n");
-        }
-        else {
-            iprintfColored(CONSOLE_COLOR_WHITE, "  As Host\n\n");
-            iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, "* As Client\n\n");
-        }
-
-        readKeys();
-        if (keyJustPressed(mapMenuKey(MENU_KEY_B)))
-            return;
-        if (keyJustPressed(mapMenuKey(MENU_KEY_A))) {
-            if (selection == 0)
+            if (isHost)
                 nifiHostMenu();
             else
                 nifiClientMenu();
+            break;
         }
         if (keyPressedAutoRepeat(mapMenuKey(MENU_KEY_UP) | mapMenuKey(MENU_KEY_DOWN)))
             selection = !selection;
     }
+}
+
+
+const int MAX = CLIENT_FRAME_LAG;
+u8 oldInputs[MAX+1];
+
+void nifiStartLink() {
+    bool waitForSram = false;
+    bool sendSram = false;
+
+    gameboy->init();
+    nifiFrameCounter = 0;
+
+    if (nifiLinkType == LINK_CABLE) {
+        mgr_startGb2(0);
+    }
+
+    if (isHost) {
+        mgr_setInternalClockGb(gameboy);
+
+        // Fill in first few frames of client's input
+        for (int i=0; i<CLIENT_FRAME_LAG; i++) {
+            receivedInputReady[i] = true;
+            receivedInput[i] = 0xff;
+        }
+
+        // Set input destinations
+        if (nifiLinkType == LINK_SGB) {
+            nifiInputDest = &gameboy->controllers[0];
+            nifiOtherInputDest = &gameboy->controllers[1];
+        }
+        else if (nifiLinkType == LINK_CABLE) {
+            nifiInputDest = &gameboy->controllers[0];
+            nifiOtherInputDest = &gb2->controllers[0];
+        }
+
+        // Sram transfers
+        sendSram = true;
+        if (nifiLinkType == LINK_CABLE)
+            waitForSram = true;
+    }
+    else if (isClient) {
+        mgr_setInternalClockGb(gb2);
+
+        // First few frames of input are skipped, so fill them in
+        for (int i=0; i<CLIENT_FRAME_LAG; i++)
+            oldInputs[i] = 0xff;
+
+        // Set input destinations
+        if (nifiLinkType == LINK_SGB) {
+            nifiInputDest = &gameboy->controllers[1];
+            nifiOtherInputDest = &gameboy->controllers[0];
+        }
+        else if (nifiLinkType == LINK_CABLE) {
+            nifiInputDest = &gameboy->controllers[0];
+            nifiOtherInputDest = &gb2->controllers[0];
+        }
+
+        // Sram transfers
+        waitForSram = true;
+        if (nifiLinkType == LINK_CABLE)
+            sendSram = true;
+    }
+
+    if (sendSram && gameboy->getNumRamBanks()) {
+        nifiSendPacket(NIFI_CMD_TRANSFER_SRAM, gameboy->externRam,
+                2*0x2000);
+    }
+    if (waitForSram && gameboy->getNumRamBanks()) {
+        nifiConsecutiveWaitingFrames = 0;
+        while (!receivedSram) {
+            swiWaitForVBlank();
+            nifiConsecutiveWaitingFrames++;
+            if (nifiConsecutiveWaitingFrames >= 60) {
+                printf("Connection lost.\n");
+                nifiStop();
+
+                for (int i=0; i<90; i++) swiWaitForVBlank();
+                break;
+            }
+        }
+    }
+
+    nifiConsecutiveWaitingFrames = 0;
+    closeMenu();
 }
 
 void nifiHostMenu() {
@@ -284,19 +489,18 @@ void nifiHostMenu() {
     printf("Press B to give up.\n\n");
 
     bool willConnect=false;
-//    while (!foundClient) {
-    {
+    while (!foundClient) {
         swiWaitForVBlank();
         swiWaitForVBlank();
         swiWaitForVBlank();
         readKeys();
-        /*
         if (keyJustPressed(KEY_B))
             break;
-            */
 
-        char* romTitle = gameboy->getRomFile()->getRomTitle();
-        nifiSendPacket(NIFI_CMD_HOST, (u8*)romTitle, strlen(romTitle)+1);
+        u8 buffer[30];
+        buffer[0] = nifiLinkType;
+        strcpy((char*)(buffer+8), gameboy->getRomFile()->getRomTitle());
+        nifiSendPacket(NIFI_CMD_HOST, buffer, 30);
     }
 
     if (foundClient) {
@@ -314,11 +518,12 @@ void nifiHostMenu() {
     for (int i=0; i<90; i++) swiWaitForVBlank();
 
     if (willConnect) {
-        gameboy->init();
+        nifiStartLink();
     }
 }
 
 void nifiClientMenu() {
+    enableNifi();
     consoleClear();
     printf("Waiting for host...\n\n");
     printf("Press B to give up.\n\n");
@@ -337,10 +542,15 @@ void nifiClientMenu() {
             break;
     }
 
-    bool willConnect;
+    bool willConnect = false;
     if (foundHost) {
-        printf("Found host.\n");
-        printf("Host ROM: \"%s\"\n\n", hostRomTitle);
+        printf("Found host.\n\n");
+        printf("Host ROM: \"%s\"\n", hostRomTitle);
+        printf("Link Type: ");
+        if (nifiLinkType == LINK_CABLE)
+            printf("Cable Link\n\n");
+        else if (nifiLinkType == LINK_SGB)
+            printf("SGB Multiplayer\n\n");
         printf("Press A to connect, B to cancel.\n\n");
 
         while (true) {
@@ -349,7 +559,7 @@ void nifiClientMenu() {
             if (keyJustPressed(KEY_A)) {
                 willConnect = true;
                 nifiSendPacket(NIFI_CMD_CLIENT, 0, 0);
-                printf("Connected to host. Id: %d\n", hostId);
+                printf("Connected to host.\nHost Id: %d\n", hostId);
                 status = CLIENT_CONNECTED;
 
                 memset((void*)receivedInputReady, 0, sizeof(receivedInputReady));
@@ -366,14 +576,13 @@ void nifiClientMenu() {
         isClient = false;
         status = 0;
         printf("Couldn't find host.\n");
+        disableNifi();
     }
     
     for (int i=0; i<90; i++) swiWaitForVBlank();
 
     if (willConnect) {
-        gameboy->init();
-        gameboy->sgbSetActiveController(1);
-        gameboy->pause();
+        nifiStartLink();
     }
 }
 
@@ -381,35 +590,41 @@ bool nifiIsHost() { return isHost; }
 bool nifiIsClient() { return isClient; }
 bool nifiIsLinked() { return isHost || isClient; }
 
-void nifiCheckInput() {
-    if (nifiIsClient()) {
-        if (!receivedInputReady[gameboy->gameboyFrameCounter&31]) {
-            gameboy->pause();
-            printLog("Nifi pause...\n");
-        }
-        else
-            gameboy->unpause();
-    }
-    else if (nifiIsHost()) {
-        if (gameboy->gameboyFrameCounter >= CLIENT_FRAME_LAG &&
-                !receivedInputReady[gameboy->gameboyFrameCounter&31]) {
-            gameboy->pause();
-            printLog("Nifi pause...\n");
-        }
-        else
-            gameboy->unpause();
+int nifiWasPaused = -1;
+void nifiPause() {
+    if (nifiWasPaused == -1) {
+        nifiWasPaused = gameboy->isGameboyPaused();
+        gameboy->pause();
+        if (gb2)
+            gb2->pause();
     }
 }
-
-const int MAX = CLIENT_FRAME_LAG;
-u8 oldInputs[MAX+1];
+void nifiUnpause() {
+    if (nifiWasPaused == -1 || !nifiWasPaused) {
+        gameboy->unpause();
+        if (gb2)
+            gb2->unpause();
+    }
+    nifiWasPaused = -1;
+}
 
 void nifiUpdateInput() {
+    u8* inputDest;
+    u8* otherInputDest;
+    if (nifiIsLinked()) {
+        inputDest = nifiInputDest;
+        otherInputDest = nifiOtherInputDest;
+    }
+    else
+        inputDest = &gameboy->controllers[0];
+
     u32 bfr[4];
     u8* buffer = (u8*)bfr;
-    int frame = gameboy->gameboyFrameCounter;
+
+    u32 actualFrame = nifiFrameCounter;
+    u32 inputFrame = nifiFrameCounter;
     if (nifiIsClient())
-        frame += CLIENT_FRAME_LAG;
+        inputFrame += CLIENT_FRAME_LAG;
 
     u8 olderInput = oldInputs[0];
 
@@ -418,10 +633,11 @@ void nifiUpdateInput() {
         for (int i=0; i<MAX-1; i++)
             oldInputs[i] = oldInputs[i+1];
         oldInputs[MAX-1] = buttonsPressed;
-        int number = (frame < MAX-1 ? frame+1 : MAX);
+
+        u32 number = (inputFrame < MAX-1 ? inputFrame+1 : MAX);
         //number = 1;
 
-        INT_TO(buffer+1, frame-number+1);
+        INT_TO(buffer+1, inputFrame-number+1);
         for (int i=0; i<number; i++)
             buffer[5+i] = oldInputs[(MAX-number)+i];
         //buffer[5] = oldInputs[2];
@@ -429,26 +645,30 @@ void nifiUpdateInput() {
         nifiSendPacket(NIFI_CMD_INPUT, buffer, 5+number);
 
 
-        frame = gameboy->gameboyFrameCounter;
-
         // Set other controller's input
-        if (receivedInputReady[frame&31]) {
-            gameboy->controllers[!gameboy->sgbGetActiveController()] = receivedInput[frame&31];
-            receivedInputReady[frame&31] = false;
+        if (receivedInputReady[actualFrame&31]) {
+            *otherInputDest = receivedInput[actualFrame&31];
+            receivedInputReady[actualFrame&31] = false;
+            nifiFrameCounter++;
+            nifiUnpause();
+            nifiConsecutiveWaitingFrames = 0;
         }
-        else
-            printLog("NIFI NOT READY\n");
+        else {
+            nifiConsecutiveWaitingFrames++;
+            printLog("NIFI NOT READY %x\n", nifiFrameCounter);
+            nifiPause();
+        }
+        if (nifiConsecutiveWaitingFrames >= 120) {
+            nifiConsecutiveWaitingFrames = 0;
+            printLog("Connection lost!\n");
+            nifiStop();
+        }
     }
-
-    frame = gameboy->gameboyFrameCounter;
 
     if (!nifiIsLinked() || nifiIsHost()) {
-        gameboy->controllers[gameboy->sgbGetActiveController()] = buttonsPressed;
+        *inputDest = buttonsPressed;
     }
     else if (nifiIsClient()) {
-        if (frame >= CLIENT_FRAME_LAG)
-            gameboy->controllers[gameboy->sgbGetActiveController()] = olderInput;
-        else
-            gameboy->controllers[gameboy->sgbGetActiveController()] = 0xff;
+        *inputDest = olderInput;
     }
 }

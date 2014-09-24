@@ -36,8 +36,10 @@ PrintConsole* getDefaultConsole() {
 }
 
 void printLog(const char *format, ...) {
+    /*
     if (isMenuOn() || sharedData->scalingOn)
         return;
+        */
     va_list args;
     va_start(args, format);
 

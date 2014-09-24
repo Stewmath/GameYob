@@ -137,11 +137,11 @@ void mgr_loadRom(const char* filename) {
         enableMenuOption("GBC Bios");
     else
         disableMenuOption("GBC Bios");
-
-    mgr_startGb2(0);
 }
 
 void mgr_unloadRom() {
+    nifiStop();
+
     gameboy->unloadRom();
     gameboy->linkedGameboy = NULL;
     gbUno = gameboy;
@@ -184,6 +184,7 @@ void updateVBlank() {
 
     inputUpdateVBlank();
 
+    buttonsPressed = 0xff;
     if (isMenuOn())
         updateMenu();
     else {
@@ -191,8 +192,6 @@ void updateVBlank() {
         if (gbsMode)
             gbsCheckInput();
     }
-
-    nifiCheckInput();
 
 #ifdef DS
     int oldIME = REG_IME;
