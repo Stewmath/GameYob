@@ -23,7 +23,7 @@ DEBUG = -ggdb
 CXXFLAGS =	-O2 -Wall `sdl-config --cflags` $(DEBUG) \
 			-include "typedefs.h" \
 			-DVERSION_STRING=\"`git describe --always --abbrev=4`\" \
-			-DC_IO_FUNCTIONS \
+			-DSDL -DC_IO_FUNCTIONS \
 			$(INCLUDE)
 
 LDFLAGS = -Wall `sdl-config --libs` -lGL $(DEBUG)

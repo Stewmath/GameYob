@@ -19,6 +19,7 @@
 #include "filechooser.h"
 #include "romfile.h"
 #include "io.h"
+#include "gbmanager.h"
 
 bool keysPressed[512];
 bool keysJustPressed[512];
@@ -284,7 +285,7 @@ void inputUpdateVBlank() {
         switch (event.type)
         {
             case SDL_QUIT:
-                gameboy->saveGame();
+                mgr_save();
 #ifdef LOG
 				fclose(logFile);
 #endif

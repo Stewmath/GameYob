@@ -418,17 +418,14 @@ ConsoleSubMenu menuList[] = {
             {"Channel 4", chan4Func, 2, {"Off","On"}, 1}
         }
     },
-    /*
     {
-        "Link",
-        3,
+        "Linking",
+        2,
         {
-            {"Host", nifiHostMenu, 0, {}, 0},
-            {"Client", nifiClientMenu, 0, {}, 0},
-            {"Swap", swapFunc, 2, {"1","2"}, 0}
+            {"Link to DS", (void (*)(int))nifiInterLinkMenu, 0, {}, 0},
+            {"Swap Focus", (void (*)(int))mgr_swapFocus, 0, {}, 0}
         }
     }
-    */
 };
 const int numMenus = sizeof(menuList)/sizeof(ConsoleSubMenu);
 

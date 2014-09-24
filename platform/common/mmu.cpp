@@ -697,13 +697,18 @@ void Gameboy::writeIO(u8 ioReg, u8 val) {
 #endif
             }
             return;
+        case 0x01:
+            ioRam[ioReg] = val;
+            return;
         case 0x02:
             {
                 ioRam[ioReg] = val;
                 if (val & 0x80 && val & 0x01) {
-                    serialCounter = clockSpeed/1024;
-                    if (cyclesToExecute > serialCounter)
-                        cyclesToExecute = serialCounter;
+                    if (serialCounter == 0) {
+                        serialCounter = clockSpeed/1024;
+                        if (cyclesToExecute > serialCounter)
+                            cyclesToExecute = serialCounter;
+                    }
                 }
                 else
                     serialCounter = 0;

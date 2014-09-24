@@ -22,6 +22,7 @@
 #include "romfile.h"
 #include "menu.h"
 #include "io.h"
+#include "gbmanager.h"
 
 const int maxWaitCycles=1000000;
 
@@ -112,7 +113,7 @@ void Gameboy::init()
     extraCycles = 0;
     soundCycles = 0;
     cyclesSinceVblank = 0;
-    cyclesUntilSwap = 0;
+    cycleToSerialTransfer = -1;
 
     initGbPrinter();
 
@@ -122,10 +123,6 @@ void Gameboy::init()
     periods[2] = clockSpeed/65536;
     periods[3] = clockSpeed/16384;
     timerPeriod = periods[0];
-
-#ifdef DS
-    timerStop(2);
-#endif
 
     memset(vram[0], 0, 0x2000);
     memset(vram[1], 0, 0x2000);
@@ -155,9 +152,9 @@ void Gameboy::initGBMode() {
 }
 void Gameboy::initGBCMode() {
     if (sgbModeOption == 2 && romFile->romSlot0[0x14b] == 0x33 && romFile->romSlot0[0x146] == 0x03)
-        gameboy->resultantGBMode = 2;
+        resultantGBMode = 2;
     else {
-        gameboy->resultantGBMode = 1;
+        resultantGBMode = 1;
     }
 }
 
@@ -187,7 +184,7 @@ void Gameboy::initSND() {
     ioRam[0x24] = 0x77;
     ioRam[0x25] = 0xf3;
 
-    // Initial values for the waveform are random among gameboys.
+    // Initial values for the waveform are different depending on the model.
     // These values are the defaults for the GBC.
     for (int i=0; i<0x10; i+=2)
         ioRam[0x30+i] = 0;
@@ -300,7 +297,9 @@ void Gameboy::gameboyCheckInput() {
         autoFireCounterB--;
     }
 
-    gameboy->controllers[0] = buttonsPressed;
+#ifndef DS
+    controllers[0] = buttonsPressed;
+#endif
 
 
     if (keyJustPressed(mapFuncKey(FUNC_KEY_SAVE))) {
@@ -397,7 +396,12 @@ bool Gameboy::isGameboyPaused() {
 
 int Gameboy::runEmul()
 {
+    emuRet = 0;
     memcpy(&g_gbRegs, &gbRegs, sizeof(Registers));
+
+    if (cycleToSerialTransfer != -1)
+        setEventCycles(cycleToSerialTransfer);
+
     for (;;)
     {
         cyclesToEvent -= extraCycles;
@@ -416,36 +420,56 @@ int Gameboy::runEmul()
 
         cyclesSinceVblank += cycles;
 
+        // For external clock
+        if (cycleToSerialTransfer != -1) {
+            if (cyclesSinceVblank < cycleToSerialTransfer)
+                setEventCycles(cycleToSerialTransfer - cyclesSinceVblank);
+            else {
+                cycleToSerialTransfer = -1;
+
+                if ((ioRam[0x02] & 0x81) == 0x80) {
+                    u8 tmp = ioRam[0x01];
+                    ioRam[0x01] = linkedGameboy->ioRam[0x01];
+                    linkedGameboy->ioRam[0x01] = tmp;
+                    emuRet |= RET_LINK;
+                    // Execution will be passed back to the other gameboy (the 
+                    // internal clock gameboy).
+                }
+                else
+                    linkedGameboy->ioRam[0x01] = 0xff;
+                if (ioRam[0x02] & 0x80) {
+                    requestInterrupt(SERIAL);
+                    ioRam[0x02] &= ~0x80;
+                }
+            }
+        }
+        // For internal clock
         if (serialCounter > 0) {
             serialCounter -= cycles;
             if (serialCounter <= 0) {
                 serialCounter = 0;
                 linkReceivedData = 0xff;
-                transferReady = true;
-            }
-            else
-                setEventCycles(serialCounter);
 
-            if (transferReady) {
-                if (false && nifiEnabled) {
-                    if (!(ioRam[0x02] & 1)) {
-                        //sendPacketByte(56, linkSendData);
-#ifdef DS
-                        timerStop(2);
-#endif
-                    }
+                if (linkedGameboy != NULL) {
+                    linkedGameboy->cycleToSerialTransfer = cyclesSinceVblank;
+                    mgr_setInternalClockGb(this);
+                    emuRet |= RET_LINK;
+                    // Execution will stop here, and this gameboy's SB will be 
+                    // updated when the other gameboy runs to the appropriate 
+                    // cycle.
                 }
                 else if (printerEnabled) {
                     sendGbPrinterByte(ioRam[0x01]);
+                    ioRam[0x01] = linkReceivedData;
                 }
                 else
-                    linkReceivedData = 0xff;
-                ioRam[0x01] = linkReceivedData;
+                    ioRam[0x01] = 0xff;
                 requestInterrupt(SERIAL);
                 ioRam[0x02] &= ~0x80;
                 linkReceivedData = -1;
-                transferReady = false;
             }
+            else
+                setEventCycles(serialCounter);
         }
 
         updateTimers(cycles);
@@ -458,7 +482,7 @@ int Gameboy::runEmul()
         }
         setEventCycles(soundEngine->cyclesToSoundEvent);
 
-        int ret = updateLCD(cycles);
+        emuRet |= updateLCD(cycles);
 
         //interruptTriggered = ioRam[0x0F] & ioRam[0xFF];
         if (interruptTriggered) {
@@ -477,9 +501,9 @@ int Gameboy::runEmul()
             interruptTriggered = ioRam[0x0F] & ioRam[0xFF];
         }
 
-        if (ret) {
+        if (emuRet) {
             memcpy(&gbRegs, &g_gbRegs, sizeof(Registers));
-            return ret;
+            return emuRet;
         }
     }
 }
@@ -547,7 +571,7 @@ inline int Gameboy::updateLCD(int cycles)
             // Though not technically vblank, this is a good time to check for 
             // input and whatnot.
             gameboyUpdateVBlank();
-            return 1;
+            return RET_VBLANK;
         }
         return 0;
     }
@@ -638,7 +662,7 @@ inline int Gameboy::updateLCD(int cycles)
                         cyclesSinceVblank = scanlineCounter - (456<<doubleSpeed);
                         gameboyUpdateVBlank();
                         setEventCycles(scanlineCounter);
-                        return 1;
+                        return RET_VBLANK;
                     }
                 }
             }
@@ -757,7 +781,7 @@ int Gameboy::loadSave(int saveId)
         strcat(savename, ".sav");
     else {
         char buf[10];
-        sprintf(buf, savename, ".sa%d", saveId);
+        sprintf(buf, ".sa%d", saveId);
         strcat(savename, buf);
     }
 
@@ -1144,7 +1168,6 @@ int Gameboy::loadState(int stateNum) {
     if (version < 3)
         ramEnabled = true;
 
-    transferReady = false;
     timerPeriod = periods[ioRam[0x07]&0x3];
     cyclesToEvent = 1;
 

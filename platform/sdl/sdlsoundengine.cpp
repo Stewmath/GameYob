@@ -6,55 +6,18 @@
 #include <math.h>
 #include <time.h>
 
-#define BUFFERSIZE 2048
-#define FREQUENCY 44100
 
 
-u16 lfsr=0xffff;
-int noiseVal;
-double chan4FreqRatio;
-int chan4Width;
-int chan3WavPos = 0;
-int chan1SweepTime;
-int chan1SweepCounter;
-int chan1SweepDir;
-int chan1SweepAmount;
-int chanDuty[2];
-int chanLen[4];
-int chanLenCounter[4];
-int chanUseLen[4];
-u32 chanFreq[4];
-// Frequency converted
-int chanFreqClocks[4];
-int chanOn[4];
-int chanPolarity[4] = {1,1,1,1};
-int chanVol[4];
-int chanEnvDir[4];
-int chanPolarityCounter[4];
-int chanEnvCounter[4];
-int chanEnvSweep[4];
-int chanToOut1[4];
-int chanToOut2[4];
-
-int SO1Vol;
-int SO2Vol;
-
-short playbackBuffer[BUFFERSIZE];
-short nextPlaybackBuffer[BUFFERSIZE];
-int bufferPosition = 0;
-float updateBufferLimit;
-int updateBufferCount;
-int panic;
-
-Sync_Audio audio;
-Blip_Buffer buf;
-Blip_Synth<blip_low_quality,20> synth;
-
-
-void handleSDLCallback(void* userdata, Uint8* buffer, int len);
 
 SoundEngine::SoundEngine(Gameboy* g)
 {
+    lfsr = 0xffff;
+    bufferPosition = 0;
+    chanPolarity[0] = 1;
+    chanPolarity[1] = 1;
+    chanPolarity[2] = 1;
+    chanPolarity[3] = 1;
+    timePassed = 0;
     setGameboy(g);
 }
 
@@ -68,27 +31,7 @@ void SoundEngine::setGameboy(Gameboy* g) {
 
 void SoundEngine::init() {
 	audio.stop();
-	SDL_AudioSpec as;
-	as.freq = FREQUENCY;
-	as.format = AUDIO_S16SYS;
-	as.channels = 1;
-	as.silence = 0;
-	as.samples = BUFFERSIZE;
-	as.size = 0;
-	as.callback = &handleSDLCallback;
-	as.userdata = 0;
-	//SDL_OpenAudio(&as, 0);
 
-	float sdlCallbakFreq = (FREQUENCY / BUFFERSIZE) + 1;
-	updateBufferLimit = clockSpeed / sdlCallbakFreq ;
-	updateBufferLimit /= BUFFERSIZE;
-
-	for (int i=0; i<BUFFERSIZE; i++)
-	{
-		playbackBuffer[i] = 0;
-	}
-
-	//SDL_PauseAudio(0);
 	// Setup buffer
 	buf.clock_rate(clockSpeed);
 	buf.set_sample_rate(44100);
@@ -97,25 +40,48 @@ void SoundEngine::init() {
 	synth.volume( 0.50 );
 	synth.output( &buf );
 
-	audio.start(44100, 1, 100);
-
 	srand(time(NULL));
+
+    refresh();
 }
 
 void SoundEngine::refresh() {
+    // Ordering note: Writing a byte to FF26 with bit 7 set enables writes to
+    // the other registers. With bit 7 unset, writes are ignored.
+    handleSoundRegister(0x26, gameboy->readIO(0x26));
 
+    for (int i=0x10; i<=0x3F; i++) {
+        if (i == 0x14 || i == 0x19 || i == 0x1e || i == 0x23)
+            // Don't restart the sound channels.
+            handleSoundRegister(i, gameboy->readIO(i)&~0x80);
+        else
+            handleSoundRegister(i, gameboy->readIO(i));
+    }
+
+    if (gameboy->readIO(0x26) & 1)
+        handleSoundRegister(0x14, gameboy->readIO(0x14)|0x80);
+    if (gameboy->readIO(0x26) & 2)
+        handleSoundRegister(0x19, gameboy->readIO(0x19)|0x80);
+    if (gameboy->readIO(0x26) & 4)
+        handleSoundRegister(0x1e, gameboy->readIO(0x1e)|0x80);
+    if (gameboy->readIO(0x26) & 8)
+        handleSoundRegister(0x23, gameboy->readIO(0x23)|0x80);
+
+    unmute();
 }
 
 void SoundEngine::mute() {
-
+    muted = true;
+    audio.stop();
 }
 
 void SoundEngine::unmute() {
-
+    muted = false;
+    if (gameboy->isMainGameboy())
+        audio.start(44100, 1, 100);
 }
 
 
-int timePassed = 0;
 void SoundEngine::updateSound(int cycles)
 {
     setSoundEventCycles(50);
@@ -313,17 +279,19 @@ void SoundEngine::updateSound(int cycles)
 	//if (tone != 0)
 	//	printf("%d\n", tone);
 
-	synth.update(0, tone);
-	buf.end_frame(cycles);
+    if (!muted) {
+        synth.update(0, tone);
+        buf.end_frame(cycles);
 
-	if (timePassed >= 1000)
-	{
-		timePassed = 0;
+        if (timePassed >= 1000)
+        {
+            timePassed = 0;
 
-		blip_sample_t samples[1024];
-		int count = buf.read_samples(samples, 1024);
-		audio.write(samples, count);
-	}
+            blip_sample_t samples[1024];
+            int count = buf.read_samples(samples, 1024);
+            audio.write(samples, count);
+        }
+    }
 }
 
 
@@ -552,22 +520,6 @@ void SoundEngine::handleSoundRegister(u8 ioReg, u8 val)
 		default:
 			break;
 	}
-}
-
-void handleSDLCallback(void* userdata, Uint8* buffer, int len)
-{
-	//printf("Panic %d\n", panic);
-	panic = 0;
-	int i;
-	//for (i=0; i<BUFFERSIZE; i++)
-	//	buffer[i] = playbackBuffer[i];
-	memcpy(buffer, playbackBuffer, len);
-	//bufferPosition &= 0x3FF;
-	//for (i=0; i<bufferPosition; i++)
-	//	playbackBuffer[i] = nextPlaybackBuffer[i];
-	bufferPosition = 0;
-	for (i=0; i<BUFFERSIZE; i++)
-		playbackBuffer[i] = 0;
 }
 
 // Global functions

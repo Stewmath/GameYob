@@ -9,7 +9,14 @@
 #include "filechooser.h"
 #include "soundengine.h"
 
-Gameboy* gameboy;
+Gameboy* gameboy = NULL;
+Gameboy* gb2 = NULL;
+
+// Ordering for purposes of link emulation
+Gameboy* gbUno = NULL;
+Gameboy* gbDuo = NULL;
+
+
 RomFile* romFile = NULL;
 
 #ifdef DS
@@ -23,15 +30,66 @@ void updateVBlank();
 
 void mgr_init() {
     gameboy = new Gameboy();
+    gbUno = gameboy;
 }
 
 void mgr_run() {
 	for (;;)
 	{
-        if (!gameboy->isGameboyPaused())
-            gameboy->runEmul();
+        int ret1=0,ret2=0;
+
+        while (!((ret1 & RET_VBLANK) && (ret2 & RET_VBLANK))) {
+            if (!gbUno->isGameboyPaused()) {
+                if (!(ret1 & RET_VBLANK))
+                    ret1 |= gbUno->runEmul();
+            }
+            else
+                ret1 |= RET_VBLANK;
+
+            if (gbDuo && !gbDuo->isGameboyPaused()) {
+                if (!(ret2 & RET_VBLANK))
+                    ret2 |= gbDuo->runEmul();
+            }
+            else
+                ret2 |= RET_VBLANK;
+        }
         updateVBlank();
 	}
+}
+
+void mgr_startGb2(const char* filename) {
+    if (gb2 == NULL)
+        gb2 = new Gameboy();
+    gb2->setRomFile(gameboy->getRomFile());
+    gb2->loadSave(2);
+    gb2->init();
+    gb2->getSoundEngine()->mute();
+
+    gameboy->linkedGameboy = gb2;
+    gb2->linkedGameboy = gameboy;
+
+    gbDuo = gb2;
+}
+
+void mgr_swapFocus() {
+    if (gb2) {
+        Gameboy* tmp = gameboy;
+        gameboy = gb2;
+        gb2 = tmp;
+
+        gb2->getSoundEngine()->mute();
+        gameboy->getSoundEngine()->refresh();
+
+        refreshGFX();
+    }
+}
+
+void mgr_setInternalClockGb(Gameboy* g) {
+    gbUno = g;
+    if (g == gameboy)
+        gbDuo = gb2;
+    else
+        gbDuo = gameboy;
 }
 
 void mgr_loadRom(const char* filename) {
@@ -41,7 +99,6 @@ void mgr_loadRom(const char* filename) {
     romFile = new RomFile(filename);
     gameboy->setRomFile(romFile);
     gameboy->loadSave(1);
-
 
     if (sgbBordersEnabled)
         probingForBorder = true; // This will be ignored if starting in sgb mode, or if there is no sgb mode.
@@ -80,10 +137,21 @@ void mgr_loadRom(const char* filename) {
         enableMenuOption("GBC Bios");
     else
         disableMenuOption("GBC Bios");
+
+    mgr_startGb2(0);
 }
 
 void mgr_unloadRom() {
     gameboy->unloadRom();
+    gameboy->linkedGameboy = NULL;
+    gbUno = gameboy;
+
+    if (gb2) {
+        gb2->unloadRom();
+        delete gb2;
+        gb2 = NULL;
+        gbDuo = NULL;
+    }
 
     if (romFile != NULL) {
         delete romFile;
@@ -112,6 +180,8 @@ void mgr_selectRom() {
 
 
 void updateVBlank() {
+    drawScreen();
+
     inputUpdateVBlank();
 
     if (isMenuOn())
@@ -130,8 +200,6 @@ void updateVBlank() {
     nifiUpdateInput();
     REG_IME = oldIME;
 #endif
-
-    drawScreen();
 
 #ifdef DS
     if (isConsoleOn() && !isMenuOn() && !consoleDebugOutput && (rawTime > lastRawTime))
@@ -161,9 +229,28 @@ void updateVBlank() {
             int spaces = 31-strlen(s);
             for (int i=0; i<spaces; i++)
                 iprintf(" ");
+        if (gb2 == NULL)
+            gbUno = gameboy;
+        else {
+            if ((gameboy->ioRam[0x02] & 0x01) == 1) {
+                gbUno = gameboy;
+                gbDuo = gb2;
+            }
+            else {
+                gbUno = gb2;
+                gbDuo = gameboy;
+            }
+        }
+
             iprintf("%s\n", s);
         }
         lastRawTime = rawTime;
     }
 #endif
+}
+
+void mgr_save() {
+    gameboy->saveGame();
+    if (gb2)
+        gb2->saveGame();
 }

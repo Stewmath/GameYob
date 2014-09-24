@@ -21,7 +21,6 @@ inline void INT_TO(u8* ptr, int i) {
 volatile int linkReceivedData=-1;
 volatile int linkSendData;
 volatile bool transferWaiting = false;
-volatile bool transferReady = false;
 volatile bool readyToSend=true;
 int lastSendid = 0xff;
 volatile int nifiSendid;
@@ -60,7 +59,7 @@ void nifiSendPacket(u8 command, u8* data, int dataLen)
 {
     if (!nifiEnabled)
         return;
-    u8* buffer = (u8*)malloc(dataLen + 9);
+    u8* buffer = (u8*)malloc(dataLen + 12);
 
     buffer[0] = 'Y';
     buffer[1] = 'O';
@@ -70,9 +69,7 @@ void nifiSendPacket(u8 command, u8* data, int dataLen)
     buffer[8] = command;
     memcpy(buffer+9, data, dataLen);
 
-    //printLog("%d: Sent %x\n", ioRam[0x02]&1, data);
-
-    if (Wifi_RawTxFrame(dataLen+9, 0x0014, (unsigned short *)buffer) != 0)
+    if (Wifi_RawTxFrame(9, 0x0014, (unsigned short *)buffer) != 0)
         printLog("Nifi send error\n");
 
     free(buffer);
@@ -162,6 +159,9 @@ void Timer_10ms(void) {
 
 void enableNifi()
 {
+    if (nifiEnabled)
+        return;
+
 	Wifi_InitDefault(false);
 
 // Wifi_SetPromiscuousMode: Allows the DS to enter or leave a "promsicuous" mode, in which 
@@ -201,13 +201,77 @@ void enableNifi()
 }
 
 void disableNifi() {
+    if (!nifiEnabled)
+        return;
+
     Wifi_DisableWifi();
     nifiEnabled = false;
 }
 
+void nifiInterLinkMenu() {
+    int selection = 0;
 
-void nifiHostMenu(int value) {
-    consoleClear();
+    for (;;) {
+        swiWaitForVBlank();
+        clearConsole();
+
+        printf("\n\n");
+        if (selection == 0) {
+            iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, "* Cable Link\n\n");
+            iprintfColored(CONSOLE_COLOR_WHITE, "  SGB Multiplayer\n\n");
+        }
+        else {
+            iprintfColored(CONSOLE_COLOR_WHITE, "  Cable Link\n\n");
+            iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, "* SGB Multiplayer\n\n");
+        }
+
+        readKeys();
+        if (keyJustPressed(mapMenuKey(MENU_KEY_B)))
+            return;
+        if (keyJustPressed(mapMenuKey(MENU_KEY_A))) {
+            nifiHostOrClientMenu();
+        }
+        if (keyPressedAutoRepeat(mapMenuKey(MENU_KEY_UP) | mapMenuKey(MENU_KEY_DOWN)))
+            selection = !selection;
+    }
+
+    nifiHostOrClientMenu();
+}
+
+void nifiHostOrClientMenu() {
+    int selection = 0;
+
+    for (;;) {
+        swiWaitForVBlank();
+        clearConsole();
+
+        printf("\n\n");
+        if (selection == 0) {
+            iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, "* As Host\n\n");
+            iprintfColored(CONSOLE_COLOR_WHITE, "  As Client\n\n");
+        }
+        else {
+            iprintfColored(CONSOLE_COLOR_WHITE, "  As Host\n\n");
+            iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, "* As Client\n\n");
+        }
+
+        readKeys();
+        if (keyJustPressed(mapMenuKey(MENU_KEY_B)))
+            return;
+        if (keyJustPressed(mapMenuKey(MENU_KEY_A))) {
+            if (selection == 0)
+                nifiHostMenu();
+            else
+                nifiClientMenu();
+        }
+        if (keyPressedAutoRepeat(mapMenuKey(MENU_KEY_UP) | mapMenuKey(MENU_KEY_DOWN)))
+            selection = !selection;
+    }
+}
+
+void nifiHostMenu() {
+    enableNifi();
+    clearConsole();
 
     foundClient = false;
     isHost = true;
@@ -220,13 +284,16 @@ void nifiHostMenu(int value) {
     printf("Press B to give up.\n\n");
 
     bool willConnect=false;
-    while (!foundClient) {
+//    while (!foundClient) {
+    {
         swiWaitForVBlank();
         swiWaitForVBlank();
         swiWaitForVBlank();
         readKeys();
+        /*
         if (keyJustPressed(KEY_B))
             break;
+            */
 
         char* romTitle = gameboy->getRomFile()->getRomTitle();
         nifiSendPacket(NIFI_CMD_HOST, (u8*)romTitle, strlen(romTitle)+1);
@@ -251,7 +318,7 @@ void nifiHostMenu(int value) {
     }
 }
 
-void nifiClientMenu(int value) {
+void nifiClientMenu() {
     consoleClear();
     printf("Waiting for host...\n\n");
     printf("Press B to give up.\n\n");

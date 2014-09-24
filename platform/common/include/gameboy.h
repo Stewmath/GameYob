@@ -21,6 +21,10 @@ class CheatEngine;
 class SoundEngine;
 class RomFile;
 
+// Return codes for runEmul
+#define RET_VBLANK  1
+#define RET_LINK    2
+
 // Be careful changing this; it affects save state compatibility.
 struct clockStruct
 {
@@ -178,29 +182,29 @@ class Gameboy {
         u8 readMemoryOther(u16 addr);
         void writeMemoryOther(u16 addr, u8 val);
 
-inline u8 readMemory(u16 addr)
-{
-    int area = addr>>12;
-    if (!(area & 0x8) || area == 0xc || area == 0xd) {
-        return memory[area][addr&0xfff];
-    }
-    else
-        return readMemoryOther(addr);
-}
-inline void writeMemory(u16 addr, u8 val)
-{
-    int area = addr>>12;
-    if (area == 0xc) {
-        // Checking for this first is a tiny bit more efficient.
-        wram[0][addr&0xfff] = val;
-        return;
-    }
-    else if (area == 0xd) {
-        wram[wramBank][addr&0xfff] = val;
-        return;
-    }
-    writeMemoryOther(addr, val);
-}
+        inline u8 readMemory(u16 addr)
+        {
+            int area = addr>>12;
+            if (!(area & 0x8) || area == 0xc || area == 0xd) {
+                return memory[area][addr&0xfff];
+            }
+            else
+                return readMemoryOther(addr);
+        }
+        inline void writeMemory(u16 addr, u8 val)
+        {
+            int area = addr>>12;
+            if (area == 0xc) {
+                // Checking for this first is a tiny bit more efficient.
+                wram[0][addr&0xfff] = val;
+                return;
+            }
+            else if (area == 0xd) {
+                wram[wramBank][addr&0xfff] = val;
+                return;
+            }
+            writeMemoryOther(addr, val);
+        }
 
 
 
@@ -248,6 +252,11 @@ inline void writeMemory(u16 addr, u8 val)
         int cyclesSinceVblank;
         int interruptTriggered;
         int gameboyFrameCounter;
+
+        int emuRet;
+        int cycleToSerialTransfer;
+
+        Gameboy* linkedGameboy;
 
         // mmu variables
 
@@ -318,7 +327,6 @@ inline void writeMemory(u16 addr, u8 val)
         int extraCycles;
         int soundCycles;
         int cyclesToExecute;
-        int cyclesUntilSwap;
         struct Registers gbRegs;
         
         int fps;
