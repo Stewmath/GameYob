@@ -12,7 +12,7 @@ void enableNifi();
 void disableNifi();
 //void sendPacketByte(u8 command, u8 data);
 
-void nifiSendPacket(u8 command, u8* data, u32 dataLen);
+int nifiSendPacket(u8 command, u8* data, u32 dataLen, bool acknowledge = false);
 
 void nifiStop();
 

@@ -859,26 +859,28 @@ int Gameboy::loadSave(int saveId)
     // I do this by writing a byte, then finding the area of the cache marked dirty.
 
 #ifdef DS
-    flushFatCache();
-    devoptab_t* devops = (devoptab_t*)GetDeviceOpTab ("sd");
-    PARTITION* partition = (PARTITION*)devops->deviceData;
-    CACHE* cache = partition->cache;
+    if (autoSavingEnabled) {
+        flushFatCache();
+        devoptab_t* devops = (devoptab_t*)GetDeviceOpTab ("sd");
+        PARTITION* partition = (PARTITION*)devops->deviceData;
+        CACHE* cache = partition->cache;
 
-    memset(saveFileSectors, -1, sizeof(saveFileSectors));
-    for (int i=0; i<numRamBanks*0x2000/512; i++) {
-        file_seek(saveFile, i*512, SEEK_SET);
-        file_putc(externRam[i*512], saveFile);
-        bool found=false;
-        for (int j=0; j<FAT_CACHE_SIZE; j++) {
-            if (cache->cacheEntries[j].dirty) {
-                saveFileSectors[i] = cache->cacheEntries[j].sector + (i%(cache->sectorsPerPage));
-                cache->cacheEntries[j].dirty = false;
-                found = true;
-                break;
+        memset(saveFileSectors, -1, sizeof(saveFileSectors));
+        for (int i=0; i<numRamBanks*0x2000/512; i++) {
+            file_seek(saveFile, i*512, SEEK_SET);
+            file_putc(externRam[i*512], saveFile);
+            bool found=false;
+            for (int j=0; j<FAT_CACHE_SIZE; j++) {
+                if (cache->cacheEntries[j].dirty) {
+                    saveFileSectors[i] = cache->cacheEntries[j].sector + (i%(cache->sectorsPerPage));
+                    cache->cacheEntries[j].dirty = false;
+                    found = true;
+                    break;
+                }
             }
-        }
-        if (!found) {
-            printLog("couldn't find save file sector\n");
+            if (!found) {
+                printLog("couldn't find save file sector\n");
+            }
         }
     }
 #endif

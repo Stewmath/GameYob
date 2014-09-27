@@ -10,12 +10,10 @@
 #include "cheats.h"
 #include "io.h"
 
-/*
-    cgbFlag = romSlot0[0x143];
-    romSize = romSlot0[0x148];
-    ramSize = romSlot0[0x149];
-    mapper  = romSlot0[0x147];
-*/
+
+u8* romBankSlots = NULL; // Each 0x4000 bytes = one slot
+// Not a member because I'd rather not keep allocating & deallocating such a 
+// (relatively) huge chunk of memory
 
 
 #ifdef DS
@@ -26,15 +24,18 @@ RomFile::RomFile(const char* f) {
 
     romFile=NULL;
 #ifdef DS
-    if (__dsimode)
-        maxLoadedRomBanks = 512; // 8 megabytes
-    else
-        maxLoadedRomBanks = 128; // 2 megabytes
+        if (__dsimode)
+            maxLoadedRomBanks = 512; // 8 megabytes
+        else
+            maxLoadedRomBanks = 64; // 1 megabyte
+//            maxLoadedRomBanks = 128; // 2 megabytes
 #else
-    maxLoadedRomBanks = 512;
+        maxLoadedRomBanks = 512;
 #endif
 
-    romBankSlots = (u8*)malloc(maxLoadedRomBanks*0x4000);
+    if (romBankSlots == NULL) {
+        romBankSlots = (u8*)malloc(maxLoadedRomBanks*0x4000);
+    }
 
     strcpy(filename, f);
 
@@ -67,7 +68,6 @@ RomFile::RomFile(const char* f) {
 
     //int rawRomSize = file_tell(romFile);
     file_rewind(romFile);
-
 
     if (numRomBanks <= maxLoadedRomBanks)
         numLoadedRomBanks = numRomBanks;
@@ -174,7 +174,7 @@ RomFile::RomFile(const char* f) {
 RomFile::~RomFile() {
     if (romFile != NULL)
         file_close(romFile);
-    free(romBankSlots);
+    //free(romBankSlots);
 }
 
 

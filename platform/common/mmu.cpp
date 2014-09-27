@@ -1002,7 +1002,8 @@ bool Gameboy::updateHblankDMA()
 {
     if (dmaLength > 0)
     {
-        writeVram16(dmaDest, dmaSource);
+        if (isMainGameboy())
+            writeVram16(dmaDest, dmaSource);
         dmaDest += 16;
         dmaSource += 16;
         dmaDest &= 0x1FF0;

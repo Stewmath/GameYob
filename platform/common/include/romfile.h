@@ -44,7 +44,6 @@ class RomFile {
         int numRomBanks;
         int maxLoadedRomBanks;
         int numLoadedRomBanks;
-        u8* romBankSlots; // Each 0x4000 bytes = one slot
         int bankSlotIDs[MAX_ROM_BANKS]; // Keeps track of which bank occupies which slot
         std::vector<int> lastBanksUsed;
 

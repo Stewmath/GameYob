@@ -5,8 +5,8 @@
 #include "mmu.h"
 #include "gbgfx.h"
 
-#define sgbPalettes (gameboy->vram[1])
-#define sgbAttrFiles (gameboy->vram[1]+0x1000)
+#define sgbPalettes (vram[1])
+#define sgbAttrFiles (vram[1]+0x1000)
 
 void Gameboy::initSGB() {
     sgbPacketLength=0;
