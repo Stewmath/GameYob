@@ -15,7 +15,11 @@ struct FileHandle {
 // public functions
 
 FileHandle* file_open(const char* filename, const char* flags) {
+#ifdef EMBEDDED_ROM
+    // Assume filesystem functions are broken (for using citra)
     return NULL;
+#endif
+
     if (!fsInitialized) {
         //sdmcArchive = (FS_archive){0x9, FS_makePath(PATH_EMPTY, "")};
         sdmcArchive = (FS_archive){0x9, FS_makePath(PATH_CHAR, "/")};

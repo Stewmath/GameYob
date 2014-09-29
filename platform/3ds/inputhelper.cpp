@@ -21,8 +21,9 @@
 #include "io.h"
 #include "gbmanager.h"
 
-u32 keysPressed;
-u32 keysJustPressed;
+u32 lastKeysPressed = 0;
+u32 keysPressed = 0;
+u32 keysJustPressed = 0;
 
 u32 keysForceReleased=0;
 u32 repeatStartTimer=0;
@@ -210,7 +211,7 @@ int mapFuncKey(int funcKey) {
         case FUNC_KEY_SELECT:
             return KEY_Y;
         case FUNC_KEY_MENU:
-            return KEY_R;
+            return KEY_L;
         case FUNC_KEY_MENU_PAUSE:
             return 0;
         case FUNC_KEY_SAVE:
@@ -256,9 +257,11 @@ int mapMenuKey(int menuKey) {
 }
 
 void inputUpdateVBlank() {
-    keysJustPressed = 0;
     hidScanInput();
+    lastKeysPressed = keysPressed;
     keysPressed = hidKeysHeld();
+
+    keysJustPressed = (lastKeysPressed ^ keysPressed) & keysPressed;
 }
 
 void doRumble(bool rumbleVal)

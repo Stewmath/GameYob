@@ -277,7 +277,6 @@ int mapMenuKey(int menuKey) {
 }
 
 void inputUpdateVBlank() {
-    memset(keysJustPressed, 0, sizeof(keysJustPressed));
 }
 
 void doRumble(bool rumbleVal)
@@ -285,6 +284,8 @@ void doRumble(bool rumbleVal)
 }
 
 void system_checkPolls() {
+    memset(keysJustPressed, 0, sizeof(keysJustPressed));
+
     SDL_Event event;
     while (SDL_PollEvent(&event))
     {
