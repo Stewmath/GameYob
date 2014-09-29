@@ -10,10 +10,14 @@
 #include "cheats.h"
 #include "io.h"
 
+#ifdef EMBEDDED_ROM
+#include "rom_gb.h"
+#endif
+
 
 u8* romBankSlots = NULL; // Each 0x4000 bytes = one slot
 // Not a member because I'd rather not keep allocating & deallocating such a 
-// (relatively) huge chunk of memory
+// (relatively) huge chunk of memory (for DS)
 
 
 #ifdef DS
@@ -33,11 +37,23 @@ RomFile::RomFile(const char* f) {
         maxLoadedRomBanks = 512;
 #endif
 
+    strcpy(filename, f);
+
+#ifdef EMBEDDED_ROM
+    gbsMode = false;
+
+    numRomBanks = rom_gb_size/0x4000;
+    numLoadedRomBanks = numRomBanks;
+    romBankSlots = (u8*)rom_gb;
+
+    for (int i=0; i<numRomBanks; i++) {
+        bankSlotIDs[i] = i;
+        lastBanksUsed.push_back(i);
+    }
+#else
     if (romBankSlots == NULL) {
         romBankSlots = (u8*)malloc(maxLoadedRomBanks*0x4000);
     }
-
-    strcpy(filename, f);
 
     // Check if this is a GBS file
     gbsMode = (strcasecmp(strrchr(filename, '.'), ".gbs") == 0);
@@ -67,15 +83,12 @@ RomFile::RomFile(const char* f) {
     numRomBanks = n;
 
     //int rawRomSize = file_tell(romFile);
-    file_rewind(romFile);
+    file_seek(romFile, 0, SEEK_SET);
 
     if (numRomBanks <= maxLoadedRomBanks)
         numLoadedRomBanks = numRomBanks;
     else
         numLoadedRomBanks = maxLoadedRomBanks;
-
-    romSlot0 = romBankSlots;
-    romSlot1 = romBankSlots + 0x4000;
 
     for (int i=0; i<numRomBanks; i++) {
         bankSlotIDs[i] = -1;
@@ -100,6 +113,12 @@ RomFile::RomFile(const char* f) {
         file_read(romBankSlots+0x4000*i, 1, 0x4000, romFile);
         lastBanksUsed.push_back(i);
     }
+
+#endif
+
+    romSlot0 = romBankSlots;
+    romSlot1 = romBankSlots + 0x4000;
+
 
     strcpy(basename, filename);
     *(strrchr(basename, '.')) = '\0';
@@ -162,11 +181,13 @@ RomFile::RomFile(const char* f) {
 
     } // !gbsMode
 
+#ifndef EMBEDDED_ROM
     // If we've loaded everything, close the rom file
     if (numRomBanks <= numLoadedRomBanks) {
         file_close(romFile);
         romFile = NULL;
     }
+#endif
 
     loadBios(biosPath);
 }

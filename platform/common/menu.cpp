@@ -418,6 +418,7 @@ ConsoleSubMenu menuList[] = {
             {"Channel 4", chan4Func, 2, {"Off","On"}, 1}
         }
     },
+#ifdef NIFI
     {
         "Linking",
         2,
@@ -426,6 +427,7 @@ ConsoleSubMenu menuList[] = {
             {"Swap Focus", (void (*)(int))mgr_swapFocus, 0, {}, 0}
         }
     }
+#endif
 };
 const int numMenus = sizeof(menuList)/sizeof(ConsoleSubMenu);
 

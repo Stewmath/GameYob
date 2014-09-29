@@ -18,13 +18,18 @@ using namespace std;
 #ifdef DS
 FileChooserState romChooserState = {0,"/lameboy"};
 FileChooserState borderChooserState = {0,"/"};
-#else
+#endif
+#ifdef _3DS
+FileChooserState romChooserState = {0,"/gb"};
+FileChooserState borderChooserState = {0,"/"};
+#endif
+#ifdef SDL
 FileChooserState romChooserState = {0,"."};
 FileChooserState borderChooserState = {0,"."};
 #endif
 
 // Private stuff
-const int MAX_FILENAME_LEN = 100;
+const int MAX_FILENAME_LEN = 256;
 int filesPerPage = 24;
 int numFiles;
 int scrollY=0;
@@ -364,10 +369,10 @@ char* startFileChooser(const char* extensions[], bool romExtensions, bool canQui
 
             // Wait for input
             while (true) {
-#ifdef DS
-                swiWaitForVBlank();
-#endif
-                readKeys();
+                system_checkPolls();
+                system_waitForVBlank();
+                inputUpdateVBlank();
+
                 if (keyJustPressed(mapMenuKey(MENU_KEY_A))) {
                     if (flags[fileSelection] & FLAG_DIRECTORY) {
                         if (strcmp(filenames[fileSelection], "..") == 0)

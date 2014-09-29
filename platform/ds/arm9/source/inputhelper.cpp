@@ -387,29 +387,6 @@ bool keyJustPressed(int key) {
     return ((keysPressed^lastKeysPressed)&keysPressed) & key;
 }
 
-int readKeysLastFrameCounter=0;
-void readKeys() {
-    scanKeys();
-
-    lastKeysPressed = keysPressed;
-    keysPressed = keysHeld();
-    for (int i=0; i<16; i++) {
-        if (keysForceReleased & (1<<i)) {
-            if (!(keysPressed & (1<<i)))
-                keysForceReleased &= ~(1<<i);
-        }
-    }
-    keysPressed &= ~keysForceReleased;
-
-    if (dsFrameCounter != readKeysLastFrameCounter) { // Double-check that it's been 1/60th of a second
-        if (repeatStartTimer > 0)
-            repeatStartTimer--;
-        if (repeatTimer > 0)
-            repeatTimer--;
-        readKeysLastFrameCounter = dsFrameCounter;
-    }
-}
-
 void forceReleaseKey(int key) {
     keysForceReleased |= key;
     keysPressed &= ~key;
@@ -444,8 +421,27 @@ int mapMenuKey(int menuKey) {
     }
 }
 
+int readKeysLastFrameCounter=0;
 void inputUpdateVBlank() {
-    readKeys();
+    scanKeys();
+
+    lastKeysPressed = keysPressed;
+    keysPressed = keysHeld();
+    for (int i=0; i<16; i++) {
+        if (keysForceReleased & (1<<i)) {
+            if (!(keysPressed & (1<<i)))
+                keysForceReleased &= ~(1<<i);
+        }
+    }
+    keysPressed &= ~keysForceReleased;
+
+    if (dsFrameCounter != readKeysLastFrameCounter) { // Double-check that it's been 1/60th of a second
+        if (repeatStartTimer > 0)
+            repeatStartTimer--;
+        if (repeatTimer > 0)
+            repeatTimer--;
+        readKeysLastFrameCounter = dsFrameCounter;
+    }
 }
 
 void doRumble(bool rumbleVal)
@@ -463,4 +459,12 @@ void doRumble(bool rumbleVal)
         GBA_BUS[0x1E20000/2] = rumbleVal ? (0xF0 + rumbleStrength) : 0x08;
         GBA_BUS[0x1FC0000/2] = 0x1500;
     }
+}
+
+void system_checkPolls() {
+
+}
+
+void system_waitForVBlank() {
+    swiWaitForVBlank();
 }

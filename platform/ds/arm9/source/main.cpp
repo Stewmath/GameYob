@@ -114,7 +114,10 @@ int main(int argc, char* argv[])
         mgr_selectRom();
     }
 
-    mgr_run();
+    for (;;) {
+        mgr_runFrame();
+        mgr_updateVBlank();
+    }
 
     return 0;
 }

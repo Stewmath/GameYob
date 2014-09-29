@@ -1,4 +1,4 @@
-#include <SDL.h>
+#include <3ds.h>
 #include <vector>
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,11 +21,11 @@
 #include "io.h"
 #include "gbmanager.h"
 
-bool keysPressed[512];
-bool keysJustPressed[512];
+u32 keysPressed;
+u32 keysJustPressed;
 
-int keysForceReleased=0;
-int repeatStartTimer=0;
+u32 keysForceReleased=0;
+u32 repeatStartTimer=0;
 int repeatTimer=0;
 
 u8 buttonsPressed;
@@ -43,7 +43,6 @@ int rumbleInserted = 0;
 
 void initInput()
 {
-    memset(keysPressed, 0, sizeof(keysPressed));
 }
 
 void flushFatCache() {
@@ -70,9 +69,7 @@ void generalParseConfig(const char* line) {
                 free(romPath);
             romPath = (char*)malloc(strlen(value)+1);
             strcpy(romPath, value);
-#ifdef DS
             romChooserState.directory = romPath;
-#endif
         }
         else if (strcasecmp(parameter, "biosfile") == 0) {
             if (biosPath != 0)
@@ -169,7 +166,10 @@ void writeConfigFile() {
 
 
 bool keyPressed(int key) {
-    return keysPressed[key];
+    if (keysPressed & key) {
+        printf("%.02x\n", key);
+    }
+    return keysPressed & key;
 }
 bool keyPressedAutoRepeat(int key) {
     if (keyJustPressed(key)) {
@@ -183,32 +183,7 @@ bool keyPressedAutoRepeat(int key) {
     return false;
 }
 bool keyJustPressed(int key) {
-    return keysJustPressed[key];
-}
-
-int readKeysLastFrameCounter=0;
-void readKeys() {
-    /*
-    scanKeys();
-
-    lastKeysPressed = keysPressed;
-    keysPressed = keysHeld();
-    for (int i=0; i<16; i++) {
-        if (keysForceReleased & (1<<i)) {
-            if (!(keysPressed & (1<<i)))
-                keysForceReleased &= ~(1<<i);
-        }
-    }
-    keysPressed &= ~keysForceReleased;
-
-    if (dsFrameCounter != readKeysLastFrameCounter) { // Double-check that it's been 1/60th of a second
-        if (repeatStartTimer > 0)
-            repeatStartTimer--;
-        if (repeatTimer > 0)
-            repeatTimer--;
-        readKeysLastFrameCounter = dsFrameCounter;
-    }
-    */
+    return keysJustPressed & key;
 }
 
 void forceReleaseKey(int key) {
@@ -219,23 +194,23 @@ int mapFuncKey(int funcKey) {
         case FUNC_KEY_NONE:
             return 0;
         case FUNC_KEY_A:
-            return SDLK_SEMICOLON;
+            return KEY_A;
         case FUNC_KEY_B:
-            return SDLK_q;
+            return KEY_B;
         case FUNC_KEY_LEFT:
-            return SDLK_LEFT;
+            return KEY_LEFT;
         case FUNC_KEY_RIGHT:
-            return SDLK_RIGHT;
+            return KEY_RIGHT;
         case FUNC_KEY_UP:
-            return SDLK_UP;
+            return KEY_UP;
         case FUNC_KEY_DOWN:
-            return SDLK_DOWN;
+            return KEY_DOWN;
         case FUNC_KEY_START:
-            return SDLK_RETURN;
+            return KEY_X;
         case FUNC_KEY_SELECT:
-            return SDLK_BACKSLASH;
+            return KEY_Y;
         case FUNC_KEY_MENU:
-            return SDLK_o;
+            return KEY_R;
         case FUNC_KEY_MENU_PAUSE:
             return 0;
         case FUNC_KEY_SAVE:
@@ -245,12 +220,14 @@ int mapFuncKey(int funcKey) {
         case FUNC_KEY_AUTO_B:
             return 0;
         case FUNC_KEY_FAST_FORWARD:
-            return SDLK_SPACE;
+            return KEY_L;
         case FUNC_KEY_FAST_FORWARD_TOGGLE:
             return 0;
         case FUNC_KEY_SCALE:
             return 0;
         case FUNC_KEY_RESET:
+            return 0;
+        default:
             return 0;
     }
 }
@@ -258,56 +235,62 @@ int mapFuncKey(int funcKey) {
 int mapMenuKey(int menuKey) {
     switch (menuKey) {
         case MENU_KEY_A:
-            return SDLK_SEMICOLON;
+            return KEY_A;
         case MENU_KEY_B:
-            return SDLK_q;
+            return KEY_B;
         case MENU_KEY_UP:
-            return SDLK_UP;
+            return KEY_UP;
         case MENU_KEY_DOWN:
-            return SDLK_DOWN;
+            return KEY_DOWN;
         case MENU_KEY_LEFT:
-            return SDLK_LEFT;
+            return KEY_LEFT;
         case MENU_KEY_RIGHT:
-            return SDLK_RIGHT;
+            return KEY_RIGHT;
         case MENU_KEY_L:
-            return SDLK_a;
+            return KEY_L;
         case MENU_KEY_R:
-            return SDLK_o;
+            return KEY_R;
+        default:
+            return 0;
     }
 }
 
 void inputUpdateVBlank() {
-    memset(keysJustPressed, 0, sizeof(keysJustPressed));
+    keysJustPressed = 0;
+    hidScanInput();
+    keysPressed = hidKeysHeld();
 }
 
 void doRumble(bool rumbleVal)
 {
 }
 
+
 void system_checkPolls() {
-    SDL_Event event;
-    while (SDL_PollEvent(&event))
-    {
-        switch (event.type)
+    APP_STATUS status;
+
+	while((status=aptGetStatus()) != APP_RUNNING) {
+        if(status == APP_SUSPENDING)
         {
-            case SDL_QUIT:
-                mgr_save();
-#ifdef LOG
-				fclose(logFile);
-#endif
-                exit(0);
-				break;
-			case SDL_KEYDOWN:
-                keysPressed[event.key.keysym.sym] = true;
-                keysJustPressed[event.key.keysym.sym] = true;
-				break;
-			case SDL_KEYUP:
-                keysPressed[event.key.keysym.sym] = false;
-				break;
-		}
-	}
+            aptReturnToMenu();
+        }
+        else if(status == APP_SLEEPMODE)
+        {
+            aptWaitStatusEvent();
+        }
+        else if (status == APP_EXITING) {
+            gfxExit();
+            hidExit();
+            aptExit();
+            srvExit();
+
+            exit(0);
+        }
+
+        gspWaitForVBlank();
+    }
 }
 
 void system_waitForVBlank() {
-
+    gspWaitForVBlank();
 }

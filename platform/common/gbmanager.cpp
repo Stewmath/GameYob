@@ -25,44 +25,37 @@ time_t lastRawTime;
 #endif
 
 
-void updateVBlank();
-
-
 void mgr_init() {
     gameboy = new Gameboy();
     gbUno = gameboy;
 }
 
-void mgr_run() {
-	for (;;)
-	{
-        int ret1=0,ret2=0;
+void mgr_runFrame() {
+    int ret1=0,ret2=0;
 
-        bool paused = false;
-        while (!paused && !((ret1 & RET_VBLANK) && (ret2 & RET_VBLANK))) {
-            paused = false;
-            if (gbUno && gbUno->isGameboyPaused())
-                paused = true;
-            if (gbDuo && gbDuo->isGameboyPaused())
-                paused = true;
-            if (!paused) {
-                if (gbUno) {
-                    if (!(ret1 & RET_VBLANK))
-                        ret1 |= gbUno->runEmul();
-                }
-                else
-                    ret1 |= RET_VBLANK;
-
-                if (gbDuo) {
-                    if (!(ret2 & RET_VBLANK))
-                        ret2 |= gbDuo->runEmul();
-                }
-                else
-                    ret2 |= RET_VBLANK;
+    bool paused;
+    while (!paused && !((ret1 & RET_VBLANK) && (ret2 & RET_VBLANK))) {
+        paused = false;
+        if (gbUno && gbUno->isGameboyPaused())
+            paused = true;
+        if (gbDuo && gbDuo->isGameboyPaused())
+            paused = true;
+        if (!paused) {
+            if (gbUno) {
+                if (!(ret1 & RET_VBLANK))
+                    ret1 |= gbUno->runEmul();
             }
+            else
+                ret1 |= RET_VBLANK;
+
+            if (gbDuo) {
+                if (!(ret2 & RET_VBLANK))
+                    ret2 |= gbDuo->runEmul();
+            }
+            else
+                ret2 |= RET_VBLANK;
         }
-        updateVBlank();
-	}
+    }
 }
 
 void mgr_startGb2(const char* filename) {
@@ -148,7 +141,9 @@ void mgr_loadRom(const char* filename) {
 }
 
 void mgr_unloadRom() {
+#ifdef NIFI
     nifiStop();
+#endif
 
     gameboy->unloadRom();
     gameboy->linkedGameboy = NULL;
@@ -186,8 +181,15 @@ void mgr_selectRom() {
     updateScreens();
 }
 
+void mgr_save() {
+    gameboy->saveGame();
+    if (gb2)
+        gb2->saveGame();
+}
 
-void updateVBlank() {
+void mgr_updateVBlank() {
+    system_checkPolls();
+
     drawScreen();
 
     inputUpdateVBlank();
@@ -244,8 +246,3 @@ void updateVBlank() {
 #endif
 }
 
-void mgr_save() {
-    gameboy->saveGame();
-    if (gb2)
-        gb2->saveGame();
-}

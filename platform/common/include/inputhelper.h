@@ -1,6 +1,5 @@
 #pragma once
 #include <stdio.h>
-#include "global.h"
 
 #define FAT_CACHE_SIZE 16
 
@@ -64,7 +63,6 @@ void startKeyConfigChooser();
 bool readConfigFile();
 void writeConfigFile();
 
-void readKeys();
 bool keyPressed(int key);
 bool keyPressedAutoRepeat(int key);
 bool keyJustPressed(int key);
@@ -78,3 +76,5 @@ void inputUpdateVBlank();
 
 void doRumble(bool rumbleVal);
 
+void system_checkPolls();
+void system_waitForVBlank();

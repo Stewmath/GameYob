@@ -1,7 +1,11 @@
 *.[od]
 *~
+*.gb
+*.gbc
 *.swp
 *.elf
+*.3ds
+*.3dsx
 build/
 gameyob.nds
 gameyob

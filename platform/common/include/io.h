@@ -9,7 +9,6 @@ void        file_write(const void*, int, int, FileHandle*);
 void        file_gets(char*, int, FileHandle*);
 void        file_putc(char, FileHandle*);
 
-void        file_rewind(FileHandle*);
 int         file_tell(FileHandle*);
 void        file_seek(FileHandle*, int, int);
 int         file_getSize(FileHandle*);

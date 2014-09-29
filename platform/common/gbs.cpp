@@ -74,7 +74,7 @@ void gbsLoadSong() {
         romSlot0[0x41] = gbsPlayAddress&0xff;
         romSlot0[0x42] = gbsPlayAddress>>8;
         romSlot0[0x43] = 0xd9; // reti
-        gameboy->writeIO(0xff, VBLANK);
+        gameboy->writeIO(0xff, INT_VBLANK);
     }
     else {
         // Timer interrupt handler
@@ -82,7 +82,7 @@ void gbsLoadSong() {
         romSlot0[0x51] = gbsPlayAddress&0xff;
         romSlot0[0x52] = gbsPlayAddress>>8;
         romSlot0[0x53] = 0xd9; // reti
-        gameboy->writeIO(0xff, TIMER);
+        gameboy->writeIO(0xff, INT_TIMER);
     }
 
     gameboy->writeIO(0x05, 0x00);

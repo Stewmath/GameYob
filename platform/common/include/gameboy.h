@@ -21,6 +21,13 @@ class CheatEngine;
 class SoundEngine;
 class RomFile;
 
+// Interrupts
+#define INT_VBLANK  0x01
+#define INT_LCD     0x02
+#define INT_TIMER   0x04
+#define INT_SERIAL  0x08
+#define INT_JOYPAD  0x10
+
 // Return codes for runEmul
 #define RET_VBLANK  1
 #define RET_LINK    2

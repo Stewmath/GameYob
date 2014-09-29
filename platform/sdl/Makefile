@@ -1,4 +1,15 @@
 # GameYob SDL Makefile
+#
+#---------------------------------------------------------------------------------
+# canned command sequence for binary data
+#---------------------------------------------------------------------------------
+define bin2o
+	bin2s $< | $(AS) -o $(@)
+	echo "extern const u8" `(echo $(<F) | sed -e 's/^\([0-9]\)/_\1/' | tr . _)`"_end[];" > `(echo $(<F) | tr . _)`.h
+	echo "extern const u8" `(echo $(<F) | sed -e 's/^\([0-9]\)/_\1/' | tr . _)`"[];" >> `(echo $(<F) | tr . _)`.h
+	echo "extern const u32" `(echo $(<F) | sed -e 's/^\([0-9]\)/_\1/' | tr . _)`_size";" >> `(echo $(<F) | tr . _)`.h
+endef
+
 
 CC = gcc
 CXX = g++
@@ -14,9 +25,10 @@ TARGET :=	gameyob
 #---------------------------------------------------------------------------------
 BUILD		:=	build
 SOURCES		:= . ../common Blip_Buffer-0.4.0 Blip_Buffer-0.4.0/sdl_player
-INCLUDES	:= ../common/include Blip_Buffer-0.4.0 Blip_Buffer-0.4.0/sdl_player /usr/include/SDL
+INCLUDES	:= include ../common/include\
+	Blip_Buffer-0.4.0 Blip_Buffer-0.4.0/sdl_player /usr/include/SDL
 LIBDIRS		:= 
-DATA		:=
+DATA		:=	data
 
 DEBUG = -ggdb
 
@@ -105,6 +117,13 @@ $(MAKEDIR)/$(TARGET):	$(OFILES)
 .FORCE:
 version.o: .FORCE
 
+#---------------------------------------------------------------------------------
+# you need a rule like this for each extension you use as binary data 
+#---------------------------------------------------------------------------------
+%.bin.o	:	%.bin
+#---------------------------------------------------------------------------------
+	@echo $(notdir $<)
+	@$(bin2o)
 
 -include $(DEPSDIR)/*.d
  

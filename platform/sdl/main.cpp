@@ -1,6 +1,5 @@
 #include <SDL/SDL.h>
 #include <stdio.h>
-#include "global.h"
 #include "gbgfx.h"
 #include "soundengine.h"
 #include "inputhelper.h"
@@ -56,7 +55,10 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    mgr_run();
+    for (;;) {
+        mgr_runFrame();
+        mgr_updateVBlank();
+    }
 
 	//fclose(logFile);
 	SDL_Quit();

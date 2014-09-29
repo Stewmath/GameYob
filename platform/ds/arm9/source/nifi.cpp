@@ -428,7 +428,7 @@ void nifiInterLinkMenu() {
             iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, "* As Client\n\n");
         }
 
-        readKeys();
+        inputUpdateVBlank();
         if (keyJustPressed(mapMenuKey(MENU_KEY_B)))
             return;
         if (keyJustPressed(mapMenuKey(MENU_KEY_A))) {
@@ -461,7 +461,7 @@ void nifiLinkTypeMenu() {
             iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, "* SGB Multiplayer\n\n");
         }
 
-        readKeys();
+        inputUpdateVBlank();
         if (keyJustPressed(mapMenuKey(MENU_KEY_B)))
             return;
         if (keyJustPressed(mapMenuKey(MENU_KEY_A))) {
@@ -594,7 +594,7 @@ void nifiHostMenu() {
         swiWaitForVBlank();
         swiWaitForVBlank();
         swiWaitForVBlank();
-        readKeys();
+        inputUpdateVBlank();
         if (keyJustPressed(KEY_B))
             break;
 
@@ -638,7 +638,7 @@ void nifiClientMenu() {
         swiWaitForVBlank();
         swiWaitForVBlank();
         swiWaitForVBlank();
-        readKeys();
+        inputUpdateVBlank();
         if (keyJustPressed(KEY_B))
             break;
     }
@@ -656,7 +656,7 @@ void nifiClientMenu() {
 
         while (true) {
             swiWaitForVBlank();
-            readKeys();
+            inputUpdateVBlank();
             if (keyJustPressed(KEY_A)) {
                 willConnect = true;
                 nifiSendPacket(NIFI_CMD_CLIENT, 0, 0, true);
