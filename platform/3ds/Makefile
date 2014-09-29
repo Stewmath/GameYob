@@ -30,6 +30,8 @@ DATA		:=	data
 INCLUDES	:=	include ../common/include
 
 
+EMBEDDED_ROM := true
+
 #---------------------------------------------------------------------------------
 # options for code generation
 #---------------------------------------------------------------------------------
@@ -45,8 +47,10 @@ CFLAGS	+=	-DVERSION_STRING=\"`git describe --always --abbrev=4`\"\
 
 CFLAGS	+=	$(INCLUDE) -DARM11 -D_3DS
 
+ifeq ($(EMBEDDED_ROM), true)
 # Embedded rom from file "data/rom.gb"
 CFLAGS	+=	-DEMBEDDED_ROM
+endif
 
 
 CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions -std=gnu++11
@@ -100,6 +104,14 @@ endif
 
 export OFILES	:=	$(addsuffix .o,$(BINFILES)) \
 			$(CPPFILES:.cpp=.o) $(CFILES:.c=.o) $(SFILES:.s=.o)
+
+ifeq ($(EMBEDDED_ROM), true)
+
+ifeq ($(filter rom.gb.o,$(OFILES)),)
+$(error $(CURDIR)/data/rom.gb not found)
+endif
+
+endif
 
 export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
 			$(foreach dir,$(LIBDIRS),-I$(dir)/include) \

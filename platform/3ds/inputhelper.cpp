@@ -207,9 +207,9 @@ int mapFuncKey(int funcKey) {
         case FUNC_KEY_DOWN:
             return KEY_DOWN;
         case FUNC_KEY_START:
-            return KEY_X;
+            return KEY_START | KEY_X;
         case FUNC_KEY_SELECT:
-            return KEY_Y;
+            return KEY_SELECT | KEY_Y;
         case FUNC_KEY_MENU:
             return KEY_L;
         case FUNC_KEY_MENU_PAUSE:
