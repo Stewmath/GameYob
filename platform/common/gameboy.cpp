@@ -96,6 +96,7 @@ void Gameboy::init()
 
     initMMU();
     initCPU();
+    initSGB();
 
     cyclesSinceVblank = 0;
     gameboyFrameCounter = 0;
@@ -221,7 +222,6 @@ void Gameboy::initGameboyMode() {
             sgbMode = true;
             gbRegs.af.b.h = 0x01;
             gbMode = GB;
-            initSGB();
             break;
     }
 

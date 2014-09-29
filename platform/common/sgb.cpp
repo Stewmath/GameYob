@@ -417,5 +417,5 @@ u8 Gameboy::sgbReadP1() {
     else if (!(p1&0x10))
         return 0xc0 | (p1 & 0xF0) | ((controllers[sgbSelectedController] & 0xF0)>>4);
     else
-        return p1;
+        return p1 | 0xcf;
 }

@@ -101,8 +101,12 @@ void mgr_loadRom(const char* filename) {
     gameboy->setRomFile(romFile);
     gameboy->loadSave(1);
 
+    // Border probing is broken
+#if 0
     if (sgbBordersEnabled)
         probingForBorder = true; // This will be ignored if starting in sgb mode, or if there is no sgb mode.
+#endif
+
     sgbBorderLoaded = false; // Effectively unloads any sgb border
 
     gameboy->init();
