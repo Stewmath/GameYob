@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "console.h"
+#include "menu.h"
 
 volatile int consoleSelectedRow;
 
@@ -37,10 +38,12 @@ void iprintfColored(int palette, const char* format, ...) {
     vprintf(format, args);
 }
 void printLog(const char* format, ...) {
-    va_list args;
-    va_start(args, format);
+    if (consoleDebugOutput) {
+        va_list args;
+        va_start(args, format);
 
-    vprintf(format, args);
+        vprintf(format, args);
+    }
 }
 
 int checkRumble() {

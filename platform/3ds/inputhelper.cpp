@@ -167,9 +167,6 @@ void writeConfigFile() {
 
 
 bool keyPressed(int key) {
-    if (keysPressed & key) {
-        printf("%.02x\n", key);
-    }
     return keysPressed & key;
 }
 bool keyPressedAutoRepeat(int key) {

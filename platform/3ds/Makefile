@@ -72,7 +72,7 @@ LIBDIRS	:= $(CTRULIB)
 # no real need to edit anything past this point unless you need to add additional
 # rules for different file extensions
 #---------------------------------------------------------------------------------
-ifneq ($(BUILD),$(notdir $(CURDIR)))
+ifneq ($(BUILD),$(notdir $(CURDIR))) # make not invoked from "build" directory
 #---------------------------------------------------------------------------------
  
 export OUTPUT	:=	$(CURDIR)/$(TARGET)
@@ -124,6 +124,7 @@ export LIBPATHS	:=	$(foreach dir,$(LIBDIRS),-L$(dir)/lib)
 #---------------------------------------------------------------------------------
 all: $(BUILD)
 
+# invoke make from the "build" directory to run the 2nd part of this makefile
 $(BUILD):
 	@[ -d $@ ] || mkdir -p $@
 	@make --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
@@ -136,7 +137,7 @@ clean:
  
  
 #---------------------------------------------------------------------------------
-else
+else # make invoked from "build" directory
  
 DEPENDS	:=	$(OFILES:.o=.d)
  
