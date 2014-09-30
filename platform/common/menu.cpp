@@ -636,14 +636,14 @@ void updateMenu() {
         redraw = true;
     }
     else if (keyJustPressed(mapMenuKey(MENU_KEY_A))) {
-        forceReleaseKey(MENU_KEY_A);
+        forceReleaseKey(mapMenuKey(MENU_KEY_A));
         if (option >= 0 && menuList[menu].options[option].numValues == 0 && menuList[menu].options[option].enabled) {
             menuList[menu].options[option].function(menuList[menu].options[option].selection);
         }
         redraw = true;
     }
     else if (keyJustPressed(mapMenuKey(MENU_KEY_B))) {
-        forceReleaseKey(MENU_KEY_B);
+        forceReleaseKey(mapMenuKey(MENU_KEY_B));
         closeMenu();
         updateScreens();
     }

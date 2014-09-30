@@ -185,6 +185,8 @@ bool keyJustPressed(int key) {
 }
 
 void forceReleaseKey(int key) {
+    keysForceReleased |= key;
+    keysPressed &= ~key;
 }
 
 int mapFuncKey(int funcKey) {
@@ -257,6 +259,14 @@ void inputUpdateVBlank() {
     hidScanInput();
     lastKeysPressed = keysPressed;
     keysPressed = hidKeysHeld();
+
+    for (int i=0; i<32; i++) {
+        if (keysForceReleased & (1<<i)) {
+            if (!(keysPressed & (1<<i)))
+                keysForceReleased &= ~(1<<i);
+        }
+    }
+    keysPressed &= ~keysForceReleased;
 
     keysJustPressed = (lastKeysPressed ^ keysPressed) & keysPressed;
 }

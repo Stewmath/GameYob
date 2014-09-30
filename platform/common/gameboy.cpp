@@ -317,7 +317,7 @@ void Gameboy::gameboyCheckInput() {
                 | KEY_TOUCH
 #endif
                 )) {
-        if (keyJustPressed(mapFuncKey(FUNC_KEY_MENU_PAUSE)))
+        if (singleScreenMode || keyJustPressed(mapFuncKey(FUNC_KEY_MENU_PAUSE)))
             pause();
 
         forceReleaseKey(0xffff);
