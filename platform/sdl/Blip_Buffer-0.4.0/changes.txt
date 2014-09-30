@@ -1,0 +1,129 @@
+Blip_Buffer Change Log
+----------------------
+
+Blip_Buffer 0.4.0
+-----------------
+- Completely rewrote demos to interactively display and play sound waveforms
+using the SDL multimedia library (without SDL, they write to sound file as
+before)
+
+- Improved sound quality by rewriting library to use 32-bit internal sample
+buffer, higher phase resolution, and a properly windowed filter kernel. Current
+user code should work without changes.
+
+- Added examples of how to efficiently read samples as floating-point, and
+unsigned 16-bit and 8-bit
+
+- Trimmed library down to just two source files. Other modules will eventually
+be re-released separately.
+
+- Improved documentation
+
+- Renamed Blip_Buffer::sample_rate() to set_sample_rate to work around name
+hiding issues in Multi_Buffer, and changed default length from around 1.5
+seconds to 0.25 seconds, since the old default used lots of memory with the new
+32-bit implementation.
+
+- Simplified and merged Blip_Wave functionality into Blip_Synth
+
+
+Blip_Buffer 0.3.4
+-----------------
+- Changed licensing to GNU Lesser General Public License (LGPL)
+
+- Implemented workaround for MSVC++ 6 compiler limitations, allowing it to work
+on that compiler again
+
+- Added several multi-channel buffers that do panning and stereo echo
+
+- Added sample clamping to Blip_Buffer::read_samples(), allowing higher volume
+with little distortion
+
+- Improved documentation
+
+- Changed error return value of Blip_Buffer::sample_rate() to blargg_err_t
+(defined in blargg_common.h), to make error reporting consistent with other
+functions. This means the "no error" return value is the opposite of what it
+was before, which will break current code which checks the error return value:
+
+	// current code (broken)
+	if ( !buf.sample_rate( samples_per_sec ) )
+		out_of_memory();
+	
+	// quick-and-dirty fix (just remove the ! operation)
+	if ( buf.sample_rate( samples_per_sec ) )
+		out_of_memory();
+	
+	// proper fix
+	blargg_err_t error = buf.sample_rate( samples_per_sec );
+	if ( error )
+		report_error( error );
+
+- Changed 'size_t' values in Blip_Buffer interface to 'long'
+
+- Changed demos to generate a WAVE sound file rather than an AIFF file
+
+- Removed Blip_Resampler, since it didn't work very well (try the Fir_Resampler
+from my Game_Music_Emu library)
+
+
+Blip_Buffer 0.3.0
+-----------------
+- Added note about compiler optimizer bugs
+
+- Replaced Blip_Buffer::buffer_size() and Blip_Buffer::units_per_sample() with
+simpler functions (see Blip_Buffer.h and the updated demos)
+
+	// old way
+	if ( !buf.buffer_size( sample_count ) )
+		out_of_memory();
+	buf.units_per_sample( clocks_per_sec / samples_per_sec );
+	
+	// new way
+	int length = 1000 / 2; // 1/2 second buffer length
+	if ( !buf.sample_rate( samples_per_sec, length ) )
+		out_of_memory();
+	buf.clock_rate( clocks_per_sec );
+
+- Added quality constants to use instead of 1-5 (see Blip_Synth.h).
+
+- Added beta/ folder for unpolished features (see beta/beta.txt)
+
+- Improved and added demo code.
+
+- Made assertions more descriptive when they fail
+
+- Replaced Blip_Buffer::bass_level() with Blip_Buffer::bass_freq() (see
+notes.txt)
+
+- Replaced Blip_Eq with blip_eq_t, which takes actual cutoff frequency (see
+notes.txt)
+
+- Optimized Blip_Synth::volume() and Blip_Wave::volume() a bit.
+
+- Moved Blip_Synth and Blip_Wave into Blip_Synth.h for readability (#include
+"Blip_Buffer.h" and #include "Blip_Synth.h" both include each other, so they
+are equivalent)
+
+
+Blip_Buffer 0.2.0
+-----------------
+- Added and moved documentation. References are now in header files.
+
+- Treble equalization is now significantly more flexible.
+
+- Blip_Synth replaces Blip_Adder. Significant interface changes and performance
+improvements have been made. Large (fine) amplitude ranges don't result in
+excessive error anymore.
+
+- Blip_Buffer::read_samples() supports a stereo interleaved output buffer.
+
+- Added Blip_Wave as a simpler interface than Blip_Synth.
+
+- Added demos for new features. Improved clarity with Blip_Wave.
+
+
+Blip_Buffer 0.1.0 
+-----------------
+- Initial release. Derived from Nes_Channel module of Nes_Snd_Emu.
+
