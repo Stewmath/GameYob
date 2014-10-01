@@ -6,22 +6,15 @@
 #include <sys/iosupport.h>
 #include "default_font_bin.h"
 #include "3dsgfx.h"
-
-struct PrintConsole {
-    int cursorX, cursorY;
-    int prevCursorX, prevCursorY;
-    int consoleWidth, consoleHeight;
-    u8* framebuffer;
-};
+#include "printconsole.h"
 
 const u32 TEXT_COLOR = RGB24(0xff, 0xff, 0xff);
 const u32 BG_COLOR = RGB24(0x00, 0x00, 0x00);
 
-const int CHAR_WIDTH = 8;
-const int CHAR_HEIGHT = 8;
-
 PrintConsole* currentConsole = NULL;
 
+const int CHAR_WIDTH = 8;
+const int CHAR_HEIGHT = 8;
 
 void newRow() {
     currentConsole->cursorY++;
@@ -377,10 +370,26 @@ void consoleInitBottom() {
     setvbuf(stderr, NULL , _IONBF, 0);
 }
 
-/*
-void myprintf(const char* s) {
-    while (*s != '\0') {
-        printCharacter(*s++);
+void consoleSetScreen(int screen) {
+    u8* framebuffer;
+    if (screen == 0) {
+        framebuffer = gfxGetFramebuffer(GFX_TOP, GFX_LEFT, NULL, NULL);
+    }
+    else {
+        framebuffer = gfxGetFramebuffer(GFX_BOTTOM, GFX_LEFT, NULL, NULL);
+    }
+    if (framebuffer != currentConsole->framebuffer) {
+        consoleCls('2');
+        currentConsole->framebuffer = framebuffer;
+        if (screen == 0) {
+            currentConsole->consoleWidth = TOP_SCREEN_WIDTH / CHAR_WIDTH;
+            currentConsole->consoleHeight = TOP_SCREEN_HEIGHT / CHAR_HEIGHT;
+        }
+        else {
+            currentConsole->consoleWidth = BOTTOM_SCREEN_WIDTH / CHAR_WIDTH;
+            currentConsole->consoleHeight = BOTTOM_SCREEN_HEIGHT / CHAR_HEIGHT;
+        }
+
+        consoleCls('2');
     }
 }
-*/

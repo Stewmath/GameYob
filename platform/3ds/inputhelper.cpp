@@ -210,7 +210,7 @@ int mapFuncKey(int funcKey) {
         case FUNC_KEY_SELECT:
             return KEY_SELECT | KEY_Y;
         case FUNC_KEY_MENU:
-            return KEY_L;
+            return KEY_L | KEY_TOUCH;
         case FUNC_KEY_MENU_PAUSE:
             return 0;
         case FUNC_KEY_SAVE:

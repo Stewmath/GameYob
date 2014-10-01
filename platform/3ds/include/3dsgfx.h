@@ -1,3 +1,5 @@
+#pragma once
+
 u32 getPixel(u8* framebuffer, int x, int y);
 void drawPixel(u8* framebuffer, int x, int y, u32 color);
 

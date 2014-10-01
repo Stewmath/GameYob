@@ -5,13 +5,11 @@
 
 #include <3ds.h>
 #include <string.h>
+#include <math.h>
 #include "gbgfx.h"
 #include "gameboy.h"
 #include "3dsgfx.h"
-#include <math.h>
-
-#define OFFSET_X TOP_SCREEN_WIDTH/2 - 160/2
-#define OFFSET_Y TOP_SCREEN_HEIGHT/2 - 144/2
+#include "menu.h"
 
 // public variables
 
@@ -374,10 +372,19 @@ void drawScanline_P2(int scanline) {
 
 void drawScreen()
 {
-    u8* framebuffer = gfxGetFramebuffer(GFX_TOP, GFX_LEFT, NULL, NULL);
+    u8* framebuffer;
+    int offsetX, offsetY = TOP_SCREEN_HEIGHT / 2 - 144/2;
+    if (gameScreen == 0) {
+        framebuffer = gfxGetFramebuffer(GFX_TOP, GFX_LEFT, NULL, NULL);
+        offsetX = TOP_SCREEN_WIDTH / 2 - 160/2;
+    }
+    else {
+        framebuffer = gfxGetFramebuffer(GFX_BOTTOM, GFX_LEFT, NULL, NULL);
+        offsetX = BOTTOM_SCREEN_WIDTH / 2 - 160/2;
+    }
     for (int y=0; y<144; y++) {
         for (int x=0; x<160; x++) {
-            drawPixel(framebuffer, x+OFFSET_X, y+OFFSET_Y, pixels[x+y*256]);
+            drawPixel(framebuffer, x+offsetX, y+offsetY, pixels[x+y*256]);
         }
     }
 }
@@ -459,7 +466,7 @@ void handleVideoRegister(u8 ioReg, u8 val) {
 
 void updateBgPalette(int paletteid)
 {
-    double multiplier = 8;
+    int multiplier = 8;
     int i;
     for (i=0; i<4; i++)
     {
@@ -482,7 +489,7 @@ void updateBgPaletteDMG()
 
 void updateSprPalette(int paletteid)
 {
-    double multiplier = 8;
+    int multiplier = 8;
     int i;
     for (i=0; i<4; i++)
     {

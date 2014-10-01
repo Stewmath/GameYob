@@ -3,15 +3,17 @@
 #include <stdio.h>
 
 #ifdef DS
+#include <nds/arm9/console.h>
+#endif
 
-#include <nds.h>
-
-#else
-
+#ifdef SDL
 struct PrintConsole {
 
 };
+#endif
 
+#ifdef _3DS
+#include "printconsole.h"
 #endif
 
 extern PrintConsole* menuConsole;

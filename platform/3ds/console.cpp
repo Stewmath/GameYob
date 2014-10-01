@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include "console.h"
 #include "menu.h"
+#include "printconsole.h"
 
 volatile int consoleSelectedRow;
 
@@ -19,7 +20,7 @@ PrintConsole* getDefaultConsole() {
 }
 
 void updateScreens(bool waitToFinish) {
-
+    consoleSetScreen(!gameScreen);
 }
 
 
