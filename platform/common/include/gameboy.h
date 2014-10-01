@@ -33,7 +33,7 @@ class RomFile;
 #define RET_LINK    2
 
 // Be careful changing this; it affects save state compatibility.
-struct clockStruct
+struct ClockStruct
 {
     union {
         struct {
@@ -138,14 +138,60 @@ class Gameboy {
         void deleteState(int num);
         bool checkStateExists(int num);
 
-        inline int getCyclesSinceVblank() { return cyclesSinceVblank + extraCycles; }
+        inline int getCyclesSinceVBlank() { return cyclesSinceVBlank + extraCycles; }
         inline bool isDoubleSpeed() { return doubleSpeed; }
 
         inline CheatEngine* getCheatEngine() { return cheatEngine; }
         inline SoundEngine* getSoundEngine() { return soundEngine; }
         inline RomFile* getRomFile() { return romFile; }
 
+        // variables
+        Gameboy* linkedGameboy;
+
+        u8 controllers[4];
+
+        int doubleSpeed;
+
+        int gbMode;
+        bool sgbMode;
+
+        int scanlineCounter;
+        int phaseCounter;
+        int dividerCounter;
+        int timerCounter;
+        int serialCounter;
+        int timerPeriod;
+        long periods[4];
+
+        int cyclesToEvent;
+        int cyclesSinceVBlank;
+        int interruptTriggered;
+        int gameboyFrameCounter;
+
+        int emuRet;
+        int cycleToSerialTransfer;
+
+        int halt;
+        int ime;
+        int extraCycles;
+        int soundCycles;
+        int cyclesToExecute;
+        struct Registers gbRegs;
+
+    private:
+        volatile bool gameboyPaused;
+        bool resettingGameboy;
+
+        CheatEngine* cheatEngine;
+        SoundEngine* soundEngine;
+        RomFile* romFile;
+
+        FileHandle* saveFile;
+        char savename[MAX_FILENAME_LEN];
+
         // gbcpu.cpp
+
+    public:
         void initCPU();
         void enableInterrupts();
         void disableInterrupts();
@@ -215,8 +261,9 @@ class Gameboy {
 
 
 
-        bool updateHblankDMA();
+        bool updateHBlankDMA();
         void latchClock();
+        void writeSaveFileSectors(int startSector, int numSectors);
 
         inline int getNumRamBanks() { return numRamBanks; }
         inline u8 getWramBank() { return wramBank; }
@@ -225,60 +272,11 @@ class Gameboy {
         inline void setSoundChannel(int which) {ioRam[0x26] |= which;}
         inline void clearSoundChannel(int which) {ioRam[0x26] &= ~which;}
 
-        // mbc functions (in mmu.cpp)
-        u8 h3r(u16 addr);
-        u8 m3r(u16 addr);
-
-        void m0w (u16 addr, u8 val);
-        void m2w(u16 addr, u8 val);
-        void m3w(u16 addr, u8 val);
-        void m1w (u16 addr, u8 val);
-        void h1w(u16 addr, u8 val);
-        void m5w (u16 addr, u8 val);
-        void h3w (u16 addr, u8 val);
-
-        void writeSaveFileSectors(int startSector, int numSectors);
-        u8 controllers[4];
-
-
-        // variables
-        int scanlineCounter;
-        int phaseCounter;
-        int dividerCounter;
-        int timerCounter;
-        int serialCounter;
-        int timerPeriod;
-        long periods[4];
-
-        int doubleSpeed;
-
-        int gbMode;
-        bool sgbMode;
-
-        int cyclesToEvent;
-        int cyclesSinceVblank;
-        int interruptTriggered;
-        int gameboyFrameCounter;
-
-        int emuRet;
-        int cycleToSerialTransfer;
-
-        Gameboy* linkedGameboy;
+        void refreshRomBank(int bank);
+        void refreshRamBank(int bank);
+        void writeSram(u16 addr, u8 val);
 
         // mmu variables
-
-        clockStruct gbClock;
-
-        int numRamBanks;
-        int rumbleValue;
-        int lastRumbleValue;
-
-        // MBC flags
-        bool ramEnabled;
-        char rtcReg;
-        u8   HuC3Mode;
-        u8   HuC3Value;
-        u8   HuC3Shift;
 
         int resultantGBMode;
 
@@ -293,8 +291,8 @@ class Gameboy {
         u8 wram[8][0x1000];
 
         u8 highram[0x1000];
-        u8* hram;
-        u8* ioRam;
+        u8* const hram;
+        u8* const ioRam;
 
         u8 bgPaletteData[0x40]
 #ifdef DS
@@ -308,14 +306,8 @@ class Gameboy {
 #endif
     ;
 
-
         int wramBank;
         int vramBank;
-
-        int memoryModel;
-        bool hasClock;
-        int romBank;
-        int currentRamBank;
 
         u16 dmaSource;
         u16 dmaDest;
@@ -327,41 +319,11 @@ class Gameboy {
         int numSaveWrites;
         bool autosaveStarted;
 
-        // cpu variables
-        // TODO: try dtcm
-        int halt;
-        int ime;
-        int extraCycles;
-        int soundCycles;
-        int cyclesToExecute;
-        struct Registers gbRegs;
-        
-        int fps;
-
-    private:
-        CheatEngine* cheatEngine;
-        SoundEngine* soundEngine;
-        RomFile* romFile;
-
-        FileHandle* saveFile;
-        char savename[256];
-
-        // mmu functions
-        void refreshRomBank(int bank);
-        void refreshRamBank(int bank);
-        void handleHuC3Command(u8 command);
-        void writeSram(u16 addr, u8 val);
-        void writeClockStruct();
-
-
-        // variables
-        volatile bool gameboyPaused;
-        bool resettingGameboy;
+        int rumbleValue;
+        int lastRumbleValue;
 
         bool wroteToSramThisFrame;
         int framesSinceAutosaveStarted;
-
-        bool rockmanMapper;
 
         void (Gameboy::*writeFunc)(u16, u8);
         u8 (Gameboy::*readFunc)(u16);
@@ -370,18 +332,55 @@ class Gameboy {
 
         int saveFileSectors[MAX_SRAM_SIZE/512];
 
+
+        // mbc.cpp
+
+        u8 m3r(u16 addr);
+        u8 m7r(u16 addr);
+        u8 h3r(u16 addr);
+
+        void m0w(u16 addr, u8 val);
+        void m1w(u16 addr, u8 val);
+        void m2w(u16 addr, u8 val);
+        void m3w(u16 addr, u8 val);
+        void m5w(u16 addr, u8 val);
+        void m7w(u16 addr, u8 val);
+        void h1w(u16 addr, u8 val);
+        void h3w(u16 addr, u8 val);
+
+        void handleHuC3Command(u8 command);
+        void writeClockStruct();
+
+
+        // mbc variables
+
+        ClockStruct gbClock;
+
+        int numRamBanks;
+
+        bool ramEnabled;
+        char rtcReg;
+        u8   HuC3Mode;
+        u8   HuC3Value;
+        u8   HuC3Shift;
+
+        int memoryModel;
+        bool hasClock;
+        int romBank;
+        int currentRamBank;
+
+        bool rockmanMapper;
+
         // sgb.cpp
     public:
-        void initSGB();
+        void sgbInit();
         void sgbHandleP1(u8 val);
         u8 sgbReadP1();
-        void sgbSetActiveController(u8 controller) { sgbActiveController = controller; }
-        inline u8 sgbGetActiveController() { return sgbActiveController; }
 
         u8 sgbMap[20*18];
 
         // SGB packet commands
-        void doVramTransfer(u8* dest);
+        void sgbDoVramTransfer(u8* dest);
         void setBackdrop(u16 val);
         void sgbLoadAttrFile(int index);
         void sgbPalXX(int block);
@@ -398,6 +397,7 @@ class Gameboy {
         void sgbAttrTrn(int block);
         void sgbAttrSet(int block);
         void sgbMask(int block);
+
     private:
 
         int sgbPacketLength; // Number of packets to be transferred this command
@@ -409,7 +409,6 @@ class Gameboy {
         u8 sgbNumControllers;
         u8 sgbSelectedController; // Which controller is being observed
         u8 sgbButtonsChecked;
-        u8 sgbActiveController; // Which controller does this DS act as
 
         // Data for various different sgb commands
         struct SgbCmdData {
@@ -426,19 +425,18 @@ class Gameboy {
                     u8 x,y;
                 } attrChr;
             };
-        } cmdData;
+        } sgbCmdData;
 };
 
 typedef void (Gameboy::*mbcWrite)(u16,u8);
 typedef u8   (Gameboy::*mbcRead )(u16);
 
 const mbcRead mbcReads[] = {
-    NULL, NULL, NULL, &Gameboy::m3r, NULL, NULL, NULL, &Gameboy::h3r, NULL
+    NULL, NULL, NULL, &Gameboy::m3r, NULL, NULL, &Gameboy::m7r, NULL, &Gameboy::h3r
 };
 const mbcWrite mbcWrites[] = {
-    &Gameboy::m0w, &Gameboy::m1w, &Gameboy::m2w, &Gameboy::m3w, NULL, &Gameboy::m5w, NULL, &Gameboy::h3w, &Gameboy::h1w
+    &Gameboy::m0w, &Gameboy::m1w, &Gameboy::m2w, &Gameboy::m3w, NULL, &Gameboy::m5w, &Gameboy::m7w, &Gameboy::h1w, &Gameboy::h3w
 };
-
 
 extern Gameboy* gameboy;
 

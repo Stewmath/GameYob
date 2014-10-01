@@ -26,7 +26,7 @@
 
 const int maxWaitCycles=1000000;
 
-Gameboy::Gameboy() {
+Gameboy::Gameboy() : hram(highram+0xe00), ioRam(highram+0xf00) {
     saveFile=NULL;
 
     romFile = NULL;
@@ -37,7 +37,7 @@ Gameboy::Gameboy() {
     fastForwardMode = false;
     fastForwardKey = false;
 
-    cyclesSinceVblank=0;
+    cyclesSinceVBlank=0;
     probingForBorder=false;
 
     // private
@@ -96,9 +96,9 @@ void Gameboy::init()
 
     initMMU();
     initCPU();
-    initSGB();
+    sgbInit();
 
-    cyclesSinceVblank = 0;
+    cyclesSinceVBlank = 0;
     gameboyFrameCounter = 0;
 
     gameboyPaused = false;
@@ -113,7 +113,7 @@ void Gameboy::init()
     cyclesToEvent = 0;
     extraCycles = 0;
     soundCycles = 0;
-    cyclesSinceVblank = 0;
+    cyclesSinceVBlank = 0;
     cycleToSerialTransfer = -1;
 
     initGbPrinter();
@@ -133,8 +133,6 @@ void Gameboy::init()
         initGFX();
     }
     initSND();
-
-    sgbActiveController = 0;
 
     if (!gbsMode && !probingForBorder && checkStateExists(-1)) {
         loadState(-1);
@@ -418,12 +416,12 @@ int Gameboy::runEmul()
         cyclesToEvent = maxWaitCycles;
         extraCycles=0;
 
-        cyclesSinceVblank += cycles;
+        cyclesSinceVBlank += cycles;
 
         // For external clock
         if (cycleToSerialTransfer != -1) {
-            if (cyclesSinceVblank < cycleToSerialTransfer)
-                setEventCycles(cycleToSerialTransfer - cyclesSinceVblank);
+            if (cyclesSinceVBlank < cycleToSerialTransfer)
+                setEventCycles(cycleToSerialTransfer - cyclesSinceVBlank);
             else {
                 cycleToSerialTransfer = -1;
 
@@ -449,7 +447,7 @@ int Gameboy::runEmul()
             if (serialCounter <= 0) {
                 serialCounter = 0;
                 if (linkedGameboy != NULL) {
-                    linkedGameboy->cycleToSerialTransfer = cyclesSinceVblank;
+                    linkedGameboy->cycleToSerialTransfer = cyclesSinceVBlank;
                     mgr_setInternalClockGb(this);
                     emuRet |= RET_LINK;
                     // Execution will stop here, and this gameboy's SB will be 
@@ -561,9 +559,8 @@ inline int Gameboy::updateLCD(int cycles)
         // ds should check for input and whatnot.
         phaseCounter -= cycles;
         if (phaseCounter <= 0) {
-            fps++;
             phaseCounter += 456*153*(doubleSpeed?2:1);
-            cyclesSinceVblank=0;
+            cyclesSinceVBlank=0;
             // Though not technically vblank, this is a good time to check for 
             // input and whatnot.
             gameboyUpdateVBlank();
@@ -600,7 +597,7 @@ inline int Gameboy::updateLCD(int cycles)
 
                 if (isMainGameboy())
                     drawScanline_P2(ioRam[0x44]);
-                if (updateHblankDMA()) {
+                if (updateHBlankDMA()) {
                     extraCycles += 8<<doubleSpeed;
                 }
             }
@@ -654,8 +651,7 @@ inline int Gameboy::updateLCD(int cycles)
                         if (ioRam[0x41]&0x10)
                             requestInterrupt(INT_LCD);
 
-                        fps++;
-                        cyclesSinceVblank = scanlineCounter - (456<<doubleSpeed);
+                        cyclesSinceVBlank = scanlineCounter - (456<<doubleSpeed);
                         gameboyUpdateVBlank();
                         setEventCycles(scanlineCounter);
                         return RET_VBLANK;
@@ -824,7 +820,7 @@ int Gameboy::loadSave(int saveId)
 
     int neededFileSize = numRamBanks*0x2000;
     if (romFile->getMBC() == MBC3 || romFile->getMBC() == HUC3)
-        neededFileSize += sizeof(clockStruct);
+        neededFileSize += sizeof(ClockStruct);
 
     int fileSize = 0;
     if (saveFile) {
@@ -979,7 +975,7 @@ struct StateStruct {
     int gbMode;
     int romBank, ramBank, wramBank, vramBank;
     int memoryModel;
-    clockStruct clock;
+    ClockStruct clock;
     int scanlineCounter, timerCounter, phaseCounter, dividerCounter;
     // v2
     int serialCounter;

@@ -19,6 +19,8 @@ Gameboy* gbDuo = NULL;
 
 RomFile* romFile = NULL;
 
+int fps = 0;
+
 #ifdef DS
 time_t rawTime;
 time_t lastRawTime;
@@ -215,6 +217,8 @@ void mgr_updateVBlank() {
 #endif
 
 #ifdef DS
+    fps++;
+
     if (isConsoleOn() && !isMenuOn() && !consoleDebugOutput && (rawTime > lastRawTime))
     {
         setPrintConsole(menuConsole);
@@ -222,10 +226,10 @@ void mgr_updateVBlank() {
         int line=0;
         if (fpsOutput) {
             consoleClear();
-            iprintf("FPS: %d\n", gameboy->fps);
+            iprintf("FPS: %d\n", fps);
             line++;
         }
-        gameboy->fps = 0;
+        fps = 0;
         if (timeOutput) {
             for (; line<23-1; line++)
                 iprintf("\n");

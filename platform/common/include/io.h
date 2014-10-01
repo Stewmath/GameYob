@@ -1,5 +1,7 @@
 #pragma once
 
+#define MAX_FILENAME_LEN 256
+
 struct FileHandle;
 
 FileHandle* file_open(const char*, const char*);    // Returns NULL if error occurs

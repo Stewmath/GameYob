@@ -3,20 +3,6 @@
 
 #define FAT_CACHE_SIZE 16
 
-/* All the possible MBC */
-enum {
-    MBC0 = 0,
-    MBC1,
-    MBC2,
-    MBC3,
-    MBC4, // Unsupported
-    MBC5,
-    MBC7, // Unsupported
-    HUC3,
-    HUC1,
-    MBC_MAX,
-};
-
 #define GB_A		    0x01
 #define GB_B		    0x02
 #define GB_SELECT		0x04

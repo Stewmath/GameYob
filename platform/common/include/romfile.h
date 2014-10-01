@@ -9,6 +9,19 @@
 
 #define MAX_ROM_BANKS   0x200
 
+/* All the possible MBC */
+enum {
+    MBC0 = 0,
+    MBC1,
+    MBC2,
+    MBC3,
+    MBC4, // Unsupported
+    MBC5,
+    MBC7, // Unsupported
+    HUC1,
+    HUC3,
+    MBC_MAX,
+};
 
 class RomFile {
     public:

@@ -8,7 +8,7 @@
 #define sgbPalettes (vram[1])
 #define sgbAttrFiles (vram[1]+0x1000)
 
-void Gameboy::initSGB() {
+void Gameboy::sgbInit() {
     sgbPacketLength=0;
     sgbNumControllers=1;
     sgbSelectedController=0;
@@ -19,7 +19,7 @@ void Gameboy::initSGB() {
     memset(sgbMap, 0, 20*18);
 }
 
-void Gameboy::doVramTransfer(u8* dest) {
+void Gameboy::sgbDoVramTransfer(u8* dest) {
     int map = 0x1800+((ioRam[0x40]>>3)&1)*0x400;
     int index=0;
     for (int y=0; y<18; y++) {
@@ -103,19 +103,19 @@ void Gameboy::sgbPalXX(int block) {
 void Gameboy::sgbAttrBlock(int block) {
     int pos;
     if (block == 0) {
-        cmdData.attrBlock.dataBytes=0;
-        cmdData.numDataSets = sgbPacket[1];
+        sgbCmdData.attrBlock.dataBytes=0;
+        sgbCmdData.numDataSets = sgbPacket[1];
         pos = 2;
     }
     else
         pos = 0;
 
-    u8* const data = cmdData.attrBlock.data;
-    while (pos < 16 && cmdData.numDataSets > 0) {
-        for (; cmdData.attrBlock.dataBytes < 6 && pos < 16; cmdData.attrBlock.dataBytes++, pos++) {
-            data[cmdData.attrBlock.dataBytes] = sgbPacket[pos];
+    u8* const data = sgbCmdData.attrBlock.data;
+    while (pos < 16 && sgbCmdData.numDataSets > 0) {
+        for (; sgbCmdData.attrBlock.dataBytes < 6 && pos < 16; sgbCmdData.attrBlock.dataBytes++, pos++) {
+            data[sgbCmdData.attrBlock.dataBytes] = sgbPacket[pos];
         }
-        if (cmdData.attrBlock.dataBytes == 6) {
+        if (sgbCmdData.attrBlock.dataBytes == 6) {
             int pIn = data[1]&3;
             int pLine = (data[1]>>2)&3;
             int pOut = (data[1]>>4)&3;
@@ -164,8 +164,8 @@ void Gameboy::sgbAttrBlock(int block) {
                 }
             }
 
-            cmdData.attrBlock.dataBytes = 0;
-            cmdData.numDataSets--;
+            sgbCmdData.attrBlock.dataBytes = 0;
+            sgbCmdData.numDataSets--;
         }
     }
 }
@@ -173,12 +173,12 @@ void Gameboy::sgbAttrBlock(int block) {
 void Gameboy::sgbAttrLin(int block) {
     int index = 0;
     if (block == 0) {
-        cmdData.numDataSets = sgbPacket[1];
+        sgbCmdData.numDataSets = sgbPacket[1];
         index = 2;
     }
-    while (cmdData.numDataSets > 0 && index < 16) {
+    while (sgbCmdData.numDataSets > 0 && index < 16) {
         u8 dat = sgbPacket[index++];
-        cmdData.numDataSets--;
+        sgbCmdData.numDataSets--;
 
         int line = dat&0x1f;
         int pal = (dat>>5)&3;
@@ -232,22 +232,22 @@ void Gameboy::sgbAttrDiv(int block) {
 }
 
 void Gameboy::sgbAttrChr(int block) {
-    u8& x = cmdData.attrChr.x;
-    u8& y = cmdData.attrChr.y;
+    u8& x = sgbCmdData.attrChr.x;
+    u8& y = sgbCmdData.attrChr.y;
 
     int index = 0;
     if (block == 0) {
-        cmdData.numDataSets = sgbPacket[3] | (sgbPacket[4]<<8);
-        cmdData.attrChr.writeStyle = sgbPacket[5]&1;
+        sgbCmdData.numDataSets = sgbPacket[3] | (sgbPacket[4]<<8);
+        sgbCmdData.attrChr.writeStyle = sgbPacket[5]&1;
         x = (sgbPacket[1] >= 20 ? 19 : sgbPacket[1]);
         y = (sgbPacket[2] >= 18 ? 17 : sgbPacket[2]);
 
         index = 6*4;
     }
 
-    while (cmdData.numDataSets != 0 && index < 16*4) {
+    while (sgbCmdData.numDataSets != 0 && index < 16*4) {
         sgbMap[x+y*20] = (sgbPacket[index/4]>>(6-(index&3)*2))&3;
-        if (cmdData.attrChr.writeStyle == 0) {
+        if (sgbCmdData.attrChr.writeStyle == 0) {
             x++;
             if (x == 20) {
                 x = 0;
@@ -266,7 +266,7 @@ void Gameboy::sgbAttrChr(int block) {
             }
         }
         index++;
-        cmdData.numDataSets--;
+        sgbCmdData.numDataSets--;
     }
 }
 
@@ -287,7 +287,7 @@ void Gameboy::sgbPalSet(int block) {
         setSgbMask(0);
 }
 void Gameboy::sgbPalTrn(int block) {
-    doVramTransfer(sgbPalettes);
+    sgbDoVramTransfer(sgbPalettes);
 }
 
 void Gameboy::sgbDataSnd(int block) {
@@ -304,20 +304,20 @@ void Gameboy::sgbMltReq(int block) {
 
 void Gameboy::sgbChrTrn(int blonk) {
     u8* data = (u8*)malloc(0x1000);
-    doVramTransfer(data);
+    sgbDoVramTransfer(data);
     setSgbTiles(data, sgbPacket[1]);
     free(data);
 }
 
 void Gameboy::sgbPctTrn(int block) {
     u8* data = (u8*)malloc(0x1000);
-    doVramTransfer(data);
+    sgbDoVramTransfer(data);
     setSgbMap(data);
     free(data);
 }
 
 void Gameboy::sgbAttrTrn(int block) {
-    doVramTransfer(sgbAttrFiles);
+    sgbDoVramTransfer(sgbAttrFiles);
 }
 
 void Gameboy::sgbAttrSet(int block) {

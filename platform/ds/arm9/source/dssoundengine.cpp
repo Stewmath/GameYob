@@ -513,7 +513,7 @@ void SoundEngine::synchronizeSound() {
     if (muted)
         return;
 
-    int cycles = gameboy->getCyclesSinceVblank();
+    int cycles = gameboy->getCyclesSinceVBlank();
     if (gameboy->isDoubleSpeed())
         cycles /= 2;
 
