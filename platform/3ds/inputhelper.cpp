@@ -273,20 +273,23 @@ void system_checkPolls() {
         {
             aptReturnToMenu();
         }
-        else if(status == APP_SLEEPMODE)
+        else if(status == APP_PREPARE_SLEEPMODE)
         {
 			aptSignalReadyForSleep();
             aptWaitStatusEvent();
         }
+        else if (status == APP_SLEEPMODE) {
+
+        }
         else if (status == APP_EXITING) {
+            mgr_save();
+            mgr_exit();
+
             fsExit();
             gfxExit();
             hidExit();
             aptExit();
             srvExit();
-
-            mgr_save();
-            mgr_exit();
 
             exit(0);
         }

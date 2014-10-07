@@ -187,7 +187,9 @@ RomFile::RomFile(const char* f) {
 RomFile::~RomFile() {
     if (romFile != NULL)
         file_close(romFile);
+#ifndef EMBEDDED_ROM
     free(romBankSlots);
+#endif
 }
 
 
@@ -210,6 +212,8 @@ void RomFile::loadRomBank(int romBank) {
     gameboy->getCheatEngine()->applyGGCheatsToBank(romBank);
 
     romSlot1 = romBankSlots+slot*0x4000;
+
+    loadBios("\0");
 }
 
 bool RomFile::isRomBankLoaded(int bank) {

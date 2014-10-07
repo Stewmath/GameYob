@@ -20,10 +20,8 @@ int main(int argc, char* argv[])
     fsInit();
 
     // Dirty hack to delay before aptSetupEventHandler
-    drawScreen();
-    drawScreen();
-    drawScreen();
-    drawScreen();
+    for (int i=0; i<20; i++)
+        drawScreen();
 
 	aptSetupEventHandler();
 
