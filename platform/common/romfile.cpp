@@ -15,11 +15,6 @@
 #endif
 
 
-u8* romBankSlots = NULL; // Each 0x4000 bytes = one slot
-// Not a member because I'd rather not keep allocating & deallocating such a 
-// (relatively) huge chunk of memory (for DS)
-
-
 #ifdef DS
 extern bool __dsimode;
 #endif
@@ -31,8 +26,7 @@ RomFile::RomFile(const char* f) {
         if (__dsimode)
             maxLoadedRomBanks = 512; // 8 megabytes
         else
-            maxLoadedRomBanks = 64; // 1 megabyte
-//            maxLoadedRomBanks = 128; // 2 megabytes
+            maxLoadedRomBanks = 128; // 2 megabytes
 #else
         maxLoadedRomBanks = 512;
 #endif
@@ -188,14 +182,12 @@ RomFile::RomFile(const char* f) {
         romFile = NULL;
     }
 #endif
-
-    loadBios(biosPath);
 }
 
 RomFile::~RomFile() {
     if (romFile != NULL)
         file_close(romFile);
-    //free(romBankSlots);
+    free(romBankSlots);
 }
 
 

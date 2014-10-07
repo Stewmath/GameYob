@@ -30,9 +30,9 @@ int repeatTimer=0;
 
 u8 buttonsPressed;
 
-char* biosPath = NULL;
-char* borderPath = NULL;
-char* romPath = NULL;
+char biosPath[MAX_FILENAME_LEN] = "";
+char borderPath[MAX_FILENAME_LEN] = "";
+char romPath[MAX_FILENAME_LEN] = "";
 
 bool fastForwardMode = false; // controlled by the toggle hotkey
 bool fastForwardKey = false;  // only while its hotkey is pressed
@@ -66,46 +66,26 @@ void generalParseConfig(const char* line) {
         const char* value = equalsPos+1;
 
         if (strcasecmp(parameter, "rompath") == 0) {
-            if (romPath != 0)
-                free(romPath);
-            romPath = (char*)malloc(strlen(value)+1);
             strcpy(romPath, value);
 #ifdef DS
             romChooserState.directory = romPath;
 #endif
         }
         else if (strcasecmp(parameter, "biosfile") == 0) {
-            if (biosPath != 0)
-                free(biosPath);
-            biosPath = (char*)malloc(strlen(value)+1);
             strcpy(biosPath, value);
         }
         else if (strcasecmp(parameter, "borderfile") == 0) {
-            if (borderPath != 0)
-                free(borderPath);
-            borderPath = (char*)malloc(strlen(value)+1);
             strcpy(borderPath, value);
         }
     }
-    if (borderPath == NULL || *borderPath == '\0') {
-        free(borderPath);
-        borderPath = (char*)malloc(strlen("/border.bmp")+1);
+    if (*borderPath == '\0') {
         strcpy(borderPath, "/border.bmp");
     }
 }
 
 void generalPrintConfig(FileHandle* file) {
-    if (romPath == 0)
-        file_printf(file, "rompath=\n");
-    else
         file_printf(file, "rompath=%s\n", romPath);
-    if (biosPath == 0)
-        file_printf(file, "biosfile=\n");
-    else
         file_printf(file, "biosfile=%s\n", biosPath);
-    if (borderPath == 0)
-        file_printf(file, "borderfile=\n");
-    else
         file_printf(file, "borderfile=%s\n", borderPath);
 }
 
@@ -279,8 +259,15 @@ int mapMenuKey(int menuKey) {
 void inputUpdateVBlank() {
 }
 
-void doRumble(bool rumbleVal)
+void system_doRumble(bool rumbleVal)
 {
+}
+
+int system_getMotionSensorX() {
+    return 0;
+}
+int system_getMotionSensorY() {
+    return 0;
 }
 
 void system_checkPolls() {
@@ -293,6 +280,7 @@ void system_checkPolls() {
         {
             case SDL_QUIT:
                 mgr_save();
+                mgr_exit();
 #ifdef LOG
 				fclose(logFile);
 #endif

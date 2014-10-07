@@ -31,9 +31,9 @@ int repeatTimer=0;
 
 u8 buttonsPressed;
 
-char* biosPath = NULL;
-char* borderPath = NULL;
-char* romPath = NULL;
+char biosPath[MAX_FILENAME_LEN] = "";
+char borderPath[MAX_FILENAME_LEN] = "";
+char romPath[MAX_FILENAME_LEN] = "";
 
 bool fastForwardMode = false; // controlled by the toggle hotkey
 bool fastForwardKey = false;  // only while its hotkey is pressed
@@ -41,6 +41,8 @@ bool fastForwardKey = false;  // only while its hotkey is pressed
 bool biosExists = false;
 int rumbleInserted = 0;
 
+
+touchPosition touchData;
 
 void initInput()
 {
@@ -264,44 +266,24 @@ void generalParseConfig(const char* line) {
         const char* value = equalsPos+1;
 
         if (strcasecmp(parameter, "rompath") == 0) {
-            if (romPath != 0)
-                free(romPath);
-            romPath = (char*)malloc(strlen(value)+1);
             strcpy(romPath, value);
             romChooserState.directory = romPath;
         }
         else if (strcasecmp(parameter, "biosfile") == 0) {
-            if (biosPath != 0)
-                free(biosPath);
-            biosPath = (char*)malloc(strlen(value)+1);
             strcpy(biosPath, value);
         }
         else if (strcasecmp(parameter, "borderfile") == 0) {
-            if (borderPath != 0)
-                free(borderPath);
-            borderPath = (char*)malloc(strlen(value)+1);
             strcpy(borderPath, value);
         }
     }
-    if (borderPath == NULL || *borderPath == '\0') {
-        free(borderPath);
-        borderPath = (char*)malloc(strlen("/border.bmp")+1);
+    if (*borderPath == '\0') {
         strcpy(borderPath, "/border.bmp");
     }
 }
 
 void generalPrintConfig(FileHandle* file) {
-    if (romPath == 0)
-        file_printf(file, "rompath=\n");
-    else
         file_printf(file, "rompath=%s\n", romPath);
-    if (biosPath == 0)
-        file_printf(file, "biosfile=\n");
-    else
         file_printf(file, "biosfile=%s\n", biosPath);
-    if (borderPath == 0)
-        file_printf(file, "borderfile=\n");
-    else
         file_printf(file, "borderfile=%s\n", borderPath);
 }
 
@@ -424,6 +406,7 @@ int mapMenuKey(int menuKey) {
 int readKeysLastFrameCounter=0;
 void inputUpdateVBlank() {
     scanKeys();
+    touchRead(&touchData);
 
     lastKeysPressed = keysPressed;
     keysPressed = keysHeld();
@@ -444,7 +427,7 @@ void inputUpdateVBlank() {
     }
 }
 
-void doRumble(bool rumbleVal)
+void system_doRumble(bool rumbleVal)
 {
     if (rumbleInserted == 1)
     {
@@ -459,6 +442,32 @@ void doRumble(bool rumbleVal)
         GBA_BUS[0x1E20000/2] = rumbleVal ? (0xF0 + rumbleStrength) : 0x08;
         GBA_BUS[0x1FC0000/2] = 0x1500;
     }
+}
+
+#define MOTION_SENSOR_RANGE 128
+
+int system_getMotionSensorX() {
+    int px = touchData.px;
+    if (!keyPressed(KEY_TOUCH))
+        px = 128;
+
+    double val = (128 - px) * ((double)MOTION_SENSOR_RANGE / 256)
+        + MOTION_SENSOR_MID;
+    /*
+    if (val < 0)
+        return (-(int)val) | 0x8000;
+        */
+    return (int)val + 0x8000;
+}
+
+int system_getMotionSensorY() {
+    int py = touchData.py;
+    if (!keyPressed(KEY_TOUCH))
+        py = 96;
+
+    double val = (96 - py) * ((double)MOTION_SENSOR_RANGE / 192)
+        + MOTION_SENSOR_MID - 80;
+    return (int)val;
 }
 
 void system_checkPolls() {

@@ -54,6 +54,8 @@ class RomFile {
         u8 bios[0x900];
 
     private:
+        u8* romBankSlots = NULL; // Each 0x4000 bytes = one slot
+
         int numRomBanks;
         int maxLoadedRomBanks;
         int numLoadedRomBanks;

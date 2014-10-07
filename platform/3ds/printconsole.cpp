@@ -11,15 +11,21 @@
 const u32 TEXT_COLOR = RGB24(0xff, 0xff, 0xff);
 const u32 BG_COLOR = RGB24(0x00, 0x00, 0x00);
 
-PrintConsole* currentConsole = NULL;
-
 const int CHAR_WIDTH = 8;
 const int CHAR_HEIGHT = 8;
+
+PrintConsole* currentConsole = NULL;
+
+PrintConsole mainConsole;
+
+static void consoleCls(char);
 
 void newRow() {
     currentConsole->cursorY++;
 
     if (currentConsole->cursorY >= currentConsole->consoleHeight) {
+        consoleCls('2');
+        /*
         currentConsole->cursorY--;
 
         for (int j=currentConsole->consoleHeight-2; j>=0; j--) {
@@ -30,6 +36,7 @@ void newRow() {
                 }
             }
         }
+        */
     }
 }
 
@@ -354,8 +361,7 @@ static const devoptab_t dotab_stdout = {
 };
 
 void consoleInitBottom() {
-    if (currentConsole == NULL)
-        currentConsole = (PrintConsole*)malloc(sizeof(PrintConsole));
+    currentConsole = &mainConsole;
     currentConsole->cursorX = 0;
     currentConsole->cursorY = 0;
     currentConsole->consoleWidth = BOTTOM_SCREEN_WIDTH / CHAR_WIDTH;

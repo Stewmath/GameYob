@@ -29,7 +29,6 @@ FileChooserState borderChooserState = {0,"."};
 #endif
 
 // Private stuff
-const int MAX_FILENAME_LEN = 256;
 int filesPerPage = 24;
 int numFiles;
 int scrollY=0;

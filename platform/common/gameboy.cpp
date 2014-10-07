@@ -56,6 +56,13 @@ Gameboy::Gameboy() : hram(highram+0xe00), ioRam(highram+0xf00) {
         soundEngine->mute();
 }
 
+Gameboy::~Gameboy() {
+    unloadRom();
+
+    delete cheatEngine;
+    delete soundEngine;
+}
+
 void Gameboy::init()
 {
     enableSleepMode();
@@ -312,7 +319,7 @@ void Gameboy::gameboyCheckInput() {
 
     if (keyJustPressed(mapFuncKey(FUNC_KEY_MENU) | mapFuncKey(FUNC_KEY_MENU_PAUSE)
 #ifdef DS
-                | KEY_TOUCH
+//                | KEY_TOUCH
 #endif
                 )) {
         if (singleScreenMode || keyJustPressed(mapFuncKey(FUNC_KEY_MENU_PAUSE)))
@@ -752,7 +759,7 @@ void Gameboy::unloadRom() {
     cheatEngine->setRomFile(NULL);
 }
 
-const char *mbcNames[] = {"ROM","MBC1","MBC2","MBC3","MBC4","MBC5","MBC7","HUC3","HUC1"};
+const char *mbcNames[] = {"ROM","MBC1","MBC2","MBC3","MBC4","MBC5","MBC7","HUC1","HUC3"};
 
 void Gameboy::printRomInfo() {
     clearConsole();
@@ -802,6 +809,8 @@ int Gameboy::loadSave(int saveId)
                 break;
         }
         if (romFile->getMBC() == MBC2)
+            numRamBanks = 1;
+        else if (romFile->getMBC() == MBC7) // Probably not correct behaviour
             numRamBanks = 1;
     }
 

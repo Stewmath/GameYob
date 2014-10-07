@@ -712,8 +712,8 @@ void displayIcon(int iconid) {
 void selectBorder() {
     muteSND();
 
-    if (borderChooserState.directory == "/" && borderPath != NULL) {
-        char dest[256];
+    if (borderChooserState.directory == "/") {
+        char dest[MAX_FILENAME_LEN];
         strcpy(dest, borderPath);
         setFileChooserMatchFile(strrchr(dest, '/')+1);
         *(strrchr(dest, '/')+1) = '\0';
@@ -724,10 +724,8 @@ void selectBorder() {
     const char* extensions[] = {"bmp"};
     char* filename = startFileChooser(extensions, false, true);
     if (filename != NULL) {
-        char cwd[256];
-        getcwd(cwd, 256);
-        free(borderPath);
-        borderPath = (char*)malloc(strlen(cwd)+strlen(filename)+1);
+        char cwd[MAX_FILENAME_LEN];
+        getcwd(cwd, MAX_FILENAME_LEN);
         strcpy(borderPath, cwd);
         strcat(borderPath, filename);
 

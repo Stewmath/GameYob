@@ -11,14 +11,19 @@
 #include "gbmanager.h"
 #include "printconsole.h"
 
-time_t rawTime;
-
 int main(int argc, char* argv[])
 {
 	srvInit();	
 	aptInit();
 	hidInit(NULL);
 	gfxInit();
+    fsInit();
+
+    // Dirty hack to delay before aptSetupEventHandler
+    drawScreen();
+    drawScreen();
+    drawScreen();
+    drawScreen();
 
 	aptSetupEventHandler();
 
@@ -38,8 +43,6 @@ int main(int argc, char* argv[])
     for (;;) {
         mgr_runFrame();
         mgr_updateVBlank();
-
-        //printf("%d\n", gameboy->gameboyFrameCounter);
 
         gfxFlushBuffers();
         gfxSwapBuffersGpu();

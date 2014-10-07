@@ -10,12 +10,9 @@
 #include "menu.h"
 #include "gbmanager.h"
 
-time_t rawTime;
-
 extern int scale;
 
 SDL_Surface* screen;
-
 
 
 int main(int argc, char* argv[])
@@ -60,7 +57,5 @@ int main(int argc, char* argv[])
         mgr_updateVBlank();
     }
 
-	//fclose(logFile);
-	SDL_Quit();
 	return 0;
 }

@@ -14,3 +14,5 @@ void mgr_selectRom();
 void mgr_save();
 
 void mgr_updateVBlank();
+
+void mgr_exit();

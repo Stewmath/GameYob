@@ -5,6 +5,7 @@
 #include <string.h>
 #include <dirent.h>
 #include <unistd.h>
+#include <string>
 
 #include "inputhelper.h"
 #include "gameboy.h"
@@ -31,9 +32,9 @@ int repeatTimer=0;
 
 u8 buttonsPressed;
 
-char* biosPath = NULL;
-char* borderPath = NULL;
-char* romPath = NULL;
+char biosPath[MAX_FILENAME_LEN] = "";
+char borderPath[MAX_FILENAME_LEN] = "";
+char romPath[MAX_FILENAME_LEN] = "";
 
 bool fastForwardMode = false; // controlled by the toggle hotkey
 bool fastForwardKey = false;  // only while its hotkey is pressed
@@ -66,45 +67,25 @@ void generalParseConfig(const char* line) {
         const char* value = equalsPos+1;
 
         if (strcasecmp(parameter, "rompath") == 0) {
-            if (romPath != 0)
-                free(romPath);
-            romPath = (char*)malloc(strlen(value)+1);
             strcpy(romPath, value);
-            romChooserState.directory = romPath;
+            romChooserState.directory = std::string(romPath);
         }
         else if (strcasecmp(parameter, "biosfile") == 0) {
-            if (biosPath != 0)
-                free(biosPath);
-            biosPath = (char*)malloc(strlen(value)+1);
             strcpy(biosPath, value);
         }
         else if (strcasecmp(parameter, "borderfile") == 0) {
-            if (borderPath != 0)
-                free(borderPath);
-            borderPath = (char*)malloc(strlen(value)+1);
             strcpy(borderPath, value);
         }
     }
-    if (borderPath == NULL || *borderPath == '\0') {
-        free(borderPath);
-        borderPath = (char*)malloc(strlen("/border.bmp")+1);
+    if (*borderPath == '\0') {
         strcpy(borderPath, "/border.bmp");
     }
 }
 
 void generalPrintConfig(FileHandle* file) {
-    if (romPath == 0)
-        file_printf(file, "rompath=\n");
-    else
-        file_printf(file, "rompath=%s\n", romPath);
-    if (biosPath == 0)
-        file_printf(file, "biosfile=\n");
-    else
-        file_printf(file, "biosfile=%s\n", biosPath);
-    if (borderPath == 0)
-        file_printf(file, "borderfile=\n");
-    else
-        file_printf(file, "borderfile=%s\n", borderPath);
+    file_printf(file, "rompath=%s\n", romPath);
+    file_printf(file, "biosfile=%s\n", biosPath);
+    file_printf(file, "borderfile=%s\n", borderPath);
 }
 
 bool readConfigFile() {
@@ -210,7 +191,7 @@ int mapFuncKey(int funcKey) {
         case FUNC_KEY_SELECT:
             return KEY_SELECT | KEY_Y;
         case FUNC_KEY_MENU:
-            return KEY_L | KEY_TOUCH;
+            return KEY_R | KEY_TOUCH;
         case FUNC_KEY_MENU_PAUSE:
             return 0;
         case FUNC_KEY_SAVE:
@@ -271,8 +252,15 @@ void inputUpdateVBlank() {
     keysJustPressed = (lastKeysPressed ^ keysPressed) & keysPressed;
 }
 
-void doRumble(bool rumbleVal)
+void system_doRumble(bool rumbleVal)
 {
+}
+
+int system_getMotionSensorX() {
+    return 0;
+}
+int system_getMotionSensorY() {
+    return 0;
 }
 
 
@@ -280,19 +268,25 @@ void system_checkPolls() {
     APP_STATUS status;
 
 	while((status=aptGetStatus()) != APP_RUNNING) {
+
         if(status == APP_SUSPENDING)
         {
             aptReturnToMenu();
         }
         else if(status == APP_SLEEPMODE)
         {
+			aptSignalReadyForSleep();
             aptWaitStatusEvent();
         }
         else if (status == APP_EXITING) {
+            fsExit();
             gfxExit();
             hidExit();
             aptExit();
             srvExit();
+
+            mgr_save();
+            mgr_exit();
 
             exit(0);
         }

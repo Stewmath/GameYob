@@ -45,6 +45,8 @@ void Gameboy::refreshRamBank (int bank)
         memory[0xa] = externRam+currentRamBank*0x2000;
         memory[0xb] = externRam+currentRamBank*0x2000+0x1000; 
     }
+    else
+        printLog("Tried to access ram bank %x\n", bank);
 }
 
 void Gameboy::writeSram(u16 addr, u8 val) {
@@ -145,54 +147,6 @@ void Gameboy::mapMemory() {
     dmaDest &= 0x1FF0;
 }
 
-/* Increment y if x is greater than val */
-#define OVERFLOW(x,val,y)   \
-    do {                    \
-        while (x >= val) {  \
-            x -= val;       \
-            y++;            \
-        }                   \
-    } while (0) 
-
-void Gameboy::latchClock()
-{
-    // +2h, the same as lameboy
-    time_t now = rawTime-120*60;
-    time_t difference = now - gbClock.last;
-    struct tm* lt = gmtime((const time_t *)&difference);
-
-    switch (romFile->getMBC()) {
-        case MBC3:
-            gbClock.mbc3.s += lt->tm_sec;
-            OVERFLOW(gbClock.mbc3.s, 60, gbClock.mbc3.m);
-            gbClock.mbc3.m += lt->tm_min;
-            OVERFLOW(gbClock.mbc3.m, 60, gbClock.mbc3.h);
-            gbClock.mbc3.h += lt->tm_hour;
-            OVERFLOW(gbClock.mbc3.h, 24, gbClock.mbc3.d);
-            gbClock.mbc3.d += lt->tm_yday;
-            /* Overflow! */
-            if (gbClock.mbc3.d > 0x1FF)
-            {
-                /* Set the carry bit */
-                gbClock.mbc3.ctrl |= 0x80;
-                gbClock.mbc3.d -= 0x200;
-            }
-            /* The 9th bit of the day register is in the control register */ 
-            gbClock.mbc3.ctrl &= ~1;
-            gbClock.mbc3.ctrl |= (gbClock.mbc3.d > 0xff);
-            break;
-        case HUC3:
-            gbClock.huc3.m += lt->tm_min;
-            OVERFLOW(gbClock.huc3.m, 60*24, gbClock.huc3.d);
-            gbClock.huc3.d += lt->tm_yday;
-            OVERFLOW(gbClock.huc3.d, 365, gbClock.huc3.y);
-            gbClock.huc3.y += lt->tm_year - 70;
-            break;
-    }
-
-    gbClock.last = now;
-}
-
 u8 Gameboy::readMemoryFast(u16 addr) {
     return memory[addr>>12][addr&0xfff];
 }
@@ -264,9 +218,7 @@ u8 Gameboy::readIO(u8 ioReg)
 
 u8 Gameboy::readMemoryOther(u16 addr) {
     int area = addr>>12;
-    if (!(area & 0x8) || area == 0xc || area == 0xd) {
-        return memory[area][addr&0xfff];
-    }
+
     if (area == 0xf) {
         if (addr >= 0xff00)
             return readIO(addr&0xff);

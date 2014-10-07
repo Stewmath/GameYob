@@ -76,6 +76,7 @@ class Gameboy {
         // gameboy.cpp
 
         Gameboy();
+        ~Gameboy();
         void init();
         void initGBMode();
         void initGBCMode();
@@ -359,10 +360,6 @@ class Gameboy {
         int numRamBanks;
 
         bool ramEnabled;
-        char rtcReg;
-        u8   HuC3Mode;
-        u8   HuC3Value;
-        u8   HuC3Shift;
 
         int memoryModel;
         bool hasClock;
@@ -370,6 +367,16 @@ class Gameboy {
         int currentRamBank;
 
         bool rockmanMapper;
+
+        // HuC3
+        u8   HuC3Mode;
+        u8   HuC3Value;
+        u8   HuC3Shift;
+
+        // MBC7
+        u8 mbc7State;
+        u16 mbc7Buffer;
+        u8 mbc7RA; // Ram Access register 0xa080
 
         // sgb.cpp
     public:

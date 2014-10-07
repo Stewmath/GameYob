@@ -21,10 +21,8 @@ RomFile* romFile = NULL;
 
 int fps = 0;
 
-#ifdef DS
 time_t rawTime;
 time_t lastRawTime;
-#endif
 
 
 void mgr_init() {
@@ -216,6 +214,10 @@ void mgr_updateVBlank() {
     REG_IME = oldIME;
 #endif
 
+#ifndef DS
+    rawTime = time(NULL);
+#endif
+
 #ifdef DS
     fps++;
 
@@ -254,3 +256,15 @@ void mgr_updateVBlank() {
 #endif
 }
 
+void mgr_exit() {
+    if (gameboy)
+        delete gameboy;
+    if (gb2)
+        delete gb2;
+    if (romFile)
+        delete romFile;
+
+    gameboy = 0;
+    gb2 = 0;
+    romFile = 0;
+}

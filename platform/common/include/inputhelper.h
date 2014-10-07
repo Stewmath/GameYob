@@ -1,5 +1,6 @@
 #pragma once
 #include <stdio.h>
+#include "io.h"
 
 #define FAT_CACHE_SIZE 16
 
@@ -11,6 +12,15 @@
 #define GB_LEFT		    0x20
 #define GB_UP			0x40
 #define GB_DOWN		    0x80
+
+
+/*
+#define MOTION_SENSOR_MAX 2197
+#define MOTION_SENSOR_MIN 1897
+*/
+#define MOTION_SENSOR_RANGE 256
+#define MOTION_SENSOR_MID 0
+
 
 // Function keys
 enum {
@@ -31,13 +41,11 @@ enum {
 };
 
 
-extern char* biosPath;
-
 extern bool fastForwardMode; // controlled by the toggle hotkey
 extern bool fastForwardKey;  // only while its hotkey is pressed
 extern u8 buttonsPressed;
 
-extern char* borderPath;
+extern char borderPath[MAX_FILENAME_LEN];
 extern bool biosExists;
 extern int rumbleInserted;
 
@@ -60,7 +68,9 @@ int mapMenuKey(int menuKey);
 
 void inputUpdateVBlank();
 
-void doRumble(bool rumbleVal);
+void system_doRumble(bool rumbleVal);
+int system_getMotionSensorX();
+int system_getMotionSensorY();
 
 void system_checkPolls();
 void system_waitForVBlank();
