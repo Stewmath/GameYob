@@ -1397,7 +1397,6 @@ void writeVram(u16 addr, u8 val) {
     u8 old = gameboy->vram[gameboy->vramBank][addr];
     if (old == val)
         return;
-    gameboy->vram[gameboy->vramBank][addr] = val;
 
     if (addr < 0x1800) {
         int tileNum = addr/16;
@@ -1450,7 +1449,6 @@ void writeVram16(u16 dest, u16 src) {
                 else if (!(val&0x80) && (old&0x80))
                     usingTilePriority[map]--;
             }
-            gameboy->vram[gameboy->vramBank][dest] = val;
         }
         dest++;
     }

@@ -355,9 +355,23 @@ char* startFileChooser(const char* extensions[], bool romExtensions, bool canQui
         updateScrollDown();
         bool readDirectory = false;
         while (!readDirectory) {
+            int screenLen;
+#if defined(_3DS)
+            if (gameScreen == 0)
+                screenLen = BOTTOM_SCREEN_WIDTH / CHAR_WIDTH;
+            else
+                screenLen = TOP_SCREEN_WIDTH / CHAR_WIDTH;
+#else
+            screenLen = 32;
+#endif
             // Draw the screen
             clearConsole();
-            printf("%s\n", cwd);
+            strncpy(buffer, cwd, screenLen);
+            buffer[screenLen] = '\0';
+            iprintfColored(CONSOLE_COLOR_WHITE, "%s", buffer);
+            for (uint j=0; j<screenLen-strlen(buffer); j++)
+                iprintfColored(CONSOLE_COLOR_WHITE, " ");
+
             for (int i=scrollY; i<scrollY+filesPerPage && i<numFiles; i++) {
                 if (i == fileSelection)
                     printf("* ");
@@ -368,32 +382,19 @@ char* startFileChooser(const char* extensions[], bool romExtensions, bool canQui
                 else
                     printf("  ");
 
-                int maxLen;
-#ifdef DS
-                maxLen = 32;
-#endif
-#ifdef _3DS
-                if (gameScreen == 0)
-                    maxLen = BOTTOM_SCREEN_WIDTH / CHAR_WIDTH;
-                else
-                    maxLen = TOP_SCREEN_WIDTH / CHAR_WIDTH;
-#endif
-#ifdef SDL
-                maxLen = 32;
-#endif
-                maxLen -= 2;
-
+                int stringLen = screenLen - 2;
                 if (flags[i] & FLAG_DIRECTORY)
-                    maxLen--;
-                strncpy(buffer, filenames[i], maxLen);
-                buffer[maxLen] = '\0';
-                if (flags[i] & FLAG_DIRECTORY)
+                    stringLen--;
+                strncpy(buffer, filenames[i], stringLen);
+                buffer[stringLen] = '\0';
+                if (flags[i] & FLAG_DIRECTORY) {
                     iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, "%s/", buffer);
+                }
                 else if (flags[i] & FLAG_SUSPENDED)
                     iprintfColored(CONSOLE_COLOR_LIGHT_MAGENTA, "%s", buffer);
                 else
                     iprintfColored(CONSOLE_COLOR_WHITE, "%s", buffer);
-                for (uint j=0; j<maxLen-strlen(buffer); j++)
+                for (uint j=0; j<stringLen-strlen(buffer); j++)
                     iprintfColored(CONSOLE_COLOR_WHITE, " ");
 
 #ifdef DS

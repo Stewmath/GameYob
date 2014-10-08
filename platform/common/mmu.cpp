@@ -583,8 +583,8 @@ bool Gameboy::updateHBlankDMA()
     {
         if (isMainGameboy())
             writeVram16(dmaDest, dmaSource);
-        dmaDest += 16;
-        dmaSource += 16;
+        for (int i=0; i<16; i++)
+            vram[vramBank][dmaDest++] = quickRead(dmaSource++);
         dmaDest &= 0x1FF0;
         dmaLength --;
         ioRam[0x55] = dmaLength-1;
