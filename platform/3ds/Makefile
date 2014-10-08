@@ -30,7 +30,7 @@ DATA		:=	data
 INCLUDES	:=	include ../common/include
 
 
-EMBEDDED_ROM := true
+EMBEDDED_ROM := false
 
 #---------------------------------------------------------------------------------
 # options for code generation

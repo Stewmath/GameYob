@@ -9,3 +9,7 @@ struct PrintConsole {
 
 void consoleInitBottom();
 void consoleSetScreen(int screen);
+
+const int CHAR_WIDTH = 8;
+const int CHAR_HEIGHT = 8;
+

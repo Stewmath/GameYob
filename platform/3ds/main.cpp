@@ -1,5 +1,6 @@
 #include <3ds.h>
 #include <stdio.h>
+#include <cwchar>
 #include "gbgfx.h"
 #include "soundengine.h"
 #include "inputhelper.h"
@@ -19,6 +20,8 @@ int main(int argc, char* argv[])
 	gfxInit();
     fsInit();
 
+    fs_init(); // nice naming scheme
+
     // Dirty hack to delay before aptSetupEventHandler
     for (int i=0; i<20; i++)
         drawScreen();
@@ -36,14 +39,11 @@ int main(int argc, char* argv[])
     gfxSwapBuffers();
     printf("GameYob 3DS\n\n");
 
-    mgr_loadRom("/gb/Dr. Mario (JU) (V1.0) [!].gb");
+    mgr_selectRom();
 
     for (;;) {
         mgr_runFrame();
         mgr_updateVBlank();
-
-        gfxFlushBuffers();
-        gfxSwapBuffersGpu();
     }
 
 	return 0;

@@ -1,3 +1,4 @@
+#include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -64,6 +65,24 @@ void file_printf(FileHandle* h, const char* s, ...) {
     vsprintf(buf, s, args);
 
     fputs(buf, h->file);
+}
+
+
+DIR* fs_opendir(const char* s) {
+    return opendir(s);
+}
+void fs_closedir(DIR* dir) {
+    return closedir(dir);
+}
+struct dirent* fs_readdir(DIR* d) {
+    return readdir(d);
+}
+
+void fs_getcwd(char* dest, size_t maxLen) {
+    getcwd(dest, maxLen);
+}
+void fs_chdir(const char* s) {
+    chdir(s);
 }
 
 #endif

@@ -11,9 +11,6 @@
 const u32 TEXT_COLOR = RGB24(0xff, 0xff, 0xff);
 const u32 BG_COLOR = RGB24(0x00, 0x00, 0x00);
 
-const int CHAR_WIDTH = 8;
-const int CHAR_HEIGHT = 8;
-
 PrintConsole* currentConsole = NULL;
 
 PrintConsole mainConsole;

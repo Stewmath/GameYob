@@ -89,7 +89,7 @@ void generalPrintConfig(FileHandle* file) {
 }
 
 bool readConfigFile() {
-    FileHandle* file = file_open("gameyob.ini", "r");
+    FileHandle* file = file_open("/gameyob.ini", "r");
     char line[100];
     void (*configParser)(const char*) = generalParseConfig;
 
@@ -127,7 +127,7 @@ end:
 }
 
 void writeConfigFile() {
-    FileHandle* file = file_open("gameyob.ini", "w");
+    FileHandle* file = file_open("/gameyob.ini", "w");
     if (file == NULL) {
         printMenuMessage("Error opening gameyob.ini.");
         return;
@@ -250,6 +250,11 @@ void inputUpdateVBlank() {
     keysPressed &= ~keysForceReleased;
 
     keysJustPressed = (lastKeysPressed ^ keysPressed) & keysPressed;
+
+    if (repeatTimer > 0)
+        repeatTimer--;
+    if (repeatStartTimer > 0)
+        repeatStartTimer--;
 }
 
 void system_doRumble(bool rumbleVal)
@@ -296,6 +301,9 @@ void system_checkPolls() {
 
         gspWaitForVBlank();
     }
+
+    gfxFlushBuffers();
+    gfxSwapBuffersGpu();
 }
 
 void system_waitForVBlank() {

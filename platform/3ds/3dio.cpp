@@ -1,31 +1,66 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <3ds.h>
+#include <cwchar>
 #include "io.h"
 
-bool fsInitialized = false;
 FS_archive sdmcArchive;
+
+char fs_cwd[MAX_FILENAME_LEN];
 
 struct FileHandle {
     Handle handle;
     size_t head;
 };
 
+struct DirStruct {
+    Handle handle;
+    struct dirent activeEntry;
+};
+
+// private functions
+
+void fs_relativePath(char* dest, const char* src) {
+    bool back = false;
+    if (strcmp(src, "..") == 0 || strcmp(src, "../") == 0) {
+        if (dest != fs_cwd)
+            strcpy(dest, fs_cwd);
+        back = true;
+    }
+    else if (src[0] == '/')
+        strcpy(dest, src);
+    else {
+        if (dest != fs_cwd)
+            strcpy(dest, fs_cwd);
+        if (dest[strlen(dest)-1] != '/')
+            strcat(dest, "/");
+        strcat(dest, src);
+    }
+
+    while (strlen(dest) > 1 &&
+            strrchr(dest, '/') != 0 && strrchr(dest, '/') == dest+strlen(dest)-1)
+        *strrchr(dest, '/') = '\0';
+
+    if (back) {
+        if (strrchr(dest, '/') != 0) {
+            *(strrchr(dest, '/')+1) = '\0';
+        }
+    }
+}
 
 // public functions
 
+void fs_init() {
+    sdmcArchive = (FS_archive){0x9, FS_makePath(PATH_EMPTY, "")};
+    FSUSER_OpenArchive(NULL, &sdmcArchive);
+
+    strcpy(fs_cwd, "/");
+}
+
 FileHandle* file_open(const char* filename, const char* flags) {
 #ifdef EMBEDDED_ROM
-    // Assume filesystem functions are broken (for using citra)
     return NULL;
 #endif
-
-    if (!fsInitialized) {
-        //sdmcArchive = (FS_archive){0x9, FS_makePath(PATH_EMPTY, "")};
-        sdmcArchive = (FS_archive){0x9, FS_makePath(PATH_CHAR, "/")};
-        FSUSER_OpenArchive(NULL, &sdmcArchive);
-        fsInitialized = true;
-    }
 
     u32 openFlags = 0;
 
@@ -44,9 +79,12 @@ FileHandle* file_open(const char* filename, const char* flags) {
         }
     }
 
+    char buffer[MAX_FILENAME_LEN];
+    fs_relativePath(buffer, filename);
+
     FileHandle* fileHandle = (FileHandle*)malloc(sizeof(FileHandle));
     Result res = FSUSER_OpenFile(NULL, &fileHandle->handle, sdmcArchive,
-            FS_makePath(PATH_CHAR, filename), openFlags, FS_ATTRIBUTE_NONE);
+            FS_makePath(PATH_CHAR, buffer), openFlags, FS_ATTRIBUTE_NONE);
 
     if (res) {
         free(fileHandle);
@@ -137,4 +175,54 @@ void file_printf(FileHandle* fileHandle, const char* format, ...) {
     vsnprintf(buffer, 512, format, args);
 
     file_write(buffer, 1, strlen(buffer), fileHandle);
+}
+
+
+DirStruct* fs_opendir(const char* s) {
+    char buffer[MAX_FILENAME_LEN];
+    fs_relativePath(buffer, s);
+
+    DirStruct* dir = (DirStruct*)malloc(sizeof(DirStruct));
+    Result res = FSUSER_OpenDirectory(NULL, &dir->handle, sdmcArchive,
+            FS_makePath(PATH_CHAR, buffer));
+    if (res) {
+        free(dir);
+        return 0;
+    }
+    return dir;
+}
+void fs_closedir(DirStruct* dir) {
+    FSDIR_Close(dir->handle);
+    free(dir);
+}
+struct dirent* fs_readdir(DirStruct* dir) {
+    u32 numEntries = 0;
+    FS_dirent entry;
+    FSDIR_Read(dir->handle, &numEntries, 1, &entry);
+
+    if (numEntries == 0)
+        return 0;
+
+    for (int i=0; i<MAX_FILENAME_LEN; i++) {
+        dir->activeEntry.d_name[i] = (char)entry.name[i];
+        if (dir->activeEntry.d_name[i] == '\0')
+            break;
+    }
+    dir->activeEntry.d_type = 0;
+    if (entry.isDirectory)
+        dir->activeEntry.d_type |= DT_DIR;
+
+    return &dir->activeEntry;
+}
+
+void fs_getcwd(char* dest, size_t maxLen) {
+    strncpy(dest, fs_cwd, maxLen);
+}
+void fs_chdir(const char* s) {
+    if (s == fs_cwd)
+        return;
+    char buffer[MAX_FILENAME_LEN];
+    fs_relativePath(buffer, s);
+
+    strcpy(fs_cwd, buffer);
 }
