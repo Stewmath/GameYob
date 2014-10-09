@@ -116,7 +116,10 @@ void initGFX()
 }
 
 void refreshGFX() {
-
+    for (int i=0; i<8; i++) {
+        bgPalettesModified[i] = true;
+        sprPalettesModified[i] = true;
+    }
 }
 
 void clearGFX() {

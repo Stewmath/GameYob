@@ -1147,7 +1147,7 @@ int Gameboy::loadState(int stateNum) {
 
     file_close(inFile);
     if (stateNum == -1) {
-        unlink(statename);
+        fs_deleteFile(statename);
     }
 
     gbRegs = state.regs;
@@ -1196,20 +1196,20 @@ void Gameboy::deleteState(int stateNum) {
     if (!checkStateExists(stateNum))
         return;
 
-    char statename[256];
+    char statename[MAX_FILENAME_LEN];
 
     if (stateNum == -1)
         sprintf(statename, "%s.yss", romFile->getBasename());
     else
         sprintf(statename, "%s.ys%d", romFile->getBasename(), stateNum);
-    unlink(statename);
+    fs_deleteFile(statename);
 }
 
 bool Gameboy::checkStateExists(int stateNum) {
     if (!isRomLoaded())
         return false;
 
-    char statename[256];
+    char statename[MAX_FILENAME_LEN];
 
     if (stateNum == -1)
         sprintf(statename, "%s.yss", romFile->getBasename());

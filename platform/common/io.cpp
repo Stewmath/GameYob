@@ -82,6 +82,10 @@ bool file_exists(const char* filename) {
     return access(filename, R_OK) == 0;
 }
 
+void fs_deleteFile(const char* filename) {
+    unlink(filename);
+}
+
 
 DIR* fs_opendir(const char* s) {
     return opendir(s);

@@ -194,6 +194,12 @@ bool file_exists(const char* filename) {
     }
 }
 
+void fs_deleteFile(const char* filename) {
+    char buffer[MAX_FILENAME_LEN];
+    fs_relativePath(buffer, filename);
+    FSUSER_DeleteFile(NULL, sdmcArchive, FS_makePath(PATH_CHAR, buffer));
+}
+
 DirStruct* fs_opendir(const char* s) {
     char buffer[MAX_FILENAME_LEN];
     fs_relativePath(buffer, s);
