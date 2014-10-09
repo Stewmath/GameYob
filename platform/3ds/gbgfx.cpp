@@ -128,6 +128,9 @@ void clearGFX() {
 
 void drawScanline(int scanline)
 {
+}
+
+void drawScanline_P2(int scanline) {
     for (int i=0; i<8; i++) {
         if (bgPalettesModified[i]) {
             if (gameboy->gbMode == GB)
@@ -369,10 +372,6 @@ void drawScanline(int scanline)
 			}
 		}
 	}
-}
-
-void drawScanline_P2(int scanline) {
-
 }
 
 void drawScreen()
