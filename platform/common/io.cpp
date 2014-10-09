@@ -10,7 +10,6 @@
 
 struct FileHandle {
     FILE* file;
-    char name[MAX_FILENAME_LEN];
     char flags[10];
 };
 
@@ -21,10 +20,9 @@ FileHandle* file_open(const char* filename, const char* params) {
     if (h->file == NULL) {
         free(h);
         h = NULL;
+        return NULL;
     }
 
-    strncpy(h->name, filename, MAX_FILENAME_LEN);
-    h->name[MAX_FILENAME_LEN-1] = '\0';
     strcpy(h->flags, params);
     return h;
 }
@@ -64,10 +62,10 @@ int file_getSize(FileHandle* h) {
 }
 void file_setSize(FileHandle* h, size_t neededSize) {
     size_t fileSize = file_getSize(h);
-    h->file = freopen(h->name, "ab", h->file);
+    h->file = freopen(NULL, "ab", h->file);
     for (; fileSize<neededSize; fileSize++)
         fputc(0, h->file);
-    h->file = freopen(h->name, h->flags, h->file);
+    h->file = freopen(NULL, h->flags, h->file);
 }
 
 void file_printf(FileHandle* h, const char* s, ...) {
