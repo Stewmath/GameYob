@@ -158,6 +158,9 @@ $(OUTPUT).3ds: $(OUTPUT).elf $(TOPDIR)/cci/gw_workaround.rsf $(TOPDIR)/cci/banne
 	makerom -f cci -o $(OUTPUT).3ds -rsf $(TOPDIR)/cci/gw_workaround.rsf -target d -exefslogo -elf $(TARGET)_stripped.elf -icon $(TOPDIR)/cci/icon.icn -banner $(TOPDIR)/cci/banner.bnr
 	@echo "built ... $(notdir $@)"
 
+# Always rebuild version.cpp
+.FORCE:
+version.o: .FORCE
 
 #---------------------------------------------------------------------------------
 # you need a rule like this for each extension you use as binary data 
