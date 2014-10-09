@@ -192,9 +192,9 @@ void mgr_save() {
 }
 
 void mgr_updateVBlank() {
-    system_checkPolls();
-
     drawScreen();
+
+    system_checkPolls();
 
     inputUpdateVBlank();
 

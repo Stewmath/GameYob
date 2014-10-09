@@ -35,6 +35,10 @@ PrintConsole* getDefaultConsole() {
     return consoleGetDefault();
 }
 
+void consoleFlush() {
+    fflush(stdout);
+}
+
 void printLog(const char *format, ...) {
     /*
     if (isMenuOn() || sharedData->scalingOn)

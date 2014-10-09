@@ -7,6 +7,7 @@
 #include "default_font_bin.h"
 #include "3dsgfx.h"
 #include "printconsole.h"
+#include "menu.h"
 
 const u32 TEXT_COLOR = RGB24(0xff, 0xff, 0xff);
 const u32 BG_COLOR = RGB24(0x00, 0x00, 0x00);
@@ -47,13 +48,14 @@ void consoleDrawChar(char c) {
             if (byte&0xf)
                 drawPixel(currentConsole->framebuffer, x+cx, y+cy, TEXT_COLOR);
             else
-                drawPixel(currentConsole->framebuffer, x+cx, y+cy, BG_COLOR);
+                drawPixel(currentConsole->framebuffer,  x+cx, y+cy, BG_COLOR);
             if (byte>>4)
-                drawPixel(currentConsole->framebuffer, x+cx+1, y+cy, TEXT_COLOR);
+                drawPixel(currentConsole->framebuffer,  x+cx+1, y+cy, TEXT_COLOR);
             else
-                drawPixel(currentConsole->framebuffer, x+cx+1, y+cy, BG_COLOR);
+                drawPixel(currentConsole->framebuffer,  x+cx+1, y+cy, BG_COLOR);
         }
     }
+    currentConsole->redraw = true;
 }
 void consolePrintChar(char c) {
 	if (c == 0)
@@ -363,8 +365,10 @@ void consoleInitBottom() {
     currentConsole->cursorY = 0;
     currentConsole->consoleWidth = BOTTOM_SCREEN_WIDTH / CHAR_WIDTH;
     currentConsole->consoleHeight = BOTTOM_SCREEN_HEIGHT / CHAR_HEIGHT;
+    currentConsole->redraw = true;
 
-    currentConsole->framebuffer = gfxGetFramebuffer(GFX_BOTTOM, GFX_LEFT, NULL, NULL);
+    currentConsole->screen = GFX_BOTTOM;
+    consoleCheckFramebuffers();
 
     devoptab_list[STD_OUT] = &dotab_stdout;
     devoptab_list[STD_ERR] = &dotab_stdout;
@@ -373,17 +377,9 @@ void consoleInitBottom() {
     setvbuf(stderr, NULL , _IONBF, 0);
 }
 
-void consoleSetScreen(int screen) {
-    u8* framebuffer;
-    if (screen == 0) {
-        framebuffer = gfxGetFramebuffer(GFX_TOP, GFX_LEFT, NULL, NULL);
-    }
-    else {
-        framebuffer = gfxGetFramebuffer(GFX_BOTTOM, GFX_LEFT, NULL, NULL);
-    }
-    if (framebuffer != currentConsole->framebuffer) {
+void consoleSetScreen(gfxScreen_t screen) {
+    if (screen != currentConsole->screen) {
         consoleCls('2');
-        currentConsole->framebuffer = framebuffer;
         if (screen == 0) {
             currentConsole->consoleWidth = TOP_SCREEN_WIDTH / CHAR_WIDTH;
             currentConsole->consoleHeight = TOP_SCREEN_HEIGHT / CHAR_HEIGHT;
@@ -392,7 +388,33 @@ void consoleSetScreen(int screen) {
             currentConsole->consoleWidth = BOTTOM_SCREEN_WIDTH / CHAR_WIDTH;
             currentConsole->consoleHeight = BOTTOM_SCREEN_HEIGHT / CHAR_HEIGHT;
         }
-
+        currentConsole->screen = screen;
+        consoleCheckFramebuffers();
         consoleCls('2');
     }
+}
+
+// Called after buffers are swapped
+void consoleCheckFramebuffers() {
+    if (currentConsole->redraw) {
+        int size = (currentConsole->consoleWidth*CHAR_WIDTH *
+                currentConsole->consoleHeight*CHAR_HEIGHT) * 3;
+        memcpy(gfxGetInactiveFramebuffer(currentConsole->screen, GFX_LEFT),
+                gfxGetActiveFramebuffer(currentConsole->screen, GFX_LEFT),
+                size);
+        currentConsole->redraw = false;
+    }
+    currentConsole->framebuffer = gfxGetInactiveFramebuffer(currentConsole->screen, GFX_LEFT);
+}
+
+void consoleFlush() {
+    fflush(stdout);
+
+    int size = (currentConsole->consoleWidth*CHAR_WIDTH *
+            currentConsole->consoleHeight*CHAR_HEIGHT) * 3;
+    memcpy(gfxGetActiveFramebuffer(currentConsole->screen, GFX_LEFT),
+            gfxGetInactiveFramebuffer(currentConsole->screen, GFX_LEFT),
+            size);
+
+    gfxFlushBuffers();
 }

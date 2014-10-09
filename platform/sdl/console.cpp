@@ -13,6 +13,10 @@ void clearConsole() {
     system("clear");
 }
 
+void consoleFlush() {
+    fflush(stdout);
+}
+
 PrintConsole* getDefaultConsole() {
     return NULL;
 }

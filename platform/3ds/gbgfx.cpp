@@ -375,11 +375,11 @@ void drawScreen()
     u8* framebuffer;
     int offsetX, offsetY = TOP_SCREEN_HEIGHT / 2 - 144/2;
     if (gameScreen == 0) {
-        framebuffer = gfxGetFramebuffer(GFX_TOP, GFX_LEFT, NULL, NULL);
+        framebuffer = gfxGetInactiveFramebuffer(GFX_TOP, GFX_LEFT);
         offsetX = TOP_SCREEN_WIDTH / 2 - 160/2;
     }
     else {
-        framebuffer = gfxGetFramebuffer(GFX_BOTTOM, GFX_LEFT, NULL, NULL);
+        framebuffer = gfxGetInactiveFramebuffer(GFX_BOTTOM, GFX_LEFT);
         offsetX = BOTTOM_SCREEN_WIDTH / 2 - 160/2;
     }
     for (int y=0; y<144; y++) {
@@ -387,6 +387,8 @@ void drawScreen()
             drawPixel(framebuffer, x+offsetX, y+offsetY, pixels[x+y*256]);
         }
     }
+
+    gspWaitForVBlank();
 }
 
 

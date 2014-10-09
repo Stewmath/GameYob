@@ -686,6 +686,8 @@ void printMenuMessage(const char* s) {
     for (int i=0; i<spaces; i++)
         printf(" ");
     printf("%s", printMessage);
+
+    consoleFlush();
 }
 
 void displaySubMenu(void (*updateFunc)()) {

@@ -24,6 +24,7 @@ extern volatile int consoleSelectedRow; // This line is given a different backdr
 bool isConsoleOn(); // Returns true if the sub-screen's console is set up.
 
 void clearConsole();
+void consoleFlush();
 PrintConsole* getDefaultConsole();
 
 void updateScreens(bool waitToFinish=false);

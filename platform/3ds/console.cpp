@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <3ds.h>
 #include "console.h"
 #include "menu.h"
 #include "printconsole.h"
@@ -20,7 +21,7 @@ PrintConsole* getDefaultConsole() {
 }
 
 void updateScreens(bool waitToFinish) {
-    consoleSetScreen(!gameScreen);
+    consoleSetScreen((gfxScreen_t)!gameScreen);
 }
 
 

@@ -36,7 +36,6 @@ int main(int argc, char* argv[])
     setMenuDefaults();
     readConfigFile();
 
-    gfxSwapBuffers();
     printf("GameYob 3DS\n\n");
 
     mgr_selectRom();

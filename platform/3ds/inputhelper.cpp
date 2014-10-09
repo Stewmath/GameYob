@@ -21,6 +21,7 @@
 #include "romfile.h"
 #include "io.h"
 #include "gbmanager.h"
+#include "3dsgfx.h"
 
 u32 lastKeysPressed = 0;
 u32 keysPressed = 0;
@@ -303,7 +304,8 @@ void system_checkPolls() {
     }
 
     gfxFlushBuffers();
-    gfxSwapBuffersGpu();
+    gfxMySwapBuffers();
+    consoleCheckFramebuffers();
 }
 
 void system_waitForVBlank() {
