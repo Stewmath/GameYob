@@ -17,3 +17,5 @@ const int TOP_SCREEN_HEIGHT = 240;
 
 const int BOTTOM_SCREEN_WIDTH = 320;
 const int BOTTOM_SCREEN_HEIGHT = 240;
+
+const int framebufferSizes[] = {288000, 230400};

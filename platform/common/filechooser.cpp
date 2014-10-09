@@ -9,6 +9,7 @@
 #include "menu.h"
 #ifdef _3DS
 #include "3dsgfx.h"
+#include "printconsole.h"
 #endif
 
 #define FLAG_DIRECTORY  1
@@ -231,6 +232,11 @@ char* startFileChooser(const char* extensions[], bool romExtensions, bool canQui
     fileChooserOn = true;
     updateScreens(true); // Screen may need to be enabled
 
+    /*
+#ifdef _3DS
+    consoleSetScreen(GFX_TOP);
+#endif
+*/
     int numExtensions = sizeof(extensions)/sizeof(const char*);
     char* retval;
     char buffer[MAX_FILENAME_LEN];
@@ -505,6 +511,11 @@ end:
     consoleSelectedRow = -1;
     setBackdropColorSub(RGB15(0,0,0)); // Sometimes needed to un-blueify the screen
 #endif
+    /*
+#ifdef _3DS
+    consoleSetScreen((gfxScreen_t)!gameScreen);
+#endif
+    */
     fileChooserOn = false;
 
     return retval;

@@ -1614,7 +1614,6 @@ void handleVideoRegister(u8 ioReg, u8 val) {
 }
 
 void writeHram(u16 addr, u8 val) {
-    gameboy->hram[addr&0x1ff] = val;
     lineModified = true;
     spritesModified = true;
 }

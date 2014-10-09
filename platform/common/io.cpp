@@ -67,12 +67,16 @@ void file_printf(FileHandle* h, const char* s, ...) {
     fputs(buf, h->file);
 }
 
+bool file_exists(const char* filename) {
+    return access(filename, R_OK) == 0;
+}
+
 
 DIR* fs_opendir(const char* s) {
     return opendir(s);
 }
 void fs_closedir(DIR* dir) {
-    return closedir(dir);
+    closedir(dir);
 }
 struct dirent* fs_readdir(DIR* d) {
     return readdir(d);

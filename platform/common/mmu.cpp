@@ -253,8 +253,10 @@ void Gameboy::writeMemoryOther(u16 addr, u8 val) {
         case 0xF:
             if (addr >= 0xFF00)
                 writeIO(addr & 0xFF, val);
-            else if (addr >= 0xFE00)
+            else if (addr >= 0xFE00) {
                 writeHram(addr&0x1ff, val);
+                hram[addr&0x1ff] = val;
+            }
             else // Echo area
                 wram[wramBank][addr&0xFFF] = val;
             return;

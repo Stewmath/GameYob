@@ -19,6 +19,19 @@
 #include "gbs.h"
 #include "gbmanager.h"
 
+const int MENU_DS   = 1;
+const int MENU_3DS  = 2;
+const int MENU_SDL  = 4;
+
+const int MENU_ALL = MENU_DS | MENU_3DS | MENU_SDL;
+
+#if defined(DS)
+const int MENU_BITMASK = MENU_DS;
+#elif defined(_3DS)
+const int MENU_BITMASK = MENU_3DS;
+#elif defined(SDL)
+const int MENU_BITMASK = MENU_SDL;
+#endif
 
 void printVersionInfo(); // Defined in version.cpp
 
@@ -82,7 +95,7 @@ void subMenuGenericUpdateFunc() {
 
 void suspendFunc(int value) {
     muteSND();
-    if (!autoSavingEnabled) {
+    if (!autoSavingEnabled && gameboy->getNumRamBanks()) {
         printMenuMessage("Saving SRAM...");
         mgr_save();
     }
@@ -94,7 +107,7 @@ void suspendFunc(int value) {
 }
 void exitFunc(int value) {
     muteSND();
-    if (!autoSavingEnabled && !gbsMode) {
+    if (!autoSavingEnabled && gameboy->getNumRamBanks()) {
         printMenuMessage("Saving SRAM...");
         mgr_save();
     }
@@ -353,89 +366,93 @@ struct MenuOption {
     int numValues;
     const char* values[10];
     int defaultSelection;
+    int platforms;
+
     bool enabled;
     int selection;
 };
-struct ConsoleSubMenu {
+struct SubMenu {
     const char *name;
     int numOptions;
     MenuOption options[10];
+
+    int selection;
 };
 
 
-ConsoleSubMenu menuList[] = {
+SubMenu menuList[] = {
     {
         "ROM",
         9,
         {
-            {"Exit", exitFunc, 0, {}, 0},
-            {"Reset", resetFunc, 0, {}, 0},
-            {"State Slot", stateSelectFunc, 10, {"0","1","2","3","4","5","6","7","8","9"}, 0},
-            {"Save State", stateSaveFunc, 0, {}, 0},
-            {"Load State", stateLoadFunc, 0, {}, 0},
-            {"Delete State", stateDeleteFunc, 0, {}, 0},
-            {"Quit to Launcher", returnToLauncherFunc, 0, {}, 0},
-            {"Exit without saving", exitNoSaveFunc, 0, {}, 0},
-            {"Suspend", suspendFunc, 0, {}, 0}
+            {"Exit", exitFunc, 0, {}, 0, MENU_ALL},
+            {"Reset", resetFunc, 0, {}, 0, MENU_ALL},
+            {"State Slot", stateSelectFunc, 10, {"0","1","2","3","4","5","6","7","8","9"}, 0, MENU_ALL},
+            {"Save State", stateSaveFunc, 0, {}, 0, MENU_ALL},
+            {"Load State", stateLoadFunc, 0, {}, 0, MENU_ALL},
+            {"Delete State", stateDeleteFunc, 0, {}, 0, MENU_ALL},
+            {"Quit to Launcher", returnToLauncherFunc, 0, {}, 0, MENU_ALL},
+            {"Exit without saving", exitNoSaveFunc, 0, {}, 0, MENU_DS},
+            {"Suspend", suspendFunc, 0, {}, 0, MENU_ALL}
         }
     },
     {
         "Settings",
         7,
         {
-            {"Key Config", keyConfigFunc, 0, {}, 0},
-            {"Manage Cheats", cheatFunc, 0, {}, 0},
-            {"Rumble Pak", setRumbleFunc, 4, {"Off","Low","Mid","High"}, 2},
-            {"Console Output", consoleOutputFunc, 4, {"Off","Time","FPS+Time","Debug"}, 0},
-            {"GB Printer", printerEnableFunc, 2, {"Off","On"}, 1},
-            {"Autosaving", setAutoSaveFunc, 1, {"Off","On"}, 1}, // Autosaving disabled for now
-            {"Save Settings", saveSettingsFunc, 0, {}, 0}
+            {"Key Config", keyConfigFunc, 0, {}, 0, MENU_ALL},
+            {"Manage Cheats", cheatFunc, 0, {}, 0, MENU_ALL},
+            {"Rumble Pak", setRumbleFunc, 4, {"Off","Low","Mid","High"}, 2, MENU_DS},
+            {"Console Output", consoleOutputFunc, 4, {"Off","Time","FPS+Time","Debug"}, 0, MENU_ALL},
+            {"GB Printer", printerEnableFunc, 2, {"Off","On"}, 1, MENU_ALL},
+            {"Autosaving", setAutoSaveFunc, 1, {"Off","On"}, 1, MENU_DS},
+            {"Save Settings", saveSettingsFunc, 0, {}, 0, MENU_ALL}
         }
     },
     {
         "Display",
         7,
         {
-            {"Game Screen", setScreenFunc, 2, {"Top","Bottom"}, 0},
-            {"Single Screen", setSingleScreenFunc, 2, {"Off","On"}, 0},
-            {"Scaling", setScaleModeFunc, 3, {"Off","Aspect","Full"}, 0},
-            {"Scale Filter", setScaleFilterFunc, 2, {"Off","On"}, 1},
-            {"SGB Borders", sgbBorderEnableFunc, 2, {"Off","On"}, 1},
-            {"Custom Border", customBorderEnableFunc, 2, {"Off","On"}, 1},
-            {"Select Border", (void (*)(int))selectBorder, 0, {}, 0},
+            {"Game Screen", setScreenFunc, 2, {"Top","Bottom"}, 0, MENU_ALL},
+            {"Single Screen", setSingleScreenFunc, 2, {"Off","On"}, 0, MENU_ALL},
+            {"Scaling", setScaleModeFunc, 3, {"Off","Aspect","Full"}, 0, MENU_DS},
+            {"Scale Filter", setScaleFilterFunc, 2, {"Off","On"}, 1, MENU_DS},
+            {"SGB Borders", sgbBorderEnableFunc, 2, {"Off","On"}, 1, MENU_ALL},
+            {"Custom Border", customBorderEnableFunc, 2, {"Off","On"}, 1, MENU_ALL},
+            {"Select Border", (void (*)(int))selectBorder, 0, {}, 0, MENU_ALL},
         }
     },
     {
         "GB Modes",
         4,
         {
-            {"GBC Bios", biosEnableFunc, 3, {"Off","GB Only","On"}, 1},
-            {"Detect GBA", gbaModeFunc, 2, {"Off","On"}, 0},
-            {"GBC Mode", gameboyModeFunc, 3, {"Off","If Needed","On"}, 2},
-            {"SGB Mode", sgbModeFunc, 3, {"Off","Prefer GBC","Prefer SGB"}, 1}
+            {"GBC Bios", biosEnableFunc, 3, {"Off","GB Only","On"}, 1, MENU_ALL},
+            {"Detect GBA", gbaModeFunc, 2, {"Off","On"}, 0, MENU_ALL},
+            {"GBC Mode", gameboyModeFunc, 3, {"Off","If Needed","On"}, 2, MENU_ALL},
+            {"SGB Mode", sgbModeFunc, 3, {"Off","Prefer GBC","Prefer SGB"}, 1, MENU_ALL}
         }
     },
     {
         "Debug",
         7,
         {
-            {"Wait for Vblank", vblankWaitFunc, 2, {"Off","On"}, 0},
-            {"Hblank", hblankEnableFunc, 2, {"Off","On"}, 1},
-            {"Window", windowEnableFunc, 2, {"Off","On"}, 1},
-            {"Sound", soundEnableFunc, 2, {"Off","On"}, 1},
-            {"Sound Timing Fix", hyperSoundFunc, 2, {"Off","On"}, 1},
-            {"ROM Info", romInfoFunc, 0, {}, 0},
-            {"Version Info", versionInfoFunc, 0, {}, 0}
+            {"Wait for Vblank", vblankWaitFunc, 2, {"Off","On"}, 0, MENU_DS},
+            {"Hblank", hblankEnableFunc, 2, {"Off","On"}, 1, MENU_DS},
+            {"Window", windowEnableFunc, 2, {"Off","On"}, 1, MENU_DS},
+            {"Sound", soundEnableFunc, 2, {"Off","On"}, 1, MENU_ALL},
+            {"Sound Timing Fix", hyperSoundFunc, 2, {"Off","On"}, 1, MENU_DS},
+            {"ROM Info", romInfoFunc, 0, {}, 0, MENU_ALL},
+            {"Version Info", versionInfoFunc, 0, {}, 0, MENU_ALL}
         }
     },
     {
         "Sound Channels",
         4,
         {
-            {"Channel 1", chan1Func, 2, {"Off","On"}, 1},
-            {"Channel 2", chan2Func, 2, {"Off","On"}, 1},
-            {"Channel 3", chan3Func, 2, {"Off","On"}, 1},
-            {"Channel 4", chan4Func, 2, {"Off","On"}, 1}
+            {"Channel 1", chan1Func, 2, {"Off","On"}, 1, MENU_ALL},
+            {"Channel 2", chan2Func, 2, {"Off","On"}, 1, MENU_ALL},
+            {"Channel 3", chan3Func, 2, {"Off","On"}, 1, MENU_ALL},
+            {"Channel 4", chan4Func, 2, {"Off","On"}, 1, MENU_ALL}
         }
     },
 #ifdef NIFI
@@ -443,21 +460,25 @@ ConsoleSubMenu menuList[] = {
         "Linking",
         2,
         {
-            {"Link to DS", (void (*)(int))nifiInterLinkMenu, 0, {}, 0},
-            {"Swap Focus", (void (*)(int))mgr_swapFocus, 0, {}, 0}
+            {"Link to DS", (void (*)(int))nifiInterLinkMenu, 0, {}, 0, MENU_DS},
+            {"Swap Focus", (void (*)(int))mgr_swapFocus, 0, {}, 0, MENU_DS}
         }
     }
 #endif
 };
-const int numMenus = sizeof(menuList)/sizeof(ConsoleSubMenu);
+const int numMenus = sizeof(menuList)/sizeof(SubMenu);
 
 void setMenuDefaults() {
     for (int i=0; i<numMenus; i++) {
+        menuList[i].selection = -1;
         for (int j=0; j<menuList[i].numOptions; j++) {
             menuList[i].options[j].selection = menuList[i].options[j].defaultSelection;
             menuList[i].options[j].enabled = true;
             if (menuList[i].options[j].numValues != 0) {
-                menuList[i].options[j].function(menuList[i].options[j].defaultSelection);
+                int selection = menuList[i].options[j].defaultSelection;
+                if (menuList[i].options[j].platforms & MENU_BITMASK)
+                    selection = 0;
+                menuList[i].options[j].function(selection);
             }
         }
     }
@@ -529,6 +550,9 @@ void redrawMenu() {
 
     // Rest of the lines: options
     for (int i=0; i<menuList[menu].numOptions; i++) {
+        if (!(menuList[menu].options[i].platforms & MENU_BITMASK))
+            continue;
+
         int option_color;
         if (!menuList[menu].options[i].enabled)
             option_color = CONSOLE_COLOR_GREY;
@@ -581,6 +605,59 @@ void redrawMenu() {
     setPrintConsole(oldConsole);
 }
 
+void menuCursorUp() {
+    option--;
+    if (option == -1)
+        return;
+    if (option < -1)
+        option = menuList[menu].numOptions - 1;
+
+    if (!(menuList[menu].options[option].platforms & MENU_BITMASK))
+        menuCursorUp();
+}
+void menuCursorDown() {
+    option++;
+    if (option >= menuList[menu].numOptions)
+        option = -1;
+    else {
+        if (!(menuList[menu].options[option].platforms & MENU_BITMASK))
+            menuCursorDown();
+    }
+}
+
+// Get the number of rows down the selected option is
+// Necessary because of leaving out certain options in certain platforms
+int menuGetOptionRow() {
+    if (option == -1)
+        return option;
+    int row = 0;
+    for (int i=0; i<option; i++) {
+        if (menuList[menu].options[i].platforms & MENU_BITMASK)
+            row++;
+    }
+    return row;
+}
+void menuSetOptionRow(int row) {
+    if (row == -1) {
+        option = -1;
+        return;
+    }
+    row++;
+    int lastValidRow = -1;
+    for (int i=0; i<menuList[menu].numOptions; i++) {
+        if (menuList[menu].options[i].platforms & MENU_BITMASK) {
+            row--;
+            lastValidRow = i;
+        }
+        if (row == 0) {
+            option = i;
+            return;
+        }
+    }
+    // Too high
+    option = lastValidRow;
+}
+
 // Called each vblank while the menu is on
 void updateMenu() {
     if (!isMenuOn())
@@ -594,15 +671,11 @@ void updateMenu() {
     bool redraw = false;
     // Get input
     if (keyPressedAutoRepeat(mapMenuKey(MENU_KEY_UP))) {
-        option--;
-        if (option < -1)
-            option = menuList[menu].numOptions-1;
+        menuCursorUp();
         redraw = true;
     }
     else if (keyPressedAutoRepeat(mapMenuKey(MENU_KEY_DOWN))) {
-        option++;
-        if (option >= menuList[menu].numOptions)
-            option = -1;
+        menuCursorDown();
         redraw = true;
     }
     else if (keyPressedAutoRepeat(mapMenuKey(MENU_KEY_LEFT))) {
@@ -648,19 +721,19 @@ void updateMenu() {
         updateScreens();
     }
     else if (keyJustPressed(mapMenuKey(MENU_KEY_L))) {
+        int row = menuGetOptionRow();
         menu--;
         if (menu < 0)
             menu = numMenus-1;
-        if (option >= menuList[menu].numOptions)
-            option = menuList[menu].numOptions-1;
+        menuSetOptionRow(row);
         redraw = true;
     }
     else if (keyJustPressed(mapMenuKey(MENU_KEY_R))) {
+        int row = menuGetOptionRow();
         menu++;
         if (menu >= numMenus)
             menu = 0;
-        if (option >= menuList[menu].numOptions)
-            option = menuList[menu].numOptions-1;
+        menuSetOptionRow(row);
         redraw = true;
     }
     if (redraw && subMenuUpdateFunc == 0 &&
@@ -713,6 +786,8 @@ void setMenuOption(const char* optionName, int value) {
     for (int i=0; i<numMenus; i++) {
         for (int j=0; j<menuList[i].numOptions; j++) {
             if (strcasecmp(optionName, menuList[i].options[j].name) == 0) {
+                if (!(menuList[i].options[j].platforms & MENU_BITMASK))
+                    continue;
                 menuList[i].options[j].selection = value;
                 menuList[i].options[j].function(value);
                 return;

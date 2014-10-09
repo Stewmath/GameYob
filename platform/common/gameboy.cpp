@@ -1216,7 +1216,7 @@ bool Gameboy::checkStateExists(int stateNum) {
         sprintf(statename, "%s.yss", romFile->getBasename());
     else
         sprintf(statename, "%s.ys%d", romFile->getBasename(), stateNum);
-    return access(statename, R_OK) == 0;
+    return file_exists(statename);
     /*
     file = fopen(statename, "r");
 

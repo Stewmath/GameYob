@@ -472,7 +472,6 @@ void writeVram16(u16 addr, u16 src) {
 }
 
 void writeHram(u16 addr, u8 val) {
-    gameboy->hram[addr&0x1ff] = val;
 }
 
 void handleVideoRegister(u8 ioReg, u8 val) {

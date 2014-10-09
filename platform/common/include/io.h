@@ -25,6 +25,8 @@ int         file_getSize(FileHandle*);
 
 void        file_printf(FileHandle*, const char*, ...);
 
+bool        file_exists(const char* filename);
+
 
 DirStruct*  fs_opendir(const char*);
 void        fs_closedir(DirStruct*);

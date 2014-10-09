@@ -177,6 +177,15 @@ void file_printf(FileHandle* fileHandle, const char* format, ...) {
     file_write(buffer, 1, strlen(buffer), fileHandle);
 }
 
+bool file_exists(const char* filename) {
+    FileHandle* h = file_open(filename, "r");
+    if (h == NULL)
+        return false;
+    else {
+        file_close(h);
+        return true;
+    }
+}
 
 DirStruct* fs_opendir(const char* s) {
     char buffer[MAX_FILENAME_LEN];

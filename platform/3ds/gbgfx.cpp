@@ -1,6 +1,7 @@
 /* Known graphical issues:
  * DMG sprite order
  * Horizontal window split behavior
+ * Needs white screen on LCD disable
  */
 
 #include <3ds.h>
@@ -27,9 +28,10 @@ bool sgbBorderLoaded;
 
 // private variables
 
+int lastGameScreen = -1;
+
 u32 gbColors[4];
 u32 pixels[32*32*64];
-u8 tileCache[2][0x1800][8][8];
 
 int tileSize;
 int tileSigned = 0;
@@ -406,7 +408,17 @@ int loadBorder(const char* filename) {
 }
 
 void checkBorder() {
-
+    if (lastGameScreen != gameScreen) {
+        lastGameScreen = gameScreen;
+        u8** buffers;
+        if (gameScreen == 0)
+            buffers = gfxTopLeftFramebuffers;
+        else
+            buffers = gfxBottomFramebuffers;
+        for (int fb=0; fb<2; fb++) {
+            memset(buffers[fb], 0, framebufferSizes[gameScreen]);
+        }
+    }
 }
 
 void refreshScaleMode() {
@@ -436,7 +448,6 @@ void writeVram16(u16 addr, u16 src) {
 }
 
 void writeHram(u16 addr, u8 val) {
-    gameboy->hram[addr&0x1ff] = val;
 }
 
 void handleVideoRegister(u8 ioReg, u8 val) {

@@ -4,6 +4,8 @@
 #include "console.h"
 #include "menu.h"
 #include "printconsole.h"
+#include "3dsgfx.h"
+#include "gbgfx.h"
 
 volatile int consoleSelectedRow;
 
@@ -22,6 +24,7 @@ PrintConsole* getDefaultConsole() {
 
 void updateScreens(bool waitToFinish) {
     consoleSetScreen((gfxScreen_t)!gameScreen);
+    checkBorder();
 }
 
 
