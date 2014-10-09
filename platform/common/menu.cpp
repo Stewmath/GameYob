@@ -391,7 +391,7 @@ SubMenu menuList[] = {
             {"Save State", stateSaveFunc, 0, {}, 0, MENU_ALL},
             {"Load State", stateLoadFunc, 0, {}, 0, MENU_ALL},
             {"Delete State", stateDeleteFunc, 0, {}, 0, MENU_ALL},
-            {"Quit to Launcher", returnToLauncherFunc, 0, {}, 0, MENU_ALL},
+            {"Quit to Launcher", returnToLauncherFunc, 0, {}, 0, MENU_DS},
             {"Exit without saving", exitNoSaveFunc, 0, {}, 0, MENU_DS},
             {"Suspend", suspendFunc, 0, {}, 0, MENU_ALL}
         }
@@ -838,7 +838,8 @@ void menuParseConfig(char* line) {
 void menuPrintConfig(FileHandle* file) {
     for (int i=0; i<numMenus; i++) {
         for (int j=0; j<menuList[i].numOptions; j++) {
-            if (menuList[i].options[j].numValues != 0)
+            if (menuList[i].options[j].platforms & MENU_BITMASK &&
+                    menuList[i].options[j].numValues != 0)
                 file_printf(file, "%s=%d\n", menuList[i].options[j].name, menuList[i].options[j].selection);
         }
     }
