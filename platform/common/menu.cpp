@@ -439,7 +439,7 @@ SubMenu menuList[] = {
             {"Wait for Vblank", vblankWaitFunc, 2, {"Off","On"}, 0, MENU_DS},
             {"Hblank", hblankEnableFunc, 2, {"Off","On"}, 1, MENU_DS},
             {"Window", windowEnableFunc, 2, {"Off","On"}, 1, MENU_DS},
-            {"Sound", soundEnableFunc, 2, {"Off","On"}, 1, MENU_ALL},
+            {"Sound", soundEnableFunc, 2, {"Off","On"}, 1, MENU_DS},
             {"Sound Timing Fix", hyperSoundFunc, 2, {"Off","On"}, 1, MENU_DS},
             {"ROM Info", romInfoFunc, 0, {}, 0, MENU_ALL},
             {"Version Info", versionInfoFunc, 0, {}, 0, MENU_ALL}
@@ -510,101 +510,7 @@ bool isMenuOn() {
     return menuOn;
 }
 
-void redrawMenu() {
-    PrintConsole* oldConsole = getPrintConsole();
-    setPrintConsole(menuConsole);
-    clearConsole();
-
-    // Top line: submenu
-    int pos=0;
-    int nameStart = (32-strlen(menuList[menu].name)-2)/2;
-    if (option == -1) {
-        nameStart-=2;
-        iprintfColored(CONSOLE_COLOR_LIGHT_GREEN, "<");
-    }
-    else
-        printf("<");
-    pos++;
-    for (; pos<nameStart; pos++)
-        printf(" ");
-    if (option == -1) {
-        iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, "* ");
-        pos += 2;
-    }
-    {
-        int color = (option == -1 ? CONSOLE_COLOR_LIGHT_YELLOW : CONSOLE_COLOR_WHITE);
-        iprintfColored(color, "[%s]", menuList[menu].name);
-    }
-    pos += 2 + strlen(menuList[menu].name);
-    if (option == -1) {
-        iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, " *");
-        pos += 2;
-    }
-    for (; pos < 31; pos++)
-        printf(" ");
-    if (option == -1)
-        iprintfColored(CONSOLE_COLOR_LIGHT_GREEN, ">");
-    else
-        printf(">");
-    printf("\n");
-
-    // Rest of the lines: options
-    for (int i=0; i<menuList[menu].numOptions; i++) {
-        if (!(menuList[menu].options[i].platforms & MENU_BITMASK))
-            continue;
-
-        int option_color;
-        if (!menuList[menu].options[i].enabled)
-            option_color = CONSOLE_COLOR_GREY;
-        else if (option == i)
-            option_color = CONSOLE_COLOR_LIGHT_YELLOW;
-        else
-            option_color = CONSOLE_COLOR_WHITE;
-
-        if (menuList[menu].options[i].numValues == 0) {
-            for (unsigned int j=0; j<(32-strlen(menuList[menu].options[i].name))/2-2; j++)
-                printf(" ");
-            if (i == option) {
-                iprintfColored(option_color, "* %s *\n\n", menuList[menu].options[i].name);
-            }
-            else
-                iprintfColored(option_color, "  %s  \n\n", menuList[menu].options[i].name);
-        }
-        else {
-            for (unsigned int j=0; j<16-strlen(menuList[menu].options[i].name); j++)
-                printf(" ");
-            if (i == option) {
-                iprintfColored(option_color, "* ");
-                iprintfColored(option_color, "%s  ", menuList[menu].options[i].name);
-                iprintfColored(menuList[menu].options[i].enabled ? CONSOLE_COLOR_LIGHT_GREEN : option_color,
-                        "%s", menuList[menu].options[i].values[menuList[menu].options[i].selection]);
-                iprintfColored(option_color, " *");
-            }
-            else {
-                printf("  ");
-                iprintfColored(option_color, "%s  ", menuList[menu].options[i].name);
-                iprintfColored(option_color, "%s", menuList[menu].options[i].values[menuList[menu].options[i].selection]);
-            }
-            printf("\n\n");
-        }
-    }
-
-    // Message at the bottom
-    if (printMessage[0] != '\0') {
-        int newlines = 23-(menuList[menu].numOptions*2+2)-1;
-        for (int i=0; i<newlines; i++)
-            printf("\n");
-        int spaces = 31-strlen(printMessage);
-        for (int i=0; i<spaces; i++)
-            printf(" ");
-        printf("%s\n", printMessage);
-
-        printMessage[0] = '\0';
-    }
-
-    setPrintConsole(oldConsole);
-}
-
+// Some helper functions
 void menuCursorUp() {
     option--;
     if (option == -1)
@@ -656,6 +562,114 @@ void menuSetOptionRow(int row) {
     }
     // Too high
     option = lastValidRow;
+}
+// Get the number of VISIBLE rows for this platform
+int menuGetNumRows() {
+    int count = 0;
+    for (int i=0; i<menuList[menu].numOptions; i++) {
+        if (menuList[menu].options[i].platforms & MENU_BITMASK)
+            count++;
+    }
+    return count;
+}
+
+void redrawMenu() {
+    PrintConsole* oldConsole = getPrintConsole();
+    setPrintConsole(menuConsole);
+    clearConsole();
+
+    int width = consoleGetWidth();
+    int height = consoleGetHeight();
+
+    // Top line: submenu
+    int pos=0;
+    int nameStart = (width-strlen(menuList[menu].name)-2)/2;
+    if (option == -1) {
+        nameStart-=2;
+        iprintfColored(CONSOLE_COLOR_LIGHT_GREEN, "<");
+    }
+    else
+        printf("<");
+    pos++;
+    for (; pos<nameStart; pos++)
+        printf(" ");
+    if (option == -1) {
+        iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, "* ");
+        pos += 2;
+    }
+    {
+        int color = (option == -1 ? CONSOLE_COLOR_LIGHT_YELLOW : CONSOLE_COLOR_WHITE);
+        iprintfColored(color, "[%s]", menuList[menu].name);
+    }
+    pos += 2 + strlen(menuList[menu].name);
+    if (option == -1) {
+        iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, " *");
+        pos += 2;
+    }
+    for (; pos < width-1; pos++)
+        printf(" ");
+    if (option == -1)
+        iprintfColored(CONSOLE_COLOR_LIGHT_GREEN, ">");
+    else
+        printf(">");
+    printf("\n");
+
+    // Rest of the lines: options
+    for (int i=0; i<menuList[menu].numOptions; i++) {
+        if (!(menuList[menu].options[i].platforms & MENU_BITMASK))
+            continue;
+
+        int option_color;
+        if (!menuList[menu].options[i].enabled)
+            option_color = CONSOLE_COLOR_GREY;
+        else if (option == i)
+            option_color = CONSOLE_COLOR_LIGHT_YELLOW;
+        else
+            option_color = CONSOLE_COLOR_WHITE;
+
+        if (menuList[menu].options[i].numValues == 0) {
+            for (unsigned int j=0; j<(width-strlen(menuList[menu].options[i].name))/2-2; j++)
+                printf(" ");
+            if (i == option) {
+                iprintfColored(option_color, "* %s *\n\n", menuList[menu].options[i].name);
+            }
+            else
+                iprintfColored(option_color, "  %s  \n\n", menuList[menu].options[i].name);
+        }
+        else {
+            for (unsigned int j=0; j<width/2-strlen(menuList[menu].options[i].name); j++)
+                printf(" ");
+            if (i == option) {
+                iprintfColored(option_color, "* ");
+                iprintfColored(option_color, "%s  ", menuList[menu].options[i].name);
+                iprintfColored(menuList[menu].options[i].enabled ? CONSOLE_COLOR_LIGHT_GREEN : option_color,
+                        "%s", menuList[menu].options[i].values[menuList[menu].options[i].selection]);
+                iprintfColored(option_color, " *");
+            }
+            else {
+                printf("  ");
+                iprintfColored(option_color, "%s  ", menuList[menu].options[i].name);
+                iprintfColored(option_color, "%s", menuList[menu].options[i].values[menuList[menu].options[i].selection]);
+            }
+            printf("\n\n");
+        }
+    }
+
+    // Message at the bottom
+    if (printMessage[0] != '\0') {
+        int rows = menuGetNumRows();
+        int newlines = height-1-(rows*2+2)-1;
+        for (int i=0; i<newlines; i++)
+            printf("\n");
+        int spaces = width-1-strlen(printMessage);
+        for (int i=0; i<spaces; i++)
+            printf(" ");
+        printf("%s\n", printMessage);
+
+        printMessage[0] = '\0';
+    }
+
+    setPrintConsole(oldConsole);
 }
 
 // Called each vblank while the menu is on
@@ -744,6 +758,10 @@ void updateMenu() {
 // Message will be printed immediately, but also stored in case it's overwritten 
 // right away.
 void printMenuMessage(const char* s) {
+    int width = consoleGetWidth();
+    int height = consoleGetHeight();
+    int rows = menuGetNumRows();
+
     bool hadPreviousMessage = printMessage[0] != '\0';
     strncpy(printMessage, s, 33);
 
@@ -751,11 +769,11 @@ void printMenuMessage(const char* s) {
         printf("\r");
     }
     else {
-        int newlines = 23-(menuList[menu].numOptions*2+2)-1;
+        int newlines = height-1-(rows*2+2)-1;
         for (int i=0; i<newlines; i++)
             printf("\n");
     }
-    int spaces = 31-strlen(printMessage);
+    int spaces = width-1-strlen(printMessage);
     for (int i=0; i<spaces; i++)
         printf(" ");
     printf("%s", printMessage);

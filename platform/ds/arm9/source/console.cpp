@@ -35,6 +35,13 @@ PrintConsole* getDefaultConsole() {
     return consoleGetDefault();
 }
 
+int consoleGetWidth() {
+    return 32;
+}
+int consoleGetHeight() {
+    return 24;
+}
+
 void consoleFlush() {
     fflush(stdout);
 }

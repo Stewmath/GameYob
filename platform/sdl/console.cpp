@@ -21,6 +21,13 @@ PrintConsole* getDefaultConsole() {
     return NULL;
 }
 
+int consoleGetWidth() {
+    return 32;
+}
+int consoleGetHeight() {
+    return 24;
+}
+
 void updateScreens(bool waitToFinish) {
 
 }

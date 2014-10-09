@@ -418,3 +418,10 @@ void consoleFlush() {
 
     gfxFlushBuffers();
 }
+
+int consoleGetWidth() {
+    return currentConsole->consoleWidth;
+}
+int consoleGetHeight() {
+    return currentConsole->consoleHeight;
+}
