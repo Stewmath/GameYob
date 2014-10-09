@@ -48,6 +48,6 @@ void setMenuOption(const char* name, int value);
 void enableMenuOption(const char* name);
 void disableMenuOption(const char* name);
 
-void menuParseConfig(const char* line);
+void menuParseConfig(char* line);
 void menuPrintConfig(FileHandle* file);
 

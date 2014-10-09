@@ -21,6 +21,7 @@
 #include "romfile.h"
 #include "menu.h"
 #include "gbmanager.h"
+#include "config.h"
 
 void updateVBlank();
 

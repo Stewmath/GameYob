@@ -816,7 +816,7 @@ void disableMenuOption(const char* optionName) {
     }
 }
 
-void menuParseConfig(const char* line) {
+void menuParseConfig(char* line) {
     char* equalsPos = (char*)strchr(line, '=');
     if (equalsPos == 0)
         return;

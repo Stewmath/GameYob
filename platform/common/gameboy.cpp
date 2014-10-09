@@ -2,6 +2,9 @@
 #include "libfat_fake.h"
 #include "common.h"
 #endif
+#ifdef _3DS
+#include <3ds.h>
+#endif
 
 #include <string.h>
 #include <stdlib.h>
@@ -318,8 +321,8 @@ void Gameboy::gameboyCheckInput() {
         fastForwardMode = !fastForwardMode;
 
     if (keyJustPressed(mapFuncKey(FUNC_KEY_MENU) | mapFuncKey(FUNC_KEY_MENU_PAUSE)
-#ifdef DS
-//                | KEY_TOUCH
+#if defined(DS) || defined(_3DS)
+                | KEY_TOUCH
 #endif
                 )) {
         if (singleScreenMode || keyJustPressed(mapFuncKey(FUNC_KEY_MENU_PAUSE)))
