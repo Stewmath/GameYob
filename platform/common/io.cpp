@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <string.h>
 #include "io.h"
 
 
@@ -9,6 +10,8 @@
 
 struct FileHandle {
     FILE* file;
+    char name[MAX_FILENAME_LEN];
+    char flags[10];
 };
 
 FileHandle* file_open(const char* filename, const char* params) {
@@ -20,6 +23,9 @@ FileHandle* file_open(const char* filename, const char* params) {
         h = NULL;
     }
 
+    strncpy(h->name, filename, MAX_FILENAME_LEN);
+    h->name[MAX_FILENAME_LEN-1] = '\0';
+    strcpy(h->flags, params);
     return h;
 }
 
@@ -55,6 +61,13 @@ int file_getSize(FileHandle* h) {
     int ret = ftell(h->file);
     fseek(h->file, pos, SEEK_SET);
     return ret;
+}
+void file_setSize(FileHandle* h, size_t neededSize) {
+    size_t fileSize = file_getSize(h);
+    h->file = freopen(h->name, "ab", h->file);
+    for (; fileSize<neededSize; fileSize++)
+        fputc(0, h->file);
+    h->file = freopen(h->name, h->flags, h->file);
 }
 
 void file_printf(FileHandle* h, const char* s, ...) {

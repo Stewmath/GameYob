@@ -6,6 +6,7 @@
 #include "printconsole.h"
 #include "3dsgfx.h"
 #include "gbgfx.h"
+#include "inputhelper.h"
 
 volatile int consoleSelectedRow;
 
@@ -48,6 +49,18 @@ void printLog(const char* format, ...) {
         va_start(args, format);
 
         vprintf(format, args);
+    }
+}
+void printAndWait(const char* format, ...) {
+    va_list args;
+    va_start(args, format);
+
+    vprintf(format, args);
+
+    inputUpdateVBlank();
+    while (!keyJustPressed(KEY_A)) {
+        system_checkPolls();
+        inputUpdateVBlank();
     }
 }
 

@@ -827,8 +827,6 @@ int Gameboy::loadSave(int saveId)
 
     // Now load the data.
     saveFile = file_open(savename, "r+b");
-    if (saveFile == NULL)
-        return 1;
 
     int neededFileSize = numRamBanks*0x2000;
     if (romFile->getMBC() == MBC3 || romFile->getMBC() == HUC3)
@@ -842,19 +840,17 @@ int Gameboy::loadSave(int saveId)
     if (!saveFile || fileSize < neededFileSize) {
         // Extend the size of the file, or create it
         if (!saveFile) {
+            // 3DS shouldn't run this part, it'll create the file automatically
             saveFile = file_open(savename, "wb");
             file_seek(saveFile, neededFileSize-1, SEEK_SET);
             file_putc(0, saveFile);
+
+            file_close(saveFile);
+            saveFile = file_open(savename, "r+b");
         }
         else {
-            file_close(saveFile);
-            saveFile = file_open(savename, "ab");
-            for (; fileSize<neededFileSize; fileSize++)
-                file_putc(0, saveFile);
+            file_setSize(saveFile, neededFileSize);
         }
-        file_close(saveFile);
-
-        saveFile = file_open(savename, "r+b");
     }
 
     file_read(externRam, 1, 0x2000*numRamBanks, saveFile);

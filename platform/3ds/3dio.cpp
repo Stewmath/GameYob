@@ -74,7 +74,10 @@ FileHandle* file_open(const char* filename, const char* flags) {
                 openFlags |= FS_OPEN_WRITE | FS_OPEN_CREATE;
                 break;
             case '+':
-                openFlags |= FS_OPEN_READ | FS_OPEN_WRITE | FS_OPEN_CREATE;
+                if (openFlags & FS_OPEN_READ)
+                    openFlags |= FS_OPEN_WRITE;
+                else if (openFlags & FS_OPEN_WRITE)
+                    openFlags |= FS_OPEN_READ | FS_OPEN_CREATE;
                 break;
         }
     }
@@ -164,6 +167,10 @@ int file_getSize(FileHandle* fileHandle) {
     u64 size;
     FSFILE_GetSize(fileHandle->handle, &size);
     return size;
+}
+
+void file_setSize(FileHandle* fileHandle, size_t size) {
+    FSFILE_SetSize(fileHandle->handle, size);
 }
 
 void file_printf(FileHandle* fileHandle, const char* format, ...) {

@@ -1,5 +1,7 @@
 #pragma once
 #include <dirent.h>
+#include <unistd.h>
+#include <string.h>
 
 #define MAX_FILENAME_LEN 256
 
@@ -22,6 +24,7 @@ void        file_putc(char, FileHandle*);
 int         file_tell(FileHandle*);
 void        file_seek(FileHandle*, int, int);
 int         file_getSize(FileHandle*);
+void        file_setSize(FileHandle*, size_t);
 
 void        file_printf(FileHandle*, const char*, ...);
 

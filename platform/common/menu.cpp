@@ -429,7 +429,7 @@ SubMenu menuList[] = {
             {"GBC Bios", biosEnableFunc, 3, {"Off","GB Only","On"}, 1, MENU_ALL},
             {"Detect GBA", gbaModeFunc, 2, {"Off","On"}, 0, MENU_ALL},
             {"GBC Mode", gameboyModeFunc, 3, {"Off","If Needed","On"}, 2, MENU_ALL},
-            {"SGB Mode", sgbModeFunc, 3, {"Off","Prefer GBC","Prefer SGB"}, 1, MENU_ALL}
+            {"SGB Mode", sgbModeFunc, 3, {"Off","Prefer GBC","Prefer SGB"}, 0, MENU_ALL}
         }
     },
     {

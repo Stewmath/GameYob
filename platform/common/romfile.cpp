@@ -8,6 +8,7 @@
 #include "inputhelper.h"
 #include "gameboy.h"
 #include "cheats.h"
+#include "error.h"
 #include "io.h"
 
 #ifdef EMBEDDED_ROM
@@ -55,7 +56,7 @@ RomFile::RomFile(const char* f) {
     romFile = file_open(filename, "rb");
     if (romFile == NULL)
     {
-        printLog("Error opening %s.\n", filename);
+        fatalerr("Error opening %s.", filename);
         return;
     }
 

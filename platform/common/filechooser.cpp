@@ -7,6 +7,7 @@
 #include "console.h"
 #include "io.h"
 #include "menu.h"
+#include "error.h"
 #ifdef _3DS
 #include "3dsgfx.h"
 #include "printconsole.h"
@@ -245,7 +246,7 @@ char* startFileChooser(const char* extensions[], bool romExtensions, bool canQui
     DirStruct* dp = fs_opendir(cwd);
     struct dirent *entry;
     if (dp == NULL) {
-        printf("Error opening directory.\n");
+        fatalerr("Error opening working directory.");
         return 0;
     }
 

@@ -8,6 +8,7 @@
 #include "romfile.h"
 #include "filechooser.h"
 #include "soundengine.h"
+#include "error.h"
 
 Gameboy* gameboy = NULL;
 Gameboy* gb2 = NULL;
@@ -174,6 +175,9 @@ void mgr_selectRom() {
     char* filename = startFileChooser(extraExtensions, true);
     saveFileChooserState(&romChooserState);
 
+    if (filename == NULL) {
+        fatalerr("Filechooser error");
+    }
     mgr_loadRom(filename);
 
     if (!biosExists) {

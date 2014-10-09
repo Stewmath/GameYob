@@ -35,6 +35,8 @@ void consoleSetLineColor(int line, int color);
 void iprintfColored(int palette, const char* format, ...);
 void printLog(const char* format, ...);
 
+void printAndWait(const char* format, ...); // Used for debugging
+
 int checkRumble();
 
 
