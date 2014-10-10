@@ -958,7 +958,7 @@ void Gameboy::updateAutosave() {
         (!saveModified && wroteToSramThisFrame)) { // when a full frame has passed since sram was last written to.
         gameboySyncAutosave();
     }
-    if (saveModified) {
+    if (saveModified && autoSavingEnabled) {
         wroteToSramThisFrame = true;
         autosaveStarted = true;
         saveModified = false;

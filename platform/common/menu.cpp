@@ -44,42 +44,40 @@ bool consoleInitialized = false;
 int menu=0;
 int option = -1;
 char printMessage[33];
-int gameScreen;
-int singleScreenMode;
+int gameScreen=0;
+int singleScreenMode=0;
 int stateNum=0;
 
-bool windowDisabled;
-bool hblankDisabled;
+bool windowDisabled = false;
+bool hblankDisabled = false;
 
 PrintConsole* menuConsole;
 
 
-int gbcModeOption;
-bool gbaModeOption;
-int sgbModeOption;
+int gbcModeOption = 0;
+bool gbaModeOption = 0;
+int sgbModeOption = 0;
 
-bool soundDisabled;
-bool hyperSound;
+bool soundDisabled = false;
+bool hyperSound = false;
 
-bool customBordersEnabled;
-bool sgbBordersEnabled;
-bool autoSavingEnabled;
+bool customBordersEnabled = false;
+bool sgbBordersEnabled = false;
+bool autoSavingEnabled = false;
 
-bool printerEnabled;
+bool printerEnabled = false;
 
 // how/when the bios should be used
-int biosEnabled;
+int biosEnabled = false;
 
 void (*subMenuUpdateFunc)();
 
-bool fpsOutput;
-bool timeOutput;
+bool fpsOutput = false;
+bool timeOutput = false;
 
-int rumbleStrength;
+int rumbleStrength = 0;
 
 extern int interruptWaitMode;
-extern bool windowDisabled;
-extern bool hblankDisabled;
 extern int halt;
 
 extern int rumbleInserted;
@@ -474,10 +472,9 @@ void setMenuDefaults() {
         for (int j=0; j<menuList[i].numOptions; j++) {
             menuList[i].options[j].selection = menuList[i].options[j].defaultSelection;
             menuList[i].options[j].enabled = true;
-            if (menuList[i].options[j].numValues != 0) {
+            if (menuList[i].options[j].numValues != 0 &&
+                    menuList[i].options[j].platforms & MENU_BITMASK) {
                 int selection = menuList[i].options[j].defaultSelection;
-                if (menuList[i].options[j].platforms & MENU_BITMASK)
-                    selection = 0;
                 menuList[i].options[j].function(selection);
             }
         }
@@ -842,15 +839,7 @@ void menuParseConfig(char* line) {
     const char* option = line;
     const char* value = equalsPos+1;
     int val = atoi(value);
-    for (int i=0; i<numMenus; i++) {
-        for (int j=0; j<menuList[i].numOptions; j++) {
-            if (strcasecmp(menuList[i].options[j].name, option) == 0 && menuList[i].options[j].numValues != 0) {
-                menuList[i].options[j].selection = val;
-                menuList[i].options[j].function(val);
-                return;
-            }
-        }
-    }
+    setMenuOption(option, val);
 }
 
 void menuPrintConfig(FileHandle* file) {
