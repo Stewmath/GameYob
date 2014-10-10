@@ -246,5 +246,9 @@ void fs_chdir(const char* s) {
     char buffer[MAX_FILENAME_LEN];
     fs_relativePath(buffer, s);
 
-    strcpy(fs_cwd, buffer);
+    DirStruct* d = fs_opendir(buffer);
+    if (d != NULL) {
+        fs_closedir(d);
+        strcpy(fs_cwd, buffer);
+    }
 }
