@@ -38,6 +38,15 @@ int main(int argc, char* argv[])
 
     printf("GameYob 3DS\n\n");
 
+    Handle pmHandle, irHandle;
+    Result res = svcConnectToPort(&pmHandle, "srv:pm");
+
+    printAndWait("srv:pm Result %.8x\n", res);
+
+    res = srvGetServiceHandle(&irHandle, "ir:u");
+
+    printAndWait("ir:u Result %.8x\n", res);
+
     mgr_selectRom();
 
     for (;;) {
