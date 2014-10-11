@@ -328,7 +328,7 @@ void Gameboy::gameboyCheckInput() {
         if (singleScreenMode || keyJustPressed(mapFuncKey(FUNC_KEY_MENU_PAUSE)))
             pause();
 
-        forceReleaseKey(0xffff);
+        forceReleaseKey(0xffffffff);
         fastForwardKey = false;
         fastForwardMode = false;
         displayMenu();

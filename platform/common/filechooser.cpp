@@ -9,6 +9,7 @@
 #include "menu.h"
 #include "error.h"
 #ifdef _3DS
+#include <3ds.h>
 #include "3dsgfx.h"
 #include "printconsole.h"
 #endif
@@ -63,11 +64,11 @@ void updateScrollUp() {
 
 }
 
-int nameSortFunction(char*& a, char*& b)
+int nameSortFunction(string& a, string& b)
 {
     // ".." sorts before everything except itself.
-    bool aIsParent = strcmp(a, "..") == 0;
-    bool bIsParent = strcmp(b, "..") == 0;
+    bool aIsParent = strcmp(a.c_str(), "..") == 0;
+    bool bIsParent = strcmp(b.c_str(), "..") == 0;
 
     if (aIsParent && bIsParent)
         return 0;
@@ -76,7 +77,7 @@ int nameSortFunction(char*& a, char*& b)
     else if (bIsParent) // Sorts after
         return 1;
     else
-        return strcasecmp(a, b);
+        return strcasecmp(a.c_str(), b.c_str());
 }
 
 /*
@@ -243,31 +244,25 @@ char* startFileChooser(const char* extensions[], bool romExtensions, bool canQui
     char buffer[MAX_FILENAME_LEN];
     char cwd[MAX_FILENAME_LEN];
     fs_getcwd(cwd, MAX_FILENAME_LEN);
-    DirStruct* dp = fs_opendir(cwd);
     struct dirent *entry;
-    if (dp == NULL) {
-        fatalerr("Error opening working directory.");
-        return 0;
-    }
 
     while (true) {
+        fs_getcwd(cwd, MAX_FILENAME_LEN);
+
         numFiles=0;
-        std::vector<char*> filenames;
+        std::vector<string> filenames;
         std::vector<int> flags;
         std::vector<string> unmatchedStates;
-
-        fs_getcwd(cwd, MAX_FILENAME_LEN);
 #ifdef _3DS
         if (strcmp(cwd, "/") != 0) {
-            filenames.push_back((char*)malloc(sizeof("..")));
-            strcpy(filenames[0], "..");
+            filenames.push_back(string(".."));
             flags.push_back(FLAG_DIRECTORY);
             numFiles++;
         }
 #endif
 
         // Read file list
-        while ((entry = fs_readdir(dp)) != NULL) {
+        while ((entry = fs_readdir()) != NULL) {
             char* ext = strrchr(entry->d_name, '.')+1;
             if (strrchr(entry->d_name, '.') == 0)
                 ext = 0;
@@ -313,9 +308,7 @@ char* startFileChooser(const char* extensions[], bool romExtensions, bool canQui
                     }
 
                     flags.push_back(flag);
-                    char *name = (char*)malloc(sizeof(char)*(strlen(entry->d_name)+1));
-                    strcpy(name, entry->d_name);
-                    filenames.push_back(name);
+                    filenames.push_back(string(entry->d_name));
                     numFiles++;
                 }
             }
@@ -326,7 +319,7 @@ char* startFileChooser(const char* extensions[], bool romExtensions, bool canQui
                 *(strrchr(buffer2, '.')) = '\0';
                 for (int i=0; i<numFiles; i++) {
                     if (flags[i] & FLAG_ROM) {
-                        strcpy(buffer, filenames[i]);
+                        strcpy(buffer, filenames[i].c_str());
                         *(strrchr(buffer, '.')) = '\0';
                         if (strcmp(buffer, buffer2) == 0) {
                             flags[i] |= FLAG_SUSPENDED;
@@ -362,15 +355,7 @@ char* startFileChooser(const char* extensions[], bool romExtensions, bool canQui
         updateScrollDown();
         bool readDirectory = false;
         while (!readDirectory) {
-            int screenLen;
-#if defined(_3DS)
-            if (gameScreen == 0)
-                screenLen = BOTTOM_SCREEN_WIDTH / CHAR_WIDTH;
-            else
-                screenLen = TOP_SCREEN_WIDTH / CHAR_WIDTH;
-#else
-            screenLen = 32;
-#endif
+            int screenLen = consoleGetWidth();
             // Draw the screen
             clearConsole();
             strncpy(buffer, cwd, screenLen);
@@ -392,7 +377,7 @@ char* startFileChooser(const char* extensions[], bool romExtensions, bool canQui
                 int stringLen = screenLen - 2;
                 if (flags[i] & FLAG_DIRECTORY)
                     stringLen--;
-                strncpy(buffer, filenames[i], stringLen);
+                strncpy(buffer, filenames[i].c_str(), stringLen);
                 buffer[stringLen] = '\0';
                 if (flags[i] & FLAG_DIRECTORY) {
                     iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, "%s/", buffer);
@@ -426,46 +411,31 @@ char* startFileChooser(const char* extensions[], bool romExtensions, bool canQui
 
                 if (keyJustPressed(mapMenuKey(MENU_KEY_A))) {
                     if (flags[fileSelection] & FLAG_DIRECTORY) {
-                        if (strcmp(filenames[fileSelection], "..") == 0)
+                        if (strcmp(filenames[fileSelection].c_str(), "..") == 0)
                             goto lowerDirectory;
-                        DirStruct* newdp = fs_opendir(filenames[fileSelection]);
-                        if (newdp != 0) {
-                            fs_closedir(dp);
-                            dp = newdp;
-                            fs_chdir(filenames[fileSelection]);
-                            readDirectory = true;
-                            fileSelection = 1;
-                        }
+                        fs_chdir(filenames[fileSelection].c_str());
+                        readDirectory = true;
+                        fileSelection = 1;
                         break;
                     }
                     else {
                         // Copy the result to a new allocation, as the
                         // filename would become unavailable when freed.
-                        retval = (char*) malloc(sizeof(char) * (strlen(filenames[fileSelection]) + 1));
-                        strcpy(retval, filenames[fileSelection]);
-                        // free memory used for filenames in this dir
-                        for (int i=0; i<numFiles; i++) {
-                            free(filenames[i]);
-                        }
+                        retval = (char*) malloc(sizeof(char) * (strlen(filenames[fileSelection].c_str()) + 1));
+                        strcpy(retval, filenames[fileSelection].c_str());
                         goto end;
                     }
                 }
                 else if (keyJustPressed(mapMenuKey(MENU_KEY_B))) {
 lowerDirectory:
-                    DirStruct* newdp = fs_opendir("..");
-                    if (newdp != 0) {
-                        fs_closedir(dp);
-                        dp = newdp;
+                    // Select this directory when going up
+                    fs_getcwd(cwd, MAX_FILENAME_LEN);
+                    if (strlen(cwd) != 1 && strrchr(cwd, '/') == cwd+strlen(cwd)-1)
+                        *(strrchr(cwd, '/')) = '\0';
+                    matchFile = string(strrchr(cwd, '/')+1);
 
-                        // Select this directory when going up
-                        fs_getcwd(cwd, MAX_FILENAME_LEN);
-                        if (strlen(cwd) != 1 && strrchr(cwd, '/') == cwd+strlen(cwd)-1)
-                            *(strrchr(cwd, '/')) = '\0';
-                        matchFile = string(strrchr(cwd, '/')+1);
-
-                        fs_chdir("..");
-                        readDirectory = true;
-                    }
+                    fs_chdir("..");
+                    readDirectory = true;
                     break;
                 }
                 else if (keyPressedAutoRepeat(mapMenuKey(MENU_KEY_UP))) {
@@ -500,13 +470,8 @@ lowerDirectory:
                 }
             }
         }
-        // free memory used for filenames
-        for (int i=0; i<numFiles; i++) {
-            free(filenames[i]);
-        }
     }
 end:
-    fs_closedir(dp);
     clearConsole();
 #ifdef DS
     consoleSelectedRow = -1;

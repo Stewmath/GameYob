@@ -13,6 +13,8 @@ struct FileHandle {
     char flags[10];
 };
 
+DIR* directory = 0;
+
 FileHandle* file_open(const char* filename, const char* params) {
     FileHandle* h = (FileHandle*)malloc(sizeof(FileHandle));
     h->file = fopen(filename, params);
@@ -87,14 +89,8 @@ void fs_deleteFile(const char* filename) {
 }
 
 
-DIR* fs_opendir(const char* s) {
-    return opendir(s);
-}
-void fs_closedir(DIR* dir) {
-    closedir(dir);
-}
-struct dirent* fs_readdir(DIR* d) {
-    return readdir(d);
+struct dirent* fs_readdir() {
+    return readdir(directory);
 }
 
 void fs_getcwd(char* dest, size_t maxLen) {
@@ -102,6 +98,13 @@ void fs_getcwd(char* dest, size_t maxLen) {
 }
 void fs_chdir(const char* s) {
     chdir(s);
+
+    if (directory != 0)
+        closedir(directory);
+    char cwd[MAX_FILENAME_LEN];
+    getcwd(cwd, MAX_FILENAME_LEN);
+
+    directory = opendir(cwd);
 }
 
 #endif

@@ -3,10 +3,9 @@
 #include <3ds.h>
 #include <cwchar>
 #include "io.h"
+#include "error.h"
 
 FS_archive sdmcArchive;
-
-char fs_cwd[MAX_FILENAME_LEN];
 
 struct FileHandle {
     Handle handle;
@@ -17,6 +16,9 @@ struct DirStruct {
     Handle handle;
     struct dirent activeEntry;
 };
+
+char fs_cwd[MAX_FILENAME_LEN];
+DirStruct dir;
 
 // private functions
 
@@ -43,7 +45,9 @@ void fs_relativePath(char* dest, const char* src) {
 
     if (back) {
         if (strrchr(dest, '/') != 0) {
-            *(strrchr(dest, '/')+1) = '\0';
+            *(strrchr(dest, '/')) = '\0';
+            if (strcmp(dest, "") == 0)
+                strcpy(dest, "/");
         }
     }
 }
@@ -51,10 +55,24 @@ void fs_relativePath(char* dest, const char* src) {
 // public functions
 
 void fs_init() {
+    /*
+    // These checks don't seem to be working?
+    u32 detected, writable;
+    FSUSER_IsSdmcDetected(NULL, &detected);
+    if (!detected)
+        fatalerr("SD card not detected.");
+    FSUSER_IsSdmcWritable(NULL, &writable);
+    if (!writable)
+        fatalerr("SD card not writable.");
+    */
+
+
     sdmcArchive = (FS_archive){0x9, FS_makePath(PATH_EMPTY, "")};
     FSUSER_OpenArchive(NULL, &sdmcArchive);
 
-    strcpy(fs_cwd, "/");
+    strcpy(fs_cwd, "");
+    dir.handle = 0;
+    fs_chdir("/");
 }
 
 FileHandle* file_open(const char* filename, const char* flags) {
@@ -200,55 +218,44 @@ void fs_deleteFile(const char* filename) {
     FSUSER_DeleteFile(NULL, sdmcArchive, FS_makePath(PATH_CHAR, buffer));
 }
 
-DirStruct* fs_opendir(const char* s) {
-    char buffer[MAX_FILENAME_LEN];
-    fs_relativePath(buffer, s);
-
-    DirStruct* dir = (DirStruct*)malloc(sizeof(DirStruct));
-    Result res = FSUSER_OpenDirectory(NULL, &dir->handle, sdmcArchive,
-            FS_makePath(PATH_CHAR, buffer));
-    if (res) {
-        free(dir);
-        return 0;
-    }
-    return dir;
-}
-void fs_closedir(DirStruct* dir) {
-    FSDIR_Close(dir->handle);
-    free(dir);
-}
-struct dirent* fs_readdir(DirStruct* dir) {
+struct dirent* fs_readdir() {
     u32 numEntries = 0;
     FS_dirent entry;
-    FSDIR_Read(dir->handle, &numEntries, 1, &entry);
+    FSDIR_Read(dir.handle, &numEntries, 1, &entry);
 
     if (numEntries == 0)
         return 0;
 
     for (int i=0; i<MAX_FILENAME_LEN; i++) {
-        dir->activeEntry.d_name[i] = (char)entry.name[i];
-        if (dir->activeEntry.d_name[i] == '\0')
+        dir.activeEntry.d_name[i] = (char)entry.name[i];
+        if (dir.activeEntry.d_name[i] == '\0')
             break;
     }
-    dir->activeEntry.d_type = 0;
+    dir.activeEntry.d_type = 0;
     if (entry.isDirectory)
-        dir->activeEntry.d_type |= DT_DIR;
+        dir.activeEntry.d_type |= DT_DIR;
 
-    return &dir->activeEntry;
+    return &dir.activeEntry;
 }
 
 void fs_getcwd(char* dest, size_t maxLen) {
     strncpy(dest, fs_cwd, maxLen);
 }
 void fs_chdir(const char* s) {
-    if (s == fs_cwd)
-        return;
     char buffer[MAX_FILENAME_LEN];
     fs_relativePath(buffer, s);
 
-    DirStruct* d = fs_opendir(buffer);
-    if (d != NULL) {
-        fs_closedir(d);
-        strcpy(fs_cwd, buffer);
+    if (dir.handle != 0)
+        FSDIR_Close(dir.handle);
+
+    Result res = FSUSER_OpenDirectory(NULL, &dir.handle, sdmcArchive,
+            FS_makePath(PATH_CHAR, buffer));
+
+    if (res) {
+        FSUSER_OpenDirectory(NULL, &dir.handle, sdmcArchive,
+                FS_makePath(PATH_CHAR, fs_cwd));
+        return;
     }
+
+    strcpy(fs_cwd, buffer);
 }

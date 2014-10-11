@@ -20,15 +20,15 @@ int main(int argc, char* argv[])
 	gfxInit();
     fsInit();
 
-    fs_init(); // nice naming scheme
-
-    // Dirty hack to delay before aptSetupEventHandler
-    for (int i=0; i<20; i++)
-        drawScreen();
+    // Delay before aptSetupEventHandler
+    for (int i=0; i<10; i++)
+        system_waitForVBlank();
 
 	aptSetupEventHandler();
 
     consoleInitBottom();
+
+    fs_init();
 
     mgr_init();
 

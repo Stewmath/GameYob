@@ -32,9 +32,7 @@ bool        file_exists(const char* filename);
 
 void        fs_deleteFile(const char* filename);
 
-DirStruct*  fs_opendir(const char*);
-void        fs_closedir(DirStruct*);
-struct dirent* fs_readdir(DirStruct*);
+struct dirent* fs_readdir(); // reads from current working directory
 
 void        fs_getcwd(char*, size_t);
 void        fs_chdir(const char*);

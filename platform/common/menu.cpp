@@ -398,7 +398,7 @@ SubMenu menuList[] = {
         "Settings",
         7,
         {
-            {"Key Config", keyConfigFunc, 0, {}, 0, MENU_ALL},
+            {"Button Mapping", keyConfigFunc, 0, {}, 0, MENU_ALL},
             {"Manage Cheats", cheatFunc, 0, {}, 0, MENU_ALL},
             {"Rumble Pak", setRumbleFunc, 4, {"Off","Low","Mid","High"}, 2, MENU_DS},
             {"Console Output", consoleOutputFunc, 4, {"Off","Time","FPS+Time","Debug"}, 0, MENU_ALL},

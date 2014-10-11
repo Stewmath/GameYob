@@ -190,7 +190,8 @@ void mgr_selectRom() {
 }
 
 void mgr_save() {
-    gameboy->saveGame();
+    if (gameboy)
+        gameboy->saveGame();
     if (gb2)
         gb2->saveGame();
 }

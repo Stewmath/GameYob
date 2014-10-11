@@ -46,9 +46,7 @@ RomFile::RomFile(const char* f) {
         lastBanksUsed.push_back(i);
     }
 #else
-    if (romBankSlots == NULL) {
-        romBankSlots = (u8*)malloc(maxLoadedRomBanks*0x4000);
-    }
+    romBankSlots = (u8*)malloc(maxLoadedRomBanks*0x4000);
 
     // Check if this is a GBS file
     gbsMode = (strcasecmp(strrchr(filename, '.'), ".gbs") == 0);
