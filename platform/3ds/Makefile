@@ -147,15 +147,21 @@ DEPENDS	:=	$(OFILES:.o=.d)
 
 .PHONY: all
 
-all: $(OUTPUT).3dsx $(OUTPUT).3ds
+all: $(OUTPUT).3dsx $(OUTPUT).cia # $(OUTPUT).3ds
 
 $(OUTPUT).3dsx	:	$(OUTPUT).elf
 $(OUTPUT).elf	:	$(OFILES)
 
-$(OUTPUT).3ds: $(OUTPUT).elf $(TOPDIR)/cci/gw_workaround.rsf $(TOPDIR)/cci/banner.bnr $(TOPDIR)/cci/icon.icn
+$(OUTPUT).cia: $(OUTPUT).elf
 	@cp $(OUTPUT).elf $(TARGET)_stripped.elf
 	@$(PREFIX)strip $(TARGET)_stripped.elf
-	makerom -f cci -o $(OUTPUT).3ds -rsf $(TOPDIR)/cci/gw_workaround.rsf -target d -exefslogo -elf $(TARGET)_stripped.elf -icon $(TOPDIR)/cci/icon.icn -banner $(TOPDIR)/cci/banner.bnr
+	makerom -f cia -o $(OUTPUT).cia -rsf $(TOPDIR)/resources/build_cia.rsf -target t -exefslogo -elf $(TARGET)_stripped.elf -icon $(TOPDIR)/resources/icon.icn -banner $(TOPDIR)/resources/banner.bnr
+	@echo "built ... $(notdir $@)"
+
+$(OUTPUT).3ds: $(OUTPUT).elf $(TOPDIR)/resources/gw_workaround.rsf $(TOPDIR)/resources/banner.bnr $(TOPDIR)/resources/icon.icn
+	@cp $(OUTPUT).elf $(TARGET)_stripped.elf
+	@$(PREFIX)strip $(TARGET)_stripped.elf
+	makerom -f cci -o $(OUTPUT).3ds -rsf $(TOPDIR)/resources/gw_workaround.rsf -target d -exefslogo -elf $(TARGET)_stripped.elf -icon $(TOPDIR)/resources/icon.icn -banner $(TOPDIR)/resources/banner.bnr
 	@echo "built ... $(notdir $@)"
 
 # Always rebuild version.cpp
