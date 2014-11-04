@@ -6,6 +6,7 @@
 *.elf
 *.3ds
 *.3dsx
+*.cia
 build/
 gameyob.nds
 gameyob

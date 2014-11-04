@@ -32,6 +32,8 @@ INCLUDES	:=	include ../common/include
 
 EMBEDDED_ROM := false
 
+export	OUTPUT_FORMAT ?= 3dsx
+
 #---------------------------------------------------------------------------------
 # options for code generation
 #---------------------------------------------------------------------------------
@@ -135,6 +137,15 @@ clean:
 	@echo clean ...
 	@rm -fr $(BUILD) $(TARGET).3dhb $(TARGET).elf $(TARGET).3ds $(TARGET).3dsx
  
+
+cia:
+	@make $(MAKEFLAGS) OUTPUT_FORMAT=cia
+
+3ds:
+	@make $(MAKEFLAGS) OUTPUT_FORMAT=3ds
+
+3dsx:
+	@make $(MAKEFLAGS) OUTPUT_FORMAT=3dsx
  
 #---------------------------------------------------------------------------------
 else # make invoked from "build" directory
@@ -147,7 +158,7 @@ DEPENDS	:=	$(OFILES:.o=.d)
 
 .PHONY: all
 
-all: $(OUTPUT).3dsx $(OUTPUT).cia # $(OUTPUT).3ds
+all: $(OUTPUT).$(OUTPUT_FORMAT)
 
 $(OUTPUT).3dsx	:	$(OUTPUT).elf
 $(OUTPUT).elf	:	$(OFILES)

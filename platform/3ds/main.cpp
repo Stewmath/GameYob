@@ -55,7 +55,7 @@ int main(int argc, char* argv[])
 
     printf("GameYob 3DS\n\n");
 
-    printAndWait("Haxors\n");
+    printAndWait("Haxors YAY\n");
 
     Handle irHandle;
     Result res = svcConnectToPort(&srv_handle, "srv:pm");
