@@ -196,6 +196,8 @@ AccessControlInfo:
    - y2r:u
    - ldr:ro
    - ir:USER
+   - ir:u
+   - csnd:CSND
   
    
 SystemControlInfo:

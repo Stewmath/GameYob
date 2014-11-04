@@ -135,7 +135,7 @@ $(BUILD):
 #---------------------------------------------------------------------------------
 clean:
 	@echo clean ...
-	@rm -fr $(BUILD) $(TARGET).3dhb $(TARGET).elf $(TARGET).3ds $(TARGET).3dsx
+	@rm -fr $(BUILD) $(TARGET).3dhb $(TARGET).elf $(TARGET).3ds $(TARGET).3dsx $(TARGET).cia
  
 
 cia:
