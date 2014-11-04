@@ -78,15 +78,14 @@ class SoundEngine {
 #ifndef DS
         u16 lfsr;
         int noiseVal;
-
-        int chan4Width;
         int chan3WavPos;
-        int chanDuty[2];
-        // Frequency converted
-        int chanFreqClocks[4];
-        int chanOn[4];
         int chanPolarity[4];
         int chanPolarityCounter[4];
+
+        int chan4Width;
+        int chanDuty[2];
+        int chanFreqClocks[4];
+        int chanOn[4];
         int chanToOut1[4];
         int chanToOut2[4];
 
@@ -107,6 +106,7 @@ class SoundEngine {
 #endif
 
 #ifdef _3DS
+        int cyclesUntilSample;
 #endif
 
         bool muted;

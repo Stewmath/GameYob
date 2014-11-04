@@ -1,9 +1,82 @@
+#include <3ds.h>
 #include "soundengine.h"
 #include "gameboy.h"
 #include <math.h>
 #include <time.h>
 
 
+extern "C" Result CSND_sharedmemtype0_cmd9(u32, u32);
+
+void CSND_setchannel_enabled(u32 channel, u32 value)
+{
+	u32 cmdparams[0x18>>2];
+
+	memset(cmdparams, 0, 0x18);
+
+	cmdparams[0] = channel & 0x1f;
+	cmdparams[1] = value;
+
+	CSND_writesharedmem_cmdtype0(0x0, (u8*)&cmdparams);
+}
+
+
+
+#define FRAMES_PER_BUFFER 3
+
+#define CYCLES_UNTIL_SAMPLE (4*0x54)
+#define CSND_FREQUENCY (CYCLES_PER_FRAME * 59.7 / CYCLES_UNTIL_SAMPLE)
+#define CSND_BUFFER_SIZE ((CYCLES_PER_FRAME / CYCLES_UNTIL_SAMPLE) * FRAMES_PER_BUFFER)
+
+
+s16* bufferDat = (s16*)linearAlloc(2*CSND_BUFFER_SIZE*2);
+
+s16* buffers[2];
+int playingBuffer = 0;
+int recordingBuffer = 1;
+int recordingPos = 0;
+int framecnt;
+
+void initSampler() {
+    buffers[0] = bufferDat;
+    buffers[1] = bufferDat+CSND_BUFFER_SIZE;
+
+    playingBuffer = 0;
+    recordingBuffer = 1;
+    recordingPos = 0;
+    framecnt = 0;
+
+    //CSND_playsound(9, 1, CSND_ENCODING_PCM16, CSND_FREQUENCY, (u32*)buffers[playingBuffer], (u32*)buffers[playingBuffer]+CSND_BUFFER_SIZE*2-1, CSND_BUFFER_SIZE*4, 2, 0);
+
+    CSND_setchannel_playbackstate(9, 0);
+
+    CSND_sharedmemtype0_cmdupdatestate(0);
+}
+
+// Called once every 4 cycles
+void addSample(s16 sample) {
+    if (recordingPos >= CSND_BUFFER_SIZE) {
+        printf("RECORD LOOP\n");
+        return;
+    }
+    buffers[recordingBuffer][recordingPos++] = sample;
+}
+
+void swapBuffers() {
+    if (--framecnt <= 0) {
+        framecnt = FRAMES_PER_BUFFER;
+
+        playingBuffer = !playingBuffer;
+        recordingBuffer = !recordingBuffer;
+
+        if (recordingPos != CSND_BUFFER_SIZE) {
+            printf("recordingpos %d\n", recordingPos);
+        }
+        recordingPos = 0;
+
+        u32* addr = (u32*)buffers[playingBuffer];
+        CSND_playsound(8+playingBuffer, 0, CSND_ENCODING_PCM16, CSND_FREQUENCY, addr, addr, CSND_BUFFER_SIZE*2, 0, 0);
+    }
+}
 
 
 SoundEngine::SoundEngine(Gameboy* g)
@@ -20,6 +93,16 @@ void SoundEngine::setGameboy(Gameboy* g) {
 }
 
 void SoundEngine::init() {
+    for (int i=0; i<4; i++) {
+        chanPolarity[i] = 1;
+        chanPolarityCounter[i] = 0;
+    }
+    cyclesUntilSample = CYCLES_UNTIL_SAMPLE;
+    lfsr = 0xffff;
+    chan3WavPos = 0;
+
+    initSampler();
+
     refresh();
 }
 
@@ -118,8 +201,6 @@ void SoundEngine::updateSound(int cycles)
 	// Channel 3
 	if (chanOn[2])
 	{
-		static double analog[] = { -1, -0.8667, -0.7334, -0.6, -0.4668, -0.3335, -0.2, -0.067, 0.0664, 0.2, 0.333, 0.4668, 0.6, 0.7334, 0.8667, 1  } ;
-
 		if (chanUseLen[2])
 		{
 			chanLenCounter[2] -= cycles;
@@ -153,6 +234,116 @@ void SoundEngine::updateSound(int cycles)
 			}
 		}
 	}
+
+    cyclesUntilSample -= cycles;
+    while (cyclesUntilSample <= 0) {
+        int c = CYCLES_UNTIL_SAMPLE;
+        cyclesUntilSample += c;
+
+        s16 tone = 0, tone1 = 0, tone2 = 0;
+
+        for (int j=0; j<2; j++) {
+            if (chanOn[j]) {
+                chanPolarityCounter[j] -= c;
+                if (chanPolarityCounter[j] <= 0)
+                {
+                    int oldPolarityCounter = chanPolarityCounter[j];
+                    chanPolarity[j] *= -1;
+
+                    if (chanDuty[j] == 0)
+                    {
+                        if (chanPolarity[j] == 1)
+                            chanPolarityCounter[j] = clockSpeed/((double)131072/(2048-chanFreq[j]))*(((double)1/8));
+                        else
+                            chanPolarityCounter[j] = clockSpeed/((double)131072/(2048-chanFreq[j]))*(((double)7/8));
+                    }
+                    else if (chanDuty[j] == 1)
+                    {
+                        if (chanPolarity[j] == 1)
+                            chanPolarityCounter[j] = clockSpeed/((double)131072/(2048-chanFreq[j]))*(((double)1/4));
+                        else
+                            chanPolarityCounter[j] = clockSpeed/((double)131072/(2048-chanFreq[j]))*(((double)3/4));
+                    }
+                    else if (chanDuty[j] == 2)
+                        chanPolarityCounter[j] = clockSpeed/((double)131072/(2048-chanFreq[j]))/2;
+                    else if (chanDuty[j] == 3)
+                    {
+                        if (chanPolarity[j] == 1)
+                            chanPolarityCounter[j] = clockSpeed/((double)131072/(2048-chanFreq[j]))*(((double)3/4));
+                        else
+                            chanPolarityCounter[j] = clockSpeed/((double)131072/(2048-chanFreq[j]))*(((double)1/4));
+                    }
+                    chanPolarityCounter[j] += oldPolarityCounter;
+                }
+
+                if (chanToOut1[j])
+                    tone1 += chanPolarity[j] * chanVol[j];
+                if (chanToOut2[j])
+                    tone2 += chanPolarity[j] * chanVol[j];
+            }
+        }
+
+        if (chanOn[2]) {
+            chanPolarityCounter[2] -= c;
+            if (chanPolarityCounter[2] <= 0)
+            {
+                chanPolarityCounter[2] = clockSpeed/(65536/(2048-chanFreq[2])*32) + chanPolarityCounter[2];
+                //chanPolarityCounter[2] = clockSpeed/((131072/(2048-chanFreq[2]))*16);
+                chanFreqClocks[2] = chanPolarityCounter[2];
+
+                chan3WavPos++;
+                if (chan3WavPos >= 32)
+                    chan3WavPos = 0;
+            }
+
+            static double analog[] = { -1, -0.8667, -0.7334, -0.6, -0.4668, -0.3335, -0.2, -0.067, 0.0664, 0.2, 0.333, 0.4668, 0.6, 0.7334, 0.8667, 1  } ;
+
+            if (chanVol[2] >= 0)
+            {
+                int wavTone = gameboy->ioRam[0x30+(chan3WavPos/2)];
+                wavTone = chan3WavPos%2? wavTone&0xF : wavTone>>4;
+                if (chanToOut1[2])
+                    tone1 += (analog[wavTone])*(0xF >> chanVol[2]);
+                if (chanToOut2[2])
+                    tone2 += (analog[wavTone])*(0xF >> chanVol[2]);
+            }
+
+        }
+        if (chanOn[3]) {
+            chanPolarityCounter[3] -= c;
+            if (chanPolarityCounter[3] <= 0)
+            {
+                //chanPolarityCounter[3] = 
+                chanPolarityCounter[3] = clockSpeed/((int)(524288 / chan4FreqRatio) >> (chanFreq[3]+1))+chanPolarityCounter[3];
+
+                noiseVal = (lfsr&1)^((lfsr>>1)&1);
+                if (noiseVal)
+                    chanPolarity[3] = -1;
+                else
+                    chanPolarity[3] = 1;
+                lfsr >>= 1;
+                if (chan4Width)
+                {
+                    lfsr &= ~(1<<6);
+                    lfsr |= (noiseVal<<6);
+                }
+                else {
+                    lfsr &= ~(1<<14);
+                    lfsr |= (noiseVal<<14);
+                }
+            }
+
+            if (chanToOut1[3])
+                tone1 += chanPolarity[3]*chanVol[3];
+            if (chanToOut2[3])
+                tone2 += chanPolarity[3]*chanVol[3];
+        }
+
+
+        tone = tone1 + tone2;
+
+        addSample(tone*0x10 * SO1Vol);
+    }
 }
 
 
@@ -163,7 +354,7 @@ void SoundEngine::setSoundEventCycles(int cycles) {
 }
 
 void SoundEngine::soundUpdateVBlank() {
-
+    swapBuffers();
 }
 
 void SoundEngine::updateSoundSample() {
@@ -217,6 +408,8 @@ void SoundEngine::handleSoundRegister(u8 ioReg, u8 val)
 				if (chan1SweepTime != 0)
 					chan1SweepCounter = clockSpeed/(128/chan1SweepTime);
 				gameboy->setSoundChannel(CHAN_1);
+
+                //CSND_playsound(0, true, CSND_ENCODING_PSG, convertFreq(freq), NULL, NULL, 0, 0, 0);
 			}
 			if (val & 0x40)
 				chanUseLen[0] = 1;
@@ -263,18 +456,19 @@ void SoundEngine::handleSoundRegister(u8 ioReg, u8 val)
 		// CHANNEL 3
 		// On/Off
 		case 0x1A:
-			if ((val & 0x80) == 0)
-			{
-				chanOn[2] = 0;
-				gameboy->clearSoundChannel(CHAN_3);
-				//buf.clear();
-				//printf("chan3off\n");
-			}
-			else
-			{
-				//chanOn[2] = 1;
-				//printf("chan3on?\n");
-			}
+            if ((val & 0x80) == 0)
+            {
+                chanOn[2] = 0;
+                gameboy->clearSoundChannel(CHAN_4);
+                gameboy->cyclesToExecute = -1; // Pi-Ka-Chu
+                //buf.clear();
+                //printf("chan3off\n");
+            }
+            else
+            {
+                //chanOn[2] = 1;
+                //printf("chan3on?\n");
+            }
 			break;
 		// Length
 		case 0x1B:
@@ -282,11 +476,11 @@ void SoundEngine::handleSoundRegister(u8 ioReg, u8 val)
 			break;
 		// Volume
 		case 0x1C:
-			{
-				chanVol[2] = (val>>5)&3;
-				chanVol[2]--;
-				break;
-			}
+            if (chanVol[2] != ((val>>5)&3)) {
+                chanVol[2] = (val>>5)&3;
+                chanVol[2]--;
+            }
+            break;
 		// Frequency (low)
 		case 0x1D:
 			chanFreq[2] &= 0xFF00;
@@ -302,6 +496,7 @@ void SoundEngine::handleSoundRegister(u8 ioReg, u8 val)
 				chanOn[2] = 1;
 				chanLenCounter[2] = (256-chanLen[2])*clockSpeed/256;
 				gameboy->setSoundChannel(CHAN_3);
+                gameboy->cyclesToExecute = -1; // Pi-Ka-Chu
 			}
 			if (val & 0x40)
 			{

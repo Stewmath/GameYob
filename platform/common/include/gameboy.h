@@ -14,6 +14,10 @@
 // IMPORTANT: This is unchanging, it DOES NOT change in double speed mode!
 #define clockSpeed 4194304
 
+// Same deal
+#define CYCLES_PER_FRAME 70224
+
+
 #define GB			0
 #define CGB			1
 

@@ -378,6 +378,8 @@ void Gameboy::gameboyUpdateVBlank() {
 
         updateGbPrinter();
     }
+
+    soundEngine->soundUpdateVBlank();
 }
 
 // This function can be called from weird contexts, so just set a flag to deal 
@@ -569,7 +571,7 @@ inline int Gameboy::updateLCD(int cycles)
         // ds should check for input and whatnot.
         phaseCounter -= cycles;
         if (phaseCounter <= 0) {
-            phaseCounter += 456*153*(doubleSpeed?2:1);
+            phaseCounter += CYCLES_PER_FRAME<<doubleSpeed;
             cyclesSinceVBlank=0;
             // Though not technically vblank, this is a good time to check for 
             // input and whatnot.

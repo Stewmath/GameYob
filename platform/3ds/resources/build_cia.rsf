@@ -197,7 +197,7 @@ AccessControlInfo:
    - ldr:ro
    - ir:USER
    - ir:u
-   - csnd:CSND
+   - csnd:SND
   
    
 SystemControlInfo:

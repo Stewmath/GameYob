@@ -125,6 +125,8 @@ void system_checkPolls() {
             mgr_save();
             mgr_exit();
 
+            CSND_shutdown();
+
             fsExit();
             gfxExit();
             hidExit();

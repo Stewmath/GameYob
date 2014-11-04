@@ -20,6 +20,7 @@ int main(int argc, char* argv[])
 	hidInit(NULL);
 	gfxInit();
     fsInit();
+    CSND_initialize(NULL);
 
     consoleInitBottom();
 
