@@ -437,7 +437,7 @@ SubMenu menuList[] = {
             {"Wait for Vblank", vblankWaitFunc, 2, {"Off","On"}, 0, MENU_DS},
             {"Hblank", hblankEnableFunc, 2, {"Off","On"}, 1, MENU_DS},
             {"Window", windowEnableFunc, 2, {"Off","On"}, 1, MENU_DS},
-            {"Sound", soundEnableFunc, 2, {"Off","On"}, 1, MENU_DS},
+            {"Sound", soundEnableFunc, 2, {"Off","On"}, 1, MENU_ALL},
             {"Sound Timing Fix", hyperSoundFunc, 2, {"Off","On"}, 1, MENU_DS},
             {"ROM Info", romInfoFunc, 0, {}, 0, MENU_ALL},
             {"Version Info", versionInfoFunc, 0, {}, 0, MENU_ALL}

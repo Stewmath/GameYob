@@ -271,7 +271,7 @@ void SoundEngine::updateSound(int cycles)
 	}
 	tone1 *= SO1Vol;
 	tone2 *= SO2Vol;
-	tone = (tone1 + tone2)/20 * SO1Vol;
+	tone = (tone1 + tone2)/20 + SO1Vol;
 	//tone *= 10;
 	//if (tone != 0)
 	//	printf("%d\n", tone);
