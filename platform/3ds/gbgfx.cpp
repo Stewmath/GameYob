@@ -11,6 +11,7 @@
 #include "gameboy.h"
 #include "3dsgfx.h"
 #include "menu.h"
+#include "inputhelper.h"
 
 // public variables
 
@@ -392,7 +393,8 @@ void drawScreen()
         }
     }
 
-    gspWaitForVBlank();
+    if (!(fastForwardMode || fastForwardKey))
+        gspWaitForVBlank();
 }
 
 

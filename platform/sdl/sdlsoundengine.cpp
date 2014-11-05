@@ -85,8 +85,6 @@ void SoundEngine::unmute() {
 void SoundEngine::updateSound(int cycles)
 {
     setSoundEventCycles(50);
-	if (gameboy->doubleSpeed)
-		cycles /= 2;
 	timePassed += cycles;
 //	chanOn[0] = 0;
 //	chanOn[1] = 0;
