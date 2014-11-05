@@ -390,7 +390,7 @@ SubMenu menuList[] = {
             {"Load State", stateLoadFunc, 0, {}, 0, MENU_ALL},
             {"Delete State", stateDeleteFunc, 0, {}, 0, MENU_ALL},
             {"Quit to Launcher", returnToLauncherFunc, 0, {}, 0, MENU_DS},
-            {"Exit without saving", exitNoSaveFunc, 0, {}, 0, MENU_DS},
+            {"Exit without saving", exitNoSaveFunc, 0, {}, 0, MENU_ALL},
             {"Suspend", suspendFunc, 0, {}, 0, MENU_ALL}
         }
     },

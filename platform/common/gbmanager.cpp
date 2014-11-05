@@ -9,6 +9,7 @@
 #include "filechooser.h"
 #include "soundengine.h"
 #include "error.h"
+#include "timer.h"
 
 Gameboy* gameboy = NULL;
 Gameboy* gb2 = NULL;
@@ -25,10 +26,12 @@ int fps = 0;
 time_t rawTime;
 time_t lastRawTime;
 
-
 void mgr_init() {
     gameboy = new Gameboy();
     gbUno = gameboy;
+
+    rawTime = 0;
+    lastRawTime = rawTime;
 }
 
 void mgr_runFrame() {
@@ -220,23 +223,23 @@ void mgr_updateVBlank() {
 #endif
 
 #ifndef DS
-    rawTime = time(NULL);
+    rawTime = getTime();
 #endif
 
-#ifdef DS
+#ifndef SDL
     fps++;
 
     if (isConsoleOn() && !isMenuOn() && !consoleDebugOutput && (rawTime > lastRawTime))
     {
         setPrintConsole(menuConsole);
-        consoleClear();
         int line=0;
         if (fpsOutput) {
-            consoleClear();
+            clearConsole();
             iprintf("FPS: %d\n", fps);
             line++;
         }
         fps = 0;
+#ifdef DS
         if (timeOutput) {
             for (; line<23-1; line++)
                 iprintf("\n");
@@ -256,6 +259,7 @@ void mgr_updateVBlank() {
 
             iprintf("%s\n", s);
         }
+#endif
         lastRawTime = rawTime;
     }
 #endif

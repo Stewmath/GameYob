@@ -3,6 +3,7 @@
 #include "gameboy.h"
 #include "menu.h"
 #include "noise.h"
+#include "console.h"
 #include <math.h>
 #include <time.h>
 
@@ -62,7 +63,7 @@ void initSampler() {
 // Called once every 4 cycles
 void addSample(s16 sample) {
     if (recordingPos >= CSND_BUFFER_SIZE) {
-        printf("RECORD LOOP\n");
+        printLog("RECORD LOOP\n");
         return;
     }
     buffers[recordingBuffer][recordingPos++] = sample;
@@ -76,7 +77,7 @@ void swapBuffers() {
         recordingBuffer = !recordingBuffer;
 
         if (recordingPos != CSND_BUFFER_SIZE) {
-            printf("recordingpos %d\n", recordingPos);
+            printLog("recordingpos %d\n", recordingPos);
         }
         recordingPos = 0;
 
@@ -364,6 +365,8 @@ void SoundEngine::setSoundEventCycles(int cycles) {
 }
 
 void SoundEngine::soundUpdateVBlank() {
+    if (soundDisabled)
+        return;
     swapBuffers();
 }
 
