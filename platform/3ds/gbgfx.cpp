@@ -164,10 +164,13 @@ void drawScanline_P2(int scanline) {
 	else
 		winMapAddr = 0x1800;
 
+    /*
 	for (int i=0; i<256; i++) {
-		bgPixels[i] = 5;
-		bgPixelsLow[i] = 5;
+		//bgPixels[i] = 5;
+		//bgPixelsLow[i] = 5;
 	}
+    */
+    memset(bgPixels, 0, sizeof(bgPixels));
     memset(spritePixels, 0, sizeof(spritePixels));
     memset(spritePixelsLow, 0, sizeof(spritePixelsLow));
 
@@ -246,6 +249,8 @@ void drawScanline_P2(int scanline) {
 				if (priority) {
 					bgPixels[writeX] = colorid;
 					bgPixelsTrue[writeX] = color;
+					bgPixelsLow[writeX] = colorid;
+					bgPixelsTrueLow[writeX] = color;
 				}
 				else {
 					bgPixelsLow[writeX] = colorid;
@@ -311,46 +316,29 @@ void drawScanline_P2(int scanline) {
 				{
 					bgPixels[writeX] = colorid;
 					bgPixelsTrue[writeX] = color;
-					bgPixelsLow[writeX] = 5;
 				}
 				else
 				{
 					bgPixelsLow[writeX] = colorid;
 					bgPixelsTrueLow[writeX] = color;
-					bgPixels[writeX] = 5;
+					bgPixels[writeX] = 0;
 				}
 			}
 		}
 	}
 
+    // TODO: bg priority cancellation
     int dest = scanline*256;
-    if (gameboy->ioRam[0x40] & 0x1)
+    for (int i=0; i<160; i++, dest++)
     {
-        for (int i=0; i<160; i++, dest++)
-        {
+        if (bgPixels[i] != 0)
+            pixels[dest] = bgPixelsTrue[i];
+        else if (spritePixels[i] != 0)
+            pixels[dest] = spritePixelsTrue[i];
+        else if (spritePixelsLow[i] == 0 || bgPixelsLow[i] != 0)
+            pixels[dest] = bgPixelsTrueLow[i];
+        else
             pixels[dest] = spritePixelsTrueLow[i];
-            if ((bgPixelsLow[i] > 0 || spritePixelsLow[i] == 0) && bgPixelsLow[i] != 5)
-                pixels[dest] = bgPixelsTrueLow[i];
-            if (spritePixels[i] != 0)
-                pixels[dest] = spritePixelsTrue[i];
-            if ((bgPixels[i] != 0 || (spritePixels[i] == 0 && spritePixelsLow[i] == 0)) && bgPixels[i] != 5)
-                pixels[dest] = bgPixelsTrue[i];
-        }
-    }
-    else
-    {
-        for (int i=0; i<160; i++, dest++)
-        {
-            if ((bgPixelsLow[i] > 0) && bgPixelsLow[i] != 5)
-                pixels[dest] = bgPixelsTrueLow[i];
-            if ((bgPixels[i] != 0) && bgPixels[i] != 5)
-                pixels[dest] = bgPixelsTrue[i];
-
-            if (spritePixelsLow[i] != 0)
-                pixels[dest] = spritePixelsTrueLow[i];
-            if (spritePixels[i] != 0)
-                pixels[dest] = spritePixelsTrue[i];
-        }
     }
 }
 

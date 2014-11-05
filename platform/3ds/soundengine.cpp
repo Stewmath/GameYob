@@ -473,7 +473,6 @@ void SoundEngine::handleSoundRegister(u8 ioReg, u8 val)
             {
                 chanOn[2] = 0;
                 gameboy->clearSoundChannel(CHAN_4);
-                gameboy->cyclesToExecute = -1; // Pi-Ka-Chu
                 //buf.clear();
                 //printf("chan3off\n");
             }
@@ -509,7 +508,6 @@ void SoundEngine::handleSoundRegister(u8 ioReg, u8 val)
 				chanOn[2] = 1;
 				chanLenCounter[2] = (256-chanLen[2])*clockSpeed/256;
 				gameboy->setSoundChannel(CHAN_3);
-                gameboy->cyclesToExecute = -1; // Pi-Ka-Chu
 			}
 			if (val & 0x40)
 			{
