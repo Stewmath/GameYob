@@ -378,8 +378,6 @@ void Gameboy::gameboyUpdateVBlank() {
 
         updateGbPrinter();
     }
-
-    soundEngine->soundUpdateVBlank();
 }
 
 // This function can be called from weird contexts, so just set a flag to deal 

@@ -29,9 +29,9 @@ void CSND_setchannel_enabled(u32 channel, u32 value)
 
 
 
-#define FRAMES_PER_BUFFER 3
+#define FRAMES_PER_BUFFER 4
 
-#define CYCLES_UNTIL_SAMPLE (4*0x54)
+#define CYCLES_UNTIL_SAMPLE (0x54)
 #define CSND_FREQUENCY (CYCLES_PER_FRAME * 59.7 / CYCLES_UNTIL_SAMPLE)
 #define CSND_BUFFER_SIZE ((CYCLES_PER_FRAME / CYCLES_UNTIL_SAMPLE) * FRAMES_PER_BUFFER)
 
@@ -43,6 +43,8 @@ int playingBuffer = 0;
 int recordingBuffer = 1;
 int recordingPos = 0;
 int framecnt;
+
+bool chanEnabled[4] = {true, true, true, true};
 
 void initSampler() {
     buffers[0] = bufferDat;
@@ -252,6 +254,8 @@ void SoundEngine::updateSound(int cycles)
         s16 tone = 0, tone1 = 0, tone2 = 0;
 
         for (int j=0; j<2; j++) {
+            if (!chanEnabled[j])
+                continue;
             if (chanOn[j]) {
                 chanPolarityCounter[j] -= c;
                 while (chanPolarityCounter[j] <= 0)
@@ -292,7 +296,7 @@ void SoundEngine::updateSound(int cycles)
             }
         }
 
-        if (chanOn[2]) {
+        if (chanEnabled[2] && chanOn[2]) {
             chanPolarityCounter[2] -= c;
             while (chanPolarityCounter[2] <= 0)
             {
@@ -318,7 +322,7 @@ void SoundEngine::updateSound(int cycles)
             }
 
         }
-        if (chanOn[3]) {
+        if (chanEnabled[3] && chanOn[3]) {
             int polarityLen = clockSpeed/((int)(524288 / chan4FreqRatio) >> (chanFreq[3]+1));
             chanPolarityCounter[3] -= c;
             int flips = -(chanPolarityCounter[3] - polarityLen) / polarityLen;
@@ -594,8 +598,8 @@ void unmuteSND() {
 
 }
 void enableChannel(int i) {
-
+    chanEnabled[i] = true;
 }
 void disableChannel(int i) {
-
+    chanEnabled[i] = false;
 }

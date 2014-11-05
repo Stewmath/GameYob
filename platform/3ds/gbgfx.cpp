@@ -430,8 +430,6 @@ void drawSprite(int scanline, int spriteNum)
 
 void drawScreen()
 {
-    if (!(fastForwardMode || fastForwardKey))
-        gspWaitForVBlank();
 }
 
 
