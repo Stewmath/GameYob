@@ -357,16 +357,16 @@ void drawSprite(int scanline, int spriteNum)
     spriteNum *= 4;
 
     int y = (gameboy->hram[spriteNum]-16);
-	int x = (gameboy->hram[spriteNum+1]-8);
     int height;
     if (gameboy->ioRam[0x40] & 0x4)
         height = 16;
 	else
 		height = 8;
 
-    if (scanline < y || scanline >= y+height || x >= 160)
+    if (scanline < y || scanline >= y+height)
         return;
 
+	int x = (gameboy->hram[spriteNum+1]-8);
 	int tileNum = gameboy->hram[spriteNum+2];
 	int bank = 0;
 	int flipX = (gameboy->hram[spriteNum+3] & 0x20);
@@ -416,13 +416,13 @@ void drawSprite(int scanline, int spriteNum)
 
             if (flipX)
             {
-                idDest[x+(7-j)] = color;
-                trueDest[x+(7-j)] = trueColor;
+                idDest[(x+(7-j))&0xFF] = color;
+                trueDest[(x+(7-j))&0xFF] = trueColor;
             }
             else
             {
-                idDest[x+j] = color;
-                trueDest[x+j] = trueColor;
+                idDest[(x+j)&0xFF] = color;
+                trueDest[(x+j)&0xFF] = trueColor;
             }
         }
     }
