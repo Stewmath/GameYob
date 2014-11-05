@@ -249,6 +249,8 @@ void drawScanline_P2(int scanline) {
 				if (priority) {
 					bgPixels[writeX] = colorid;
 					bgPixelsTrue[writeX] = color;
+					bgPixelsLow[writeX] = colorid;
+					bgPixelsTrueLow[writeX] = color;
 				}
 				else {
 					bgPixelsLow[writeX] = colorid;
@@ -314,6 +316,8 @@ void drawScanline_P2(int scanline) {
 				{
 					bgPixels[writeX] = colorid;
 					bgPixelsTrue[writeX] = color;
+					bgPixelsLow[writeX] = colorid;
+					bgPixelsTrueLow[writeX] = color;
 				}
 				else
 				{
