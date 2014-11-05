@@ -249,8 +249,6 @@ void drawScanline_P2(int scanline) {
 				if (priority) {
 					bgPixels[writeX] = colorid;
 					bgPixelsTrue[writeX] = color;
-					bgPixelsLow[writeX] = colorid;
-					bgPixelsTrueLow[writeX] = color;
 				}
 				else {
 					bgPixelsLow[writeX] = colorid;
@@ -359,17 +357,17 @@ void drawSprite(int scanline, int spriteNum)
     spriteNum *= 4;
 
     int y = (gameboy->hram[spriteNum]-16);
+	int x = (gameboy->hram[spriteNum+1]-8);
     int height;
     if (gameboy->ioRam[0x40] & 0x4)
         height = 16;
 	else
 		height = 8;
 
-    if (scanline < y || scanline >= y+height)
+    if (scanline < y || scanline >= y+height || x >= 160)
         return;
 
 	int tileNum = gameboy->hram[spriteNum+2];
-	int x = (gameboy->hram[spriteNum+1]-8);
 	int bank = 0;
 	int flipX = (gameboy->hram[spriteNum+3] & 0x20);
 	int flipY = (gameboy->hram[spriteNum+3] & 0x40);
@@ -403,6 +401,8 @@ void drawSprite(int scanline, int spriteNum)
         if (height == 16)
             tileNum = tileNum^1;
     }
+    u32* trueDest = (priority ? spritePixelsTrue : spritePixelsTrueLow);
+    u8* idDest = (priority ? spritePixels : spritePixelsLow);
     for (int j=0; j<8; j++)
     {
         int color;
@@ -413,18 +413,16 @@ void drawSprite(int scanline, int spriteNum)
         if (color != 0)
         {
             trueColor = *sprPalettesRef[paletteid][color];
-            u32* trueDest = (priority ? spritePixelsTrue : spritePixelsTrueLow);
-            u8* idDest = (priority ? spritePixels : spritePixelsLow);
 
             if (flipX)
             {
-                idDest[(x+(7-j))&0xFF] = color;
-                trueDest[(x+(7-j))&0xFF] = trueColor;
+                idDest[x+(7-j)] = color;
+                trueDest[x+(7-j)] = trueColor;
             }
             else
             {
-                idDest[(x+j)&0xFF] = color;
-                trueDest[(x+j)&0xFF] = trueColor;
+                idDest[x+j] = color;
+                trueDest[x+j] = trueColor;
             }
         }
     }
