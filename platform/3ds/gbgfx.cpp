@@ -328,17 +328,28 @@ void drawScanline_P2(int scanline) {
 	}
 
     // TODO: bg priority cancellation
-    int dest = scanline*256;
-    for (int i=0; i<160; i++, dest++)
+    u8* framebuffer;
+    int offsetX, offsetY = TOP_SCREEN_HEIGHT / 2 - 144/2;
+    if (gameScreen == 0) {
+        framebuffer = gfxGetInactiveFramebuffer(GFX_TOP, GFX_LEFT);
+        offsetX = TOP_SCREEN_WIDTH / 2 - 160/2;
+    }
+    else {
+        framebuffer = gfxGetInactiveFramebuffer(GFX_BOTTOM, GFX_LEFT);
+        offsetX = BOTTOM_SCREEN_WIDTH / 2 - 160/2;
+    }
+
+    int y = offsetY+scanline;
+    for (int i=0; i<160; i++)
     {
         if (bgPixels[i] != 0)
-            pixels[dest] = bgPixelsTrue[i];
+            drawPixel(framebuffer, offsetX+i, y, bgPixelsTrue[i]);
         else if (spritePixels[i] != 0)
-            pixels[dest] = spritePixelsTrue[i];
+            drawPixel(framebuffer, offsetX+i, y, spritePixelsTrue[i]);
         else if (spritePixelsLow[i] == 0 || bgPixelsLow[i] != 0)
-            pixels[dest] = bgPixelsTrueLow[i];
+            drawPixel(framebuffer, offsetX+i, y, bgPixelsTrueLow[i]);
         else
-            pixels[dest] = spritePixelsTrueLow[i];
+            drawPixel(framebuffer, offsetX+i, y, spritePixelsTrueLow[i]);
     }
 }
 
@@ -367,24 +378,24 @@ void drawSprite(int scanline, int spriteNum)
 
 	if (gameboy->gbMode == CGB)
 	{
-		bank = !!(gameboy->hram[spriteNum+3]&0x8);
+		bank = (gameboy->hram[spriteNum+3]&0x8)>>3;
 		paletteid = gameboy->hram[spriteNum+3] & 0x7;
 	}
 	else
 	{
 		//paletteid = gameboy->hram[spriteNum+3] & 0x7;
-		paletteid = !!(gameboy->hram[spriteNum+3] & 0x10);
+		paletteid = (gameboy->hram[spriteNum+3] & 0x10)>>4;
 	}
 
-	if (height == 16)
-		tileNum &= ~1;
+    if (height == 16) {
+        tileNum &= ~1;
 
-    if (scanline-y >= 8)
-        tileNum++;
+        if (scanline-y >= 8)
+            tileNum++;
+    }
 
     //u8* tile = &memory[0]+((tileNum)*16)+0x8000;//tileAddr;
     int pixelY = (scanline-y)%8;
-    int j;
 
     if (flipY)
     {
@@ -392,7 +403,7 @@ void drawSprite(int scanline, int spriteNum)
         if (height == 16)
             tileNum = tileNum^1;
     }
-    for (j=0; j<8; j++)
+    for (int j=0; j<8; j++)
     {
         int color;
         int trueColor;
@@ -421,25 +432,6 @@ void drawSprite(int scanline, int spriteNum)
 
 void drawScreen()
 {
-    u8* framebuffer;
-    int offsetX, offsetY = TOP_SCREEN_HEIGHT / 2 - 144/2;
-    if (gameScreen == 0) {
-        framebuffer = gfxGetInactiveFramebuffer(GFX_TOP, GFX_LEFT);
-        offsetX = TOP_SCREEN_WIDTH / 2 - 160/2;
-    }
-    else {
-        framebuffer = gfxGetInactiveFramebuffer(GFX_BOTTOM, GFX_LEFT);
-        offsetX = BOTTOM_SCREEN_WIDTH / 2 - 160/2;
-    }
-
-    u32* pix = pixels;
-    for (int y=0; y<144; y++) {
-        for (int x=0; x<160; x++) {
-            drawPixel(framebuffer, x+offsetX, y+offsetY, *(pix++));
-        }
-        pix += 256-160;
-    }
-
     if (!(fastForwardMode || fastForwardKey))
         gspWaitForVBlank();
 }
