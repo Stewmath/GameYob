@@ -29,7 +29,7 @@ void CSND_setchannel_enabled(u32 channel, u32 value)
 
 
 
-#define FRAMES_PER_BUFFER 4
+#define FRAMES_PER_BUFFER 8
 
 #define CYCLES_UNTIL_SAMPLE (0x54)
 #define CSND_FREQUENCY (CYCLES_PER_FRAME * 59.7 / CYCLES_UNTIL_SAMPLE)
@@ -163,7 +163,7 @@ void SoundEngine::updateSound(int cycles)
 	if (chan1SweepTime != 0)
 	{
 		chan1SweepCounter -= cycles;
-		if (chan1SweepCounter <= 0)
+		while (chan1SweepCounter <= 0)
 		{
 			chan1SweepCounter = (clockSpeed/(128/chan1SweepTime))+chan1SweepCounter;
 			chanFreq[0] += (chanFreq[0]>>chan1SweepAmount)*chan1SweepDir;
@@ -174,6 +174,8 @@ void SoundEngine::updateSound(int cycles)
 				gameboy->clearSoundChannel(CHAN_1);
 			}
 		}
+        if (chanOn[0])
+            setSoundEventCycles(chan1SweepCounter);
 	}
 	for (int i=0; i<2; i++)
 	{
@@ -182,8 +184,7 @@ void SoundEngine::updateSound(int cycles)
 			if (chanEnvSweep[i] != 0)
 			{
 				chanEnvCounter[i] -= cycles;
-				if (chanEnvCounter[i] <= 0)
-				{
+				if (chanEnvCounter[i] <= 0) {
 					chanEnvCounter[i] = chanEnvSweep[i]*clockSpeed/64;
 					chanVol[i] += chanEnvDir[i];
 					if (chanVol[i] < 0)
@@ -191,19 +192,21 @@ void SoundEngine::updateSound(int cycles)
 					if (chanVol[i] > 0xF)
 						chanVol[i] = 0xF;
 				}
+                setSoundEventCycles(chanEnvCounter[i]);
 			}
 
 			if (chanUseLen[i])
 			{
 				chanLenCounter[i] -= cycles;
-				if (chanLenCounter[i] <= 0)
-				{
+				if (chanLenCounter[i] <= 0) {
 					chanOn[i] = 0;
 					if (i==0)
 						gameboy->clearSoundChannel(CHAN_1);
 					else
 						gameboy->clearSoundChannel(CHAN_2);
 				}
+                else
+                    setSoundEventCycles(chanLenCounter[i]);
 			}
 		}
 
@@ -215,34 +218,37 @@ void SoundEngine::updateSound(int cycles)
 		if (chanUseLen[2])
 		{
 			chanLenCounter[2] -= cycles;
-			if (chanLenCounter[2] <= 0)
-			{
+			if (chanLenCounter[2] <= 0) {
 				chanOn[2] = 0;
 				gameboy->clearSoundChannel(CHAN_3);
 			}
+            else
+                setSoundEventCycles(chanLenCounter[2]);
 		}
 	}
 	if (chanOn[3])
 	{
 		chanEnvCounter[3] -= cycles;
-		if (chanEnvSweep[3] != 0 && chanEnvCounter[3] <= 0)
-		{
-			chanEnvCounter[3] = chanEnvSweep[3]*clockSpeed/64;
-			chanVol[3] += chanEnvDir[3];
-			if (chanVol[3] < 0)
-				chanVol[3] = 0;
-			if (chanVol[3] > 0xF)
-				chanVol[3] = 0xF;
+		if (chanEnvSweep[3] != 0) {
+            if (chanEnvCounter[3] <= 0) {
+                chanEnvCounter[3] = chanEnvSweep[3]*clockSpeed/64;
+                chanVol[3] += chanEnvDir[3];
+                if (chanVol[3] < 0)
+                    chanVol[3] = 0;
+                if (chanVol[3] > 0xF)
+                    chanVol[3] = 0xF;
+            }
+            setSoundEventCycles(chanEnvCounter[3]);
 		}
 
-		if (chanUseLen[3])
-		{
+		if (chanUseLen[3]) {
 			chanLenCounter[3] -= cycles;
-			if (chanLenCounter[3] <= 0)
-			{
+			if (chanLenCounter[3] <= 0) {
 				chanOn[3] = 0;
 				gameboy->clearSoundChannel(CHAN_4);
 			}
+            else
+                setSoundEventCycles(chanLenCounter[3]);
 		}
 	}
 
@@ -544,6 +550,7 @@ void SoundEngine::handleSoundRegister(u8 ioReg, u8 val)
 			if (chan4FreqRatio == 0)
 				chan4FreqRatio = 0.5;
 			chan4Width = !!(val&0x8);
+            printLog("Freq %x\n", chanFreq[3]);
 			break;
 		// Start
 		case 0x23:
