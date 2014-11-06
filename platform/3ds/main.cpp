@@ -12,6 +12,8 @@
 #include "gbmanager.h"
 #include "printconsole.h"
 
+void csnd_init();
+
 int main(int argc, char* argv[])
 {
     srvInit();
@@ -20,10 +22,10 @@ int main(int argc, char* argv[])
 	hidInit(NULL);
 	gfxInit();
     fsInit();
-    CSND_initialize(NULL);
 
     consoleInitBottom();
 
+    csnd_init();
     fs_init();
     mgr_init();
 

@@ -36,6 +36,8 @@ void CSND_setchannel_enabled(u32 channel, u32 value)
 #define CSND_BUFFER_SIZE ((CYCLES_PER_FRAME / CYCLES_UNTIL_SAMPLE) * FRAMES_PER_BUFFER)
 
 
+bool csndInitialized = false;
+
 s16* bufferDat = (s16*)linearAlloc(2*CSND_BUFFER_SIZE*2);
 
 s16* buffers[2];
@@ -46,6 +48,13 @@ int framecnt;
 
 bool chanEnabled[4] = {true, true, true, true};
 
+
+void csnd_init() {
+    Result r = CSND_initialize(NULL);
+
+    csndInitialized = r == 0;
+}
+
 void initSampler() {
     buffers[0] = bufferDat;
     buffers[1] = bufferDat+CSND_BUFFER_SIZE;
@@ -54,12 +63,6 @@ void initSampler() {
     recordingBuffer = 1;
     recordingPos = 0;
     framecnt = 0;
-
-    //CSND_playsound(9, 1, CSND_ENCODING_PCM16, CSND_FREQUENCY, (u32*)buffers[playingBuffer], (u32*)buffers[playingBuffer]+CSND_BUFFER_SIZE*2-1, CSND_BUFFER_SIZE*4, 2, 0);
-
-    CSND_setchannel_playbackstate(9, 0);
-
-    CSND_sharedmemtype0_cmdupdatestate(0);
 }
 
 // Called once every 4 cycles
@@ -72,6 +75,9 @@ void addSample(s16 sample) {
 }
 
 void swapBuffers() {
+    if (!csndInitialized)
+        return;
+
     if (--framecnt <= 0) {
         framecnt = FRAMES_PER_BUFFER;
 
@@ -252,6 +258,9 @@ void SoundEngine::updateSound(int cycles)
 		}
 	}
 
+    if (!csndInitialized)
+        return;
+
     cyclesUntilSample -= cycles;
     while (cyclesUntilSample <= 0) {
         int c = CYCLES_UNTIL_SAMPLE;
@@ -431,8 +440,6 @@ void SoundEngine::handleSoundRegister(u8 ioReg, u8 val)
 				if (chan1SweepTime != 0)
 					chan1SweepCounter = clockSpeed/(128/chan1SweepTime);
 				gameboy->setSoundChannel(CHAN_1);
-
-                //CSND_playsound(0, true, CSND_ENCODING_PSG, convertFreq(freq), NULL, NULL, 0, 0, 0);
 			}
 			if (val & 0x40)
 				chanUseLen[0] = 1;
