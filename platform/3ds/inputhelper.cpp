@@ -122,17 +122,7 @@ void system_checkPolls() {
 
         }
         else if (status == APP_EXITING) {
-            mgr_save();
-            mgr_exit();
-
-            CSND_shutdown();
-
-            fsExit();
-            gfxExit();
-            hidExit();
-            aptExit();
-            srvExit();
-
+            system_cleanup();
             exit(0);
         }
 
@@ -146,4 +136,17 @@ void system_checkPolls() {
 
 void system_waitForVBlank() {
     gspWaitForVBlank();
+}
+
+void system_cleanup() {
+    mgr_save();
+    mgr_exit();
+
+    CSND_shutdown();
+
+    fsExit();
+    gfxExit();
+    hidExit();
+    aptExit();
+    srvExit();
 }

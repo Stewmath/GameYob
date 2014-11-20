@@ -49,3 +49,4 @@ int system_getMotionSensorY();
 
 void system_checkPolls();
 void system_waitForVBlank();
+void system_cleanup();

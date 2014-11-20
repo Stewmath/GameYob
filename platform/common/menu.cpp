@@ -141,6 +141,7 @@ void consoleOutputFunc(int value) {
     }
 }
 void returnToLauncherFunc(int value) {
+    system_cleanup();
     exit(0);
 }
 
@@ -389,7 +390,7 @@ SubMenu menuList[] = {
             {"Save State", stateSaveFunc, 0, {}, 0, MENU_ALL},
             {"Load State", stateLoadFunc, 0, {}, 0, MENU_ALL},
             {"Delete State", stateDeleteFunc, 0, {}, 0, MENU_ALL},
-            {"Quit to Launcher", returnToLauncherFunc, 0, {}, 0, MENU_DS},
+            {"Quit to Launcher", returnToLauncherFunc, 0, {}, 0, MENU_DS | MENU_3DS},
             {"Exit without saving", exitNoSaveFunc, 0, {}, 0, MENU_ALL},
             {"Suspend", suspendFunc, 0, {}, 0, MENU_ALL}
         }
