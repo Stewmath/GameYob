@@ -1,3 +1,5 @@
+# Type "make 3ds", "make cia", or "make [3dsx]" to build.
+
 #---------------------------------------------------------------------------------
 .SUFFIXES:
 #---------------------------------------------------------------------------------
@@ -6,13 +8,14 @@ ifeq ($(strip $(DEVKITARM)),)
 $(error "Please set DEVKITARM in your environment. export DEVKITARM=<path to>devkitARM")
 endif
 
-ifeq ($(strip $(CTRULIB)),)
-# THIS IS TEMPORARY - in the future it should be at $(DEVKITPRO)/libctru
-$(error "Please set CTRULIB in your environment. export CTRULIB=<path to>libctru")
-endif
-
 TOPDIR ?= $(CURDIR)
 include $(DEVKITARM)/3ds_rules
+
+
+ifeq ($(strip $(CTRULIB)),)
+# This directory should be set by 3ds_rules
+$(error "Please set CTRULIB in your environment. export CTRULIB=<path to>libctru")
+endif
 
 
 #---------------------------------------------------------------------------------
@@ -28,6 +31,12 @@ BUILD		:=	build
 SOURCES		:=	. ../common
 DATA		:=	data
 INCLUDES	:=	include ../common/include
+
+
+APP_TITLE		:= GameYob 3DS `git describe --always --abbrev=4`
+APP_DESCRIPTION := Gameboy & Gameboy Color emulator
+APP_AUTHOR		:= Drenn
+APP_ICON		:= $(TOPDIR)/icon.png
 
 
 EMBEDDED_ROM := false
@@ -160,7 +169,7 @@ DEPENDS	:=	$(OFILES:.o=.d)
 
 all: $(OUTPUT).$(OUTPUT_FORMAT)
 
-$(OUTPUT).3dsx	:	$(OUTPUT).elf
+$(OUTPUT).3dsx	:	$(OUTPUT).elf $(OUTPUT).smdh
 $(OUTPUT).elf	:	$(OFILES)
 
 $(OUTPUT).cia: $(OUTPUT).elf
@@ -175,9 +184,12 @@ $(OUTPUT).3ds: $(OUTPUT).elf $(TOPDIR)/resources/gw_workaround.rsf $(TOPDIR)/res
 	makerom -f cci -o $(OUTPUT).3ds -rsf $(TOPDIR)/resources/gw_workaround.rsf -target d -exefslogo -elf $(TARGET)_stripped.elf -icon $(TOPDIR)/resources/icon.icn -banner $(TOPDIR)/resources/banner.bnr
 	@echo "built ... $(notdir $@)"
 
-# Always rebuild version.cpp
+# Always rebuild version.cpp, smdh file
 .FORCE:
+
 version.o: .FORCE
+
+$(OUTPUT).smdh: .FORCE
 
 #---------------------------------------------------------------------------------
 # you need a rule like this for each extension you use as binary data 
