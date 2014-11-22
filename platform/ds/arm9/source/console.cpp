@@ -56,6 +56,8 @@ void printLog(const char *format, ...) {
 
     if (consoleDebugOutput)
         viprintf(format, args);
+
+    va_end(args);
 }
 
 
@@ -223,6 +225,7 @@ void iprintfColored(int palette, const char *format, ...) {
 
     char s[100];
     vsiprintf(s, format, args);
+    va_end(args);
 
     u16* dest = BG_MAP_RAM_SUB(22)+y*32+x;
     for (uint i=0; i<strlen(s); i++) {

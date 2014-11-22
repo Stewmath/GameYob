@@ -46,12 +46,14 @@ void iprintfColored(int palette, const char* format, ...) {
     va_start(args, format);
 
     vprintf(format, args);
+    va_end(args);
 }
 void printLog(const char* format, ...) {
     va_list args;
     va_start(args, format);
 
     vprintf(format, args);
+    va_end(args);
 }
 
 int checkRumble() {
