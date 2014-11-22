@@ -42,6 +42,7 @@ void iprintfColored(int palette, const char* format, ...) {
     va_start(args, format);
 
     vprintf(format, args);
+    va_end(args);
 }
 void printLog(const char* format, ...) {
     if (consoleDebugOutput) {
@@ -49,6 +50,7 @@ void printLog(const char* format, ...) {
         va_start(args, format);
 
         vprintf(format, args);
+        va_end(args);
     }
 }
 void printAndWait(const char* format, ...) {
@@ -56,6 +58,7 @@ void printAndWait(const char* format, ...) {
     va_start(args, format);
 
     vprintf(format, args);
+    va_end(args);
 
     inputUpdateVBlank();
     while (!keyJustPressed(KEY_A)) {

@@ -198,6 +198,7 @@ void file_printf(FileHandle* fileHandle, const char* format, ...) {
     va_start(args, format);
 
     vsnprintf(buffer, 512, format, args);
+    va_end(args);
 
     file_write(buffer, 1, strlen(buffer), fileHandle);
 }

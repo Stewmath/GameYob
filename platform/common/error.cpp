@@ -8,6 +8,7 @@ void fatalerr(const char* format, ...) {
     va_start(args, format);
 
     vprintf(format, args);
+    va_end(args);
 
     printf("\n\nPlease restart GameYob.\n");
 

@@ -76,6 +76,7 @@ void file_printf(FileHandle* h, const char* s, ...) {
 
     char buf[512];
     vsprintf(buf, s, args);
+    va_end(args);
 
     fputs(buf, h->file);
 }
