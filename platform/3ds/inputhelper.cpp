@@ -129,12 +129,13 @@ void system_checkPolls() {
         gspWaitForVBlank();
     }
 
-    gfxFlushBuffers();
+    // gfxFlushBuffers();
     gfxMySwapBuffers();
     consoleCheckFramebuffers();
 }
 
 void system_waitForVBlank() {
+    gfxFlushBuffers();
     gspWaitForVBlank();
 }
 
