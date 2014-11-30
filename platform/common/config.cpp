@@ -319,9 +319,9 @@ void updateKeyConfigChooser() {
         if (option == NUM_BINDABLE_BUTTONS-1)
             option = -1;
 #if defined(_3DS)
-        else if(option > 10 && option < 13) //Skip nonexistant keys
+        else if(option == 11) //Skip nonexistant keys
             option = 14;
-        else if(option > 14 && option < 23)
+        else if(option == 15)
             option = 24;
 #endif
         else
@@ -332,9 +332,9 @@ void updateKeyConfigChooser() {
         if (option == -1)
             option = NUM_BINDABLE_BUTTONS-1;
 #if defined(_3DS)
-        else if(option > 10 && option < 13) //Skip nonexistant keys
+        else if(option == 14) //Skip nonexistant keys
             option = 11;
-        else if(option > 14 && option < 23)
+        else if(option == 24)
             option = 15;
 #endif
         else
