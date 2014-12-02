@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <vector>
 #include <string.h>
 #include <stdlib.h>
@@ -133,19 +134,40 @@ void writeConfigFile() {
 const char* gbKeyNames[] = {"-","A","B","Left","Right","Up","Down","Start","Select",
     "Menu","Menu/Pause","Save","Autofire A","Autofire B", "Fast Forward", "FF Toggle", "Scale","Reset"};
 const char* dsKeyNames[] = {"A","B","Select","Start","Right","Left","Up","Down",
-    "R","L","X","Y"};
+    "R","L","X","Y","","","ZL","ZR","","","","","","","","","C-Right","C-Left","C-Up","C-Down","Pad-Right","Pad-Left","Pad-Up","Pad-Down"};
 
 int keyMapping[NUM_FUNC_KEYS];
-
+#if defined(DS)
+#define NUM_BINDABLE_BUTTONS 12
 struct KeyConfig {
     char name[32];
     int funcKeys[12];
 };
+#elif defined(_3DS)
+#define NUM_BINDABLE_BUTTONS 32
+struct KeyConfig {
+    char name[32];
+    int funcKeys[32];
+};
+#endif
+
+#if defined(DS)
 KeyConfig defaultKeyConfig = {
     "Main",
     {FUNC_KEY_A,FUNC_KEY_B,FUNC_KEY_SELECT,FUNC_KEY_START,FUNC_KEY_RIGHT,FUNC_KEY_LEFT,FUNC_KEY_UP,FUNC_KEY_DOWN,
         FUNC_KEY_MENU,FUNC_KEY_FAST_FORWARD,FUNC_KEY_START,FUNC_KEY_SELECT}
 };
+#elif defined(_3DS)
+KeyConfig defaultKeyConfig = {
+    "Main",
+    {FUNC_KEY_A,FUNC_KEY_B,FUNC_KEY_SELECT,FUNC_KEY_START,FUNC_KEY_RIGHT,FUNC_KEY_LEFT,FUNC_KEY_UP,FUNC_KEY_DOWN,
+        FUNC_KEY_MENU,FUNC_KEY_FAST_FORWARD,FUNC_KEY_START,FUNC_KEY_SELECT,
+        FUNC_KEY_NONE,FUNC_KEY_NONE,
+        FUNC_KEY_NONE,FUNC_KEY_NONE,FUNC_KEY_NONE,FUNC_KEY_NONE,FUNC_KEY_NONE,FUNC_KEY_NONE,FUNC_KEY_NONE,FUNC_KEY_NONE,
+        FUNC_KEY_RIGHT,FUNC_KEY_LEFT,FUNC_KEY_UP,FUNC_KEY_DOWN,FUNC_KEY_RIGHT,FUNC_KEY_LEFT,FUNC_KEY_UP,FUNC_KEY_DOWN}
+};
+#endif
+
 
 std::vector<KeyConfig> keyConfigs;
 unsigned int selectedKeyConfig=0;
@@ -154,7 +176,7 @@ void loadKeyConfig() {
     KeyConfig* keyConfig = &keyConfigs[selectedKeyConfig];
     for (int i=0; i<NUM_FUNC_KEYS; i++)
         keyMapping[i] = 0;
-    for (int i=0; i<12; i++) {
+    for (int i=0; i<NUM_BINDABLE_BUTTONS; i++) {
         keyMapping[keyConfig->funcKeys[i]] |= BIT(i);
     }
 }
@@ -174,7 +196,7 @@ void controlsParseConfig(char* line2) {
             KeyConfig* config = &keyConfigs.back();
             strncpy(config->name, name, 32);
             config->name[31] = '\0';
-            for (int i=0; i<12; i++)
+            for (int i=0; i<NUM_BINDABLE_BUTTONS; i++)
                 config->funcKeys[i] = FUNC_KEY_NONE;
         }
         return;
@@ -188,7 +210,7 @@ void controlsParseConfig(char* line2) {
         }
         else {
             int dsKey = -1;
-            for (int i=0; i<12; i++) {
+            for (int i=0; i<NUM_BINDABLE_BUTTONS; i++) {
                 if (strcasecmp(line, dsKeyNames[i]) == 0) {
                     dsKey = i;
                     break;
@@ -222,7 +244,7 @@ void controlsPrintConfig(FileHandle* file) {
     file_printf(file, "config=%d\n", selectedKeyConfig);
     for (unsigned int i=0; i<keyConfigs.size(); i++) {
         file_printf(file, "(%s)\n", keyConfigs[i].name);
-        for (int j=0; j<12; j++) {
+        for (int j=0; j<NUM_BINDABLE_BUTTONS; j++) {
             file_printf(file, "%s=%s\n", dsKeyNames[j], gbKeyNames[keyConfigs[i].funcKeys[j]]);
         }
     }
@@ -244,7 +266,13 @@ void redrawKeyConfigChooser() {
 
     iprintf("       Button   Function\n\n");
 
-    for (int i=0; i<12; i++) {
+    for (int i=0; i<NUM_BINDABLE_BUTTONS; i++) {
+#if defined(_3DS)
+       // These button bits aren't assigned to anything, so no strings for them
+       if((i > 15 && i < 24) || i == 12 || i == 13)
+            continue;
+#endif
+
         int len = 11-strlen(dsKeyNames[i]);
         while (len > 0) {
             iprintf(" ");
@@ -255,7 +283,7 @@ void redrawKeyConfigChooser() {
         else
             iprintf("  %s | %s  \n", dsKeyNames[i], gbKeyNames[config->funcKeys[i]]);
     }
-    iprintf("\n\n\n\nPress X to make a new config.");
+    iprintf("\nPress X to make a new config.");
     if (selectedKeyConfig != 0) /* can't erase the default */ {
         iprintf("\n\nPress Y to delete this config.");
     }
@@ -289,15 +317,27 @@ void updateKeyConfigChooser() {
         }
     }
     else if (keyPressedAutoRepeat(KEY_DOWN)) {
-        if (option == 11)
+        if (option == NUM_BINDABLE_BUTTONS-1)
             option = -1;
+#if defined(_3DS)
+        else if(option == 11) //Skip nonexistant keys
+            option = 14;
+        else if(option == 15)
+            option = 24;
+#endif
         else
             option++;
         redraw = true;
     }
     else if (keyPressedAutoRepeat(KEY_UP)) {
         if (option == -1)
+            option = NUM_BINDABLE_BUTTONS-1;
+#if defined(_3DS)
+        else if(option == 14) //Skip nonexistant keys
             option = 11;
+        else if(option == 24)
+            option = 15;
+#endif
         else
             option--;
         redraw = true;
