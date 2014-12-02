@@ -297,7 +297,7 @@ void Gameboy::gameboyCheckInput() {
     }
     if (keyPressed(mapFuncKey(FUNC_KEY_AUTO_B))) {
         if (autoFireCounterB <= 0) {
-            buttonsPressed &= (0xFF ^ GB_A);
+            buttonsPressed &= (0xFF ^ GB_B);
             if (!(ioRam[0x00] & 0x20))
                 requestInterrupt(INT_JOYPAD);
             autoFireCounterB = 2;
