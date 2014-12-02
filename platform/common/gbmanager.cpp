@@ -202,8 +202,6 @@ void mgr_save() {
 void mgr_updateVBlank() {
     drawScreen();
 
-    if (!(fastForwardMode || fastForwardKey))
-        system_waitForVBlank();
     system_checkPolls();
 
     if (gameboy && !gameboy->isGameboyPaused())

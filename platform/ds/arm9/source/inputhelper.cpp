@@ -22,6 +22,7 @@
 #include "gbs.h"
 #include "filechooser.h"
 #include "romfile.h"
+#include "gbmanager.h"
 
 int keysPressed=0;
 int lastKeysPressed=0;
@@ -151,4 +152,9 @@ void system_checkPolls() {
 
 void system_waitForVBlank() {
     swiWaitForVBlank();
+}
+
+void system_cleanup() {
+    mgr_save();
+    mgr_exit();
 }
