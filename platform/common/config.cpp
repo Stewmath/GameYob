@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <vector>
 #include <string.h>
+#include <stdlib.h>
 #include "io.h"
 #include "config.h"
 #include "inputhelper.h"
