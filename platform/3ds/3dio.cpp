@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include <stdarg.h>
+#include <stdlib.h>
 #include <3ds.h>
+#include <3ds/types.h>
+#include <3ds/svc.h>
 #include <cwchar>
 #include "io.h"
 #include "error.h"
