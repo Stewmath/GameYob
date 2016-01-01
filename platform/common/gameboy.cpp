@@ -1,5 +1,10 @@
 #ifdef DS
-#include "libfat_fake.h"
+extern "C" {
+#include "libfat/partition.h"
+#include "libfat/cache.h"
+#include "libfat/fatfile.h"
+#include "libfat/file_allocation_table.h"
+}
 #include "common.h"
 #endif
 #ifdef _3DS
@@ -11,6 +16,7 @@
 #include <stdio.h>
 #include <dirent.h>
 #include <unistd.h>
+#include "error.h"
 #include "gbprinter.h"
 #include "gameboy.h"
 #include "gbgfx.h"
@@ -45,7 +51,6 @@ Gameboy::Gameboy() : hram(highram+0xe00), ioRam(highram+0xf00) {
 
     // private
     resettingGameboy = false;
-    wroteToSramThisFrame = false;
     framesSinceAutosaveStarted=0;
 
     externRam = NULL;
@@ -501,7 +506,8 @@ int Gameboy::runEmul()
             if (!halt && !opTriggeredInterrupt)
                 extraCycles += runOpcode(4);
 
-            extraCycles += handleInterrupts(interruptTriggered);
+            if (interruptTriggered)
+                extraCycles += handleInterrupts(interruptTriggered);
             interruptTriggered = ioRam[0x0F] & ioRam[0xFF];
         }
 
@@ -863,30 +869,39 @@ int Gameboy::loadSave(int saveId)
     }
 
     // Get the save file's sectors on the sd card.
-    // I do this by writing a byte, then finding the area of the cache marked dirty.
 
 #ifdef DS
-    if (autoSavingEnabled) {
+    if (true || autoSavingEnabled) {
         flushFatCache();
         devoptab_t* devops = (devoptab_t*)GetDeviceOpTab ("sd");
         PARTITION* partition = (PARTITION*)devops->deviceData;
-        CACHE* cache = partition->cache;
 
-        memset(saveFileSectors, -1, sizeof(saveFileSectors));
-        for (int i=0; i<numRamBanks*0x2000/512; i++) {
-            file_seek(saveFile, i*512, SEEK_SET);
-            file_putc(externRam[i*512], saveFile);
-            bool found=false;
-            for (int j=0; j<FAT_CACHE_SIZE; j++) {
-                if (cache->cacheEntries[j].dirty) {
-                    saveFileSectors[i] = cache->cacheEntries[j].sector + (i%(cache->sectorsPerPage));
-                    cache->cacheEntries[j].dirty = false;
-                    found = true;
-                    break;
+        fatBytesPerSector = partition->bytesPerSector;
+
+        FILE_STRUCT* firstFatFile = partition->firstOpenFile;
+        FILE_STRUCT* fatFile = firstFatFile;
+
+        // Identify the file by the current_position variable
+        file_seek(saveFile, 13, SEEK_SET);
+
+        while (fatFile != NULL && fatFile->currentPosition != 13) {
+            fatFile = fatFile->nextOpenFile;
+        }
+
+        if (fatFile != NULL) {
+            file_seek(saveFile, 0, SEEK_SET);
+            FILE_POSITION position = fatFile->rwPosition;
+            if (position.byte != 0)
+                fatalerr("Bad assumption in autosaving code");
+
+            for (int i=0; i<0x2000*numRamBanks/partition->bytesPerSector; i++) {
+                if (position.sector >= partition->sectorsPerCluster) {
+                    position.sector = 0;
+                    position.cluster = _FAT_fat_nextCluster(partition, position.cluster);
                 }
-            }
-            if (!found) {
-                printLog("couldn't find save file sector\n");
+                saveFileSectors[i] = _FAT_fat_clusterToSector(partition, position.cluster) + position.sector;
+                position.sector++;
+                printLog("%d\n", saveFileSectors[i]);
             }
         }
     }
@@ -912,6 +927,7 @@ int Gameboy::saveGame()
     }
 
     flushFatCache();
+    memset(dirtySectors, 0, sizeof(dirtySectors));
 
     return 0;
 }
@@ -921,29 +937,38 @@ void Gameboy::gameboySyncAutosave() {
         return;
 
     numSaveWrites = 0;
-    wroteToSramThisFrame = false;
 
+    int totalSectors = 0;
+
+    int startSector = -1;
     int numSectors = 0;
-    // iterate over each 512-byte sector
-    for (int i=0; i<numRamBanks*0x2000/512; i++) {
+    // iterate over each sector
+    for (int i=0; i<numRamBanks*0x2000/fatBytesPerSector; i++) {
         if (dirtySectors[i]) {
-            dirtySectors[i] = false;
-
-            // If only 1 bank, it seems more efficient to write multiple sectors 
-            // at once - at least, on the Acekard 2i.
-            if (numRamBanks == 1) {
-                writeSaveFileSectors(i/8*8, 8);
-                for (int j=i; j<(i/8*8)+8; j++)
-                    dirtySectors[j] = false;
+            if (startSector == -1) {
+                startSector = i;
+                numSectors = 1;
             }
             else {
-                // For bigger saves, writing one sector at a time seems to work better.
-                writeSaveFileSectors(i, 1);
-                numSectors++;
+                if (i == 0 || (saveFileSectors[i-1]+1 == saveFileSectors[i])) {
+                    numSectors++;
+                }
+                else {
+                    writeSaveFileSectors(startSector, numSectors);
+                    startSector = -1;
+                    numSectors = 0;
+                }
             }
+            dirtySectors[i] = false;
+
+            totalSectors++;
         }
     }
-    printLog("SAVE %d sectors\n", numSectors);
+
+    if (startSector != -1)
+        writeSaveFileSectors(startSector, numSectors);
+
+    printLog("SAVE %d sectors\n", totalSectors);
     flushFatCache(); // This should do nothing, unless the RTC was written to.
 
     framesSinceAutosaveStarted = 0;
@@ -955,11 +980,10 @@ void Gameboy::updateAutosave() {
         framesSinceAutosaveStarted++;
 
     if (framesSinceAutosaveStarted >= 120 ||     // Executes when sram is written to for 120 consecutive frames, or
-        (!saveModified && wroteToSramThisFrame)) { // when a full frame has passed since sram was last written to.
+        (!saveModified)) { // when a full frame has passed since sram was last written to.
         gameboySyncAutosave();
     }
     if (saveModified && autoSavingEnabled) {
-        wroteToSramThisFrame = true;
         autosaveStarted = true;
         saveModified = false;
     }

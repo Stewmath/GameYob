@@ -8,7 +8,14 @@
 struct FileHandle;
 
 #ifdef C_IO_FUNCTIONS
+
 #define DirStruct DIR
+
+struct FileHandle {
+    FILE* file;
+    char flags[10];
+};
+
 #else
 struct DirStruct;
 #endif

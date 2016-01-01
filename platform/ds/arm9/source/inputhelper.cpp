@@ -1,6 +1,10 @@
+extern "C" {
+#include "libfat/cache.h"
+#include "libfat/partition.h"
+}
+
 #include <nds.h>
 #include <fat.h>
-#include "libfat_fake.h"
 #include "common.h"
 
 #include <vector>

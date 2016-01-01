@@ -404,7 +404,7 @@ SubMenu menuList[] = {
             {"Rumble Pak", setRumbleFunc, 4, {"Off","Low","Mid","High"}, 2, MENU_DS},
             {"Console Output", consoleOutputFunc, 4, {"Off","Time","FPS+Time","Debug"}, 0, MENU_ALL},
             {"GB Printer", printerEnableFunc, 2, {"Off","On"}, 1, MENU_ALL},
-            {"Autosaving", setAutoSaveFunc, 1, {"Off","On"}, 1, MENU_DS},
+            {"Autosaving", setAutoSaveFunc, 2, {"Off","On"}, 1, MENU_DS},
             {"Save Settings", saveSettingsFunc, 0, {}, 0, MENU_ALL}
         }
     },

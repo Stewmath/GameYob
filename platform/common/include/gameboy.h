@@ -319,23 +319,23 @@ class Gameboy {
         u16 dmaLength;
         int dmaMode;
 
+        int fatBytesPerSector;
+
         bool saveModified;
         bool dirtySectors[MAX_SRAM_SIZE/512];
         int numSaveWrites;
         bool autosaveStarted;
+        int saveFileSectors[MAX_SRAM_SIZE/512];
 
         int rumbleValue;
         int lastRumbleValue;
 
-        bool wroteToSramThisFrame;
         int framesSinceAutosaveStarted;
 
         void (Gameboy::*writeFunc)(u16, u8);
         u8 (Gameboy::*readFunc)(u16);
 
         bool suspendStateExists;
-
-        int saveFileSectors[MAX_SRAM_SIZE/512];
 
 
         // mbc.cpp

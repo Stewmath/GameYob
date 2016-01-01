@@ -8,11 +8,6 @@
 
 #ifdef C_IO_FUNCTIONS
 
-struct FileHandle {
-    FILE* file;
-    char flags[10];
-};
-
 DIR* directory = 0;
 
 FileHandle* file_open(const char* filename, const char* params) {

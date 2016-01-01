@@ -1,5 +1,8 @@
 #ifdef DS
-#include "libfat_fake.h"
+extern "C" {
+#include "libfat/disc.h"
+#include "libfat/partition.h"
+}
 #endif
 
 #include <stdio.h>
@@ -59,7 +62,7 @@ void Gameboy::writeSram(u16 addr, u8 val) {
             file_putc(val, saveFile);
             */
             saveModified = true;
-            dirtySectors[pos/512] = true;
+            dirtySectors[pos/fatBytesPerSector] = true;
             numSaveWrites++;
         }
     }
@@ -610,8 +613,7 @@ void Gameboy::writeSaveFileSectors(int startSector, int numSectors) {
     }
     devoptab_t* devops = (devoptab_t*)GetDeviceOpTab ("sd");
     PARTITION* partition = (PARTITION*)devops->deviceData;
-    CACHE* cache = partition->cache;
 
-	_FAT_disc_writeSectors(cache->disc, saveFileSectors[startSector], numSectors, externRam+startSector*512);
+	_FAT_disc_writeSectors(partition->disc, saveFileSectors[startSector], numSectors, externRam+startSector*fatBytesPerSector);
 #endif
 }
