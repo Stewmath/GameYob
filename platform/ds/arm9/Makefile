@@ -28,8 +28,7 @@ ARCH	:=	# -mthumb -mthumb-interwork	#This may cause some problem when there are 
 
 DEBUG	:=	-g
 
-# Due to odd errors I needed to add -fpermissive for devkitARM r42
-CFLAGS	:=	-Wall -Wno-psabi -DNO_VIZ -fpermissive \
+CFLAGS	:=	-Wall -Wno-psabi -DNO_VIZ \
  			-march=armv5te -mtune=arm946e-s -fomit-frame-pointer\
 			-ffast-math -O3 $(ARCH) $(DEBUG) \
 			-DVERSION_STRING=\"`git describe --always --abbrev=4`\"\
