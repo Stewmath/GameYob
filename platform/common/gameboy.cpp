@@ -936,11 +936,14 @@ void Gameboy::gameboySyncAutosave() {
     if (!autosaveStarted)
         return;
 
+    flushFatCache();
+
     numSaveWrites = 0;
 
     int totalSectors = 0;
 
     int startSector = -1;
+    int lastSector = -2;
     int numSectors = 0;
     // iterate over each sector
     for (int i=0; i<numRamBanks*0x2000/fatBytesPerSector; i++) {
@@ -950,7 +953,7 @@ void Gameboy::gameboySyncAutosave() {
                 numSectors = 1;
             }
             else {
-                if (i == 0 || (saveFileSectors[i-1]+1 == saveFileSectors[i])) {
+                if (lastSector == i-1 && saveFileSectors[i-1]+1 == saveFileSectors[i]) {
                     numSectors++;
                 }
                 else {
@@ -962,6 +965,8 @@ void Gameboy::gameboySyncAutosave() {
             dirtySectors[i] = false;
 
             totalSectors++;
+
+            lastSector = i;
         }
     }
 
@@ -969,7 +974,10 @@ void Gameboy::gameboySyncAutosave() {
         writeSaveFileSectors(startSector, numSectors);
 
     printLog("SAVE %d sectors\n", totalSectors);
-    flushFatCache(); // This should do nothing, unless the RTC was written to.
+
+    devoptab_t* devops = (devoptab_t*)GetDeviceOpTab ("sd");
+    PARTITION* partition = (PARTITION*)devops->deviceData;
+    _FAT_cache_invalidate(partition->cache);
 
     framesSinceAutosaveStarted = 0;
     autosaveStarted = false;
