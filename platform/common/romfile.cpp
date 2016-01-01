@@ -24,12 +24,12 @@ RomFile::RomFile(const char* f) {
 
     romFile=NULL;
 #ifdef DS
-        if (__dsimode)
-            maxLoadedRomBanks = 512; // 8 megabytes
-        else
-            maxLoadedRomBanks = 128; // 2 megabytes
+    if (__dsimode)
+        maxLoadedRomBanks = 512; // 8 megabytes
+    else
+        maxLoadedRomBanks = 128; // 2 megabytes
 #else
-        maxLoadedRomBanks = 512;
+    maxLoadedRomBanks = 512;
 #endif
 
     strcpy(filename, f);
@@ -193,7 +193,7 @@ RomFile::~RomFile() {
 
 
 void RomFile::loadRomBank(int romBank) {
-    if (bankSlotIDs[romBank] != -1 || numRomBanks <= numLoadedRomBanks || romBank == 0) {
+    if (bankSlotIDs[romBank] != -1) {
         romSlot1 = romBankSlots+bankSlotIDs[romBank]*0x4000;
         return;
     }
@@ -211,8 +211,6 @@ void RomFile::loadRomBank(int romBank) {
     gameboy->getCheatEngine()->applyGGCheatsToBank(romBank);
 
     romSlot1 = romBankSlots+slot*0x4000;
-
-    loadBios("\0");
 }
 
 bool RomFile::isRomBankLoaded(int bank) {
