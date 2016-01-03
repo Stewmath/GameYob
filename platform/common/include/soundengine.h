@@ -72,6 +72,7 @@ class SoundEngine {
 #ifdef DS
         int pcmVals[16];
         u8* sampleData;
+        u8* sampleDataAlloc;
 
         volatile SharedData* sharedPtr;
 #endif

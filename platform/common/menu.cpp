@@ -359,6 +359,10 @@ void setAutoSaveFunc(int value) {
         unmuteSND();
 }
 
+void localLinkFunc(int value) {
+    mgr_startGb2("");
+}
+
 struct MenuOption {
     const char* name;
     void (*function)(int);
@@ -454,16 +458,19 @@ SubMenu menuList[] = {
             {"Channel 4", chan4Func, 2, {"Off","On"}, 1, MENU_ALL}
         }
     },
-#ifdef NIFI
     {
         "Linking",
-        2,
+        3,
         {
+#ifdef DS
             {"Link to DS", (void (*)(int))nifiInterLinkMenu, 0, {}, 0, MENU_DS},
-            {"Swap Focus", (void (*)(int))mgr_swapFocus, 0, {}, 0, MENU_DS}
+#else
+            {"Stub", NULL, 0, {}, 0, 0},
+#endif
+            {"Local Link", localLinkFunc, 0, {}, 0, MENU_ALL},
+            {"Swap Focus", (void (*)(int))mgr_swapFocus, 0, {}, 0, MENU_ALL},
         }
     }
-#endif
 };
 const int numMenus = sizeof(menuList)/sizeof(SubMenu);
 

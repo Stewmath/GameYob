@@ -134,7 +134,7 @@ void writeConfigFile() {
 #endif
 
 const char* gbKeyNames[] = {"-","A","B","Left","Right","Up","Down","Start","Select",
-    "Menu","Menu/Pause","Save","Autofire A","Autofire B", "Fast Forward", "FF Toggle", "Scale","Reset"};
+    "Menu","Menu/Pause","Save","Autofire A","Autofire B", "Fast Forward", "FF Toggle", "Scale","Reset","Swap Focus"};
 const char* dsKeyNames[] = {"A","B","Select","Start","Right","Left","Up","Down",
     "R","L","X","Y","","","ZL","ZR","","","","","","","","","C-Right","C-Left","C-Up","C-Down","Pad-Right","Pad-Left","Pad-Up","Pad-Down"};
 
@@ -186,6 +186,7 @@ void loadKeyConfig() {
 void controlsParseConfig(char* line2) {
     char line[100];
     strncpy(line, line2, 100);
+    line[99] = '\0';
     while (strlen(line) > 0 && (line[strlen(line)-1] == '\n' || line[strlen(line)-1] == ' '))
         line[strlen(line)-1] = '\0';
     if (line[0] == '(') {
@@ -465,6 +466,8 @@ int mapFuncKey(int funcKey) {
             return 0;
         case FUNC_KEY_RESET:
             return 0;
+        case FUNC_KEY_SWAPFOCUS:
+            return SDLK_w;
     }
     return 0;
 }

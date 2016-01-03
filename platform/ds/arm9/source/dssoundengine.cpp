@@ -37,13 +37,14 @@ inline void FIFO_SEND(u32 message) {
 
 SoundEngine::SoundEngine(Gameboy* g) {
     setGameboy(g);
-    sampleData = (u8*)memUncached(malloc(0x20));
+    sampleDataAlloc = (u8*)malloc(0x20);
+    sampleData = (u8*)memUncached(sampleDataAlloc);
 
     unmute();
 }
 
 SoundEngine::~SoundEngine() {
-    free(sampleData);
+    free(sampleDataAlloc);
 }
 
 void SoundEngine::setGameboy(Gameboy* g) {

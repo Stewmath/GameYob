@@ -127,6 +127,8 @@ void Gameboy::init()
         gbRegs.pc.w = 0x100;
     }
 
+    emuRet = 0;
+
     scanlineCounter = 456*(doubleSpeed?2:1);
     phaseCounter = 456*153;
     dividerCounter = 256;
@@ -141,6 +143,7 @@ void Gameboy::init()
     soundCycles = 0;
     cyclesToExecute = 0;
     cycleToSerialTransfer = -1;
+    cycleCount = 0;
 
     interruptTriggered = 0;
     gameboyFrameCounter = 0;
@@ -340,6 +343,8 @@ void Gameboy::gameboyCheckInput() {
 void Gameboy::gameboyUpdateVBlank() {
     gameboyFrameCounter++;
 
+    cyclesSinceVBlank = 0;
+
     gameboy->getSoundEngine()->soundUpdateVBlank();
 
     if (!gbsMode) {
@@ -375,11 +380,13 @@ void Gameboy::resetGameboy() {
 
 int Gameboy::runEmul()
 {
-    int emuRet = 0;
+    emuRet = 0;
     memcpy(&g_gbRegs, &gbRegs, sizeof(Registers));
 
     if (cycleToSerialTransfer != -1)
         setEventCycles(cycleToSerialTransfer);
+    if (mgr_isExternalClockGb(this))
+        setEventCycles(linkedGameboy->cycleCount - cycleCount);
 
     for (;;)
     {
@@ -398,11 +405,12 @@ int Gameboy::runEmul()
         extraCycles=0;
 
         cyclesSinceVBlank += cycles;
+        cycleCount += cycles>>doubleSpeed;
 
         // For external clock
         if (cycleToSerialTransfer != -1) {
-            if (cyclesSinceVBlank < cycleToSerialTransfer)
-                setEventCycles(cycleToSerialTransfer - cyclesSinceVBlank);
+            if (cycleCount < cycleToSerialTransfer)
+                setEventCycles(cycleCount - cyclesSinceVBlank);
             else {
                 cycleToSerialTransfer = -1;
 
@@ -420,6 +428,8 @@ int Gameboy::runEmul()
                     requestInterrupt(INT_SERIAL);
                     ioRam[0x02] &= ~0x80;
                 }
+
+                linkedGameboy->ioRam[0x02] &= ~0x80;
             }
         }
         // For internal clock
@@ -428,9 +438,14 @@ int Gameboy::runEmul()
             if (serialCounter <= 0) {
                 serialCounter = 0;
                 if (linkedGameboy != NULL) {
-                    linkedGameboy->cycleToSerialTransfer = cyclesSinceVBlank;
-                    mgr_setInternalClockGb(this);
+                    linkedGameboy->cycleToSerialTransfer = cycleCount;
+//                     mgr_setInternalClockGb(this);
                     emuRet |= RET_LINK;
+
+//                     if (isMainGameboy())
+//                         printLog("Main: sent packet\n");
+//                     else
+//                         printLog("Other: sent packet\n");
                     // Execution will stop here, and this gameboy's SB will be 
                     // updated when the other gameboy runs to the appropriate 
                     // cycle.
@@ -441,10 +456,16 @@ int Gameboy::runEmul()
                 else
                     ioRam[0x01] = 0xff;
                 requestInterrupt(INT_SERIAL);
-                ioRam[0x02] &= ~0x80;
             }
             else
                 setEventCycles(serialCounter);
+        }
+        // External clock gameboy shouldn't get ahead of the internal clock
+        if (mgr_isExternalClockGb(this)) {
+            if (linkedGameboy->cycleCount <= cycleCount)
+                emuRet |= RET_LINK;
+            else
+                setEventCycles(linkedGameboy->cycleCount - cycleCount);
         }
 
         updateTimers(cycles);
@@ -543,7 +564,6 @@ inline int Gameboy::updateLCD(int cycles)
         phaseCounter -= cycles;
         if (phaseCounter <= 0) {
             phaseCounter += CYCLES_PER_FRAME<<doubleSpeed;
-            cyclesSinceVBlank=0;
             // Though not technically vblank, this is a good time to check for 
             // input and whatnot.
             gameboyUpdateVBlank();
@@ -634,7 +654,6 @@ inline int Gameboy::updateLCD(int cycles)
                         if (ioRam[0x41]&0x10)
                             requestInterrupt(INT_LCD);
 
-                        cyclesSinceVBlank = scanlineCounter - (456<<doubleSpeed);
                         gameboyUpdateVBlank();
                         setEventCycles(scanlineCounter);
                         return RET_VBLANK;
@@ -722,8 +741,6 @@ void Gameboy::setRomFile(RomFile* r) {
 }
 
 void Gameboy::unloadRom() {
-    doAtVBlank(clearGFX);
-
     gameboySyncAutosave();
     if (saveFile != NULL)
         file_close(saveFile);
@@ -904,6 +921,7 @@ int Gameboy::saveGame()
 }
 
 void Gameboy::gameboySyncAutosave() {
+#ifdef DS
     if (!autosaveStarted || saveFile == NULL)
         return;
 
@@ -950,6 +968,7 @@ void Gameboy::gameboySyncAutosave() {
 
     framesSinceAutosaveStarted = 0;
     autosaveStarted = false;
+#endif
 }
 
 void Gameboy::updateAutosave() {

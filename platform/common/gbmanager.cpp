@@ -18,6 +18,7 @@ Gameboy* gb2 = NULL;
 Gameboy* gbUno = NULL;
 Gameboy* gbDuo = NULL;
 
+Gameboy* hostGb = NULL;
 
 RomFile* romFile = NULL;
 
@@ -39,22 +40,44 @@ void mgr_init() {
 }
 
 void mgr_runFrame() {
-    int ret1=0,ret2=0;
+    if (!gbUno || emulationPaused)
+        return;
 
-    while (!emulationPaused && !((ret1 & RET_VBLANK) && (ret2 & RET_VBLANK))) {
-        if (gbUno) {
+    int ret1=0;
+
+    if (gbDuo) {
+        while (!((ret1 & RET_VBLANK))) {
+            if ((gbUno->ioRam[0x02]&0x81) == 0x80 && !((gbDuo->ioRam[0x02] & 0x80) == 0x80)) {
+                Gameboy* tmp = gbUno;
+                gbUno = gbDuo;
+                gbDuo = tmp;
+            }
+
+            if (gbUno->cycleCount <= gbDuo->cycleCount) {
+                if (gbUno == hostGb)
+                    ret1 |= gbUno->runEmul();
+                else
+                    gbUno->runEmul();
+            }
+            else {
+                if (gbDuo == hostGb)
+                    ret1 |= gbDuo->runEmul();
+                else
+                    gbDuo->runEmul();
+            }
+
+            /*
             if (!(ret1 & RET_VBLANK))
-                ret1 |= gbUno->runEmul();
-        }
-        else
-            ret1 |= RET_VBLANK;
-
-        if (gbDuo) {
+                    mgr_run(gbUno, ret1);
             if (!(ret2 & RET_VBLANK))
-                ret2 |= gbDuo->runEmul();
+                mgr_run(gbDuo, ret2);
+                */
         }
-        else
-            ret2 |= RET_VBLANK;
+    }
+    else {
+        while (!(ret1 & RET_VBLANK)) {
+            ret1 |= gbUno->runEmul();
+        }
     }
 }
 
@@ -62,8 +85,12 @@ void mgr_startGb2(const char* filename) {
     if (gb2 == NULL)
         gb2 = new Gameboy();
     gb2->setRomFile(gameboy->getRomFile());
-    gb2->loadSave(-1);
+    if (filename == 0)
+        gb2->loadSave(-1);
+    else
+        gb2->loadSave(1);
     gb2->init();
+    gb2->cycleCount = gameboy->cycleCount;
     gb2->getSoundEngine()->mute();
 
     gameboy->linkedGameboy = gb2;
@@ -87,10 +114,18 @@ void mgr_swapFocus() {
 
 void mgr_setInternalClockGb(Gameboy* g) {
     gbUno = g;
+    hostGb = g;
     if (g == gameboy)
         gbDuo = gb2;
     else
         gbDuo = gameboy;
+}
+
+bool mgr_isInternalClockGb(Gameboy* g) {
+    return gbDuo && gbUno == g;
+}
+bool mgr_isExternalClockGb(Gameboy* g) {
+    return gbUno && gbDuo == g;
 }
 
 void mgr_pause() {
@@ -110,6 +145,8 @@ void mgr_loadRom(const char* filename) {
     romFile = new RomFile(filename);
     gameboy->setRomFile(romFile);
     gameboy->loadSave(1);
+
+    hostGb = gameboy;
 
     // Border probing is broken
 #if 0
@@ -164,7 +201,7 @@ void mgr_unloadRom() {
     gbUno = gameboy;
 
     if (gb2) {
-        gb2->unloadRom();
+//         gb2->unloadRom();
         delete gb2;
         gb2 = NULL;
         gbDuo = NULL;
@@ -259,12 +296,15 @@ void mgr_updateVBlank() {
             sharedData->hyperSound = hyperSound;
         }
 #endif
-
-        if (keyJustPressed(mapFuncKey(FUNC_KEY_RESET)))
-            gameboy->resetGameboy();
     }
 
     if (gameboy) {
+        if (keyJustPressed(mapFuncKey(FUNC_KEY_RESET)))
+            gameboy->resetGameboy();
+
+        if (gb2 && keyJustPressed(mapFuncKey(FUNC_KEY_SWAPFOCUS)))
+            mgr_swapFocus();
+
 #ifdef NIFI
         int oldIME = REG_IME;
         REG_IME = 0;

@@ -165,6 +165,8 @@ class Gameboy {
         int gbMode;
         bool sgbMode;
 
+        int emuRet;
+
         int scanlineCounter;
         int phaseCounter;
         int dividerCounter;
@@ -178,6 +180,7 @@ class Gameboy {
         int soundCycles;
         int cyclesToExecute;
         int cycleToSerialTransfer;
+        unsigned long long cycleCount;
 
         int interruptTriggered;
         int gameboyFrameCounter;

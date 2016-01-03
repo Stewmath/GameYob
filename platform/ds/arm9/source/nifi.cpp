@@ -257,7 +257,7 @@ void handlePacketCommand(int command, u8* data) {
                 for (int i=0; i<num; i++) {
                     int frame = frame1+i;
 
-                    if (frame >= gameboy->gameboyFrameCounter) {
+                    if (frame >= hostGb->gameboyFrameCounter) {
                         if (receivedInputReady[frame&31]) {
                             if (receivedInput[frame&31] != data[5+i])
                                 printLog("MISMATCH %x\n", frame);
@@ -746,14 +746,14 @@ void nifiUpdateInput() {
     u32 bfr[4];
     u8* buffer = (u8*)bfr;
 
-    u32 actualFrame = gameboy->gameboyFrameCounter;
-    u32 inputFrame = gameboy->gameboyFrameCounter;
-    bool frameHasPassed = nifiFrameCounter != gameboy->gameboyFrameCounter;
+    u32 actualFrame = hostGb->gameboyFrameCounter;
+    u32 inputFrame = hostGb->gameboyFrameCounter;
+    bool frameHasPassed = nifiFrameCounter != hostGb->gameboyFrameCounter;
     if (nifiFrameCounter == -1)
-        printf("Start at %d", gameboy->gameboyFrameCounter);
+        printf("Start at %d", hostGb->gameboyFrameCounter);
     if (frameHasPassed && nifiFrameCounter > 0)
         receivedInputReady[(nifiFrameCounter-1)&31] = false;
-    nifiFrameCounter = gameboy->gameboyFrameCounter;
+    nifiFrameCounter = hostGb->gameboyFrameCounter;
 
     if (nifiIsClient())
         inputFrame += CLIENT_FRAME_LAG;

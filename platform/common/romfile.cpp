@@ -27,7 +27,7 @@ RomFile::RomFile(const char* f) {
     if (__dsimode)
         maxLoadedRomBanks = 512; // 8 megabytes
     else
-        maxLoadedRomBanks = 128; // 2 megabytes
+        maxLoadedRomBanks = 64; // 2 megabytes
 #else
     maxLoadedRomBanks = 512;
 #endif
