@@ -28,6 +28,7 @@ extern bool fastForwardKey;  // only while its hotkey is pressed
 extern u8 buttonsPressed;
 
 extern char borderPath[MAX_FILENAME_LEN];
+extern bool borderPathExists;
 extern bool biosExists;
 extern int rumbleInserted;
 

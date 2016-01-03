@@ -164,7 +164,7 @@ void saveSettingsFunc(int value) {
     printMenuMessage("Saving settings...");
     muteSND();
     writeConfigFile();
-    if (!gameboy->isGameboyPaused())
+    if (!mgr_isPaused())
         unmuteSND();
     printMenuMessage("Settings saved.");
 }
@@ -184,7 +184,7 @@ void stateSaveFunc(int value) {
     printMenuMessage("Saving state...");
     muteSND();
     gameboy->saveState(stateNum);
-    if (!gameboy->isGameboyPaused())
+    if (!mgr_isPaused())
         unmuteSND();
     printMenuMessage("State saved.");
     // Will activate the other state options
@@ -204,7 +204,7 @@ void stateDeleteFunc(int value) {
     gameboy->deleteState(stateNum);
     // Will grey out the other state options
     stateSelectFunc(stateNum);
-    if (!gameboy->isGameboyPaused())
+    if (!mgr_isPaused())
         unmuteSND();
 }
 void resetFunc(int value) {
@@ -242,7 +242,7 @@ void setSingleScreenFunc(int value) {
     if (value != singleScreenMode) {
         singleScreenMode = value;
         if (singleScreenMode)
-            gameboy->pause();
+            mgr_pause();
 
         if (isMenuOn()) {
             // Swap game screen
@@ -355,7 +355,7 @@ void setAutoSaveFunc(int value) {
         enableMenuOption("Exit without saving");
     else
         disableMenuOption("Exit without saving");
-    if (!gameboy->isGameboyPaused())
+    if (!mgr_isPaused())
         unmuteSND();
 }
 
@@ -428,7 +428,7 @@ SubMenu menuList[] = {
             {"GBC Bios", biosEnableFunc, 3, {"Off","GB Only","On"}, 1, MENU_ALL},
             {"Detect GBA", gbaModeFunc, 2, {"Off","On"}, 0, MENU_ALL},
             {"GBC Mode", gameboyModeFunc, 3, {"Off","If Needed","On"}, 2, MENU_ALL},
-            {"SGB Mode", sgbModeFunc, 3, {"Off","Prefer GBC","Prefer SGB"}, 0, MENU_ALL}
+            {"SGB Mode", sgbModeFunc, 3, {"Off","Prefer GBC","Prefer SGB"}, 1, MENU_ALL}
         }
     },
     {
@@ -501,7 +501,7 @@ void closeMenu() {
     menuOn = false;
     setPrintConsole(menuConsole);
     clearConsole();
-    gameboy->unpause();
+    mgr_unpause();
 }
 
 bool isMenuOn() {

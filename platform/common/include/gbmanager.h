@@ -8,6 +8,9 @@ void mgr_runFrame();
 void mgr_startGb2(const char* filename);
 void mgr_swapFocus();
 void mgr_setInternalClockGb(Gameboy* g);
+void mgr_pause();
+void mgr_unpause();
+bool mgr_isPaused();
 
 void mgr_loadRom(const char* filename);
 void mgr_selectRom();

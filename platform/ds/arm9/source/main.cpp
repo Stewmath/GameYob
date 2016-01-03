@@ -38,18 +38,18 @@ void fifoValue32Handler(u32 value, void* user_data) {
             // Entering sleep mode
             scalingWasOn = sharedData->scalingOn;
             soundWasDisabled = soundDisabled;
-            wasPaused = gameboy->isGameboyPaused();
+            wasPaused = mgr_isPaused();
 
             sharedData->scalingOn = 0;
             soundDisabled = true;
-            gameboy->pause();
+            mgr_pause();
             break;
         case FIFOMSG_LID_OPENED:
             // Exiting sleep mode
             sharedData->scalingOn = scalingWasOn;
             soundDisabled = soundWasDisabled;
             if (!wasPaused)
-                gameboy->unpause();
+                mgr_unpause();
             // Time isn't incremented properly in sleep mode, compensate here.
             time(&rawTime);
             lastRawTime = rawTime;

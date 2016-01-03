@@ -61,6 +61,8 @@ const int PACKET_HEADER_SIZE = 0x10;
 const int CLIENT_FRAME_LAG = 4;
 const int FRAGMENT_SIZE = 0x200;
 
+const int OLD_INPUTS_BUFFER_SIZE = CLIENT_FRAME_LAG + 1;
+
 u8* fragmentBuffer = NULL;
 u8 lastFragment;
 
@@ -90,12 +92,16 @@ char hostRomTitle[20];
 volatile u8 receivedInput[32];
 volatile bool receivedInputReady[32];
 
-u8 oldInputs[CLIENT_FRAME_LAG+1];
+u8 oldInputs[OLD_INPUTS_BUFFER_SIZE];
 
 u8 nifiGetChecksum(u8* data, u32 dataLen) {
     u8 checksum = 0;
-    for (int i=0; i<dataLen; i++)
+    for (int i=0; i<dataLen+PACKET_HEADER_SIZE; i++) {
+        if (i == HEADER_CHECKSUM)
+            continue;
+        checksum *= 7;
         checksum += data[i];
+    }
     return checksum;
 }
 
@@ -120,15 +126,18 @@ int nifiSendPacket(u8 command, u8* data, u32 dataLen, bool acknowledge)
 
         INT_TO(buffer+HEADER_HOSTID, hostId);
         buffer[HEADER_COMMAND] = command;
-        buffer[HEADER_CHECKSUM] = nifiGetChecksum(data, dataLen);
         INT_TO(buffer+HEADER_DATASIZE, dataLen);
         buffer[HEADER_ACKNOWLEDGE] = (acknowledge ? 1 : 0);
 
         memcpy(buffer+PACKET_HEADER_SIZE, data, dataLen);
 
+        buffer[HEADER_CHECKSUM] = nifiGetChecksum(buffer, dataLen);
+
         packetAcknowledged = false;
-        if (Wifi_RawTxFrame(dataLen+PACKET_HEADER_SIZE, 0x0014, (unsigned short *)buffer) != 0)
+        if (Wifi_RawTxFrame(dataLen+PACKET_HEADER_SIZE, 0x0014, (unsigned short *)buffer) != 0) {
             printLog("Nifi send error\n");
+            errcode = 1;
+        }
         if (acknowledge) {
             int attemptCounter = 0;
             while (!packetAcknowledged) {
@@ -179,7 +188,12 @@ int nifiSendPacket(u8 command, u8* data, u32 dataLen, bool acknowledge)
                 errcode = 1;
                 break;
             }
+            swiWaitForVBlank(); // Excessive?
+            // Send it twice for safety
+            nifiSendPacket(NIFI_CMD_FRAGMENT, buffer,
+                    fragmentSize+0x10, acknowledge);
 
+            swiWaitForVBlank(); // Excessive?
             swiWaitForVBlank(); // Excessive?
         }
 
@@ -201,10 +215,12 @@ bool verifyPacket(u8* packet, int len) {
             ((isClient && status == CLIENT_WAITING) ||
              packetHostId(packet) == hostId)) {
 
+        /*
         if (packet[32+HEADER_COMMAND] == NIFI_CMD_FRAGMENT)
             return true; // Checksum is broken for fragmented packets?
+            */
          u8 checksum =
-             nifiGetChecksum(packet+32+PACKET_HEADER_SIZE, packet[32+HEADER_DATASIZE]);
+             nifiGetChecksum(packet+32, INT_AT(packet+32+HEADER_DATASIZE));
          if (checksum == packet[32+HEADER_CHECKSUM])
              return true;
          else
@@ -238,10 +254,10 @@ void handlePacketCommand(int command, u8* data) {
                 for (int i=0; i<num; i++) {
                     int frame = frame1+i;
 
-                    if (((frame - nifiFrameCounter)&31) < 16) {
+                    if (frame >= gameboy->gameboyFrameCounter) {
                         if (receivedInputReady[frame&31]) {
                             if (receivedInput[frame&31] != data[5+i])
-                                printLog("MISMATCH\n");
+                                printLog("MISMATCH %x\n", frame);
                         }
                         else {
                             receivedInputReady[frame&31] = true;
@@ -285,26 +301,29 @@ void handlePacketCommand(int command, u8* data) {
                     printLog("NULL Buffer.\n");
                     return;
                 }
-                else if (fragmentBuffer != NULL && fragment == 0)
-                    free(fragmentBuffer);
                 if (fragment == 0) {
+                    if (fragmentBuffer != NULL)
+                        free(fragmentBuffer);
                     fragmentBuffer = (u8*)malloc(totalSize);
                     if (fragmentBuffer == 0) {
                         printLog("Nifi not enough memory\n");
                         return;
                     }
-                    lastFragment = 0;
                 }
-                else if (lastFragment+1 != fragment) {
-                    free(fragmentBuffer);
+                else if (lastFragment > fragment) {
+                    if (fragmentBuffer != NULL) {
+                        free(fragmentBuffer);
+                        fragmentBuffer = NULL;
+                    }
                     printLog("Fragment mismatch\n");
                     lastFragment = -1;
                     return;
                 }
-                else
-                    lastFragment = fragment;
 
-                memcpy(fragmentBuffer+fragment*FRAGMENT_SIZE, data+0x10, fragmentSize);
+                if (fragment == 0 || lastFragment+1 == fragment)
+                    memcpy(fragmentBuffer+fragment*FRAGMENT_SIZE, data+0x10, fragmentSize);
+
+                lastFragment = fragment;
 
                 if (fragment == numFragments-1) {
                     handlePacketCommand(command, fragmentBuffer);
@@ -480,7 +499,7 @@ void nifiLinkTypeMenu() {
 
 void nifiSendSram() {
     nifiSendPacket(NIFI_CMD_TRANSFER_SRAM, gameboy->externRam,
-            gameboy->getNumRamBanks()*0x2000, true);
+            gameboy->getNumRamBanks()*0x2000, false);
     printLog("Sent SRAM.\n");
 }
 
@@ -489,7 +508,7 @@ void nifiReceiveSram() {
     while (!receivedSram) {
         swiWaitForVBlank();
         nifiConsecutiveWaitingFrames++;
-        if (nifiConsecutiveWaitingFrames >= 60) {
+        if (nifiConsecutiveWaitingFrames >= 60*5) {
             printLog("Connection lost.\n");
             nifiStop();
             printLog("Nifi turned off.\n");
@@ -505,14 +524,15 @@ void nifiStartLink() {
     bool sendSram = false;
 
     gameboy->init();
-    nifiFrameCounter = 0;
+    nifiFrameCounter = -1;
 
     if (nifiLinkType == LINK_CABLE) {
         mgr_startGb2(0);
     }
 
     if (isHost) {
-        mgr_setInternalClockGb(gameboy);
+        if (nifiLinkType == LINK_CABLE)
+            mgr_setInternalClockGb(gameboy);
 
         // Fill in first few frames of client's input
         for (int i=0; i<CLIENT_FRAME_LAG; i++) {
@@ -536,10 +556,11 @@ void nifiStartLink() {
             waitForSram = true;
     }
     else if (isClient) {
-        mgr_setInternalClockGb(gb2);
+        if (nifiLinkType == LINK_CABLE)
+            mgr_setInternalClockGb(gb2);
 
         // First few frames of input are skipped, so fill them in
-        for (int i=0; i<CLIENT_FRAME_LAG; i++)
+        for (int i=0; i<OLD_INPUTS_BUFFER_SIZE; i++)
             oldInputs[i] = 0xff;
 
         // Set input destinations
@@ -567,9 +588,13 @@ void nifiStartLink() {
     else {
         if (waitForSram && gameboy->getNumRamBanks())
             nifiReceiveSram();
+        for (int i=0;i<60;i++)
+            swiWaitForVBlank();
         if (sendSram && gameboy->getNumRamBanks())
             nifiSendSram();
     }
+
+    printLog("Begin nifi link.\n");
 
     nifiConsecutiveWaitingFrames = 0;
     //closeMenu();
@@ -694,13 +719,13 @@ bool nifiIsLinked() { return isHost || isClient; }
 int nifiWasPaused = -1;
 void nifiPause() {
     if (nifiWasPaused == -1) {
-        nifiWasPaused = gameboy->isGameboyPaused();
+        nifiWasPaused = mgr_isPaused();
     }
-    gameboy->pause();
+    mgr_pause();
 }
 void nifiUnpause() {
     if (nifiWasPaused == -1 || !nifiWasPaused) {
-        gameboy->unpause();
+        mgr_unpause();
     }
     nifiWasPaused = -1;
 }
@@ -718,35 +743,37 @@ void nifiUpdateInput() {
     u32 bfr[4];
     u8* buffer = (u8*)bfr;
 
-    u32 actualFrame = nifiFrameCounter;
-    u32 inputFrame = nifiFrameCounter;
+    u32 actualFrame = gameboy->gameboyFrameCounter;
+    u32 inputFrame = gameboy->gameboyFrameCounter;
+    bool frameHasPassed = nifiFrameCounter != gameboy->gameboyFrameCounter;
+    if (nifiFrameCounter == -1)
+        printf("Start at %d", gameboy->gameboyFrameCounter);
+    if (frameHasPassed && nifiFrameCounter > 0)
+        receivedInputReady[(nifiFrameCounter-1)&31] = false;
+    nifiFrameCounter = gameboy->gameboyFrameCounter;
+
     if (nifiIsClient())
         inputFrame += CLIENT_FRAME_LAG;
 
-    u8 olderInput = oldInputs[0];
+    u8 olderInput = oldInputs[OLD_INPUTS_BUFFER_SIZE-CLIENT_FRAME_LAG];
 
     if (nifiIsLinked()) {
+        if (frameHasPassed) {
+            for (int i=0; i<OLD_INPUTS_BUFFER_SIZE-1; i++)
+                oldInputs[i] = oldInputs[i+1];
+            oldInputs[OLD_INPUTS_BUFFER_SIZE-1] = buttonsPressed;
+        }
+
         // Send input to other ds
-        for (int i=0; i<CLIENT_FRAME_LAG-1; i++)
-            oldInputs[i] = oldInputs[i+1];
-        oldInputs[CLIENT_FRAME_LAG-1] = buttonsPressed;
-
-        u32 number = (inputFrame < CLIENT_FRAME_LAG-1 ? inputFrame+1 : CLIENT_FRAME_LAG);
-        //number = 1;
-
-        INT_TO(buffer+1, inputFrame-number+1);
-        for (int i=0; i<number; i++)
-            buffer[5+i] = oldInputs[(CLIENT_FRAME_LAG-number)+i];
-        //buffer[5] = oldInputs[2];
-        buffer[0] = number;
-        nifiSendPacket(NIFI_CMD_INPUT, buffer, 5+number, false);
-
+        INT_TO(buffer+1, inputFrame-OLD_INPUTS_BUFFER_SIZE+1);
+        for (int i=0; i<OLD_INPUTS_BUFFER_SIZE; i++)
+            buffer[5+i] = oldInputs[i];
+        buffer[0] = OLD_INPUTS_BUFFER_SIZE;
+        nifiSendPacket(NIFI_CMD_INPUT, buffer, 5+OLD_INPUTS_BUFFER_SIZE, false);
 
         // Set other controller's input
         if (receivedInputReady[actualFrame&31]) {
             *otherInputDest = receivedInput[actualFrame&31];
-            receivedInputReady[actualFrame&31] = false;
-            nifiFrameCounter++;
             nifiUnpause();
             nifiConsecutiveWaitingFrames = 0;
         }

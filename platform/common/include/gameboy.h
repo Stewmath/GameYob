@@ -105,9 +105,6 @@ class Gameboy {
         void gameboyAutosaveCheck();
 
         void resetGameboy(); // This may be called even from the context of "runOpcode".
-        void pause();
-        void unpause();
-        bool isGameboyPaused();
         int runEmul()
 #ifdef DS
             ITCM_CODE
@@ -184,7 +181,6 @@ class Gameboy {
         struct Registers gbRegs;
 
     private:
-        volatile bool gameboyPaused;
         bool resettingGameboy;
 
         CheatEngine* cheatEngine;
@@ -193,6 +189,8 @@ class Gameboy {
 
         FileHandle* saveFile;
         char savename[MAX_FILENAME_LEN];
+
+        int autoFireCounterA, autoFireCounterB;
 
         // gbcpu.cpp
 

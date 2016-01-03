@@ -97,7 +97,6 @@ int scaleFilter=1;
 u8 gfxMask;
 
 volatile int loadedBorderType; // This is read from hblank
-bool customBorderExists = true;
 bool sgbBorderLoaded;
 
 int SCALE_BGX, SCALE_BGY;
@@ -743,15 +742,17 @@ void selectBorder() {
 
 
 int loadBorder(const char* filename) {
+    if (!borderPathExists)
+        return 1;
+
     FILE* file = fopen(filename, "rb");
     if (file == NULL) {
-        customBorderExists = false;
         disableMenuOption("Custom Border");
         printLog("Error opening border.\n");
+        borderPathExists = false;
         return 1;
     }
     enableMenuOption("Custom Border");
-    customBorderExists = true;
 
     vramSetBankD(VRAM_D_MAIN_BG_0x06040000);
     // Start loading

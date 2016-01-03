@@ -1,6 +1,7 @@
 #include <string.h>
 #include <algorithm>
 #include "gameboy.h"
+#include "gbmanager.h"
 #include "mmu.h"
 #include "console.h"
 #include "menu.h"
@@ -304,7 +305,7 @@ void updateCheatMenu() {
     if (keyJustPressed(mapMenuKey(MENU_KEY_B))) {
         closeSubMenu();
         if (!cheatMenu_gameboyWasPaused)
-            gameboy->unpause();
+            mgr_unpause();
     }
 
     if (redraw)
@@ -317,8 +318,8 @@ bool startCheatMenu() {
     if (ch == NULL || ch->getNumCheats() == 0)
         return false;
 
-    cheatMenu_gameboyWasPaused = gameboy->isGameboyPaused();
-    gameboy->pause();
+    cheatMenu_gameboyWasPaused = mgr_isPaused();
+    mgr_pause();
     displaySubMenu(updateCheatMenu);
     redrawCheatMenu();
 

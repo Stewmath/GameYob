@@ -26,39 +26,35 @@ int fps = 0;
 time_t rawTime;
 time_t lastRawTime;
 
+bool emulationPaused;
+
 void mgr_init() {
     gameboy = new Gameboy();
     gbUno = gameboy;
 
     rawTime = 0;
     lastRawTime = rawTime;
+
+    emulationPaused = false;
 }
 
 void mgr_runFrame() {
     int ret1=0,ret2=0;
 
-    bool paused;
-    while (!paused && !((ret1 & RET_VBLANK) && (ret2 & RET_VBLANK))) {
-        paused = false;
-        if (gbUno && gbUno->isGameboyPaused())
-            paused = true;
-        if (gbDuo && gbDuo->isGameboyPaused())
-            paused = true;
-        if (!paused) {
-            if (gbUno) {
-                if (!(ret1 & RET_VBLANK))
-                    ret1 |= gbUno->runEmul();
-            }
-            else
-                ret1 |= RET_VBLANK;
-
-            if (gbDuo) {
-                if (!(ret2 & RET_VBLANK))
-                    ret2 |= gbDuo->runEmul();
-            }
-            else
-                ret2 |= RET_VBLANK;
+    while (!emulationPaused && !((ret1 & RET_VBLANK) && (ret2 & RET_VBLANK))) {
+        if (gbUno) {
+            if (!(ret1 & RET_VBLANK))
+                ret1 |= gbUno->runEmul();
         }
+        else
+            ret1 |= RET_VBLANK;
+
+        if (gbDuo) {
+            if (!(ret2 & RET_VBLANK))
+                ret2 |= gbDuo->runEmul();
+        }
+        else
+            ret2 |= RET_VBLANK;
     }
 }
 
@@ -95,6 +91,16 @@ void mgr_setInternalClockGb(Gameboy* g) {
         gbDuo = gb2;
     else
         gbDuo = gameboy;
+}
+
+void mgr_pause() {
+    emulationPaused = true;
+}
+void mgr_unpause() {
+    emulationPaused = false;
+}
+bool mgr_isPaused() {
+    return emulationPaused;
 }
 
 void mgr_loadRom(const char* filename) {
@@ -204,26 +210,68 @@ void mgr_updateVBlank() {
 
     system_checkPolls();
 
-    if (gameboy && !gameboy->isGameboyPaused())
-        gameboy->getSoundEngine()->soundUpdateVBlank();
-
     inputUpdateVBlank();
 
     buttonsPressed = 0xff;
     if (isMenuOn())
         updateMenu();
     else {
-        gameboy->gameboyCheckInput();
-        if (gbsMode)
-            gbsCheckInput();
-    }
+        if (gameboy) {
+            gameboy->gameboyCheckInput();
+            if (gbsMode)
+                gbsCheckInput();
+        }
+
+        // Check some buttons
+        if (keyJustPressed(mapFuncKey(FUNC_KEY_SAVE))) {
+            if (!autoSavingEnabled) {
+                gameboy->saveGame();
+            }
+        }
+
+        fastForwardKey = keyPressed(mapFuncKey(FUNC_KEY_FAST_FORWARD));
+        if (keyJustPressed(mapFuncKey(FUNC_KEY_FAST_FORWARD_TOGGLE)))
+            fastForwardMode = !fastForwardMode;
+
+        if (keyJustPressed(mapFuncKey(FUNC_KEY_MENU) | mapFuncKey(FUNC_KEY_MENU_PAUSE)
+#if defined(DS) || defined(_3DS)
+                    | KEY_TOUCH
+#endif
+                    )) {
+            if (singleScreenMode || keyJustPressed(mapFuncKey(FUNC_KEY_MENU_PAUSE)))
+                mgr_pause();
+
+            forceReleaseKey(0xffffffff);
+            fastForwardKey = false;
+            fastForwardMode = false;
+            displayMenu();
+        }
+
+        if (keyJustPressed(mapFuncKey(FUNC_KEY_SCALE))) {
+            setMenuOption("Scaling", !getMenuOption("Scaling"));
+        }
 
 #ifdef DS
-    int oldIME = REG_IME;
-    REG_IME = 0;
-    nifiUpdateInput();
-    REG_IME = oldIME;
+        if (fastForwardKey || fastForwardMode) {
+            sharedData->hyperSound = false;
+        }
+        else {
+            sharedData->hyperSound = hyperSound;
+        }
 #endif
+
+        if (keyJustPressed(mapFuncKey(FUNC_KEY_RESET)))
+            gameboy->resetGameboy();
+    }
+
+    if (gameboy) {
+#ifdef NIFI
+        int oldIME = REG_IME;
+        REG_IME = 0;
+        nifiUpdateInput();
+        REG_IME = oldIME;
+#endif
+    }
 
 #ifndef DS
     rawTime = getTime();

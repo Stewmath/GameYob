@@ -116,7 +116,6 @@ void Gameboy::init()
     cyclesSinceVBlank = 0;
     gameboyFrameCounter = 0;
 
-    gameboyPaused = false;
     setDoubleSpeed(0);
 
     scanlineCounter = 456*(doubleSpeed?2:1);
@@ -130,6 +129,9 @@ void Gameboy::init()
     soundCycles = 0;
     cyclesSinceVBlank = 0;
     cycleToSerialTransfer = -1;
+
+    autoFireCounterA = 0;
+    autoFireCounterB = 0;
 
     initGbPrinter();
 
@@ -149,7 +151,7 @@ void Gameboy::init()
     }
     initSND();
 
-    if (!gbsMode && !probingForBorder && checkStateExists(-1)) {
+    if (!gbsMode && !probingForBorder && !nifiIsLinked() && checkStateExists(-1)) {
         loadState(-1);
     }
 
@@ -243,8 +245,6 @@ void Gameboy::initGameboyMode() {
 
 
 void Gameboy::gameboyCheckInput() {
-    static int autoFireCounterA=0, autoFireCounterB=0;
-
     buttonsPressed = 0xff;
 
     if (probingForBorder)
@@ -313,52 +313,13 @@ void Gameboy::gameboyCheckInput() {
 #ifndef DS
     controllers[0] = buttonsPressed;
 #endif
-
-
-    if (keyJustPressed(mapFuncKey(FUNC_KEY_SAVE))) {
-        if (!autoSavingEnabled) {
-            saveGame();
-        }
-    }
-
-    fastForwardKey = keyPressed(mapFuncKey(FUNC_KEY_FAST_FORWARD));
-    if (keyJustPressed(mapFuncKey(FUNC_KEY_FAST_FORWARD_TOGGLE)))
-        fastForwardMode = !fastForwardMode;
-
-    if (keyJustPressed(mapFuncKey(FUNC_KEY_MENU) | mapFuncKey(FUNC_KEY_MENU_PAUSE)
-#if defined(DS) || defined(_3DS)
-                | KEY_TOUCH
-#endif
-                )) {
-        if (singleScreenMode || keyJustPressed(mapFuncKey(FUNC_KEY_MENU_PAUSE)))
-            pause();
-
-        forceReleaseKey(0xffffffff);
-        fastForwardKey = false;
-        fastForwardMode = false;
-        displayMenu();
-    }
-
-    if (keyJustPressed(mapFuncKey(FUNC_KEY_SCALE))) {
-        setMenuOption("Scaling", !getMenuOption("Scaling"));
-    }
-
-#ifdef DS
-    if (fastForwardKey || fastForwardMode) {
-        sharedData->hyperSound = false;
-    }
-    else {
-        sharedData->hyperSound = hyperSound;
-    }
-#endif
-
-    if (keyJustPressed(mapFuncKey(FUNC_KEY_RESET)))
-        resetGameboy();
 }
 
 // This is called 60 times per gameboy second, even if the lcd is off.
 void Gameboy::gameboyUpdateVBlank() {
     gameboyFrameCounter++;
+
+    gameboy->getSoundEngine()->soundUpdateVBlank();
 
     if (!gbsMode) {
         if (resettingGameboy) {
@@ -389,22 +350,6 @@ void Gameboy::gameboyUpdateVBlank() {
 // with it later.
 void Gameboy::resetGameboy() {
     resettingGameboy = true;
-}
-
-void Gameboy::pause() {
-    if (!gameboyPaused) {
-        gameboyPaused = true;
-        muteSND();
-    }
-}
-void Gameboy::unpause() {
-    if (gameboyPaused) {
-        gameboyPaused = false;
-        unmuteSND();
-    }
-}
-bool Gameboy::isGameboyPaused() {
-    return gameboyPaused;
 }
 
 int Gameboy::runEmul()
@@ -742,13 +687,15 @@ void Gameboy::setRomFile(RomFile* r) {
     romFile = r;
     cheatEngine->setRomFile(r);
 
-    // Load cheats
-    if (gbsMode)
-        cheatEngine->loadCheats("");
-    else {
-        char nameBuf[256];
-        sprintf(nameBuf, "%s.cht", romFile->getBasename());
-        cheatEngine->loadCheats(nameBuf);
+    if (isMainGameboy()) {
+        // Load cheats
+        if (gbsMode)
+            cheatEngine->loadCheats("");
+        else {
+            char nameBuf[256];
+            sprintf(nameBuf, "%s.cht", romFile->getBasename());
+            cheatEngine->loadCheats(nameBuf);
+        }
     }
 }
 
@@ -828,8 +775,10 @@ int Gameboy::loadSave(int saveId)
 
     externRam = (u8*)malloc(numRamBanks*0x2000);
 
-    if (gbsMode || saveId == -1)
+    if (gbsMode || saveId == -1) {
+        saveFile = NULL;
         return 0;
+    }
 
     // Now load the data.
     saveFile = file_open(savename, "r+b");
@@ -933,7 +882,7 @@ int Gameboy::saveGame()
 }
 
 void Gameboy::gameboySyncAutosave() {
-    if (!autosaveStarted)
+    if (!autosaveStarted || saveFile == NULL)
         return;
 
     flushFatCache();

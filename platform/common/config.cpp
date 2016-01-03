@@ -24,6 +24,7 @@
 char biosPath[MAX_FILENAME_LEN] = "";
 char borderPath[MAX_FILENAME_LEN] = "";
 char romPath[MAX_FILENAME_LEN] = "";
+bool borderPathExists = true;
 
 
 void controlsParseConfig(char* line);
@@ -48,6 +49,7 @@ void generalParseConfig(char* line) {
         }
         else if (strcasecmp(parameter, "borderfile") == 0) {
             strcpy(borderPath, value);
+            borderPathExists = true;
         }
     }
     if (*borderPath == '\0') {
