@@ -96,23 +96,6 @@ DTCM_BSS
 int DTCM_BSS Gameboy::halt;
 */
 
-void Gameboy::initCPU()
-{
-    gbRegs.sp.w = 0xFFFE;
-    ime = 1;			// Correct default value?
-    halt = 0;
-
-    if (biosOn)
-    {
-        gbRegs.pc.w = 0;
-        gbMode = CGB;
-    }
-    else
-    {
-        gbRegs.pc.w = 0x100;
-    }
-}
-
 void Gameboy::enableInterrupts()
 {
     ime = 1;

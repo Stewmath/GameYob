@@ -52,9 +52,6 @@ void SoundEngine::setGameboy(Gameboy* g) {
 
 void SoundEngine::init()
 {
-    // Send the cached mirror to preserve dsi compatibility.
-    // Because of this, on arm9, always use the local sampleData which is 
-    // uncached.
     static double analog[] = { -1, -0.8667, -0.7334, -0.6, -0.4668, -0.3335, -0.2, -0.067, 0.0664, 0.2, 0.333, 0.4668, 0.6, 0.7334, 0.8667, 1  } ;
     int i;
     for (i=0; i<16; i++)
@@ -85,6 +82,9 @@ void SoundEngine::refresh() {
     if (soundDisabled)
         return;
 
+    // Send the cached mirror to preserve dsi compatibility.
+    // Because of this, on arm9, always use the local sampleData which is 
+    // uncached.
     sharedPtr->sampleData = (u8*)memCached(sampleData);
     sharedPtr->chanOn = 0;
 

@@ -36,6 +36,14 @@ class RomFile;
 #define RET_VBLANK  1
 #define RET_LINK    2
 
+
+const int timerPeriods[] = {
+    clockSpeed/4096,
+    clockSpeed/262144,
+    clockSpeed/65536,
+    clockSpeed/16384,
+};
+
 // Be careful changing this; it affects save state compatibility.
 struct ClockStruct
 {
@@ -163,26 +171,26 @@ class Gameboy {
         int timerCounter;
         int serialCounter;
         int timerPeriod;
-        long periods[4];
 
         int cyclesToEvent;
         int cyclesSinceVBlank;
-        int interruptTriggered;
-        int gameboyFrameCounter;
-
-        int emuRet;
-        int cycleToSerialTransfer;
-
-        int halt;
-        int ime;
         int extraCycles;
         int soundCycles;
         int cyclesToExecute;
+        int cycleToSerialTransfer;
+
+        int interruptTriggered;
+        int gameboyFrameCounter;
+
+        int halt;
+        int ime;
         struct Registers gbRegs;
 
     private:
         bool resettingGameboy;
+        int autoFireCounterA, autoFireCounterB;
 
+        // Persistent stuff (not overwritten by init())
         CheatEngine* cheatEngine;
         SoundEngine* soundEngine;
         RomFile* romFile;
@@ -190,12 +198,8 @@ class Gameboy {
         FileHandle* saveFile;
         char savename[MAX_FILENAME_LEN];
 
-        int autoFireCounterA, autoFireCounterB;
-
         // gbcpu.cpp
-
     public:
-        void initCPU();
         void enableInterrupts();
         void disableInterrupts();
         int handleInterrupts(unsigned int interruptTriggered);
@@ -317,23 +321,16 @@ class Gameboy {
         u16 dmaLength;
         int dmaMode;
 
+
+        // Autosave stuff (persistent I guess)
         int fatBytesPerSector;
 
+        int framesSinceAutosaveStarted;
         bool saveModified;
         bool dirtySectors[MAX_SRAM_SIZE/512];
         int numSaveWrites;
         bool autosaveStarted;
         int saveFileSectors[MAX_SRAM_SIZE/512];
-
-        int rumbleValue;
-        int lastRumbleValue;
-
-        int framesSinceAutosaveStarted;
-
-        void (Gameboy::*writeFunc)(u16, u8);
-        u8 (Gameboy::*readFunc)(u16);
-
-        bool suspendStateExists;
 
 
         // mbc.cpp
@@ -357,18 +354,19 @@ class Gameboy {
 
         // mbc variables
 
-        ClockStruct gbClock;
-
-        int numRamBanks;
-
         bool ramEnabled;
 
         int memoryModel;
-        bool hasClock;
         int romBank;
         int currentRamBank;
 
+        void (Gameboy::*writeFunc)(u16, u8);
+        u8 (Gameboy::*readFunc)(u16);
+
         bool rockmanMapper;
+
+        int rumbleValue;
+        int lastRumbleValue;
 
         // HuC3
         u8   HuC3Mode;
@@ -380,9 +378,12 @@ class Gameboy {
         u16 mbc7Buffer;
         u8 mbc7RA; // Ram Access register 0xa080
 
+        // Persistent (not overwritten in init())
+        ClockStruct gbClock;
+        int numRamBanks;
+
         // sgb.cpp
     public:
-        void sgbInit();
         void sgbHandleP1(u8 val);
         u8 sgbReadP1();
 

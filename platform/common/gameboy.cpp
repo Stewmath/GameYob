@@ -40,28 +40,28 @@ Gameboy::Gameboy() : hram(highram+0xe00), ioRam(highram+0xf00) {
 
     romFile = NULL;
 
-    fpsOutput=true;
-    timeOutput=true;
-
-    fastForwardMode = false;
-    fastForwardKey = false;
-
-    cyclesSinceVBlank=0;
-    probingForBorder=false;
-
     // private
     resettingGameboy = false;
     framesSinceAutosaveStarted=0;
 
     externRam = NULL;
     saveModified = false;
-    numSaveWrites = 0;
     autosaveStarted = false;
 
     cheatEngine = new CheatEngine(this);
     soundEngine = new SoundEngine(this);
     if (this != gameboy)
         soundEngine->mute();
+
+
+    // Shouldn't be here
+    fpsOutput=true;
+    timeOutput=true;
+
+    fastForwardMode = false;
+    fastForwardKey = false;
+
+    probingForBorder=false;
 }
 
 Gameboy::~Gameboy() {
@@ -107,49 +107,70 @@ void Gameboy::init()
         }
     } // !gbsMode
 
+    gbRegs.sp.w = 0xFFFE;
+    ime = 1;			// Correct default value?
+    halt = 0;
+
+    linkedGameboy = NULL;
+    memset(controllers, 0xff, sizeof(controllers));
+    doubleSpeed = 0;
+
     sgbMode = false;
 
-    initMMU();
-    initCPU();
-    sgbInit();
-
-    cyclesSinceVBlank = 0;
-    gameboyFrameCounter = 0;
-
-    setDoubleSpeed(0);
+    if (biosOn)
+    {
+        gbRegs.pc.w = 0;
+        gbMode = CGB;
+    }
+    else
+    {
+        gbRegs.pc.w = 0x100;
+    }
 
     scanlineCounter = 456*(doubleSpeed?2:1);
     phaseCounter = 456*153;
-    timerCounter = 0;
     dividerCounter = 256;
+    timerCounter = 0;
     serialCounter = 0;
 
+    timerPeriod = timerPeriods[0];
+
     cyclesToEvent = 0;
+    cyclesSinceVBlank = 0;
     extraCycles = 0;
     soundCycles = 0;
-    cyclesSinceVBlank = 0;
+    cyclesToExecute = 0;
     cycleToSerialTransfer = -1;
+
+    interruptTriggered = 0;
+    gameboyFrameCounter = 0;
+
+    resettingGameboy = false;
 
     autoFireCounterA = 0;
     autoFireCounterB = 0;
 
-    initGbPrinter();
+    initSND();
+    initMMU();
 
-    // Timer stuff
-    periods[0] = clockSpeed/4096;
-    periods[1] = clockSpeed/262144;
-    periods[2] = clockSpeed/65536;
-    periods[3] = clockSpeed/16384;
-    timerPeriod = periods[0];
+    sgbPacketLength=0;
+    sgbPacketsTransferred = 0;
+    sgbPacketBit = -1;
+    sgbCommand = 0;
+    sgbNumControllers=1;
+    sgbSelectedController=0;
+    sgbButtonsChecked = 0;
 
-    memset(vram[0], 0, 0x2000);
-    memset(vram[1], 0, 0x2000);
+    memset(sgbPacket, 0, sizeof(sgbPacket));
+    memset(sgbMap, 0, sizeof(sgbMap));
+    memset(&sgbCmdData, 0, sizeof(sgbCmdData));
 
-    initGFXPalette();
     if (isMainGameboy()) {
         initGFX();
+        initGFXPalette();
     }
-    initSND();
+
+    initGbPrinter();
 
     if (!gbsMode && !probingForBorder && !nifiIsLinked() && checkStateExists(-1)) {
         loadState(-1);
@@ -354,7 +375,7 @@ void Gameboy::resetGameboy() {
 
 int Gameboy::runEmul()
 {
-    emuRet = 0;
+    int emuRet = 0;
     memcpy(&g_gbRegs, &gbRegs, sizeof(Registers));
 
     if (cycleToSerialTransfer != -1)
@@ -464,7 +485,8 @@ int Gameboy::runEmul()
 }
 
 void Gameboy::initGFXPalette() {
-    memset(bgPaletteData, 0xff, 0x40);
+    memset(bgPaletteData, 0xff, sizeof(bgPaletteData));
+    memset(sprPaletteData, 0xff, sizeof(sprPaletteData));
     if (gbMode == GB) {
         sprPaletteData[0] = 0xff;
         sprPaletteData[1] = 0xff;
@@ -887,8 +909,6 @@ void Gameboy::gameboySyncAutosave() {
 
     flushFatCache();
 
-    numSaveWrites = 0;
-
     int totalSectors = 0;
 
     int startSector = -1;
@@ -1154,7 +1174,7 @@ int Gameboy::loadState(int stateNum) {
     if (version < 3)
         ramEnabled = true;
 
-    timerPeriod = periods[ioRam[0x07]&0x3];
+    timerPeriod = timerPeriods[ioRam[0x07]&0x3];
     cyclesToEvent = 1;
 
     mapMemory();

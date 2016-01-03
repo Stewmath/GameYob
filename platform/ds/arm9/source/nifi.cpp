@@ -61,7 +61,7 @@ const int PACKET_HEADER_SIZE = 0x10;
 const int CLIENT_FRAME_LAG = 4;
 const int FRAGMENT_SIZE = 0x200;
 
-const int OLD_INPUTS_BUFFER_SIZE = CLIENT_FRAME_LAG + 1;
+const int OLD_INPUTS_BUFFER_SIZE = CLIENT_FRAME_LAG + 2;
 
 u8* fragmentBuffer = NULL;
 u8 lastFragment;
@@ -250,6 +250,9 @@ void handlePacketCommand(int command, u8* data) {
             if (true || isClient) {
                 int num = data[0];
                 int frame1 = INT_AT(data+1);
+
+                if (nifiConsecutiveWaitingFrames >= 60)
+                    printLog("Received packet: %x\n", frame1);
 
                 for (int i=0; i<num; i++) {
                     int frame = frame1+i;

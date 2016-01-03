@@ -8,17 +8,6 @@
 #define sgbPalettes (vram[1])
 #define sgbAttrFiles (vram[1]+0x1000)
 
-void Gameboy::sgbInit() {
-    sgbPacketLength=0;
-    sgbNumControllers=1;
-    sgbSelectedController=0;
-    sgbPacketBit = -1;
-    sgbPacketsTransferred = 0;
-    sgbButtonsChecked = 0;
-
-    memset(sgbMap, 0, 20*18);
-}
-
 void Gameboy::sgbDoVramTransfer(u8* dest) {
     int map = 0x1800+((ioRam[0x40]>>3)&1)*0x400;
     int index=0;

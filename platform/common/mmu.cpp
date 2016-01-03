@@ -72,25 +72,33 @@ void Gameboy::initMMU()
 {
     wramBank = 1;
     vramBank = 0;
-    romBank = 1;
-    currentRamBank = 0;
 
-    memoryModel = 0;
     dmaSource=0;
     dmaDest=0;
     dmaLength=0;
     dmaMode=0;
 
     ramEnabled = false;
+    memoryModel = 0;
+    romBank = 1;
+    currentRamBank = 0;
 
-    HuC3Value = 0;
-    HuC3Shift = 0;
+    readFunc = mbcReads[romFile->getMBC()];
+    writeFunc = mbcWrites[romFile->getMBC()];
 
     /* Rockman8 by Yang Yang uses a silghtly different MBC1 variant */
     rockmanMapper = !strcmp(romFile->getRomTitle(), "ROCKMAN 99");
 
-    readFunc = mbcReads[romFile->getMBC()];
-    writeFunc = mbcWrites[romFile->getMBC()];
+    rumbleValue = 0;
+    lastRumbleValue = 0;
+
+    HuC3Mode = 0;
+    HuC3Value = 0;
+    HuC3Shift = 0;
+
+    mbc7State = 0;
+    mbc7Buffer = 0;
+    mbc7RA = 0;
 
     biosOn = false;
     if (biosExists && !probingForBorder && !gbsMode) {
@@ -104,6 +112,9 @@ void Gameboy::initMMU()
     for (int i=0; i<8; i++)
         memset(wram[i], 0, 0x1000);
     memset(highram, 0, 0x1000); // Initializes sprites and IO registers
+
+    memset(vram[0], 0, 0x2000);
+    memset(vram[1], 0, 0x2000);
 
     writeIO(0x02, 0x00);
     writeIO(0x05, 0x00);
@@ -308,7 +319,7 @@ void Gameboy::writeIO(u8 ioReg, u8 val) {
             ioRam[ioReg] = val;
             break;
         case 0x07:
-            timerPeriod = periods[val&0x3];
+            timerPeriod = timerPeriods[val&0x3];
             ioRam[ioReg] = val;
             break;
         case 0x10:

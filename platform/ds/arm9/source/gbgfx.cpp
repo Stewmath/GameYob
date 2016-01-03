@@ -747,12 +747,10 @@ int loadBorder(const char* filename) {
 
     FILE* file = fopen(filename, "rb");
     if (file == NULL) {
-        disableMenuOption("Custom Border");
         printLog("Error opening border.\n");
         borderPathExists = false;
         return 1;
     }
-    enableMenuOption("Custom Border");
 
     vramSetBankD(VRAM_D_MAIN_BG_0x06040000);
     // Start loading
