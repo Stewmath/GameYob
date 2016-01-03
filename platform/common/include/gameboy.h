@@ -180,7 +180,7 @@ class Gameboy {
         int soundCycles;
         int cyclesToExecute;
         int cycleToSerialTransfer;
-        unsigned long long cycleCount;
+        int cycleCount;
 
         int interruptTriggered;
         int gameboyFrameCounter;

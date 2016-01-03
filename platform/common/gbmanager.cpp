@@ -73,11 +73,25 @@ void mgr_runFrame() {
                 mgr_run(gbDuo, ret2);
                 */
         }
+
+        int subtractor;
+        if (gbDuo->cycleCount <= gbUno->cycleCount)
+            subtractor = gbDuo->cycleCount;
+        else
+            subtractor = gbUno->cycleCount;
+        gbUno->cycleCount -= subtractor;
+        gbDuo->cycleCount -= subtractor;
+        if (gbUno->cycleToSerialTransfer != -1)
+            gbUno->cycleToSerialTransfer -= subtractor;
+        if (gbDuo->cycleToSerialTransfer != -1)
+            gbDuo->cycleToSerialTransfer -= subtractor;
     }
     else {
         while (!(ret1 & RET_VBLANK)) {
             ret1 |= gbUno->runEmul();
         }
+
+        gbUno->cycleCount = 0;
     }
 }
 

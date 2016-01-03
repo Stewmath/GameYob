@@ -410,7 +410,7 @@ int Gameboy::runEmul()
         // For external clock
         if (cycleToSerialTransfer != -1) {
             if (cycleCount < cycleToSerialTransfer)
-                setEventCycles(cycleCount - cyclesSinceVBlank);
+                setEventCycles(cycleToSerialTransfer - cycleCount);
             else {
                 cycleToSerialTransfer = -1;
 
@@ -439,7 +439,6 @@ int Gameboy::runEmul()
                 serialCounter = 0;
                 if (linkedGameboy != NULL) {
                     linkedGameboy->cycleToSerialTransfer = cycleCount;
-//                     mgr_setInternalClockGb(this);
                     emuRet |= RET_LINK;
 
 //                     if (isMainGameboy())
