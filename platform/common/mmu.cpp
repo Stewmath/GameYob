@@ -299,24 +299,29 @@ void Gameboy::writeIO(u8 ioReg, u8 val) {
         case 0x02:
             {
                 if ((ioRam[ioReg] & 0x01) != (val & 0x01)) {
-//                     if (val & 0x01) {
-//                         if (isMainGameboy())
-//                             printLog("Internal Clock: Main\n");
-//                         else
-//                             printLog("Internal Clock: Other\n");
-//                     }
-//                     else {
-//                         if (isMainGameboy())
-//                             printLog("External Clock: Main\n");
-//                         else
-//                             printLog("External Clock: Other\n");
-//                     }
+#ifdef LINK_DEBUG
+                    if (val & 0x01) {
+                        char buf[50];
+                        sprintf(buf, "%s (%s)", isMainGameboy() ? "Main" : "Other", (val & 0x02) ? "speedy" : "normal");
+                        if (isMainGameboy())
+                            printLog("Internal Clock: %s\n", buf);
+                        else
+                            printLog("Internal Clock: %s\n", buf);
+                    }
+                    else {
+                        if (isMainGameboy())
+                            printLog("External Clock: Main\n");
+                        else
+                            printLog("External Clock: Other\n");
+                    }
+#endif
                 }
                 ioRam[ioReg] = val;
-                if (val & 0x80 && val & 0x01) { // Internal clock
+                if ((val & 0x81) == 0x81) { // Internal clock
                     if (serialCounter == 0) {
-                        if (gbMode == CGB && (val & 0x02))
+                        if (gbMode == CGB && (val & 0x02)) {
                             serialCounter = clockSpeed/(1024*32);
+                        }
                         else
                             serialCounter = clockSpeed/1024;
                         if (cyclesToExecute > serialCounter)
@@ -326,7 +331,7 @@ void Gameboy::writeIO(u8 ioReg, u8 val) {
                 else {
                     serialCounter = 0;
                     if (val & 0x80) { // External clock
-                        if (mgr_isInternalClockGb(this)) {
+                        if (mgr_isInternalClockGb(this) || mgr_areBothUsingExternalClock()) {
                             cyclesToExecute = -1;
                             emuRet |= RET_LINK;
                         }

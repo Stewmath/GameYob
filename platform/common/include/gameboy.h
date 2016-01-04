@@ -108,9 +108,8 @@ class Gameboy {
         }
 
 
-        void gameboyCheckInput();
-        void gameboyUpdateVBlank();
-        void gameboyAutosaveCheck();
+        void checkInput();
+        void updateVBlank();
 
         void resetGameboy(); // This may be called even from the context of "runOpcode".
         int runEmul()
@@ -191,7 +190,6 @@ class Gameboy {
 
     private:
         bool resettingGameboy;
-        int autoFireCounterA, autoFireCounterB;
 
         // Persistent stuff (not overwritten by init())
         CheatEngine* cheatEngine;

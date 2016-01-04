@@ -561,8 +561,6 @@ void initGFX()
     }
     gbGraphicsDisabled = false;
 
-    gfxMask = 0;
-
     checkBorder();
     refreshGFX();
 }
@@ -586,6 +584,8 @@ void refreshGFX() {
     lastScreenDisabled = !(gameboy->ioRam[0x40] & 0x80);
     screenDisabled = lastScreenDisabled;
     winPosY = -1;
+
+    gfxMask = 0;
 
     usingTilePriority[0] = 0;
     usingTilePriority[1] = 0;

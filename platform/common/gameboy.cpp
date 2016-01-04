@@ -150,9 +150,6 @@ void Gameboy::init()
 
     resettingGameboy = false;
 
-    autoFireCounterA = 0;
-    autoFireCounterB = 0;
-
     initSND();
     initMMU();
 
@@ -168,10 +165,7 @@ void Gameboy::init()
     memset(sgbMap, 0, sizeof(sgbMap));
     memset(&sgbCmdData, 0, sizeof(sgbCmdData));
 
-    if (isMainGameboy()) {
-        initGFX();
-        initGFXPalette();
-    }
+    initGFXPalette();
 
     initGbPrinter();
 
@@ -268,81 +262,19 @@ void Gameboy::initGameboyMode() {
 }
 
 
-void Gameboy::gameboyCheckInput() {
-    buttonsPressed = 0xff;
-
-    if (probingForBorder)
-        return;
-
-    if (keyPressed(mapFuncKey(FUNC_KEY_UP))) {
-        buttonsPressed &= (0xFF ^ GB_UP);
-        if (!(ioRam[0x00] & 0x10))
+void Gameboy::checkInput() {
+    if (!(ioRam[0x00] & 0x10)) {
+        if ((controllers[0] & 0xf0) != 0xf0)
             requestInterrupt(INT_JOYPAD);
     }
-    if (keyPressed(mapFuncKey(FUNC_KEY_DOWN))) {
-        buttonsPressed &= (0xFF ^ GB_DOWN);
-        if (!(ioRam[0x00] & 0x10))
+    else if (!(ioRam[0x00] & 0x20)) {
+        if ((controllers[0] & 0x0f) != 0x0f)
             requestInterrupt(INT_JOYPAD);
     }
-    if (keyPressed(mapFuncKey(FUNC_KEY_LEFT))) {
-        buttonsPressed &= (0xFF ^ GB_LEFT);
-        if (!(ioRam[0x00] & 0x10))
-            requestInterrupt(INT_JOYPAD);
-    }
-    if (keyPressed(mapFuncKey(FUNC_KEY_RIGHT))) {
-        buttonsPressed &= (0xFF ^ GB_RIGHT);
-        if (!(ioRam[0x00] & 0x10))
-            requestInterrupt(INT_JOYPAD);
-    }
-    if (keyPressed(mapFuncKey(FUNC_KEY_A))) {
-        buttonsPressed &= (0xFF ^ GB_A);
-        if (!(ioRam[0x00] & 0x20))
-            requestInterrupt(INT_JOYPAD);
-    }
-    if (keyPressed(mapFuncKey(FUNC_KEY_B))) {
-        buttonsPressed &= (0xFF ^ GB_B);
-        if (!(ioRam[0x00] & 0x20))
-            requestInterrupt(INT_JOYPAD);
-    }
-    if (keyPressed(mapFuncKey(FUNC_KEY_START))) {
-        buttonsPressed &= (0xFF ^ GB_START);
-        if (!(ioRam[0x00] & 0x20))
-            requestInterrupt(INT_JOYPAD);
-    }
-    if (keyPressed(mapFuncKey(FUNC_KEY_SELECT))) {
-        buttonsPressed &= (0xFF ^ GB_SELECT);
-        if (!(ioRam[0x00] & 0x20))
-            requestInterrupt(INT_JOYPAD);
-    }
-
-    if (keyPressed(mapFuncKey(FUNC_KEY_AUTO_A))) {
-        if (autoFireCounterA <= 0) {
-            buttonsPressed &= (0xFF ^ GB_A);
-            if (!(ioRam[0x00] & 0x20))
-                requestInterrupt(INT_JOYPAD);
-            autoFireCounterA = 2;
-        }
-        autoFireCounterA--;
-    }
-    if (keyPressed(mapFuncKey(FUNC_KEY_AUTO_B))) {
-        if (autoFireCounterB <= 0) {
-            buttonsPressed &= (0xFF ^ GB_B);
-            if (!(ioRam[0x00] & 0x20))
-                requestInterrupt(INT_JOYPAD);
-            autoFireCounterB = 2;
-        }
-        autoFireCounterB--;
-    }
-
-#ifndef DS
-    controllers[0] = buttonsPressed;
-#endif
 }
 
 // This is called 60 times per gameboy second, even if the lcd is off.
-void Gameboy::gameboyUpdateVBlank() {
-    gameboyFrameCounter++;
-
+void Gameboy::updateVBlank() {
     cyclesSinceVBlank = 0;
 
     gameboy->getSoundEngine()->soundUpdateVBlank();
@@ -370,6 +302,8 @@ void Gameboy::gameboyUpdateVBlank() {
 
         updateGbPrinter();
     }
+
+    gameboyFrameCounter++;
 }
 
 // This function can be called from weird contexts, so just set a flag to deal 
@@ -387,6 +321,8 @@ int Gameboy::runEmul()
         setEventCycles(cycleToSerialTransfer);
     if (mgr_isExternalClockGb(this))
         setEventCycles(linkedGameboy->cycleCount - cycleCount);
+    else if (mgr_areBothUsingExternalClock())
+        setEventCycles(128);
 
     for (;;)
     {
@@ -438,13 +374,21 @@ int Gameboy::runEmul()
             if (serialCounter <= 0) {
                 serialCounter = 0;
                 if (linkedGameboy != NULL) {
-                    linkedGameboy->cycleToSerialTransfer = cycleCount;
-                    emuRet |= RET_LINK;
+                    if (linkedGameboy->cycleCount >= cycleCount) {
+                        ioRam[0x01] = 0xff;
+                        ioRam[0x02] &= ~0x80;
+                    }
+                    else {
+                        linkedGameboy->cycleToSerialTransfer = cycleCount;
+                        emuRet |= RET_LINK;
+                    }
 
-//                     if (isMainGameboy())
-//                         printLog("Main: sent packet\n");
-//                     else
-//                         printLog("Other: sent packet\n");
+#ifdef LINK_DEBUG
+                    if (isMainGameboy())
+                        printLog("Main: sent packet\n");
+                    else
+                        printLog("Other: sent packet\n");
+#endif
                     // Execution will stop here, and this gameboy's SB will be 
                     // updated when the other gameboy runs to the appropriate 
                     // cycle.
@@ -497,6 +441,8 @@ int Gameboy::runEmul()
             interruptTriggered = ioRam[0x0F] & ioRam[0xFF];
         }
 
+        if (mgr_areBothUsingExternalClock())
+            emuRet |= RET_LINK;
         if (emuRet) {
             memcpy(&gbRegs, &g_gbRegs, sizeof(Registers));
             return emuRet;
@@ -565,7 +511,7 @@ inline int Gameboy::updateLCD(int cycles)
             phaseCounter += CYCLES_PER_FRAME<<doubleSpeed;
             // Though not technically vblank, this is a good time to check for 
             // input and whatnot.
-            gameboyUpdateVBlank();
+            updateVBlank();
             return RET_VBLANK;
         }
         return 0;
@@ -653,7 +599,7 @@ inline int Gameboy::updateLCD(int cycles)
                         if (ioRam[0x41]&0x10)
                             requestInterrupt(INT_LCD);
 
-                        gameboyUpdateVBlank();
+                        updateVBlank();
                         setEventCycles(scanlineCounter);
                         return RET_VBLANK;
                     }

@@ -42,6 +42,7 @@ int main(int argc, char* argv[])
 	initInput();
     setMenuDefaults();
     readConfigFile();
+    initGFX();
 
     if (argc >= 2) {
         char* filename = argv[1];

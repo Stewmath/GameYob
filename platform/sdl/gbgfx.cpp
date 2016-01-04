@@ -144,7 +144,8 @@ void initGFX()
 }
 
 void refreshGFX() {
-
+    memset(bgPalettesModified, 1, sizeof(bgPalettesModified));
+    memset(sprPalettesModified, 1, sizeof(sprPalettesModified));
 }
 
 void clearGFX() {

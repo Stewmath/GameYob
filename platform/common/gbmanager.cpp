@@ -22,6 +22,11 @@ Gameboy* hostGb = NULL;
 
 RomFile* romFile = NULL;
 
+int mgr_frameCounter;
+
+int autoFireCounterA=0, autoFireCounterB=0;
+
+
 int fps = 0;
 
 time_t rawTime;
@@ -30,13 +35,32 @@ time_t lastRawTime;
 bool emulationPaused;
 
 void mgr_init() {
+    if (gameboy != NULL)
+        delete gameboy;
+    if (gb2 != NULL)
+        delete gb2;
+    if (romFile != NULL)
+        delete romFile;
+
     gameboy = new Gameboy();
+    hostGb = gameboy;
     gbUno = gameboy;
+    gbDuo = NULL;
+
+    mgr_frameCounter = 0;
 
     rawTime = 0;
     lastRawTime = rawTime;
 
     emulationPaused = false;
+}
+
+void mgr_reset() {
+    if (gameboy)
+        gameboy->init();
+    if (gb2)
+        gb2->init();
+    mgr_frameCounter = 0;
 }
 
 void mgr_runFrame() {
@@ -47,7 +71,15 @@ void mgr_runFrame() {
 
     if (gbDuo) {
         while (!((ret1 & RET_VBLANK))) {
-            if ((gbUno->ioRam[0x02]&0x81) == 0x80 && !((gbDuo->ioRam[0x02] & 0x80) == 0x80)) {
+            bool swap = false;
+            if ((gbUno->ioRam[0x02]&0x81) == 0x80)
+                swap = true;
+//             else if ((gbUno->ioRam[0x02]&0x81) == 0x80 && ((gbDuo->ioRam[0x02] & 0x81) == 0x80)) {
+//                 if (gbDuo == hostGb)
+//                     swap = true;
+//             }
+
+            if (swap) {
                 Gameboy* tmp = gbUno;
                 gbUno = gbDuo;
                 gbDuo = tmp;
@@ -93,6 +125,8 @@ void mgr_runFrame() {
 
         gbUno->cycleCount = 0;
     }
+
+    mgr_frameCounter++;
 }
 
 void mgr_startGb2(const char* filename) {
@@ -102,7 +136,7 @@ void mgr_startGb2(const char* filename) {
     if (filename == 0)
         gb2->loadSave(-1);
     else
-        gb2->loadSave(1);
+        gb2->loadSave(2);
     gb2->init();
     gb2->cycleCount = gameboy->cycleCount;
     gb2->getSoundEngine()->mute();
@@ -141,6 +175,10 @@ bool mgr_isInternalClockGb(Gameboy* g) {
 bool mgr_isExternalClockGb(Gameboy* g) {
     return gbUno && gbDuo == g;
 }
+bool mgr_areBothUsingExternalClock() {
+    return (gbUno->ioRam[0x02] & 0x81) == 0x80 && gbDuo &&
+        (gbDuo->ioRam[0x02] & 0x81) == 0x80;
+}
 
 void mgr_pause() {
     emulationPaused = true;
@@ -157,6 +195,8 @@ void mgr_loadRom(const char* filename) {
         delete romFile;
 
     romFile = new RomFile(filename);
+    if (romFile == 0)
+        fatalerr("Not enough RAM to load rom");
     gameboy->setRomFile(romFile);
     gameboy->loadSave(1);
 
@@ -267,13 +307,56 @@ void mgr_updateVBlank() {
     if (isMenuOn())
         updateMenu();
     else {
-        if (gameboy) {
-            gameboy->gameboyCheckInput();
-            if (gbsMode)
-                gbsCheckInput();
+        // Check some buttons
+        buttonsPressed = 0xff;
+
+        if (probingForBorder)
+            return;
+
+        if (keyPressed(mapFuncKey(FUNC_KEY_UP))) {
+            buttonsPressed &= (0xFF ^ GB_UP);
+        }
+        if (keyPressed(mapFuncKey(FUNC_KEY_DOWN))) {
+            buttonsPressed &= (0xFF ^ GB_DOWN);
+        }
+        if (keyPressed(mapFuncKey(FUNC_KEY_LEFT))) {
+            buttonsPressed &= (0xFF ^ GB_LEFT);
+        }
+        if (keyPressed(mapFuncKey(FUNC_KEY_RIGHT))) {
+            buttonsPressed &= (0xFF ^ GB_RIGHT);
+        }
+        if (keyPressed(mapFuncKey(FUNC_KEY_A))) {
+            buttonsPressed &= (0xFF ^ GB_A);
+        }
+        if (keyPressed(mapFuncKey(FUNC_KEY_B))) {
+            buttonsPressed &= (0xFF ^ GB_B);
+        }
+        if (keyPressed(mapFuncKey(FUNC_KEY_START))) {
+            buttonsPressed &= (0xFF ^ GB_START);
+        }
+        if (keyPressed(mapFuncKey(FUNC_KEY_SELECT))) {
+            buttonsPressed &= (0xFF ^ GB_SELECT);
         }
 
-        // Check some buttons
+        if (keyPressed(mapFuncKey(FUNC_KEY_AUTO_A))) {
+            if (autoFireCounterA <= 0) {
+                buttonsPressed &= (0xFF ^ GB_A);
+                autoFireCounterA = 2;
+            }
+            autoFireCounterA--;
+        }
+        if (keyPressed(mapFuncKey(FUNC_KEY_AUTO_B))) {
+            if (autoFireCounterB <= 0) {
+                buttonsPressed &= (0xFF ^ GB_B);
+                autoFireCounterB = 2;
+            }
+            autoFireCounterB--;
+        }
+
+#ifndef NIFI
+        gameboy->controllers[0] = buttonsPressed;
+#endif
+
         if (keyJustPressed(mapFuncKey(FUNC_KEY_SAVE))) {
             if (!autoSavingEnabled) {
                 gameboy->saveGame();
@@ -310,20 +393,23 @@ void mgr_updateVBlank() {
             sharedData->hyperSound = hyperSound;
         }
 #endif
-    }
-
-    if (gameboy) {
         if (keyJustPressed(mapFuncKey(FUNC_KEY_RESET)))
             gameboy->resetGameboy();
 
         if (gb2 && keyJustPressed(mapFuncKey(FUNC_KEY_SWAPFOCUS)))
             mgr_swapFocus();
 
+        gameboy->checkInput();
+        if (gb2)
+            gb2->checkInput();
+
+        if (gbsMode)
+            gbsCheckInput();
+    } // !isMenuOn()
+
+    if (gameboy) {
 #ifdef NIFI
-        int oldIME = REG_IME;
-        REG_IME = 0;
         nifiUpdateInput();
-        REG_IME = oldIME;
 #endif
     }
 

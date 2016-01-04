@@ -84,6 +84,7 @@ void SoundEngine::unmute() {
 
 void SoundEngine::updateSound(int cycles)
 {
+    return;
     setSoundEventCycles(50);
 	timePassed += cycles;
 //	chanOn[0] = 0;

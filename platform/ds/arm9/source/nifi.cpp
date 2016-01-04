@@ -194,7 +194,6 @@ int nifiSendPacket(u8 command, u8* data, u32 dataLen, bool acknowledge)
                     fragmentSize+0x10, acknowledge);
 
             swiWaitForVBlank(); // Excessive?
-            swiWaitForVBlank(); // Excessive?
         }
 
         free(buffer);
@@ -257,7 +256,7 @@ void handlePacketCommand(int command, u8* data) {
                 for (int i=0; i<num; i++) {
                     int frame = frame1+i;
 
-                    if (frame >= hostGb->gameboyFrameCounter) {
+                    if (frame >= mgr_frameCounter) {
                         if (receivedInputReady[frame&31]) {
                             if (receivedInput[frame&31] != data[5+i])
                                 printLog("MISMATCH %x\n", frame);
@@ -274,11 +273,12 @@ void handlePacketCommand(int command, u8* data) {
             {
                 u8* dest;
                 if (nifiLinkType == LINK_SGB)
-                    dest = gameboy->externRam;
+                    memcpy(gameboy->externRam, data, gameboy->getNumRamBanks()*0x2000);
+                else if (gb2)
+                    memcpy(gb2->externRam, data, gb2->getNumRamBanks()*0x2000);
                 else
-                    dest = gb2->externRam;
+                    printLog("GB2 NOT INITIALIZED!\n");
                 printLog("Received SRAM.\n");
-                memcpy(dest, data, gameboy->getNumRamBanks()*0x2000);
                 receivedSram = true;
             }
             break;
@@ -290,8 +290,6 @@ void handlePacketCommand(int command, u8* data) {
                 u8 command = data[4];
                 u8 numFragments = data[5];
                 u8 fragment = data[6];
-
-                printLog("FRAGMENT %d\n", fragment);
 
                 int fragmentSize = FRAGMENT_SIZE;
                 if (fragment == numFragments-1) {
@@ -526,10 +524,11 @@ void nifiStartLink() {
     bool waitForSram = false;
     bool sendSram = false;
 
-    gameboy->init();
     nifiFrameCounter = -1;
 
+    mgr_reset();
     if (nifiLinkType == LINK_CABLE) {
+        printLog("Start Gb2\n");
         mgr_startGb2(0);
     }
 
@@ -582,6 +581,7 @@ void nifiStartLink() {
             sendSram = true;
     }
 
+    printLog("Begin nifi link.\n");
     if (isHost) {
         if (sendSram && gameboy->getNumRamBanks())
             nifiSendSram();
@@ -596,8 +596,6 @@ void nifiStartLink() {
         if (sendSram && gameboy->getNumRamBanks())
             nifiSendSram();
     }
-
-    printLog("Begin nifi link.\n");
 
     nifiConsecutiveWaitingFrames = 0;
     //closeMenu();
@@ -697,6 +695,7 @@ void nifiClientMenu() {
             else if (keyJustPressed(KEY_B)) {
                 willConnect = false;
                 printf("Connection cancelled.\n");
+                for (int i=0; i<90; i++) swiWaitForVBlank();
                 break;
             }
         }
@@ -705,14 +704,13 @@ void nifiClientMenu() {
         isClient = false;
         status = 0;
         printf("Couldn't find host.\n");
-        disableNifi();
+        nifiStop();
+        for (int i=0; i<90; i++) swiWaitForVBlank();
     }
     
     if (willConnect) {
         nifiStartLink();
     }
-
-    for (int i=0; i<90; i++) swiWaitForVBlank();
 }
 
 bool nifiIsHost() { return isHost; }
@@ -746,14 +744,14 @@ void nifiUpdateInput() {
     u32 bfr[4];
     u8* buffer = (u8*)bfr;
 
-    u32 actualFrame = hostGb->gameboyFrameCounter;
-    u32 inputFrame = hostGb->gameboyFrameCounter;
-    bool frameHasPassed = nifiFrameCounter != hostGb->gameboyFrameCounter;
+    u32 actualFrame = mgr_frameCounter;
+    u32 inputFrame = mgr_frameCounter;
+    bool frameHasPassed = nifiFrameCounter != mgr_frameCounter;
     if (nifiFrameCounter == -1)
-        printf("Start at %d", hostGb->gameboyFrameCounter);
+        printf("Start at %d", mgr_frameCounter);
     if (frameHasPassed && nifiFrameCounter > 0)
         receivedInputReady[(nifiFrameCounter-1)&31] = false;
-    nifiFrameCounter = hostGb->gameboyFrameCounter;
+    nifiFrameCounter = mgr_frameCounter;
 
     if (nifiIsClient())
         inputFrame += CLIENT_FRAME_LAG;
