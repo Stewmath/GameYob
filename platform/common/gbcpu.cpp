@@ -1215,8 +1215,13 @@ int Gameboy::runOpcode(int cycles) {
             case 0xCD:		// CALL nn			24
                 {
                     int val = getPC() + 2;
+#ifdef SPEEDHAX
                     quickWrite(--locSP, (val) >> 8);
                     quickWrite(--locSP, (val & 0xFF));
+#else
+                    writeMemory(--locSP, (val) >> 8);
+                    writeMemory(--locSP, (val & 0xFF));
+#endif
                     setPC(readPC16_noinc());
                     break;
                 }
@@ -1224,8 +1229,13 @@ int Gameboy::runOpcode(int cycles) {
                 if (!zeroSet())
                 {
                     int val = getPC() + 2;
+#ifdef SPEEDHAX
                     quickWrite(--locSP, (val) >> 8);
                     quickWrite(--locSP, (val & 0xFF));
+#else
+                    writeMemory(--locSP, (val) >> 8);
+                    writeMemory(--locSP, (val & 0xFF));
+#endif
                     setPC(readPC16_noinc());
                     break;
                 }
@@ -1238,8 +1248,13 @@ int Gameboy::runOpcode(int cycles) {
                 if (zeroSet())
                 {
                     int val = getPC() + 2;
+#ifdef SPEEDHAX
                     quickWrite(--locSP, (val) >> 8);
                     quickWrite(--locSP, (val & 0xFF));
+#else
+                    writeMemory(--locSP, (val) >> 8);
+                    writeMemory(--locSP, (val & 0xFF));
+#endif
                     setPC(readPC16_noinc());
                     break;
                 }
@@ -1252,8 +1267,13 @@ int Gameboy::runOpcode(int cycles) {
                 if (!carrySet())
                 {
                     int val = getPC() + 2;
+#ifdef SPEEDHAX
                     quickWrite(--locSP, (val) >> 8);
                     quickWrite(--locSP, (val & 0xFF));
+#else
+                    writeMemory(--locSP, (val) >> 8);
+                    writeMemory(--locSP, (val & 0xFF));
+#endif
                     setPC(readPC16_noinc());
                     break;
                 }
@@ -1266,8 +1286,13 @@ int Gameboy::runOpcode(int cycles) {
                 if (carrySet())
                 {
                     int val = getPC() + 2;
+#ifdef SPEEDHAX
                     quickWrite(--locSP, (val) >> 8);
                     quickWrite(--locSP, (val & 0xFF));
+#else
+                    writeMemory(--locSP, (val) >> 8);
+                    writeMemory(--locSP, (val & 0xFF));
+#endif
                     setPC(readPC16_noinc());
                     break;
                 }
@@ -1280,64 +1305,104 @@ int Gameboy::runOpcode(int cycles) {
             case 0xC7:		// RST 00H			16
                 {
                     u16 val = getPC();
+#ifdef SPEEDHAX
                     quickWrite(--locSP, (val) >> 8);
                     quickWrite(--locSP, (val & 0xFF));
+#else
+                    writeMemory(--locSP, (val) >> 8);
+                    writeMemory(--locSP, (val & 0xFF));
+#endif
                     setPC(0x0);
                 }
                 break;
             case 0xCF:		// RST 08H			16
                 {
                     u16 val = getPC();
+#ifdef SPEEDHAX
                     quickWrite(--locSP, (val) >> 8);
                     quickWrite(--locSP, (val & 0xFF));
+#else
+                    writeMemory(--locSP, (val) >> 8);
+                    writeMemory(--locSP, (val & 0xFF));
+#endif
                     setPC(0x8);
                     break;
                 }
             case 0xD7:		// RST 10H			16
                 {
                     u16 val = getPC();
+#ifdef SPEEDHAX
                     quickWrite(--locSP, (val) >> 8);
                     quickWrite(--locSP, (val & 0xFF));
+#else
+                    writeMemory(--locSP, (val) >> 8);
+                    writeMemory(--locSP, (val & 0xFF));
+#endif
                     setPC(0x10);
                 }
                 break;
             case 0xDF:		// RST 18H			16
                 {
                     u16 val = getPC();
+#ifdef SPEEDHAX
                     quickWrite(--locSP, (val) >> 8);
                     quickWrite(--locSP, (val & 0xFF));
+#else
+                    writeMemory(--locSP, (val) >> 8);
+                    writeMemory(--locSP, (val & 0xFF));
+#endif
                     setPC(0x18);
                 }
                 break;
             case 0xE7:		// RST 20H			16
                 {
                     u16 val = getPC();
+#ifdef SPEEDHAX
                     quickWrite(--locSP, (val) >> 8);
                     quickWrite(--locSP, (val & 0xFF));
+#else
+                    writeMemory(--locSP, (val) >> 8);
+                    writeMemory(--locSP, (val & 0xFF));
+#endif
                     setPC(0x20);
                 }
                 break;
             case 0xEF:		// RST 28H			16
                 {
                     u16 val = getPC();
+#ifdef SPEEDHAX
                     quickWrite(--locSP, (val) >> 8);
                     quickWrite(--locSP, (val & 0xFF));
+#else
+                    writeMemory(--locSP, (val) >> 8);
+                    writeMemory(--locSP, (val & 0xFF));
+#endif
                     setPC(0x28);
                 }
                 break;
             case 0xF7:		// RST 30H			16
                 {
                     u16 val = getPC();
+#ifdef SPEEDHAX
                     quickWrite(--locSP, (val) >> 8);
                     quickWrite(--locSP, (val & 0xFF));
+#else
+                    writeMemory(--locSP, (val) >> 8);
+                    writeMemory(--locSP, (val & 0xFF));
+#endif
                     setPC(0x30);
                 }
                 break;
             case 0xFF:		// RST 38H			16
                 {
                     u16 val = getPC();
+#ifdef SPEEDHAX
                     quickWrite(--locSP, (val) >> 8);
                     quickWrite(--locSP, (val & 0xFF));
+#else
+                    writeMemory(--locSP, (val) >> 8);
+                    writeMemory(--locSP, (val & 0xFF));
+#endif
                     setPC(0x38);
                 }
                 break;
