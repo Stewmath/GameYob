@@ -73,7 +73,8 @@ void SoundEngine::init()
     memset(chanEnvSweep, 0, sizeof(chanEnvSweep));
     memset(chanVol, 0, sizeof(chanVol));
 
-    refresh();
+    if (gameboy->isMainGameboy())
+        refresh();
 }
 
 void SoundEngine::refresh() {

@@ -3,6 +3,7 @@
 #include <vector>
 #include "time.h"
 #include "gbgfx.h"
+#include "romfile.h"
 #include "io.h"
 
 #ifdef DS
@@ -17,6 +18,9 @@
 // Same deal
 #define CYCLES_PER_FRAME 70224
 
+// Max cycles one gameboy can be ahead of the other while both are waiting for
+// communication to start
+#define SERIAL_CYCLES (128*32)
 
 #define GB			0
 #define CGB			1
@@ -273,7 +277,7 @@ class Gameboy {
         void latchClock();
         void writeSaveFileSectors(int startSector, int numSectors);
 
-        inline int getNumRamBanks() { return numRamBanks; }
+        inline int getNumSramBanks() { return romFile->getNumSramBanks(); }
         inline u8 getWramBank() { return wramBank; }
         inline void setWramBank(u8 bank) { wramBank = bank; }
 
@@ -381,7 +385,6 @@ class Gameboy {
 
         // Persistent (not overwritten in init())
         ClockStruct gbClock;
-        int numRamBanks;
 
         // sgb.cpp
     public:

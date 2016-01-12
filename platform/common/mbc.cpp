@@ -88,7 +88,7 @@ void Gameboy::m0w (u16 addr, u8 val) {
             break;
         case 0xa: /* a000 - bfff */
         case 0xb:
-            if (numRamBanks)
+            if (getNumSramBanks())
                 writeSram(addr&0x1fff, val);
             break;
     }
@@ -130,7 +130,7 @@ void Gameboy::m1w (u16 addr, u8 val) {
             break;
         case 0xa: /* a000 - bfff */
         case 0xb:
-            if (ramEnabled && numRamBanks)
+            if (ramEnabled && getNumSramBanks())
                 writeSram(addr&0x1fff, val);
             break;
     }
@@ -155,7 +155,7 @@ void Gameboy::m2w(u16 addr, u8 val) {
             break;
         case 0xa: /* a000 - bfff */
         case 0xb:
-            if (ramEnabled && numRamBanks)
+            if (ramEnabled && getNumSramBanks() && addr < 0xa200)
                 writeSram(addr&0x1fff, val&0xf);
             break;
     }
@@ -227,7 +227,7 @@ void Gameboy::m3w(u16 addr, u8 val) {
                     }
                     return;
                 default: // Not an RTC register
-                    if (numRamBanks)
+                    if (getNumSramBanks())
                         writeSram(addr&0x1fff, val);
             }
             break;
@@ -236,7 +236,7 @@ void Gameboy::m3w(u16 addr, u8 val) {
 
 void Gameboy::writeClockStruct() {
     if (autoSavingEnabled) {
-        file_seek(saveFile, numRamBanks*0x2000, SEEK_SET);
+        file_seek(saveFile, getNumSramBanks()*0x2000, SEEK_SET);
         file_write(&gbClock, 1, sizeof(gbClock), saveFile);
         saveModified = true;
     }
@@ -283,7 +283,7 @@ void Gameboy::m5w (u16 addr, u8 val) {
             break;
         case 0xa: /* a000 - bfff */
         case 0xb:
-            if (ramEnabled && numRamBanks)
+            if (ramEnabled && getNumSramBanks())
                 writeSram(addr&0x1fff, val);
             break;
     }
@@ -367,7 +367,7 @@ void Gameboy::h1w(u16 addr, u8 val) {
             break;
         case 0xa: /* a000 - bfff */
         case 0xb:
-            if (ramEnabled && numRamBanks)
+            if (ramEnabled && getNumSramBanks())
                 writeSram(addr&0x1fff, val);
             break;
     }
@@ -404,7 +404,7 @@ void Gameboy::h3w (u16 addr, u8 val) {
                 case 0xe:
                     break;
                 default:
-                    if (ramEnabled && numRamBanks)
+                    if (ramEnabled && getNumSramBanks())
                         writeSram(addr&0x1fff, val);
             }
             break;

@@ -42,6 +42,7 @@ class RomFile {
         bool checkStateExists(int num);
 
         inline int getNumRomBanks() { return numRomBanks; }
+        inline int getNumSramBanks() { return numRamBanks; }
         inline int getCgbFlag() { return romSlot0[0x143]; }
         inline int getRamSize() { return romSlot0[0x149]; }
         inline int getMapper() { return romSlot0[0x147]; }
@@ -59,6 +60,7 @@ class RomFile {
         int numRomBanks;
         int maxLoadedRomBanks;
         int numLoadedRomBanks;
+        int numRamBanks;
         int bankSlotIDs[MAX_ROM_BANKS]; // Keeps track of which bank occupies which slot
         std::vector<int> lastBanksUsed;
 

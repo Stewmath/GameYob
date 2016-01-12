@@ -44,7 +44,7 @@ void Gameboy::refreshRomBank(int bank)
 
 void Gameboy::refreshRamBank (int bank) 
 {
-    if (bank < numRamBanks) {
+    if (bank < getNumSramBanks()) {
         currentRamBank = bank;
         memory[0xa] = externRam+currentRamBank*0x2000;
         memory[0xb] = externRam+currentRamBank*0x2000+0x1000; 
@@ -246,7 +246,7 @@ u8 Gameboy::readMemoryOther(u16 addr) {
         /* Check if there's an handler for this mbc */
         if (readFunc != NULL)
             return (*this.*readFunc)(addr);
-        else if (!numRamBanks)
+        else if (!getNumSramBanks())
             return 0xff;
     }
     return memory[area][addr&0xfff];
@@ -319,7 +319,8 @@ void Gameboy::writeIO(u8 ioReg, u8 val) {
                 ioRam[ioReg] = val;
                 if ((val & 0x81) == 0x81) { // Internal clock
                     if (serialCounter == 0) {
-                        if (gbMode == CGB && (val & 0x02)) {
+                        // DS can't handle high speed
+                        if (false && gbMode == CGB && (val & 0x02)) {
                             serialCounter = clockSpeed/(1024*32);
                         }
                         else
@@ -332,8 +333,12 @@ void Gameboy::writeIO(u8 ioReg, u8 val) {
                     serialCounter = 0;
                     if (val & 0x80) { // External clock
                         if (mgr_isInternalClockGb(this) || mgr_areBothUsingExternalClock()) {
-                            cyclesToExecute = -1;
-                            emuRet |= RET_LINK;
+                            int cycles = linkedGameboy->cycleCount - cycleCount;
+                            if (cycles < 0)
+                                cycles = 0;
+                            if (cyclesToExecute > cycles) {
+                                cyclesToExecute = cycles;
+                            }
                         }
                     }
                 }

@@ -273,9 +273,9 @@ void handlePacketCommand(int command, u8* data) {
             {
                 u8* dest;
                 if (nifiLinkType == LINK_SGB)
-                    memcpy(gameboy->externRam, data, gameboy->getNumRamBanks()*0x2000);
+                    memcpy(gameboy->externRam, data, gameboy->getNumSramBanks()*0x2000);
                 else if (gb2)
-                    memcpy(gb2->externRam, data, gb2->getNumRamBanks()*0x2000);
+                    memcpy(gb2->externRam, data, gb2->getNumSramBanks()*0x2000);
                 else
                     printLog("GB2 NOT INITIALIZED!\n");
                 printLog("Received SRAM.\n");
@@ -500,7 +500,7 @@ void nifiLinkTypeMenu() {
 
 void nifiSendSram() {
     nifiSendPacket(NIFI_CMD_TRANSFER_SRAM, gameboy->externRam,
-            gameboy->getNumRamBanks()*0x2000, false);
+            gameboy->getNumSramBanks()*0x2000, false);
     printLog("Sent SRAM.\n");
 }
 
@@ -583,17 +583,17 @@ void nifiStartLink() {
 
     printLog("Begin nifi link.\n");
     if (isHost) {
-        if (sendSram && gameboy->getNumRamBanks())
+        if (sendSram && gameboy->getNumSramBanks())
             nifiSendSram();
-        if (waitForSram && gameboy->getNumRamBanks())
+        if (waitForSram && gameboy->getNumSramBanks())
             nifiReceiveSram();
     }
     else {
-        if (waitForSram && gameboy->getNumRamBanks())
+        if (waitForSram && gameboy->getNumSramBanks())
             nifiReceiveSram();
         for (int i=0;i<60;i++)
             swiWaitForVBlank();
-        if (sendSram && gameboy->getNumRamBanks())
+        if (sendSram && gameboy->getNumSramBanks())
             nifiSendSram();
     }
 

@@ -12,9 +12,12 @@ DIR* directory = 0;
 
 FileHandle* file_open(const char* filename, const char* params) {
     FileHandle* h = (FileHandle*)malloc(sizeof(FileHandle));
+    h->filename = (char*)malloc(strlen(filename)+1);
+    strcpy(h->filename, filename);
     h->file = fopen(filename, params);
 
     if (h->file == NULL) {
+        free(h->filename);
         free(h);
         h = NULL;
         return NULL;
@@ -26,6 +29,7 @@ FileHandle* file_open(const char* filename, const char* params) {
 
 void file_close(FileHandle* h) {
     fclose(h->file);
+    free(h->filename);
     free(h);
 }
 void file_read(void* buf, int bs, int size, FileHandle* h) {
@@ -59,10 +63,12 @@ int file_getSize(FileHandle* h) {
 }
 void file_setSize(FileHandle* h, size_t neededSize) {
     size_t fileSize = file_getSize(h);
-    h->file = freopen(NULL, "ab", h->file);
+    fclose(h->file);
+    h->file = fopen(h->filename, "ab");
     for (; fileSize<neededSize; fileSize++)
         fputc(0, h->file);
-    h->file = freopen(NULL, h->flags, h->file);
+    fclose(h->file);
+    h->file = fopen(h->filename, h->flags);
 }
 
 void file_printf(FileHandle* h, const char* s, ...) {

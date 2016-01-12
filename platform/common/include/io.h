@@ -13,6 +13,7 @@ struct FileHandle;
 
 struct FileHandle {
     FILE* file;
+    char* filename;
     char flags[10];
 };
 

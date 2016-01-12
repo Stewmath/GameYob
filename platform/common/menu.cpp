@@ -93,7 +93,7 @@ void subMenuGenericUpdateFunc() {
 
 void suspendFunc(int value) {
     muteSND();
-    if (!autoSavingEnabled && gameboy->getNumRamBanks()) {
+    if (!autoSavingEnabled && gameboy->getNumSramBanks()) {
         printMenuMessage("Saving SRAM...");
         mgr_save();
     }
@@ -105,7 +105,7 @@ void suspendFunc(int value) {
 }
 void exitFunc(int value) {
     muteSND();
-    if (!autoSavingEnabled && gameboy->getNumRamBanks()) {
+    if (!autoSavingEnabled && gameboy->getNumSramBanks()) {
         printMenuMessage("Saving SRAM...");
         mgr_save();
     }
@@ -351,7 +351,7 @@ void setAutoSaveFunc(int value) {
     else
         gameboy->saveGame(); // Synchronizes save file with filesystem
     autoSavingEnabled = value;
-    if (gameboy->isRomLoaded() && gameboy->getNumRamBanks() && !gbsMode && !autoSavingEnabled)
+    if (gameboy->isRomLoaded() && gameboy->getNumSramBanks() && !gbsMode && !autoSavingEnabled)
         enableMenuOption("Exit without saving");
     else
         disableMenuOption("Exit without saving");

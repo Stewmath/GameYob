@@ -174,6 +174,35 @@ RomFile::RomFile(const char* f) {
 
     } // !gbsMode
 
+    // Check number of ram banks
+    if (gbsMode)
+        numRamBanks = 1;
+    else {
+        // Get the game's external memory size and allocate the memory
+        switch(getRamSize())
+        {
+            case 0:
+                numRamBanks = 0;
+                break;
+            case 1: // Technically 2 kilobytes
+            case 2:
+                numRamBanks = 1;
+                break;
+            case 3:
+                numRamBanks = 4;
+                break;
+            default:
+                printLog("Invalid RAM bank number: %x\nDefaulting to 4 banks\n", getRamSize());
+                numRamBanks = 4;
+                break;
+        }
+        if (getMBC() == MBC2)
+            numRamBanks = 1;
+        else if (getMBC() == MBC7) // Probably not correct behaviour
+            numRamBanks = 1;
+    }
+
+
 #ifndef EMBEDDED_ROM
     // If we've loaded everything, close the rom file
     if (numRomBanks <= numLoadedRomBanks) {

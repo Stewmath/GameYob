@@ -70,6 +70,7 @@ void mgr_runFrame() {
     int ret1=0;
 
     if (gbDuo) {
+//         printLog("Begin\n");
         while (!((ret1 & RET_VBLANK))) {
             bool swap = false;
             if ((gbUno->ioRam[0x02]&0x81) == 0x80)
@@ -97,14 +98,9 @@ void mgr_runFrame() {
                 else
                     gbDuo->runEmul();
             }
-
-            /*
-            if (!(ret1 & RET_VBLANK))
-                    mgr_run(gbUno, ret1);
-            if (!(ret2 & RET_VBLANK))
-                mgr_run(gbDuo, ret2);
-                */
+//             printLog("%d, %d\n", gbUno->cycleCount, gbDuo->cycleCount);
         }
+//         printLog("End\n");
 
         int subtractor;
         if (gbDuo->cycleCount <= gbUno->cycleCount)
@@ -125,6 +121,9 @@ void mgr_runFrame() {
 
         gbUno->cycleCount = 0;
     }
+
+    if (mgr_areBothUsingExternalClock())
+        printLog("Both waiting\n");
 
     mgr_frameCounter++;
 }
@@ -233,7 +232,7 @@ void mgr_loadRom(const char* filename) {
             disableMenuOption("Delete State");
         }
 
-        if (gameboy->getNumRamBanks() && !autoSavingEnabled)
+        if (gameboy->getNumSramBanks() && !autoSavingEnabled)
             enableMenuOption("Exit without saving");
         else
             disableMenuOption("Exit without saving");

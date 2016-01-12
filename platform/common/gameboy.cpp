@@ -33,7 +33,7 @@ extern "C" {
 #include "io.h"
 #include "gbmanager.h"
 
-const int maxWaitCycles=1000000;
+const int MAX_WAIT_CYCLES=1000000;
 
 Gameboy::Gameboy() : hram(highram+0xe00), ioRam(highram+0xf00) {
     saveFile=NULL;
@@ -50,18 +50,6 @@ Gameboy::Gameboy() : hram(highram+0xe00), ioRam(highram+0xf00) {
 
     cheatEngine = new CheatEngine(this);
     soundEngine = new SoundEngine(this);
-    if (this != gameboy)
-        soundEngine->mute();
-
-
-    // Shouldn't be here
-    fpsOutput=true;
-    timeOutput=true;
-
-    fastForwardMode = false;
-    fastForwardKey = false;
-
-    probingForBorder=false;
 }
 
 Gameboy::~Gameboy() {
@@ -320,12 +308,7 @@ int Gameboy::runEmul()
     emuRet = 0;
     memcpy(&g_gbRegs, &gbRegs, sizeof(Registers));
 
-    if (cycleToSerialTransfer != -1)
-        setEventCycles(cycleToSerialTransfer);
-    if (mgr_isExternalClockGb(this))
-        setEventCycles(linkedGameboy->cycleCount - cycleCount);
-    else if (mgr_areBothUsingExternalClock())
-        setEventCycles(128);
+    cyclesToEvent = 0;
 
     for (;;)
     {
@@ -340,7 +323,7 @@ int Gameboy::runEmul()
 
         cycles += extraCycles;
 
-        cyclesToEvent = maxWaitCycles;
+        cyclesToEvent = MAX_WAIT_CYCLES;
         extraCycles=0;
 
         cyclesSinceVBlank += cycles;
@@ -406,8 +389,14 @@ int Gameboy::runEmul()
             else
                 setEventCycles(serialCounter);
         }
+        if (mgr_areBothUsingExternalClock()) {
+            if (linkedGameboy->cycleCount+SERIAL_CYCLES <= cycleCount)
+                emuRet |= RET_LINK;
+            else
+                setEventCycles(linkedGameboy->cycleCount+SERIAL_CYCLES - cycleCount);
+        }
         // External clock gameboy shouldn't get ahead of the internal clock
-        if (mgr_isExternalClockGb(this)) {
+        else if (mgr_isExternalClockGb(this)) {
             if (linkedGameboy->cycleCount <= cycleCount)
                 emuRet |= RET_LINK;
             else
@@ -444,8 +433,6 @@ int Gameboy::runEmul()
             interruptTriggered = ioRam[0x0F] & ioRam[0xFF];
         }
 
-        if (mgr_areBothUsingExternalClock())
-            emuRet |= RET_LINK;
         if (emuRet) {
             memcpy(&gbRegs, &g_gbRegs, sizeof(Registers));
             return emuRet;
@@ -709,7 +696,7 @@ void Gameboy::printRomInfo() {
     printf("ROM Title: \"%s\"\n", romFile->getRomTitle());
     printf("Cartridge type: %.2x (%s)\n", romFile->getMapper(), mbcNames[romFile->getMBC()]);
     printf("ROM Size: %.2x (%d banks)\n", romFile->romSlot0[0x148], romFile->getNumRomBanks());
-    printf("RAM Size: %.2x (%d banks)\n", romFile->getRamSize(), numRamBanks);
+    printf("RAM Size: %.2x (%d banks)\n", romFile->getRamSize(), getNumSramBanks());
 }
 
 bool Gameboy::isRomLoaded() {
@@ -727,40 +714,12 @@ int Gameboy::loadSave(int saveId)
         strcat(savename, buf);
     }
 
-    if (gbsMode)
-        numRamBanks = 1;
-    else {
-        // Get the game's external memory size and allocate the memory
-        switch(romFile->getRamSize())
-        {
-            case 0:
-                numRamBanks = 0;
-                break;
-            case 1:
-            case 2:
-                numRamBanks = 1;
-                break;
-            case 3:
-                numRamBanks = 4;
-                break;
-            case 4:
-                numRamBanks = 16;
-                break;
-            default:
-                printLog("Invalid RAM bank number: %x\nDefaulting to 4 banks\n", romFile->getRamSize());
-                numRamBanks = 4;
-                break;
-        }
-        if (romFile->getMBC() == MBC2)
-            numRamBanks = 1;
-        else if (romFile->getMBC() == MBC7) // Probably not correct behaviour
-            numRamBanks = 1;
-    }
-
-    if (numRamBanks == 0)
+    if (getNumSramBanks() == 0)
         return 0;
 
-    externRam = (u8*)malloc(numRamBanks*0x2000);
+    if (externRam != NULL)
+        free(externRam);
+    externRam = (u8*)malloc(getNumSramBanks()*0x2000);
 
     if (gbsMode || saveId == -1) {
         saveFile = NULL;
@@ -770,7 +729,7 @@ int Gameboy::loadSave(int saveId)
     // Now load the data.
     saveFile = file_open(savename, "r+b");
 
-    int neededFileSize = numRamBanks*0x2000;
+    int neededFileSize = getNumSramBanks()*0x2000;
     if (romFile->getMBC() == MBC3 || romFile->getMBC() == HUC3)
         neededFileSize += sizeof(ClockStruct);
 
@@ -795,7 +754,7 @@ int Gameboy::loadSave(int saveId)
         }
     }
 
-    file_read(externRam, 1, 0x2000*numRamBanks, saveFile);
+    file_read(externRam, 1, 0x2000*getNumSramBanks(), saveFile);
 
     switch (romFile->getMBC()) {
         case MBC3:
@@ -830,7 +789,7 @@ int Gameboy::loadSave(int saveId)
             if (position.byte != 0)
                 fatalerr("Bad assumption in autosaving code");
 
-            for (int i=0; i<0x2000*numRamBanks/partition->bytesPerSector; i++) {
+            for (int i=0; i<0x2000*getNumSramBanks()/partition->bytesPerSector; i++) {
                 if (position.sector >= partition->sectorsPerCluster) {
                     position.sector = 0;
                     position.cluster = _FAT_fat_nextCluster(partition, position.cluster);
@@ -848,12 +807,12 @@ int Gameboy::loadSave(int saveId)
 
 int Gameboy::saveGame()
 {
-    if (numRamBanks == 0 || saveFile == NULL)
+    if (getNumSramBanks() == 0 || saveFile == NULL)
         return 0;
 
     file_seek(saveFile, 0, SEEK_SET);
 
-    file_write(externRam, 1, 0x2000*numRamBanks, saveFile);
+    file_write(externRam, 1, 0x2000*getNumSramBanks(), saveFile);
 
     switch (romFile->getMBC()) {
         case MBC3:
@@ -881,7 +840,7 @@ void Gameboy::gameboySyncAutosave() {
     int lastSector = -2;
     int numSectors = 0;
     // iterate over each sector
-    for (int i=0; i<numRamBanks*0x2000/fatBytesPerSector; i++) {
+    for (int i=0; i<getNumSramBanks()*0x2000/fatBytesPerSector; i++) {
         if (dirtySectors[i]) {
             if (startSector == -1) {
                 startSector = i;
@@ -1013,7 +972,7 @@ void Gameboy::saveState(int stateNum) {
     file_write((char*)vram, 1, sizeof(vram), outFile);
     file_write((char*)wram, 1, sizeof(wram), outFile);
     file_write((char*)hram, 1, 0x200, outFile);
-    file_write((char*)externRam, 1, 0x2000*numRamBanks, outFile);
+    file_write((char*)externRam, 1, 0x2000*getNumSramBanks(), outFile);
 
     file_write((char*)&state, 1, sizeof(StateStruct), outFile);
 
@@ -1077,7 +1036,7 @@ int Gameboy::loadState(int stateNum) {
         // Value "0x04" for ram size wasn't interpreted correctly before
         file_read((char*)externRam, 1, 0x2000*4, inFile);
     else
-        file_read((char*)externRam, 1, 0x2000*numRamBanks, inFile);
+        file_read((char*)externRam, 1, 0x2000*getNumSramBanks(), inFile);
 
     file_read((char*)&state, 1, sizeof(StateStruct), inFile);
 
