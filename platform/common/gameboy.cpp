@@ -175,6 +175,9 @@ void Gameboy::init()
 
     if (gbsMode)
         gbsInit();
+
+    if (isMainGameboy())
+        refreshGFX();
 }
 
 void Gameboy::initGBMode() {
