@@ -68,8 +68,9 @@ bool readConfigFile() {
     char line[100];
     void (*configParser)(char*) = generalParseConfig;
 
-    if (file == NULL)
+    if (file == NULL) {
         goto end;
+    }
 
     while (file_tell(file) < file_getSize(file)) {
         file_gets(line, 100, file);
@@ -99,6 +100,8 @@ bool readConfigFile() {
 end:
     controlsCheckConfig();
 
+    if (file == NULL)
+        writeConfigFile();
     return file != NULL;
 }
 
@@ -117,9 +120,11 @@ void writeConfigFile() {
     controlsPrintConfig(file);
     file_close(file);
 
-    char nameBuf[MAX_FILENAME_LEN];
-    sprintf(nameBuf, "%s.cht", gameboy->getRomFile()->getBasename());
-    gameboy->getCheatEngine()->saveCheats(nameBuf);
+    if (gameboy != NULL) {
+        char nameBuf[MAX_FILENAME_LEN];
+        sprintf(nameBuf, "%s.cht", gameboy->getRomFile()->getBasename());
+        gameboy->getCheatEngine()->saveCheats(nameBuf);
+    }
 }
 
 
