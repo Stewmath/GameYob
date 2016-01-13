@@ -1,4 +1,7 @@
+#ifdef SDL
 #include <SDL.h>
+#endif
+
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
@@ -193,11 +196,20 @@ void startDebugger() {
 #endif
 }
 
+void stopDebugger() {
+#ifdef CPU_LOG
+    fclose(logFile);
+    logFile = NULL;
+#endif
+}
+
 int runDebugger(Gameboy* gameboy, const Registers& regs)
 {
+#ifdef SDL
     if (keyJustPressed(SDLK_d))
         debugMode = 1;
-    else if (breakpointAddr == regs.pc.w)
+#endif
+    if (breakpointAddr == regs.pc.w)
         debugMode = 1;
     system_checkPolls();
 

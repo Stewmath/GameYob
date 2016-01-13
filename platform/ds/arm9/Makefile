@@ -32,7 +32,7 @@ CFLAGS	:=	-Wall -Wno-psabi -DNO_VIZ \
  			-march=armv5te -mtune=arm946e-s -fomit-frame-pointer\
 			-ffast-math -O3 $(ARCH) $(DEBUG) \
 			-DVERSION_STRING=\"`git describe --always --abbrev=4`\"\
-			-DC_IO_FUNCTIONS -DNIFI\
+			-DC_IO_FUNCTIONS -DNIFI \
 			-include "nds/ndstypes.h"
 
 CFLAGS	+=	$(INCLUDE) -DARM9 -DDS

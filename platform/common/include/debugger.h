@@ -11,4 +11,5 @@ extern int writeWatchAddr;
 extern int writeWatchBank;
 
 void startDebugger();
+void stopDebugger();
 int runDebugger(Gameboy* gameboy, const Registers& regs);

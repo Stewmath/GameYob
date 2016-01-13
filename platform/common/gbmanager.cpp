@@ -249,6 +249,10 @@ void mgr_loadRom(const char* filename) {
 }
 
 void mgr_unloadRom() {
+#ifdef CPU_DEBUG
+    stopDebugger();
+#endif
+
 #ifdef NIFI
     nifiStop();
 #endif
