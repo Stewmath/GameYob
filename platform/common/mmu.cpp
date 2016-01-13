@@ -239,7 +239,7 @@ u8 Gameboy::readMemoryOther(u16 addr) {
             return readIO(addr&0xff);
         // Check for echo area
         else if (addr < 0xfe00)
-            addr -= 0x2000;
+            return memory[0xd][addr&0xfff];
     }
     /* Check if in range a000-bfff */
     else if (area == 0xa || area == 0xb) {
