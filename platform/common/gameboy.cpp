@@ -96,7 +96,7 @@ void Gameboy::init()
     } // !gbsMode
 
     gbRegs.sp.w = 0xFFFE;
-    ime = 1;			// Correct default value?
+    ime = 0;
     halt = 0;
 
     linkedGameboy = NULL;
