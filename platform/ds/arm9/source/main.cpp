@@ -105,7 +105,6 @@ int main(int argc, char* argv[])
 
     consoleInitialized = false;
 
-    char* filename;
     if (argc >= 2) {
         char* filename = argv[1];
         mgr_loadRom(filename);
