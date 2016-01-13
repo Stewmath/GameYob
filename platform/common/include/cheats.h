@@ -1,10 +1,6 @@
 #pragma once
 #include <vector>
 
-#ifdef DS
-#include <nds.h>
-#endif
-
 class Gameboy;
 
 #define MAX_CHEAT_NAME_LEN  24

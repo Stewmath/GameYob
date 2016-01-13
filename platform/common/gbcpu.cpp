@@ -1,16 +1,23 @@
+#include <stddef.h>
+#include <stdio.h>
+
+#ifdef DS
+#include <nds.h>
+#endif
 #ifndef DS
 #include <string.h>
 #endif
-#include <stddef.h>
-#include <stdio.h>
+
 #include "mmu.h"
 #include "gbgfx.h"
 #include "soundengine.h"
 #include "gameboy.h"
 #include "main.h"
-#ifdef DS
-#include <nds.h>
+
+#ifdef CPU_DEBUG
+#include "debugger.h"
 #endif
+
 
 #define FLAG_Z 0x80
 #define FLAG_N 0x40
@@ -67,7 +74,7 @@ DTCM_DATA
 = {
     /* Low nybble -> */
     /* High nybble v */
-    /*  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, A, B, C, D, E, F  */
+    /*         0, 1, 2, 3, 4, 5, 6, 7, 8, 9, A, B, C, D, E, F  */
     /* 0X */   8, 8, 8, 8, 8, 8,16, 8, 8, 8, 8, 8, 8, 8,16, 8,
     /* 1X */   8, 8, 8, 8, 8, 8,16, 8, 8, 8, 8, 8, 8, 8,16, 8,
     /* 2X */   8, 8, 8, 8, 8, 8,16, 8, 8, 8, 8, 8, 8, 8,16, 8,
@@ -207,6 +214,12 @@ int Gameboy::runOpcode(int cycles) {
 
     while (totalCycles < cyclesToExecute)
     {
+#ifdef CPU_DEBUG
+        setPC(getPC());
+        g_gbRegs.sp.w = locSP;
+        g_gbRegs.af.b.l = locF;
+        runDebugger(this, g_gbRegs);
+#endif
         u8 opcode = *pcAddr;
         pcAddr++;
         totalCycles += opCycles[opcode];
