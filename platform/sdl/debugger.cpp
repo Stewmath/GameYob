@@ -10,7 +10,17 @@
 
 using namespace std;
 
+// public 
 int debugMode=0;
+
+int breakpointAddr=-1;
+int readWatchAddr=-1;
+int readWatchBank=-1;
+int writeWatchAddr=-1;
+int writeWatchBank=-1;
+
+// private
+FILE* logFile;
 
 const char* opcodeList[] = {
 "nop", "ld bc,####", "ld (bc),a", "inc bc", "inc b", "dec b", "ld b,##", "rlca", "ld (####),sp", "add hl,bc", "ld a,(bc)", "dec bc", "inc c", "dec c", "ld c,##", "rrca",
@@ -45,7 +55,7 @@ string intToHex(int val, int n) {
     return string(out);
 }
 
-int printOp(Gameboy* gameboy, int addr)
+int printOp(Gameboy* gameboy, int addr, FILE* file=stdout)
 {
     int gbPC = addr;
     int opcode = gameboy->readMemory(gbPC);
@@ -74,7 +84,7 @@ int printOp(Gameboy* gameboy, int addr)
     if (numChars == 2) {
         string val = intToHex(gameboy->quickRead(gbPC), 2);
         if (str[numStart] == '*') {
-            val = intToHex((gbPC + 1 + gameboy->quickRead(gbPC))&0xffff, 4);
+            val = intToHex((gbPC + 1 + (s8)gameboy->quickRead(gbPC))&0xffff, 4);
         }
         str.replace(numStart, numChars, val);
     }
@@ -82,22 +92,13 @@ int printOp(Gameboy* gameboy, int addr)
         string val = intToHex(gameboy->readMemory16(gbPC), 4);
         str.replace(numStart, numChars, val);
     }
+    numChars /= 2;
 
-    if (gbPC-1 < 0x4000)
-        printf("00:");
-    else if (gbPC-1 < 0x8000)
-        printf("%.2X:", gameboy->romBank);
-    else if (gbPC-1 < 0xa000)
-        printf("%.2X:", gameboy->vramBank);
-    else if (gbPC-1 < 0xc000)
-        printf("%.2X:", gameboy->currentRamBank);
-    else if (gbPC-1 < 0xd000)
-        printf("00:");
-    else if (gbPC-1 < 0xe000)
-        printf("%.2X:", gameboy->wramBank);
-    else
-        printf("00:");
-    printf("%.4X: %s\n", gbPC-1, str.c_str());
+    int bank = gameboy->getBank(gbPC-1);
+    if (bank == -1)
+        bank = 0;
+
+    fprintf(file, "%.2X:%.4X: %s\n", bank, gbPC-1, str.c_str());
 
     gbPC++;
 
@@ -106,8 +107,8 @@ int printOp(Gameboy* gameboy, int addr)
 
 void parseCommand(Gameboy* g, const Registers& regs)
 {
+    printOp(g, regs.pc.w);
     if (debugMode == 2) {
-        printOp(g, regs.pc.w);
         debugMode = 1;
     }
     while(true)
@@ -131,25 +132,27 @@ void parseCommand(Gameboy* g, const Registers& regs)
         }
         else if (word.compare("q") == 0)
         {
+#ifdef CPU_LOG
+            fclose(logFile);
+#endif
             exit(0);
         }
-        /*
-        else if (word.compare("l") == 0)
-        {
-            saveLog();
+        else if (word.compare("b") == 0) {
+            stream >> hex >> breakpointAddr;
+            printf("Set breakpoint at %x\n", breakpointAddr);
         }
-        else if (word.compare("w") == 0)
+        else if (word.compare("ww") == 0)
         {
-            stream >> hex >> watchAddr;
-            printf("Watching %x\n", watchAddr);
+            stream >> writeWatchBank;
+            stream >> hex >> writeWatchAddr;
+            printf("Watching %d:%x for writes\n", writeWatchBank, writeWatchAddr);
         }
         else if (word.compare("rw") == 0)
         {
-            stream >> bankWatchAddr;
+            stream >> readWatchBank;
             stream >> hex >> readWatchAddr;
-            printf("Watching %d:%x\n", bankWatchAddr, readWatchAddr);
+            printf("Watching %d:%x for reads\n", readWatchBank, readWatchAddr);
         }
-        */
         else if (word.compare("p") == 0)
         {
             string word;
@@ -159,7 +162,7 @@ void parseCommand(Gameboy* g, const Registers& regs)
             else
                 printf("af: %.4x  bc: %.4x\nde: %.4x  hl: %.4x\n", regs.af.w, regs.bc.w, regs.de.w, regs.hl.w);
         }
-        else if (word.compare("o") == 0) {
+        else if (word.compare("l") == 0) {
             int address = regs.pc.w;
             int numLines = 10;
             stream >> hex >> address;
@@ -184,11 +187,23 @@ void parseCommand(Gameboy* g, const Registers& regs)
     }
 }
 
+void startDebugger() {
+#ifdef CPU_LOG
+    logFile = fopen("LOG", "w");
+#endif
+}
+
 int runDebugger(Gameboy* gameboy, const Registers& regs)
 {
     if (keyJustPressed(SDLK_d))
         debugMode = 1;
+    else if (breakpointAddr == regs.pc.w)
+        debugMode = 1;
     system_checkPolls();
+
+#ifdef CPU_LOG
+    printOp(gameboy, regs.pc.w, logFile);
+#endif
 
     if (debugMode)
         parseCommand(gameboy, regs);

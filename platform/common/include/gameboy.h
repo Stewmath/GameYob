@@ -1,4 +1,9 @@
 #pragma once
+
+#ifdef DS
+#include <nds.h>
+#endif
+
 #include <stdio.h>
 #include <vector>
 #include "time.h"
@@ -6,8 +11,8 @@
 #include "romfile.h"
 #include "io.h"
 
-#ifdef DS
-#include <nds.h>
+#ifdef CPU_DEBUG
+#include "debugger.h"
 #endif
 
 #define MAX_SRAM_SIZE   0x20000
@@ -158,6 +163,22 @@ class Gameboy {
         inline SoundEngine* getSoundEngine() { return soundEngine; }
         inline RomFile* getRomFile() { return romFile; }
 
+        inline int getBank(int address) {
+            if (address < 0x4000)
+                return 0;
+            if (address < 0x8000)
+                return romBank;
+            if (address < 0xa000)
+                return vramBank;
+            if (address < 0xc000)
+                return currentRamBank;
+            if (address < 0xd000)
+                return 0;
+            if (address < 0xe000)
+                return wramBank;
+            return -1;
+        }
+
         // variables
         Gameboy* linkedGameboy;
 
@@ -249,6 +270,12 @@ class Gameboy {
 
         inline u8 readMemory(u16 addr)
         {
+#ifdef CPU_DEBUG
+            int bank = getBank(addr);
+            if (addr == readWatchAddr && (bank == readWatchBank || bank == -1)) {
+                debugMode = 1;
+            }
+#endif
             int area = addr>>12;
             if (!(area & 0x8) || area == 0xc || area == 0xd) {
                 return memory[area][addr&0xfff];
@@ -258,6 +285,12 @@ class Gameboy {
         }
         inline void writeMemory(u16 addr, u8 val)
         {
+#ifdef CPU_DEBUG
+            int bank = getBank(addr);
+            if (addr == writeWatchAddr && (bank == writeWatchBank || bank == -1)) {
+                debugMode = 1;
+            }
+#endif
             int area = addr>>12;
             if (area == 0xc) {
                 // Checking for this first is a tiny bit more efficient.

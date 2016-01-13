@@ -53,6 +53,10 @@ void mgr_init() {
     lastRawTime = rawTime;
 
     emulationPaused = false;
+
+#ifdef CPU_DEBUG
+    startDebugger();
+#endif
 }
 
 void mgr_reset() {
