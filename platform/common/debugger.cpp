@@ -30,7 +30,7 @@ const char* opcodeList[] = {
 "stop ##", "ld de,####", "ld (de),a", "inc de", "inc d", "dec d", "ld d,##", "rla", "jr **", "add hl,de", "ld a,(de)", "dec de", "inc e", "dec e", "ld e,##", "rra",
 "jr nz,**", "ld hl,####", "ldi (hl),a", "inc hl", "inc h", "dec h", "ld h,##", "daa", "jr z,**", "add hl,hl", "ldi a,(hl)", "dec hl", "inc l", "dec l", "ld l,##", "cpl",
 "jr nc,**", "ld sp,####", "ldd (hl),a", "inc sp", "inc (hl)", "dec (hl)", "ld (hl),##", "scf", "jr c,**", "add hl,sp", "ldd a,(hl)", "dec sp", "inc a", "dec a", "ld a,##", "ccf",
-"ld b,b", "ld b,c", "ld b,d", "ld b,e", "ld b,h", "ld b,l", "ld b,(hl)", "ld b,a", "ldc,b", "ld c,c", "ld c,d", "ld c,e", "ld c,h", "ld c,l", "ld c,(hl)", "ld c,a",
+"ld b,b", "ld b,c", "ld b,d", "ld b,e", "ld b,h", "ld b,l", "ld b,(hl)", "ld b,a", "ld c,b", "ld c,c", "ld c,d", "ld c,e", "ld c,h", "ld c,l", "ld c,(hl)", "ld c,a",
 "ld d,b", "ld d,c", "ld d,d", "ld d,e", "ld d,h", "ld d,l", "ld d,(hl)", "ld d,a", "ld e,b", "ld e,c", "ld e,d", "ld e,e", "ld e,h", "ld e,l", "ld e,(hl)", "ld e,a",
 "ld h,b", "ld h,c", "ld h,d", "ld h,e", "ld h,h", "ld h,l", "ld h,(hl)", "ld h,a", "ld l,b", "ld l,c", "ld l,d", "ld l,e", "ld l,h", "ld l,l", "ld l,(hl)", "ld l,a",
 "ld (hl),b", "ld (hl),c", "ld (hl),d", "ld (hl),e", "ld (hl),h", "ld (hl),l", "halt", "ld (hl),a", "ld a,b", "ld a,c", "ld a,d", "ld a,e", "ld a,h", "ld a,l", "ld a,(hl)", "ld a,a",

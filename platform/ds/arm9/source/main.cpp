@@ -90,7 +90,7 @@ int main(int argc, char* argv[])
     fifoSendValue32(FIFO_USER_03, ((u32)sharedData)&0x00ffffff);
 
 
-	initInput();
+    initInput();
 
     mgr_init();
     setMenuDefaults();
