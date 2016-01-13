@@ -15,9 +15,9 @@
 #include "romfile.h"
 
 #ifdef SDL
-#define INI_PATH "gameyob.ini"
+#define INI_PATH "gameyobds.ini"
 #else
-#define INI_PATH "/gameyob.ini"
+#define INI_PATH "/gameyobds.ini"
 #endif
 
 
