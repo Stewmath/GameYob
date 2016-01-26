@@ -663,6 +663,7 @@ void Gameboy::setRomFile(RomFile* r) {
     romFile = r;
     cheatEngine->setRomFile(r);
 
+    /*
     if (isMainGameboy()) {
         // Load cheats
         if (gbsMode)
@@ -673,6 +674,7 @@ void Gameboy::setRomFile(RomFile* r) {
             cheatEngine->loadCheats(nameBuf);
         }
     }
+    */
 }
 
 void Gameboy::unloadRom() {
@@ -680,11 +682,6 @@ void Gameboy::unloadRom() {
     if (saveFile != NULL)
         file_close(saveFile);
     saveFile = NULL;
-    // unload previous save
-    if (externRam != NULL) {
-        free(externRam);
-        externRam = NULL;
-    }
     romFile = NULL;
     cheatEngine->setRomFile(NULL);
 }
@@ -714,11 +711,12 @@ int Gameboy::loadSave(int saveId)
         strcat(savename, buf);
     }
 
+    if (externRam != NULL)
+        free(externRam);
+
     if (getNumSramBanks() == 0)
         return 0;
 
-    if (externRam != NULL)
-        free(externRam);
     externRam = (u8*)malloc(getNumSramBanks()*0x2000);
 
     if (gbsMode || saveId == -1) {
@@ -807,7 +805,7 @@ int Gameboy::loadSave(int saveId)
 
 int Gameboy::saveGame()
 {
-    if (getNumSramBanks() == 0 || saveFile == NULL)
+    if (saveFile == NULL || getNumSramBanks() == 0)
         return 0;
 
     file_seek(saveFile, 0, SEEK_SET);

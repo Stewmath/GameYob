@@ -25,21 +25,21 @@ enum {
 
 class RomFile {
     public:
-        RomFile(const char* filename);
+        RomFile(const char* filename, bool halfMemory=false);
         ~RomFile();
 
         void loadRomBank(int romBank);
         bool isRomBankLoaded(int bank);
         u8* getRomBank(int bank);
         const char* getBasename();
+        const char* getFilename();
 
         char* getRomTitle();
         void loadBios(const char* filename);
 
-        void saveState(int num);
-        int loadState(int num);
-        void deleteState(int num);
-        bool checkStateExists(int num);
+        // Half memory mode for running multiple gameboys
+        void halfMemoryMode();
+        void fullMemoryMode();
 
         inline int getNumRomBanks() { return numRomBanks; }
         inline int getNumSramBanks() { return numRamBanks; }
@@ -56,18 +56,19 @@ class RomFile {
 
     private:
         u8* romBankSlots = NULL; // Each 0x4000 bytes = one slot
-
-        int numRomBanks;
         int maxLoadedRomBanks;
         int numLoadedRomBanks;
-        int numRamBanks;
         int bankSlotIDs[MAX_ROM_BANKS]; // Keeps track of which bank occupies which slot
         std::vector<int> lastBanksUsed;
-
         FileHandle* romFile;
-        char filename[256];
-        char basename[256];
+
+        int numRomBanks;
+        int numRamBanks;
+        int MBC;
+
+        char filename[MAX_FILENAME_LEN];
+        char basename[MAX_FILENAME_LEN];
         char romTitle[20];
 
-        int MBC;
+        void loadBanks();
 };

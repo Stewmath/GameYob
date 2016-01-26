@@ -21,6 +21,7 @@ void mgr_unpause();
 bool mgr_isPaused();
 
 void mgr_loadRom(const char* filename);
+void mgr_unloadRom();
 void mgr_selectRom();
 void mgr_save();
 

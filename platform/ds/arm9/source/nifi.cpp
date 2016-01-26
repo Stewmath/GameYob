@@ -9,6 +9,7 @@
 #include "inputhelper.h"
 #include "gbmanager.h"
 #include "menu.h"
+#include "soundengine.h"
 
 void nifiLinkTypeMenu();
 void nifiHostMenu();
@@ -87,7 +88,8 @@ int nifiConsecutiveWaitingFrames = 0;
 volatile int status = 0;
 volatile u32 hostId;
 
-char hostRomTitle[20];
+char linkedFilename[MAX_FILENAME_LEN];
+char linkedRomTitle[20];
 
 volatile u8 receivedInput[32];
 volatile bool receivedInputReady[32];
@@ -190,10 +192,9 @@ int nifiSendPacket(u8 command, u8* data, u32 dataLen, bool acknowledge)
             }
             swiWaitForVBlank(); // Excessive?
             // Send it twice for safety
-            nifiSendPacket(NIFI_CMD_FRAGMENT, buffer,
-                    fragmentSize+0x10, acknowledge);
-
-            swiWaitForVBlank(); // Excessive?
+//             nifiSendPacket(NIFI_CMD_FRAGMENT, buffer,
+//                     fragmentSize+0x10, acknowledge);
+//             swiWaitForVBlank();
         }
 
         free(buffer);
@@ -214,10 +215,6 @@ bool verifyPacket(u8* packet, int len) {
             ((isClient && status == CLIENT_WAITING) ||
              packetHostId(packet) == hostId)) {
 
-        /*
-        if (packet[32+HEADER_COMMAND] == NIFI_CMD_FRAGMENT)
-            return true; // Checksum is broken for fragmented packets?
-            */
          u8 checksum =
              nifiGetChecksum(packet+32, INT_AT(packet+32+HEADER_DATASIZE));
          if (checksum == packet[32+HEADER_CHECKSUM])
@@ -242,6 +239,14 @@ void handlePacketCommand(int command, u8* data) {
         case NIFI_CMD_CLIENT:
             if (isHost && status == HOST_WAITING) {
                 foundClient = true;
+
+                char* filename = (char*)(data+8);
+                char* romTitle = (char*)(data+8+strlen(filename)+1);
+                strcpy(linkedFilename, filename);
+                strcpy(linkedRomTitle, romTitle);
+
+                printLog("Link romTitle: %s\n", linkedRomTitle);
+                printLog("Link filename: %s\n", linkedFilename);
             }
             break;
 
@@ -271,7 +276,6 @@ void handlePacketCommand(int command, u8* data) {
             break;
         case NIFI_CMD_TRANSFER_SRAM:
             {
-                u8* dest;
                 if (nifiLinkType == LINK_SGB)
                     memcpy(gameboy->externRam, data, gameboy->getNumSramBanks()*0x2000);
                 else if (gb2)
@@ -329,6 +333,7 @@ void handlePacketCommand(int command, u8* data) {
                 if (fragment == numFragments-1) {
                     handlePacketCommand(command, fragmentBuffer);
                     free(fragmentBuffer);
+                    fragmentBuffer = NULL;
                     lastFragment = -1;
                 }
             }
@@ -360,7 +365,11 @@ void packetHandler(int packetID, int readlength)
                 foundHost = true;
                 hostId = packetHostId(packet);
                 nifiLinkType = data[0];
-                strcpy(hostRomTitle, (char*)(data+8));
+
+                char* filename = (char*)(data+8);
+                char* romTitle = (char*)(data+8+strlen(filename)+1);
+                strcpy(linkedFilename, filename);
+                strcpy(linkedRomTitle, romTitle);
             }
         }
         else
@@ -450,7 +459,7 @@ void nifiInterLinkMenu() {
 
         inputUpdateVBlank();
         if (keyJustPressed(mapMenuKey(MENU_KEY_B)))
-            return;
+            break;
         if (keyJustPressed(mapMenuKey(MENU_KEY_A))) {
             isHost = selection == 0;
             if (isHost)
@@ -466,6 +475,9 @@ void nifiInterLinkMenu() {
 
 void nifiLinkTypeMenu() {
     int selection = 0;
+
+    if (gameboy)
+        gameboy->getSoundEngine()->mute();
 
     for (;;) {
         swiWaitForVBlank();
@@ -483,7 +495,7 @@ void nifiLinkTypeMenu() {
 
         inputUpdateVBlank();
         if (keyJustPressed(mapMenuKey(MENU_KEY_B)))
-            return;
+            break;
         if (keyJustPressed(mapMenuKey(MENU_KEY_A))) {
             nifiLinkType = selection;
 
@@ -491,11 +503,15 @@ void nifiLinkTypeMenu() {
                 nifiHostMenu();
             else
                 nifiClientMenu();
+//             closeMenu();
             break;
         }
         if (keyPressedAutoRepeat(mapMenuKey(MENU_KEY_UP) | mapMenuKey(MENU_KEY_DOWN)))
             selection = !selection;
     }
+
+    if (gameboy)
+        gameboy->getSoundEngine()->unmute();
 }
 
 void nifiSendSram() {
@@ -504,23 +520,41 @@ void nifiSendSram() {
     printLog("Sent SRAM.\n");
 }
 
-void nifiReceiveSram() {
+int nifiReceiveSram() {
     nifiConsecutiveWaitingFrames = 0;
     while (!receivedSram) {
         swiWaitForVBlank();
         nifiConsecutiveWaitingFrames++;
         if (nifiConsecutiveWaitingFrames >= 60*5) {
-            printLog("Connection lost.\n");
-            nifiStop();
-            printLog("Nifi turned off.\n");
-
-            for (int i=0; i<60*3; i++) swiWaitForVBlank();
-            break;
+            return 1;
         }
     }
+    return 0;
 }
 
-void nifiStartLink() {
+int loadOtherRom() {
+    if (nifiLinkType != LINK_CABLE)
+        return 0;
+    if (strcmp(gameboy->getRomFile()->getRomTitle(), linkedRomTitle) == 0)
+        return 0;
+    if (!file_exists(linkedFilename))
+        return 1;
+
+    gameboy->getRomFile()->halfMemoryMode();
+
+    if (gb2->getRomFile() != NULL && gameboy->getRomFile() != gb2->getRomFile())
+        delete gb2->getRomFile();
+    gb2->setRomFile(new RomFile(linkedFilename, true));
+
+    // Init again since we switched out the rom
+    gb2->init();
+    // run loadSave() to make sure externRam is sized correctly
+    gb2->loadSave(-1);
+
+    return 0;
+}
+
+int nifiStartLink() {
     bool waitForSram = false;
     bool sendSram = false;
 
@@ -529,7 +563,11 @@ void nifiStartLink() {
     mgr_reset();
     if (nifiLinkType == LINK_CABLE) {
         printLog("Start Gb2\n");
-        mgr_startGb2(0);
+        mgr_startGb2(NULL);
+        if (loadOtherRom() != 0) {
+            printf("Error loading \"%s\".\n");
+            return 1;
+        }
     }
 
     if (isHost) {
@@ -581,24 +619,26 @@ void nifiStartLink() {
             sendSram = true;
     }
 
-    printLog("Begin nifi link.\n");
     if (isHost) {
         if (sendSram && gameboy->getNumSramBanks())
             nifiSendSram();
-        if (waitForSram && gameboy->getNumSramBanks())
-            nifiReceiveSram();
+        swiWaitForVBlank();
+        if (waitForSram && gameboy->getNumSramBanks()) {
+            if (nifiReceiveSram())
+                return 1;
+        }
     }
     else {
-        if (waitForSram && gameboy->getNumSramBanks())
-            nifiReceiveSram();
-        for (int i=0;i<60;i++)
-            swiWaitForVBlank();
+        if (waitForSram && gameboy->getNumSramBanks()) {
+            if (nifiReceiveSram())
+                return 1;
+        }
         if (sendSram && gameboy->getNumSramBanks())
             nifiSendSram();
     }
 
     nifiConsecutiveWaitingFrames = 0;
-    //closeMenu();
+    return 0;
 }
 
 void nifiHostMenu() {
@@ -624,10 +664,14 @@ void nifiHostMenu() {
         if (keyJustPressed(KEY_B))
             break;
 
-        u8 buffer[30];
+        const char* filename = gameboy->getRomFile()->getFilename();
+        int bufferSize = 8 + 20 + strlen(filename) + 1;
+        u8 buffer[bufferSize];
+
         buffer[0] = nifiLinkType;
-        strcpy((char*)(buffer+8), gameboy->getRomFile()->getRomTitle());
-        nifiSendPacket(NIFI_CMD_HOST, buffer, 30, false);
+        strcpy((char*)(buffer+8), filename);
+        strcpy((char*)(buffer+8+strlen(filename)+1), gameboy->getRomFile()->getRomTitle());
+        nifiSendPacket(NIFI_CMD_HOST, buffer, bufferSize, false);
     }
 
     if (foundClient) {
@@ -643,7 +687,10 @@ void nifiHostMenu() {
     }
     
     if (willConnect) {
-        nifiStartLink();
+        if (nifiStartLink() != 0)
+            printf("Link failed.\n");
+        else
+            printf("Starting link.\n");
     }
 
     for (int i=0; i<90; i++) swiWaitForVBlank();
@@ -672,7 +719,8 @@ void nifiClientMenu() {
     bool willConnect = false;
     if (foundHost) {
         printf("Found host.\n\n");
-        printf("Host ROM: \"%s\"\n", hostRomTitle);
+        printf("Host ROM: \"%s\"\n", linkedRomTitle);
+        printf("Filename: \"%s\"\n", linkedFilename);
         printf("Link Type: ");
         if (nifiLinkType == LINK_CABLE)
             printf("Cable Link\n\n");
@@ -683,9 +731,18 @@ void nifiClientMenu() {
         while (true) {
             swiWaitForVBlank();
             inputUpdateVBlank();
+
             if (keyJustPressed(KEY_A)) {
+                const char* filename = gameboy->getRomFile()->getFilename();
+                int bufferSize = 8 + 20 + strlen(filename) + 1;
+                u8 buffer[bufferSize];
+
+                strcpy((char*)(buffer+8), filename);
+                strcpy((char*)(buffer+8+strlen(filename)+1), gameboy->getRomFile()->getRomTitle());
+                nifiSendPacket(NIFI_CMD_CLIENT, buffer, bufferSize, false);
+
                 willConnect = true;
-                nifiSendPacket(NIFI_CMD_CLIENT, 0, 0, true);
+
                 printf("Connected to host.\nHost Id: %d\n", hostId);
                 status = CLIENT_CONNECTED;
 
@@ -695,7 +752,6 @@ void nifiClientMenu() {
             else if (keyJustPressed(KEY_B)) {
                 willConnect = false;
                 printf("Connection cancelled.\n");
-                for (int i=0; i<90; i++) swiWaitForVBlank();
                 break;
             }
         }
@@ -705,12 +761,16 @@ void nifiClientMenu() {
         status = 0;
         printf("Couldn't find host.\n");
         nifiStop();
-        for (int i=0; i<90; i++) swiWaitForVBlank();
     }
     
     if (willConnect) {
-        nifiStartLink();
+        if (nifiStartLink() != 0)
+            printf("Link failed.\n");
+        else
+            printf("Starting link.\n");
     }
+
+    for (int i=0; i<90; i++) swiWaitForVBlank();
 }
 
 bool nifiIsHost() { return isHost; }
@@ -733,11 +793,9 @@ void nifiUnpause() {
 
 void nifiUpdateInput() {
     u8* inputDest;
-    u8* otherInputDest;
-    if (nifiIsLinked()) {
+    u8* otherInputDest = nifiOtherInputDest;
+    if (nifiIsLinked())
         inputDest = nifiInputDest;
-        otherInputDest = nifiOtherInputDest;
-    }
     else
         inputDest = &gameboy->controllers[0];
 

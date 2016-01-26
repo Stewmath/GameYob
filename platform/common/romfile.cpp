@@ -18,103 +18,24 @@
 
 #ifdef DS
 extern bool __dsimode;
+
+#define DSI_MAX_BANKS 512 // 8 megabytes
+#define DS_MAX_BANKS 32 // 2 megabytes
 #endif
 
-RomFile::RomFile(const char* f) {
-
+RomFile::RomFile(const char* f, bool halfMemory) {
     romFile=NULL;
-#ifdef DS
-    if (__dsimode)
-        maxLoadedRomBanks = 512; // 8 megabytes
-    else
-        maxLoadedRomBanks = 64; // 2 megabytes
-#else
-    maxLoadedRomBanks = 512;
-#endif
+    maxLoadedRomBanks = 0;
 
     strcpy(filename, f);
 
-#ifdef EMBEDDED_ROM
-    gbsMode = false;
-
-    numRomBanks = rom_gb_size/0x4000;
-    numLoadedRomBanks = numRomBanks;
-    romBankSlots = (u8*)rom_gb;
-
-    for (int i=0; i<numRomBanks; i++) {
-        bankSlotIDs[i] = i;
-        lastBanksUsed.push_back(i);
-    }
-#else
-    romBankSlots = (u8*)malloc(maxLoadedRomBanks*0x4000);
-
-    // Check if this is a GBS file
-    gbsMode = (strcasecmp(strrchr(filename, '.'), ".gbs") == 0);
-
-    romFile = file_open(filename, "rb");
-    if (romFile == NULL)
-    {
-        fatalerr("Error opening %s.", filename);
-        return;
-    }
-
-    if (gbsMode) {
-        file_read(gbsHeader, 1, 0x70, romFile);
-        gbsReadHeader();
-        file_seek(romFile, 0, SEEK_END);
-        numRomBanks = (file_tell(romFile)-0x70+0x3fff)/0x4000; // Get number of banks, rounded up
-        printf("%.2x\n", numRomBanks);
-    }
-    else {
-        file_seek(romFile, 0, SEEK_END);
-        numRomBanks = (file_tell(romFile)+0x3fff)/0x4000; // Get number of banks, rounded up
-    }
-
-    // Round numRomBanks to a power of 2
-    int n=1;
-    while (n < numRomBanks) n*=2;
-    numRomBanks = n;
-
-    //int rawRomSize = file_tell(romFile);
-    file_seek(romFile, 0, SEEK_SET);
-
-    if (numRomBanks <= maxLoadedRomBanks)
-        numLoadedRomBanks = numRomBanks;
-    else
-        numLoadedRomBanks = maxLoadedRomBanks;
-
-    for (int i=0; i<numRomBanks; i++) {
-        bankSlotIDs[i] = -1;
-    }
-
-    // Load rom banks and initialize all those "bank" arrays
-    lastBanksUsed = std::vector<int>();
-    // Read bank 0
-    if (gbsMode) {
-        bankSlotIDs[0] = 0;
-        file_seek(romFile, 0x70, SEEK_SET);
-        file_read(romBankSlots+gbsLoadAddress, 1, 0x4000-gbsLoadAddress, romFile);
-    }
-    else {
-        bankSlotIDs[0] = 0;
-        file_seek(romFile, 0, SEEK_SET);
-        file_read(romBankSlots, 1, 0x4000, romFile);
-    }
-    // Read the rest of the banks
-    for (int i=1; i<numLoadedRomBanks; i++) {
-        bankSlotIDs[i] = i;
-        file_read(romBankSlots+0x4000*i, 1, 0x4000, romFile);
-        lastBanksUsed.push_back(i);
-    }
-
-#endif
-
-    romSlot0 = romBankSlots;
-    romSlot1 = romBankSlots + 0x4000;
-
-
     strcpy(basename, filename);
     *(strrchr(basename, '.')) = '\0';
+
+    if (halfMemory)
+        halfMemoryMode();
+    else
+        fullMemoryMode();
 
     u8 cgbFlag = getCgbFlag();
 
@@ -201,15 +122,6 @@ RomFile::RomFile(const char* f) {
         else if (getMBC() == MBC7) // Probably not correct behaviour
             numRamBanks = 1;
     }
-
-
-#ifndef EMBEDDED_ROM
-    // If we've loaded everything, close the rom file
-    if (numRomBanks <= numLoadedRomBanks) {
-        file_close(romFile);
-        romFile = NULL;
-    }
-#endif
 }
 
 RomFile::~RomFile() {
@@ -255,6 +167,10 @@ const char* RomFile::getBasename() {
     return basename;
 }
 
+const char* RomFile::getFilename() {
+    return filename;
+}
+
 
 void RomFile::loadBios(const char* filename) {
     FileHandle* file;
@@ -279,4 +195,121 @@ load:
 
 char* RomFile::getRomTitle() {
     return romTitle;
+}
+
+void RomFile::halfMemoryMode() {
+    int _maxLoadedRomBanks;
+#ifdef DS
+    if (__dsimode)
+        _maxLoadedRomBanks = DSI_MAX_BANKS;
+    else
+        _maxLoadedRomBanks = DS_MAX_BANKS;
+
+    _maxLoadedRomBanks >>= 1;
+
+#else
+    _maxLoadedRomBanks = 512;
+#endif
+
+    if (maxLoadedRomBanks == _maxLoadedRomBanks)
+        return;
+
+    maxLoadedRomBanks = _maxLoadedRomBanks;
+    loadBanks();
+}
+
+void RomFile::fullMemoryMode() {
+    int _maxLoadedRomBanks;
+#ifdef DS
+    if (__dsimode)
+        _maxLoadedRomBanks = DSI_MAX_BANKS;
+    else
+        _maxLoadedRomBanks = DS_MAX_BANKS;
+
+#else
+    _maxLoadedRomBanks = 512;
+#endif
+
+    if (maxLoadedRomBanks == _maxLoadedRomBanks)
+        return;
+
+    maxLoadedRomBanks = _maxLoadedRomBanks;
+    loadBanks();
+}
+
+
+void RomFile::loadBanks() {
+    // Check if this is a GBS file
+    gbsMode = (strcasecmp(strrchr(filename, '.'), ".gbs") == 0);
+
+    if (romFile == NULL)
+        romFile = file_open(filename, "rb");
+    if (romFile == NULL)
+    {
+        fatalerr("Error opening %s.", filename);
+        return;
+    }
+
+    if (gbsMode) {
+        file_read(gbsHeader, 1, 0x70, romFile);
+        gbsReadHeader();
+        file_seek(romFile, 0, SEEK_END);
+        numRomBanks = (file_tell(romFile)-0x70+0x3fff)/0x4000; // Get number of banks, rounded up
+        printf("%.2x\n", numRomBanks);
+    }
+    else {
+        file_seek(romFile, 0, SEEK_END);
+        numRomBanks = (file_tell(romFile)+0x3fff)/0x4000; // Get number of banks, rounded up
+    }
+
+    // Round numRomBanks to a power of 2
+    int n=1;
+    while (n < numRomBanks) n*=2;
+    numRomBanks = n;
+
+    //int rawRomSize = file_tell(romFile);
+    file_seek(romFile, 0, SEEK_SET);
+
+    if (numRomBanks <= maxLoadedRomBanks)
+        numLoadedRomBanks = numRomBanks;
+    else
+        numLoadedRomBanks = maxLoadedRomBanks;
+
+    for (int i=0; i<numRomBanks; i++) {
+        bankSlotIDs[i] = -1;
+    }
+
+    // Load rom banks and initialize all those "bank" arrays
+    lastBanksUsed = std::vector<int>();
+
+    if (romBankSlots != NULL)
+        free(romBankSlots);
+    romBankSlots = (u8*)malloc(maxLoadedRomBanks*0x4000);
+
+    // Read bank 0
+    if (gbsMode) {
+        bankSlotIDs[0] = 0;
+        file_seek(romFile, 0x70, SEEK_SET);
+        file_read(romBankSlots+gbsLoadAddress, 1, 0x4000-gbsLoadAddress, romFile);
+    }
+    else {
+        bankSlotIDs[0] = 0;
+        file_seek(romFile, 0, SEEK_SET);
+        file_read(romBankSlots, 1, 0x4000, romFile);
+    }
+    // Read the rest of the banks
+    for (int i=1; i<numLoadedRomBanks; i++) {
+        bankSlotIDs[i] = i;
+        file_read(romBankSlots+0x4000*i, 1, 0x4000, romFile);
+        lastBanksUsed.push_back(i);
+    }
+
+    romSlot0 = romBankSlots;
+    romSlot1 = romBankSlots + 0x4000;
+
+    // If we've loaded everything, close the rom file
+    if (numRomBanks <= numLoadedRomBanks) {
+        file_close(romFile);
+        romFile = NULL;
+    }
 }

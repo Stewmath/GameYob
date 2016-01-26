@@ -20,8 +20,6 @@ Gameboy* gbDuo = NULL;
 
 Gameboy* hostGb = NULL;
 
-RomFile* romFile = NULL;
-
 int mgr_frameCounter;
 
 int autoFireCounterA=0, autoFireCounterB=0;
@@ -39,8 +37,6 @@ void mgr_init() {
         delete gameboy;
     if (gb2 != NULL)
         delete gb2;
-    if (romFile != NULL)
-        delete romFile;
 
     gameboy = new Gameboy();
     hostGb = gameboy;
@@ -79,10 +75,6 @@ void mgr_runFrame() {
             bool swap = false;
             if ((gbUno->ioRam[0x02]&0x81) == 0x80)
                 swap = true;
-//             else if ((gbUno->ioRam[0x02]&0x81) == 0x80 && ((gbDuo->ioRam[0x02] & 0x81) == 0x80)) {
-//                 if (gbDuo == hostGb)
-//                     swap = true;
-//             }
 
             if (swap) {
                 Gameboy* tmp = gbUno;
@@ -194,10 +186,13 @@ bool mgr_isPaused() {
 }
 
 void mgr_loadRom(const char* filename) {
-    if (romFile != NULL)
-        delete romFile;
+    mgr_unloadRom();
 
-    romFile = new RomFile(filename);
+#ifdef NIFI
+    nifiStop();
+#endif
+
+    RomFile* romFile = new RomFile(filename);
     if (romFile == 0)
         fatalerr("Not enough RAM to load rom");
     gameboy->setRomFile(romFile);
@@ -253,25 +248,22 @@ void mgr_unloadRom() {
     stopDebugger();
 #endif
 
-#ifdef NIFI
-    nifiStop();
-#endif
+    if (gb2) {
+        if (gb2->getRomFile() != NULL && gb2->getRomFile() != gameboy->getRomFile())  {
+            delete gb2->getRomFile();
+            gb2->unloadRom();
+        }
+        delete gb2;
+    }
+    if (gameboy->getRomFile() != NULL) {
+        delete gameboy->getRomFile();
+        gameboy->unloadRom();
+    }
 
-    gameboy->unloadRom();
     gameboy->linkedGameboy = NULL;
     gbUno = gameboy;
-
-    if (gb2) {
-//         gb2->unloadRom();
-        delete gb2;
-        gb2 = NULL;
-        gbDuo = NULL;
-    }
-
-    if (romFile != NULL) {
-        delete romFile;
-        romFile = NULL;
-    }
+    gb2 = NULL;
+    gbDuo = NULL;
 }
 
 void mgr_selectRom() {
@@ -463,14 +455,12 @@ void mgr_updateVBlank() {
 }
 
 void mgr_exit() {
+    mgr_unloadRom();
     if (gameboy)
         delete gameboy;
     if (gb2)
         delete gb2;
-    if (romFile)
-        delete romFile;
 
-    gameboy = 0;
-    gb2 = 0;
-    romFile = 0;
+    gameboy = NULL;
+    gb2 = NULL;
 }

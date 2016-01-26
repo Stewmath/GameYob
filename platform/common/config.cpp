@@ -119,12 +119,6 @@ void writeConfigFile() {
     file_printf(file, "[controls]\n");
     controlsPrintConfig(file);
     file_close(file);
-
-    if (gameboy != NULL) {
-        char nameBuf[MAX_FILENAME_LEN];
-        sprintf(nameBuf, "%s.cht", gameboy->getRomFile()->getBasename());
-        gameboy->getCheatEngine()->saveCheats(nameBuf);
-    }
 }
 
 

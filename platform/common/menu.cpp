@@ -164,6 +164,14 @@ void saveSettingsFunc(int value) {
     printMenuMessage("Saving settings...");
     muteSND();
     writeConfigFile();
+
+    // Also save cheats
+    if (gameboy != NULL) {
+        char nameBuf[MAX_FILENAME_LEN];
+        sprintf(nameBuf, "%s.cht", gameboy->getRomFile()->getBasename());
+        gameboy->getCheatEngine()->saveCheats(nameBuf);
+    }
+
     if (!mgr_isPaused())
         unmuteSND();
     printMenuMessage("Settings saved.");
@@ -360,7 +368,8 @@ void setAutoSaveFunc(int value) {
 }
 
 void localLinkFunc(int value) {
-    mgr_startGb2("");
+    mgr_startGb2(NULL);
+    gb2->loadSave(2);
 }
 
 struct MenuOption {
