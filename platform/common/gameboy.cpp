@@ -341,6 +341,12 @@ int Gameboy::runEmul()
                     ioRam[0x01] = linkedGameboy->ioRam[0x01];
                     linkedGameboy->ioRam[0x01] = tmp;
                     emuRet |= RET_LINK;
+#ifdef LINK_DEBUG
+                    if (isMainGameboy())
+                        printLog("Other: sent packet %2x, received %2x\n", ioRam[0x01], linkedGameboy->ioRam[0x01]);
+                    else
+                        printLog("Main: sent packet %2x, received %2x\n", ioRam[0x01], linkedGameboy->ioRam[0x01]);
+#endif
                     // Execution will be passed back to the other gameboy (the 
                     // internal clock gameboy).
                 }
@@ -369,12 +375,6 @@ int Gameboy::runEmul()
                         emuRet |= RET_LINK;
                     }
 
-#ifdef LINK_DEBUG
-                    if (isMainGameboy())
-                        printLog("Main: sent packet\n");
-                    else
-                        printLog("Other: sent packet\n");
-#endif
                     // Execution will stop here, and this gameboy's SB will be 
                     // updated when the other gameboy runs to the appropriate 
                     // cycle.

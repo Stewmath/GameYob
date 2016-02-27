@@ -118,8 +118,8 @@ void mgr_runFrame() {
         gbUno->cycleCount = 0;
     }
 
-    if (mgr_areBothUsingExternalClock())
-        printLog("Both waiting\n");
+//     if (mgr_areBothUsingExternalClock())
+//         printLog("Both waiting\n");
 
     mgr_frameCounter++;
 }
