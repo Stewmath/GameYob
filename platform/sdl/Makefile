@@ -36,7 +36,6 @@ CXXFLAGS =	-O2 -Wall `sdl-config --cflags` $(DEBUG) \
 			-include "typedefs.h" \
 			-DVERSION_STRING=\"`git describe --always --abbrev=4`\" \
 			-DSDL -DC_IO_FUNCTIONS \
-			-DLINK_DEBUG -DCPU_DEBUG \
 			$(INCLUDE)
 
 LDFLAGS = -Wall `sdl-config --libs` -lGL $(DEBUG)

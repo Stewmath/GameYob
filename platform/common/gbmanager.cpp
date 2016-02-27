@@ -415,7 +415,6 @@ void mgr_updateVBlank() {
     rawTime = getTime();
 #endif
 
-#ifndef SDL
     fps++;
 
     if (isConsoleOn() && !isMenuOn() && !consoleDebugOutput && (rawTime > lastRawTime))
@@ -424,7 +423,7 @@ void mgr_updateVBlank() {
         int line=0;
         if (fpsOutput) {
             clearConsole();
-            iprintf("FPS: %d\n", fps);
+            printf("FPS: %d\n", fps);
             line++;
         }
         fps = 0;
@@ -451,7 +450,6 @@ void mgr_updateVBlank() {
 #endif
         lastRawTime = rawTime;
     }
-#endif
 }
 
 void mgr_exit() {

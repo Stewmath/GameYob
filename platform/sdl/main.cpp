@@ -24,13 +24,13 @@ int main(int argc, char* argv[])
     SDL_GL_SetAttribute( SDL_GL_GREEN_SIZE, 5 );
     SDL_GL_SetAttribute( SDL_GL_BLUE_SIZE, 5 );
     SDL_GL_SetAttribute( SDL_GL_DEPTH_SIZE, 16 );
-	SDL_GL_SetAttribute( SDL_GL_SWAP_CONTROL, 1 );
-    SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, 1 );
+	SDL_GL_SetAttribute( SDL_GL_SWAP_CONTROL, 0 );
+    SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, 0 );
 	SDL_ShowCursor(SDL_DISABLE);
 
-	screen = SDL_SetVideoMode(160*scale, 144*scale, 32, SDL_SWSURFACE | SDL_OPENGL);// | SDL_FULLSCREEN);
+	screen = SDL_SetVideoMode(160*scale, 144*scale, 32, SDL_SWSURFACE);// | SDL_FULLSCREEN);
 	if (screen == NULL)
-		return 1;
+		return 2;
 	
 
 	SDL_FillRect(screen, NULL, SDL_MapRGB(screen->format, 255, 255, 255));
@@ -50,7 +50,7 @@ int main(int argc, char* argv[])
     }
     else {
         printf("Give me a gameboy rom pls\n");
-        return 1;
+        return 3;
     }
 
     for (;;) {

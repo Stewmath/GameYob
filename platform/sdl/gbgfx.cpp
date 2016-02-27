@@ -36,7 +36,7 @@ int BGMapAddr = 0x800;
 int winMapAddr = 0x800;
 int BGOn = 1;
 int winOn = 0;
-int scale = 3;
+int scale = 1;
 
 u32 bgPalettes[8][4];
 u32* bgPalettesRef[8][4];
@@ -84,6 +84,7 @@ void updateBgPaletteDMG();
 void updateSprPalette(int paletteid);
 void updateSprPaletteDMG(int paletteid);
 
+SDL_Surface* gbScreen;
 
 // Function definitions
 
@@ -106,7 +107,7 @@ void initGFX()
         glRasterPos2f(0, 0);
         glPixelZoom(scale, -scale);
 
-        SDL_Surface* gbScreen = SDL_CreateRGBSurface(SDL_SWSURFACE, 256*scale, 256*scale, 32, 0, 0, 0, 0);
+        gbScreen = SDL_CreateRGBSurface(SDL_SWSURFACE, 256*scale, 256*scale, 32, 0, 0, 0, 0);
         format = gbScreen->format;
 
         openglInitialized = true;
@@ -401,14 +402,15 @@ void drawScanline_P2(int scanline) {
 
 }
 
+extern SDL_Surface* screen;
+
 void drawScreen()
 {
-    glDrawPixels(256, 144, GL_BGRA, GL_UNSIGNED_BYTE, pixels);
+//     glDrawPixels(256, 144, GL_BGRA, GL_UNSIGNED_BYTE, pixels);
+// 
+// 	SDL_GL_SwapBuffers();
 
-	SDL_GL_SwapBuffers();
-
-	/*
-	Uint32* screenPixels = gbScreen->pixels;
+	Uint32* screenPixels = (Uint32*)gbScreen->pixels;
 	int t,x,y;
 	int var;
 	for (t=0; t<256*144; t++)
@@ -421,7 +423,8 @@ void drawScreen()
 	rect.w = 160*scale;
 	rect.h = 144*scale;
 	SDL_BlitSurface(gbScreen, &rect, screen, NULL);
-	SDL_Flip(screen);*/
+// 	SDL_Flip(screen);
+    SDL_UpdateRect(screen,0,0,0,0);
 }
 
 
@@ -506,7 +509,7 @@ void updateBgPalette(int paletteid)
 {
 	//if (gbMode == CGB)
 	{
-		double multiplier = 8;
+		int multiplier = 8;
 		int i;
 		for (i=0; i<4; i++)
 		{
@@ -540,7 +543,7 @@ void updateSprPalette(int paletteid)
 {
 	//if (gbMode == CGB)
 	{
-		double multiplier = 8;
+		int multiplier = 8;
 		int i;
 		for (i=0; i<4; i++)
 		{
