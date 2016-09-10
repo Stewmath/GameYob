@@ -360,7 +360,7 @@ void generalPrintConfig(FILE* file) {
 }
 
 bool readConfigFile() {
-    FILE* file = fopen("/gameyob.ini", "r");
+    FILE* file = fopen("/gameyobds.ini", "r");
     char line[100];
     void (*configParser)(const char*) = generalParseConfig;
 
@@ -403,7 +403,7 @@ end:
 }
 
 void writeConfigFile() {
-    FILE* file = fopen("/gameyob.ini", "w");
+    FILE* file = fopen("/gameyobds.ini", "w");
     fiprintf(file, "[general]\n");
     generalPrintConfig(file);
     fiprintf(file, "[console]\n");
