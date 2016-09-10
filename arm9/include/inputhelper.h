@@ -25,6 +25,10 @@ enum {
 #define UP			0x40
 #define DOWN		0x80
 
+
+// The size of "chunks" autosaving should work with
+#define AUTOSAVE_SECTOR_SIZE 512
+
 enum {
     KEY_NONE,
     KEY_GB_A, KEY_GB_B, KEY_GB_LEFT, KEY_GB_RIGHT, KEY_GB_UP, KEY_GB_DOWN, KEY_GB_START, KEY_GB_SELECT,
@@ -79,7 +83,7 @@ void unloadRom();
 int loadSave();
 int saveGame(); // Write the whole save file in one go
 void gameboySyncAutosave(); // Update dirty parts of the save file
-void updateAutosave(); // Check if autosaving should by sync'ed this frame
+void updateAutosave(); // Check if autosaving should be sync'ed this frame
 
 char* getRomTitle();
 void printRomInfo();

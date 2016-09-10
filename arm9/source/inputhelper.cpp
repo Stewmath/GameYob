@@ -25,7 +25,6 @@
 #include "filechooser.h"
 
 #define FAT_CACHE_SIZE 16
-#define FAT_BYTESPERSECTOR 512
 
 FILE* romFile=NULL;
 FILE* saveFile=NULL;
@@ -62,11 +61,6 @@ std::vector<int> lastBanksUsed;
 
 bool suspendStateExists;
 
-int saveFileSectors[MAX_SRAM_SIZE/FAT_BYTESPERSECTOR];
-
-int fat_bytesPerSector;
-int fat_sectorsPerPage;
-
 void initInput()
 {
     fatInit(FAT_CACHE_SIZE, true);
@@ -78,35 +72,17 @@ void initInput()
         maxLoadedRomBanks = 128; // 2 megabytes
 
     romBankSlots = (u8*)malloc(maxLoadedRomBanks*0x4000);
-
-    devoptab_t* devops = (devoptab_t*)GetDeviceOpTab ("sd");
-    PARTITION* partition = (PARTITION*)devops->deviceData;
-    CACHE* cache = partition->cache;
-    fat_bytesPerSector = cache->bytesPerSector;
-    fat_sectorsPerPage = cache->sectorsPerPage;
 }
 
+// This function is supposed to flush the cache so I don't have to fclose() and fopen()
+// a file in order to save it.
+// But I found I could not rely on it in the gameboySyncAutosave() function.
 void flushFatCache() {
     // This involves things from libfat which aren't normally visible
     devoptab_t* devops = (devoptab_t*)GetDeviceOpTab ("sd");
     PARTITION* partition = (PARTITION*)devops->deviceData;
     _FAT_cache_flush(partition->cache); // Flush the cache manually
 }
-
-// This bypasses libfat's cache to directly write a single sector of the save 
-// file. This reduces lag.
-void writeSaveFileSectors(int startSector, int numSectors) {
-    if (saveFileSectors[startSector] == -1) {
-        flushFatCache();
-        return;
-    }
-    devoptab_t* devops = (devoptab_t*)GetDeviceOpTab ("sd");
-    PARTITION* partition = (PARTITION*)devops->deviceData;
-    CACHE* cache = partition->cache;
-
-	_FAT_disc_writeSectors(cache->disc, saveFileSectors[startSector], numSectors, externRam+startSector*fat_bytesPerSector);
-}
-
 
 const char* gbKeyNames[] = {"-","A","B","Left","Right","Up","Down","Start","Select",
     "Menu","Menu/Pause","Save","Autofire A","Autofire B", "Fast Forward", "FF Toggle", "Scale","Reset"};
@@ -583,9 +559,6 @@ int loadRom(char* f)
 
     loadSave();
 
-    printLog("%d bytes per sector\n", fat_bytesPerSector);
-    printLog("%d sectors per page\n", fat_sectorsPerPage);
-
     return 0;
 }
 
@@ -639,6 +612,15 @@ void unloadRom() {
 
 int loadSave()
 {
+    if (saveFile != NULL) {
+        fclose(saveFile);
+        saveFile = NULL;
+    }
+    if (externRam != NULL) {
+        free(externRam);
+        externRam = NULL;
+    }
+
     if (gbsMode)
         numRamBanks = 1;
     else {
@@ -716,41 +698,6 @@ int loadSave()
             break;
     }
 
-    // Get the save file's sectors on the sd card.
-    // I do this by writing a byte, then finding the area of the cache marked dirty.
-
-    flushFatCache();
-    devoptab_t* devops = (devoptab_t*)GetDeviceOpTab ("sd");
-    PARTITION* partition = (PARTITION*)devops->deviceData;
-    CACHE* cache = partition->cache;
-
-    memset(saveFileSectors, -1, sizeof(saveFileSectors));
-    for (int i=0; i<numRamBanks*0x2000/fat_bytesPerSector; i++) {
-        fseek(saveFile, i*fat_bytesPerSector, SEEK_SET);
-        fputc(externRam[i*fat_bytesPerSector], saveFile);
-        bool found=false;
-        for (int j=0; j<FAT_CACHE_SIZE; j++) {
-            if (cache->cacheEntries[j].dirty) {
-                saveFileSectors[i] = cache->cacheEntries[j].sector + (i%(cache->sectorsPerPage));
-                cache->cacheEntries[j].dirty = false;
-                found = true;
-                break;
-            }
-        }
-        if (!found) {
-            printLog("couldn't find save file sector\n");
-        }
-    }
-
-    if (numRamBanks == 1) {
-        // This helps remove lag, because it's already been written to once, the 
-        // card will be "ready" for future writes.
-        int iterations = 0x2000 / (fat_bytesPerSector * fat_sectorsPerPage);
-        for (int i=0; i<iterations; i++) {
-            writeSaveFileSectors(i*fat_sectorsPerPage, fat_sectorsPerPage);
-        }
-    }
-
     return 0;
 }
 
@@ -758,6 +705,8 @@ int saveGame()
 {
     if (numRamBanks == 0 || saveFile == NULL)
         return 0;
+
+    printLog("Full game save\n");
 
     fseek(saveFile, 0, SEEK_SET);
 
@@ -786,29 +735,26 @@ void gameboySyncAutosave() {
     wroteToSramThisFrame = false;
 
     int numSectors = 0;
+    int lastWritten = -2;
+
     // iterate over each sector
-    for (int i=0; i<numRamBanks*0x2000/fat_bytesPerSector; i++) {
+    for (int i=0; i<numRamBanks*0x2000/AUTOSAVE_SECTOR_SIZE; i++) {
         if (dirtySectors[i]) {
+
+            if (lastWritten+1 != i)
+                fseek(saveFile, i*AUTOSAVE_SECTOR_SIZE, SEEK_SET);
+
+            fwrite(externRam+i*AUTOSAVE_SECTOR_SIZE, AUTOSAVE_SECTOR_SIZE, 1, saveFile);
+
+            lastWritten = i;
             dirtySectors[i] = false;
-
-            // If only 1 bank, it seems more efficient to write multiple sectors 
-            // at once - at least, on the Acekard 2i.
-            if (numRamBanks == 1) {
-                int sectors = fat_sectorsPerPage;
-
-                writeSaveFileSectors(i/sectors*sectors, sectors);
-                for (int j=i; j<(i/sectors*sectors)+sectors; j++)
-                    dirtySectors[j] = false;
-            }
-            else {
-                // For bigger saves, writing one sector at a time seems to work better.
-                writeSaveFileSectors(i, 1);
-                numSectors++;
-            }
+            numSectors++;
         }
     }
     printLog("SAVE %d sectors\n", numSectors);
-    flushFatCache(); // This should do nothing, unless the RTC was written to.
+
+    fclose(saveFile);
+    saveFile = fopen(savename, "r+b");
 
     framesSinceAutosaveStarted = 0;
     autosaveStarted = false;

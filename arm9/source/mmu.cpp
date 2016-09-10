@@ -11,7 +11,6 @@
 #include "sgb.h"
 #include "console.h"
 #include "gbs.h"
-#include "libfat_fake.h"
 #ifdef DS
 #include <nds.h>
 #endif
@@ -75,7 +74,7 @@ int dmaMode;
 
 // Autosaving stuff
 bool saveModified=false;
-bool dirtySectors[MAX_SRAM_SIZE/512];
+bool dirtySectors[MAX_SRAM_SIZE/AUTOSAVE_SECTOR_SIZE];
 int numSaveWrites=0;
 bool autosaveStarted = false;
 
@@ -208,7 +207,7 @@ void writeSram(u16 addr, u8 val) {
             fputc(val, saveFile);
             */
             saveModified = true;
-            dirtySectors[pos/fat_bytesPerSector] = true;
+            dirtySectors[pos/AUTOSAVE_SECTOR_SIZE] = true;
             numSaveWrites++;
         }
     }
