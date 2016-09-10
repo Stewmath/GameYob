@@ -1,4 +1,3 @@
-#ifdef __GNUC__
 #pragma once
 
 // Interrupt definitions (used with requestInterrupt())
@@ -8,11 +7,7 @@
 #define SERIAL      8
 #define JOYPAD		0x10
 
-typedef signed char s8;
-typedef signed short s16;
-typedef unsigned char u8;
-typedef unsigned short u16;
-typedef unsigned int u32;
+// u8/u16/u32 definitions
+#include <nds/ndstypes.h>
 
 extern const int clockSpeed; 
-#endif

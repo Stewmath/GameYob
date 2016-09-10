@@ -162,20 +162,20 @@ void controlsParseConfig(const char* line2) {
     if ((equalsPos = strrchr(line, '=')) != 0 && equalsPos != line+strlen(line)-1) {
         *equalsPos = '\0';
 
-        if (strcmpi(line, "config") == 0) {
+        if (strcasecmp(line, "config") == 0) {
             selectedKeyConfig = atoi(equalsPos+1);
         }
         else {
             int dsKey = -1;
             for (int i=0; i<12; i++) {
-                if (strcmpi(line, dsKeyNames[i]) == 0) {
+                if (strcasecmp(line, dsKeyNames[i]) == 0) {
                     dsKey = i;
                     break;
                 }
             }
             int gbKey = -1;
             for (int i=0; i<NUM_GB_KEYS; i++) {
-                if (strcmpi(equalsPos+1, gbKeyNames[i]) == 0) {
+                if (strcasecmp(equalsPos+1, gbKeyNames[i]) == 0) {
                     gbKey = i;
                     break;
                 }
@@ -316,21 +316,21 @@ void generalParseConfig(const char* line) {
         const char* parameter = line;
         const char* value = equalsPos+1;
 
-        if (strcmpi(parameter, "rompath") == 0) {
+        if (strcasecmp(parameter, "rompath") == 0) {
             if (romPath != 0)
                 free(romPath);
             romPath = (char*)malloc(strlen(value)+1);
             strcpy(romPath, value);
             romChooserState.directory = romPath;
         }
-        else if (strcmpi(parameter, "biosfile") == 0) {
+        else if (strcasecmp(parameter, "biosfile") == 0) {
             if (biosPath != 0)
                 free(biosPath);
             biosPath = (char*)malloc(strlen(value)+1);
             strcpy(biosPath, value);
             loadBios(biosPath);
         }
-        else if (strcmpi(parameter, "borderfile") == 0) {
+        else if (strcasecmp(parameter, "borderfile") == 0) {
             if (borderPath != 0)
                 free(borderPath);
             borderPath = (char*)malloc(strlen(value)+1);
@@ -377,13 +377,13 @@ bool readConfigFile() {
             if ((endBrace = strrchr(line, ']')) != 0) {
                 *endBrace = '\0';
                 const char* section = line+1;
-                if (strcmpi(section, "general") == 0) {
+                if (strcasecmp(section, "general") == 0) {
                     configParser = generalParseConfig;
                 }
-                else if (strcmpi(section, "console") == 0) {
+                else if (strcasecmp(section, "console") == 0) {
                     configParser = menuParseConfig;
                 }
-                else if (strcmpi(section, "controls") == 0) {
+                else if (strcasecmp(section, "controls") == 0) {
                     configParser = controlsParseConfig;
                 }
             }
@@ -432,7 +432,7 @@ int loadRom(char* f)
     strcpy(filename, f);
 
     // Check if this is a GBS file
-    gbsMode = (strcmpi(strrchr(filename, '.'), ".gbs") == 0);
+    gbsMode = (strcasecmp(strrchr(filename, '.'), ".gbs") == 0);
 
     romFile = fopen(filename, "rb");
     if (romFile == NULL)

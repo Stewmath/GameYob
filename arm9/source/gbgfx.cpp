@@ -1165,17 +1165,11 @@ void drawScreen()
         return;
 
     if (!(fastForwardMode || fastForwardKey)) {
-        if (interruptWaitMode == 1) // Wait for Vblank.
+        if (interruptWaitMode == 1) // Always wait for Vblank.
             swiWaitForVBlank();
         else { // Continue if we've passed vblank.
-            if (__dsimode) {
-                // This is essentially equivalent to using swiIntrWait(0, ...),
-                // but swiIntrWait doesn't seem to work properly in dsi mode.
-                if (!didVblank)
-                    swiWaitForVBlank();
-            }
-            else
-                swiIntrWait(0, IRQ_VBLANK);
+            if (!didVblank)
+                swiWaitForVBlank();
         }
     }
     didVblank = false;

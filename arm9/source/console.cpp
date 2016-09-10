@@ -686,7 +686,7 @@ void closeSubMenu() {
 int getMenuOption(const char* optionName) {
     for (int i=0; i<numMenus; i++) {
         for (int j=0; j<menuList[i].numOptions; j++) {
-            if (strcmpi(optionName, menuList[i].options[j].name) == 0) {
+            if (strcasecmp(optionName, menuList[i].options[j].name) == 0) {
                 return menuList[i].options[j].selection;
             }
         }
@@ -696,7 +696,7 @@ int getMenuOption(const char* optionName) {
 void setMenuOption(const char* optionName, int value) {
     for (int i=0; i<numMenus; i++) {
         for (int j=0; j<menuList[i].numOptions; j++) {
-            if (strcmpi(optionName, menuList[i].options[j].name) == 0) {
+            if (strcasecmp(optionName, menuList[i].options[j].name) == 0) {
                 menuList[i].options[j].selection = value;
                 menuList[i].options[j].function(value);
                 return;
@@ -707,7 +707,7 @@ void setMenuOption(const char* optionName, int value) {
 void enableMenuOption(const char* optionName) {
     for (int i=0; i<numMenus; i++) {
         for (int j=0; j<menuList[i].numOptions; j++) {
-            if (strcmpi(optionName, menuList[i].options[j].name) == 0) {
+            if (strcasecmp(optionName, menuList[i].options[j].name) == 0) {
                 menuList[i].options[j].enabled = true;
                 /*
                 if (isMenuOn())
@@ -720,7 +720,7 @@ void enableMenuOption(const char* optionName) {
 void disableMenuOption(const char* optionName) {
     for (int i=0; i<numMenus; i++) {
         for (int j=0; j<menuList[i].numOptions; j++) {
-            if (strcmpi(optionName, menuList[i].options[j].name) == 0) {
+            if (strcasecmp(optionName, menuList[i].options[j].name) == 0) {
                 menuList[i].options[j].enabled = false;
                 /*
                 if (isMenuOn())
@@ -741,7 +741,7 @@ void menuParseConfig(const char* line) {
     int val = atoi(value);
     for (int i=0; i<numMenus; i++) {
         for (int j=0; j<menuList[i].numOptions; j++) {
-            if (strcmpi(menuList[i].options[j].name, option) == 0 && menuList[i].options[j].numValues != 0) {
+            if (strcasecmp(menuList[i].options[j].name, option) == 0 && menuList[i].options[j].numValues != 0) {
                 menuList[i].options[j].selection = val;
                 menuList[i].options[j].function(val);
                 return;

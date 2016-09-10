@@ -62,7 +62,7 @@ int nameSortFunction(char*& a, char*& b)
     else if (bIsParent) // Sorts after
         return 1;
     else
-        return strcmpi(a, b);
+        return strcasecmp(a, b);
 }
 
 /*
@@ -234,13 +234,13 @@ char* startFileChooser(const char* extensions[], bool romExtensions, bool canQui
             bool isRomFile = false;
             if (!(entry->d_type & DT_DIR)) {
                 for (int i=0; i<numExtensions; i++) {
-                    if (strcmpi(ext, extensions[i]) == 0) {
+                    if (strcasecmp(ext, extensions[i]) == 0) {
                         isValidExtension = true;
                         break;
                     }
                 }
                 if (romExtensions) {
-                    isRomFile = strcmpi(ext, "cgb") == 0 || strcmpi(ext, "gbc") == 0 || strcmpi(ext, "gb") == 0 || strcmpi(ext, "sgb") == 0;
+                    isRomFile = strcasecmp(ext, "cgb") == 0 || strcasecmp(ext, "gbc") == 0 || strcasecmp(ext, "gb") == 0 || strcasecmp(ext, "sgb") == 0;
                     if (isRomFile)
                         isValidExtension = true;
                 }
@@ -276,7 +276,7 @@ char* startFileChooser(const char* extensions[], bool romExtensions, bool canQui
                     numFiles++;
                 }
             }
-            else if (strcmpi(ext, "yss") == 0 && !(entry->d_type & DT_DIR)) {
+            else if (strcasecmp(ext, "yss") == 0 && !(entry->d_type & DT_DIR)) {
                 bool matched = false;
                 char buffer2[256];
                 strcpy(buffer2, entry->d_name);
