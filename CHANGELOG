@@ -1,3 +1,11 @@
+Version 0.5.1:
+
+- Savegame management has been modified to prevent corruption as reported by some.
+- Autosaving is laggier due to the above. Consider turning it off.
+- The configuration file has been moved from "gameyob.ini" to "gameyobds.ini" to prevent
+  conflicts with GameYob 3DS.
+- A "single-screen mode" has been added.
+
 Version 0.5:
 
 - Added Gameboy Printer emulation
