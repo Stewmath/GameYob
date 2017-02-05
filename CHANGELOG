@@ -1,3 +1,12 @@
+Version 0.5.2
+
+- Updated to DevkitARM r46 for better DSi support.
+- Added an installable CIA file to run as DSiWare.
+- Certain 3DS-side launchers such as TWLoader now work again.
+- Added "touch" as a configurable button.
+  - When running as a CIA on the New 3DS, the "touch" input gets spammed for no reason.
+    It can now be disabled as a workaround.
+
 Version 0.5.1:
 
 - Savegame management has been modified to prevent corruption as reported by some.

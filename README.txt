@@ -1,6 +1,11 @@
-GameYob v0.5
+GameYob v0.5.2
 Author: Drenn
 
+Files included:
+
+gameyob.nds:     Use with DS flashcards.
+gameyob_dsi.nds: Same as gameyob.nds, but has a dsi header. Needed for hbmenu support.
+gameyob.cia:     Installable as DSiWare for 3DS.
 
 Basic list of features:
 
