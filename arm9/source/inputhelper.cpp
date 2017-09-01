@@ -206,10 +206,10 @@ void redrawKeyConfigChooser() {
     else
         iprintf("  %s  \n\n", config->name);
 
-    iprintf("       Button   Function\n\n");
+    iprintf("    Button   Function\n\n");
 
     for (int i=0; i<NUM_DS_KEYS; i++) {
-        int len = 11-strlen(dsKeyNames[i]);
+        int len = 8-strlen(dsKeyNames[i]);
         while (len > 0) {
             iprintf(" ");
             len--;
