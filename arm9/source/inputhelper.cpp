@@ -85,7 +85,7 @@ void flushFatCache() {
 }
 
 const char* gbKeyNames[] = {"-","A","B","Left","Right","Up","Down","Start","Select",
-    "Menu","Menu/Pause","Save","Autofire A","Autofire B", "Fast Forward", "FF Toggle", "Scale","Reset"};
+    "Menu","Menu/Pause","Save","Autofire A","Autofire B", "Fast Forward", "FF Toggle", "Scale","Reset","A+B+START+SELECT"};
 const char* dsKeyNames[] = {"A","B","Select","Start","Right","Left","Up","Down",
     "R","L","X","Y","Touch"};
 
@@ -206,15 +206,15 @@ void redrawKeyConfigChooser() {
     else
         iprintf("  %s  \n\n", config->name);
 
-    iprintf("       Button   Function\n\n");
+    iprintf("    Button   Function\n\n");
 
     for (int i=0; i<NUM_DS_KEYS; i++) {
-        int len = 11-strlen(dsKeyNames[i]);
+        int len = 8-strlen(dsKeyNames[i]);
         while (len > 0) {
             iprintf(" ");
             len--;
         }
-        if (option == i) 
+        if (option == i)
             iprintfColored(CONSOLE_COLOR_LIGHT_YELLOW, "* %s | %s *\n", dsKeyNames[i], gbKeyNames[config->gbKeys[i]]);
         else
             iprintf("  %s | %s  \n", dsKeyNames[i], gbKeyNames[config->gbKeys[i]]);
@@ -510,7 +510,7 @@ int loadRom(char* f)
     int nameLength = 16;
     if (cgbFlag == 0x80 || cgbFlag == 0xc0)
         nameLength = 15;
-    for (int i=0; i<nameLength; i++) 
+    for (int i=0; i<nameLength; i++)
         romTitle[i] = (char)romSlot0[i+0x134];
     romTitle[nameLength] = '\0';
 
@@ -523,7 +523,7 @@ int loadRom(char* f)
     else {
         switch (mapper) {
             case 0: case 8: case 9:
-                MBC = MBC0; 
+                MBC = MBC0;
                 break;
             case 1: case 2: case 3:
                 MBC = MBC1;
@@ -540,7 +540,7 @@ int loadRom(char* f)
                 //case 0x15: case 0x16: case 0x17:
                 //MBC = MBC4;
                 //break;
-            case 0x19: case 0x1a: case 0x1b: 
+            case 0x19: case 0x1a: case 0x1b:
                 MBC = MBC5;
                 break;
             case 0x1c: case 0x1d: case 0x1e:

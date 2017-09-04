@@ -29,7 +29,7 @@ bool timeOutput=true;
 bool fastForwardMode = false; // controlled by the toggle hotkey
 bool fastForwardKey = false;  // only while its hotkey is pressed
 
-// ...what is phase? I think I made that up. Used for timing when the gameboy 
+// ...what is phase? I think I made that up. Used for timing when the gameboy
 // screen is off.
 int phaseCounter;
 int dividerCounter;
@@ -107,6 +107,12 @@ void gameboyCheckInput() {
     }
     if (keyPressed(mapGbKey(KEY_GB_SELECT))) {
         buttonsPressed &= (0xFF ^ SELECT);
+        if (!(ioRam[0x00] & 0x20))
+            requestInterrupt(JOYPAD);
+    }
+
+    if (keyPressed(mapGbKey(KEY_GB_A_B_START_SELECT))) {
+        buttonsPressed &= (0xFF ^ (BUTTONA|BUTTONB|START|SELECT));
         if (!(ioRam[0x00] & 0x20))
             requestInterrupt(JOYPAD);
     }
@@ -257,7 +263,7 @@ void gameboyUpdateVBlank() {
     }
 }
 
-// This function can be called from weird contexts, so just set a flag to deal 
+// This function can be called from weird contexts, so just set a flag to deal
 // with it later.
 void resetGameboy() {
     resettingGameboy = true;
@@ -343,12 +349,12 @@ void runEmul()
 
         int interruptTriggered = ioRam[0x0F] & ioRam[0xFF];
         if (interruptTriggered) {
-            /* Hack to fix Robocop 2 and LEGO Racers, possibly others. 
-             * Interrupts can occur in the middle of an opcode. The result of 
-             * this is that said opcode can read the resulting state - most 
-             * importantly, it can read LY=144 before the vblank interrupt takes 
+            /* Hack to fix Robocop 2 and LEGO Racers, possibly others.
+             * Interrupts can occur in the middle of an opcode. The result of
+             * this is that said opcode can read the resulting state - most
+             * importantly, it can read LY=144 before the vblank interrupt takes
              * over. This is a decent approximation of that effect.
-             * This has been known to break Megaman V boss intros, that's fixed 
+             * This has been known to break Megaman V boss intros, that's fixed
              * by the "opTriggeredInterrupt" stuff.
              */
             if (!halt && !opTriggeredInterrupt)
@@ -393,7 +399,7 @@ void initGameboyMode() {
             gbRegs.af.b.h = 0x01;
             gbMode = GB;
             if (romSlot0[0x143] == 0x80 || romSlot1[0x143] == 0xC0)
-                // Init the palette in case the bios overwrote it, since it 
+                // Init the palette in case the bios overwrote it, since it
                 // assumed it was starting in GBC mode.
                 initGFXPalette();
             break;
@@ -430,15 +436,15 @@ inline void updateLCD(int cycles)
         scanlineCounter = 456*(doubleSpeed?2:1);
         ioRam[0x44] = 0;
         ioRam[0x41] &= 0xF8;
-        // Normally timing is synchronized with gameboy's vblank. If the screen 
-        // is off, this code kicks in. The "phaseCounter" is a counter until the 
+        // Normally timing is synchronized with gameboy's vblank. If the screen
+        // is off, this code kicks in. The "phaseCounter" is a counter until the
         // ds should check for input and whatnot.
         phaseCounter -= cycles;
         if (phaseCounter <= 0) {
             fps++;
             phaseCounter += 456*153*(doubleSpeed?2:1);
             cyclesSinceVblank=0;
-            // Though not technically vblank, this is a good time to check for 
+            // Though not technically vblank, this is a good time to check for
             // input and whatnot.
             gameboyUpdateVBlank();
         }
@@ -496,8 +502,8 @@ inline void updateLCD(int cycles)
 
                     if (ioRam[0x44] >= 153)
                     {
-                        // Don't change the mode. Scanline 0 is twice as 
-                        // long as normal - half of it identifies as being 
+                        // Don't change the mode. Scanline 0 is twice as
+                        // long as normal - half of it identifies as being
                         // in the vblank period.
                         ioRam[0x44] = 0;
                         scanlineCounter += 456<<doubleSpeed;
@@ -557,7 +563,7 @@ inline void updateTimers(int cycles)
         }
         // Set cycles until the timer will trigger an interrupt.
         // Reads from [0xff05] may be inaccurate.
-        // However Castlevania and Alone in the Dark are extremely slow 
+        // However Castlevania and Alone in the Dark are extremely slow
         // if this is updated each time [0xff05] is changed.
         setEventCycles(timerCounter+timerPeriod*(255-ioRam[0x05]));
     }
