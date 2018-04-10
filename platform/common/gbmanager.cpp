@@ -35,8 +35,6 @@ bool emulationPaused;
 void mgr_init() {
     if (gameboy != NULL)
         delete gameboy;
-    if (gb2 != NULL)
-        delete gb2;
 
     gameboy = new Gameboy();
     hostGb = gameboy;

@@ -94,6 +94,10 @@ struct Registers
 
 class Gameboy {
     public:
+		static int unknownOpBehave;
+		static int badStopBehave;
+		static int rst38Behave;
+		static int overBankBehave;
         // gameboy.cpp
 
         Gameboy();
@@ -240,7 +244,14 @@ class Gameboy {
         inline u16 quickRead16(u16 addr) { return quickRead(addr)|(quickRead(addr+1)<<8); }
         // Currently unused because this can actually overwrite the rom, in rare cases
         inline void quickWrite(u16 addr, u8 val) { memory[addr>>12][addr&0xFFF] = val; }
-
+		void HaltCPU()
+		{
+			ime = 0;
+			halt = 1;
+			if (!ime) {
+				return;
+			}
+		}
 
         // mmu.cpp
 

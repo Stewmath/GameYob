@@ -31,7 +31,6 @@ DEBUG	:=	-g
 CFLAGS	:=	-Wall -Wno-psabi -DNO_VIZ \
  			-march=armv5te -mtune=arm946e-s -fomit-frame-pointer\
 			-ffast-math -O3 $(ARCH) $(DEBUG) \
-			-DVERSION_STRING=\"`git describe --always --abbrev=4`\"\
 			-DC_IO_FUNCTIONS -DNIFI \
 			-include "nds/ndstypes.h"
 
@@ -102,7 +101,7 @@ export LIBPATHS	:=	$(foreach dir,$(LIBDIRS),-L$(dir)/lib)
  
 #---------------------------------------------------------------------------------
 $(BUILD):
-	@[ -d $@ ] || mkdir -p $@
+	@[ -d $@ ] || mkdir $@
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
  
 #---------------------------------------------------------------------------------

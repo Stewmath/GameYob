@@ -351,7 +351,20 @@ void hyperSoundFunc(int value) {
     fifoSendValue32(FIFO_USER_01, GBSND_HYPERSOUND_ENABLE_COMMAND<<20 | hyperSound);
 #endif
 }
+// Define my bullshit... if this shit even works someone's gonna die
+void unknownOpFunc(int value) {
+	Gameboy::unknownOpBehave = value;
+}
 
+void badStopFunc(int value) {
+	Gameboy::badStopBehave = value;
+}
+void anti0039(int value) {
+	Gameboy::rst38Behave = value;
+}
+void tooManyBanks(int value) {
+	Gameboy::overBankBehave = value;
+}
 void setAutoSaveFunc(int value) {
     muteSND();
     if (autoSavingEnabled)
@@ -465,6 +478,16 @@ SubMenu menuList[] = {
             {"Channel 2", chan2Func, 2, {"Off","On"}, 1, MENU_ALL},
             {"Channel 3", chan3Func, 2, {"Off","On"}, 1, MENU_ALL},
             {"Channel 4", chan4Func, 2, {"Off","On"}, 1, MENU_ALL}
+        }
+    },
+	    {
+        "Behavior",
+        4,
+        {
+            {"Unknown Opcode", unknownOpFunc, 3, {"Like Hardware","NOP","RET"}, 1, MENU_ALL},
+            {"Corrupted Stop", badStopFunc, 2, {"Like Hardware","Like Unknown Opcode"}, 1, MENU_ALL},
+            {"RST 38h", anti0039, 2, {"ROM Defined","NOP"}, 1, MENU_ALL},
+            {"Invalid ROM Banks", tooManyBanks, 2, {"Like Hardware","Like Old VBA"}, 1, MENU_ALL}
         }
     },
     {

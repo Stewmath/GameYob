@@ -114,7 +114,6 @@ void Gameboy::disableInterrupts()
 {
     ime = 0;
 }
-
 int Gameboy::handleInterrupts(unsigned int interruptTriggered)
 {
     const u16 isrVectors[] = { 0x40, 0x48, 0x50, 0x58, 0x60 };
@@ -1088,6 +1087,24 @@ int Gameboy::runOpcode(int cycles) {
                 goto end;
 
             case 0x10:		// STOP					4
+				if (Gameboy::badStopBehave == 2)
+				{
+					if (Gameboy::unknownOpBehave == 1)
+					{
+						Gameboy::HaltCPU();
+					}
+					if (Gameboy::unknownOpBehave == 2)
+					{
+						break;
+					}
+					if (Gameboy::unknownOpBehave == 3)
+					{
+						setPC(quickRead16(locSP));
+						locSP += 2;
+						break;
+					}
+					break;
+				}					
                 if (ioRam[0x4D] & 1 && gbMode == CGB) {
                     if (ioRam[0x4D] & 0x80)
                         setDoubleSpeed(0);
@@ -1408,6 +1425,10 @@ int Gameboy::runOpcode(int cycles) {
                 break;
             case 0xFF:		// RST 38H			16
                 {
+					if (Gameboy::rst38Behave == 2)
+					{
+						break;
+					}
                     u16 val = getPC();
 #ifdef SPEEDHAX
                     quickWrite(--locSP, (val) >> 8);
@@ -2506,6 +2527,20 @@ int Gameboy::runOpcode(int cycles) {
                 }
                 break;
             default:
+				if (Gameboy::unknownOpBehave == 1)
+				{
+					Gameboy::HaltCPU();
+				}
+				if (Gameboy::unknownOpBehave == 2)
+				{
+					break;
+				}
+				if (Gameboy::unknownOpBehave == 3)
+				{
+					setPC(quickRead16(locSP));
+					locSP += 2;
+					break;
+				}
                 break;
         }
     }
