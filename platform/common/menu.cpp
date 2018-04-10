@@ -353,17 +353,17 @@ void hyperSoundFunc(int value) {
 }
 // Define my bullshit... if this shit even works someone's gonna die
 void unknownOpFunc(int value) {
-	Gameboy::unknownOpBehave = value;
+	unknownOpBehave = value;
 }
 
 void badStopFunc(int value) {
-	Gameboy::badStopBehave = value;
+	badStopBehave = value;
 }
 void anti0039(int value) {
-	Gameboy::rst38Behave = value;
+	rst38Behave = value;
 }
 void tooManyBanks(int value) {
-	Gameboy::overBankBehave = value;
+	overBankBehave = value;
 }
 void setAutoSaveFunc(int value) {
     muteSND();
@@ -481,13 +481,13 @@ SubMenu menuList[] = {
         }
     },
 	    {
-        "Behavior",
+        "Error Behavior",
         4,
         {
-            {"Unknown Opcode", unknownOpFunc, 3, {"Like Hardware","NOP","RET"}, 1, MENU_ALL},
-            {"Corrupted Stop", badStopFunc, 2, {"Like Hardware","Like Unknown Opcode"}, 1, MENU_ALL},
-            {"RST 38h", anti0039, 2, {"ROM Defined","NOP"}, 1, MENU_ALL},
-            {"Invalid ROM Banks", tooManyBanks, 2, {"Like Hardware","Like Old VBA"}, 1, MENU_ALL}
+            {"Bad Op", unknownOpFunc, 3, {"Like GB","NOP","RET"}, 0, MENU_ALL},
+            {"Bad Stop", badStopFunc, 2, {"Like GB","Bad Op"}, 0, MENU_ALL},
+            {"RST 38h", anti0039, 2, {"Normal","NOP"}, 0, MENU_ALL},
+            {"Bad ROM Read", tooManyBanks, 2, {"Like GB","Like VBA"}, 0, MENU_ALL}
         }
     },
     {

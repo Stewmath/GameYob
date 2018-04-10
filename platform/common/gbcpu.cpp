@@ -225,6 +225,10 @@ int Gameboy::runOpcode(int cycles) {
 
         switch(opcode)
         {
+			if (haltFlag == 1)
+			{
+				opcode = 0x00
+			}
             // 8-bit loads
             case 0x06:		// LD B, n		8
             case 0x0E:		// LD C, n		8
@@ -1087,17 +1091,17 @@ int Gameboy::runOpcode(int cycles) {
                 goto end;
 
             case 0x10:		// STOP					4
-				if (Gameboy::badStopBehave == 2)
+				if (badStopBehave == 1)
 				{
-					if (Gameboy::unknownOpBehave == 1)
+					if (unknownOpBehave == 0)
 					{
 						Gameboy::HaltCPU();
 					}
-					if (Gameboy::unknownOpBehave == 2)
+					if (unknownOpBehave == 1)
 					{
 						break;
 					}
-					if (Gameboy::unknownOpBehave == 3)
+					if (unknownOpBehave == 2)
 					{
 						setPC(quickRead16(locSP));
 						locSP += 2;
@@ -1425,7 +1429,7 @@ int Gameboy::runOpcode(int cycles) {
                 break;
             case 0xFF:		// RST 38H			16
                 {
-					if (Gameboy::rst38Behave == 2)
+					if (rst38Behave == 2)
 					{
 						break;
 					}
@@ -2527,15 +2531,15 @@ int Gameboy::runOpcode(int cycles) {
                 }
                 break;
             default:
-				if (Gameboy::unknownOpBehave == 1)
+				if (unknownOpBehave == 0)
 				{
 					Gameboy::HaltCPU();
 				}
-				if (Gameboy::unknownOpBehave == 2)
+				if (unknownOpBehave == 1)
 				{
 					break;
 				}
-				if (Gameboy::unknownOpBehave == 3)
+				if (unknownOpBehave == 2)
 				{
 					setPC(quickRead16(locSP));
 					locSP += 2;
