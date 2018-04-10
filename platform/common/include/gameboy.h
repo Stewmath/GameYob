@@ -211,14 +211,7 @@ class Gameboy {
 
         int halt;
         int ime;
-		void HaltCPU()
-		{
-			ime = 0;
-			haltFlag = 1;
-			if (ime == 1) {
-				ime = 0;
-			}
-		}
+
         struct Registers gbRegs;
 
     private:
@@ -482,7 +475,7 @@ class Gameboy {
             };
         } sgbCmdData;
 };
-static int haltFlag = 0;
+static int HaltFlag = 0;
 static int unknownOpBehave = 0;
 static int badStopBehave = 0;
 static int rst38Behave = 0;

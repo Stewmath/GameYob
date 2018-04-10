@@ -487,7 +487,7 @@ SubMenu menuList[] = {
             {"Bad Op", unknownOpFunc, 3, {"Like GB","NOP","RET"}, 0, MENU_ALL},
             {"Bad Stop", badStopFunc, 2, {"Like GB","Bad Op"}, 0, MENU_ALL},
             {"RST 38h", anti0039, 2, {"Normal","NOP"}, 0, MENU_ALL},
-            {"Bad ROM Read", tooManyBanks, 2, {"Like GB","Like VBA"}, 0, MENU_ALL}
+            {"Bad Bankswitch", tooManyBanks, 2, {"Like GB","Like VBA"}, 0, MENU_ALL}
         }
     },
     {

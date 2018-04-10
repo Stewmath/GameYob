@@ -225,9 +225,9 @@ int Gameboy::runOpcode(int cycles) {
 
         switch(opcode)
         {
-			if (haltFlag == 1)
+			if (HaltFlag == 1)
 			{
-				opcode = 0x00
+				break;
 			}
             // 8-bit loads
             case 0x06:		// LD B, n		8
@@ -1095,7 +1095,7 @@ int Gameboy::runOpcode(int cycles) {
 				{
 					if (unknownOpBehave == 0)
 					{
-						Gameboy::HaltCPU();
+						HaltFlag = 1;
 					}
 					if (unknownOpBehave == 1)
 					{
@@ -2533,7 +2533,7 @@ int Gameboy::runOpcode(int cycles) {
             default:
 				if (unknownOpBehave == 0)
 				{
-					Gameboy::HaltCPU();
+					HaltFlag = 1;
 				}
 				if (unknownOpBehave == 1)
 				{
