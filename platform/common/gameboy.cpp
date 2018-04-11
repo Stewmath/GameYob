@@ -433,6 +433,7 @@ int Gameboy::runEmul()
              * This has been known to break Megaman V boss intros, that's fixed 
              * by the "opTriggeredInterrupt" stuff.
              */
+			 
             if (!halt && !opTriggeredInterrupt)
 			{
 				if (HaltFlag == 0)

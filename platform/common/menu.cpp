@@ -354,25 +354,32 @@ void hyperSoundFunc(int value) {
 // Define my bullshit... if this shit even works someone's gonna die
 void unknownOpFunc(int value) {
 	unknownOpBehave = value;
+	printLog("Set uOB: %x\n", value);
 }
 void EmptyEcho(int value) {
 	echoBehave = value;
+	printLog("Set eB: %x\n", value);
 }
 void badStopFunc(int value) {
 	badStopBehave = value;
+	printLog("Set bSB: %x\n", value);
 }
 void anti0039(int value) {
 	rst38Behave = value;
+	printLog("Set rst38B: %x\n", value);
 }
 void tooManyBanks(int value) {
 	overBankBehave = value;
+	printLog("Set oBB: %x\n", value);
 }
 void notEnoughRAM(int value) {
 	badRAMBehave = value;
+	printLog("Set nER: %x\n", value);
 }
 void justHalt(int value)
 {
 	HaltFlag = 1;
+	printLog("Set HF: %x\n", HaltFlag);
 }
 void setAutoSaveFunc(int value) {
     muteSND();
