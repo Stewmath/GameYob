@@ -214,8 +214,8 @@ void Gameboy::mapMemory() {
 u8 Gameboy::readMemoryFast(u16 addr) {
 	if (echoBehave == 0)
 	{
-		printLog(echoBehave);
-		printLog(addr);
+		printLog("Echo setting: %x\n",echoBehave);
+		printLog("Address: %x\n",addr);
 		return memory[addr>>12][addr&0xfff];
 	}
 	else if (echoBehave == 1)
@@ -230,7 +230,7 @@ u8 Gameboy::readMemoryFast(u16 addr) {
 		}
 		else
 		{
-			return 0x00;
+			return 0;
 		}
 	}
 }
@@ -252,7 +252,7 @@ u16 Gameboy::readMemory16(u16 addr) {
 		}
 		else
 		{
-			return 0x00;
+			return 0;
 		}
 	}
 }

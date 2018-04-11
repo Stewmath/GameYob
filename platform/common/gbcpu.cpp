@@ -220,10 +220,6 @@ int Gameboy::runOpcode(int cycles) {
         runDebugger(this, g_gbRegs);
 #endif
         u8 opcode = *pcAddr;
-		if (HaltFlag == 1)
-		{
-			goto end;
-		}
         pcAddr++;
         totalCycles += opCycles[opcode];
 
@@ -1107,15 +1103,15 @@ int Gameboy::runOpcode(int cycles) {
 						}
 						else if (unknownOpBehave == 1)
 						{
-							break;
+							goto bail;
 						}
 						else if (unknownOpBehave == 2)
 						{
 							setPC(quickRead16(locSP));
 							locSP += 2;
-							break;
+							goto bail;
 						}
-						break;
+						goto bail;
 					}
 				}					
                 if (ioRam[0x4D] & 1 && gbMode == CGB) {
@@ -1440,7 +1436,7 @@ int Gameboy::runOpcode(int cycles) {
                 {
 					if (rst38Behave == 1)
 					{
-						goto end;
+						break;
 					}
                     u16 val = getPC();
 #ifdef SPEEDHAX
@@ -2543,19 +2539,19 @@ int Gameboy::runOpcode(int cycles) {
 				if (unknownOpBehave == 0)
 				{
 					HaltFlag = 1;
-					break;
+					goto bail;
 				}
 				else if (unknownOpBehave == 1)
 				{
-					break;
+					goto bail;
 				}
 				else if (unknownOpBehave == 2)
 				{
 					setPC(quickRead16(locSP));
 					locSP += 2;
-					break;
+					goto bail;
 				}
-                break;
+                goto bail;
         }
     }
 
@@ -2568,4 +2564,9 @@ end:
     g_gbRegs.pc.w += (pcAddr-firstPcAddr);
     g_gbRegs.sp.w = locSP;
     return totalCycles;
+bail:
+    g_gbRegs.af.b.l = locF;
+    g_gbRegs.pc.w += (pcAddr-firstPcAddr);
+    g_gbRegs.sp.w = locSP;
+	return totalCycles;
 }

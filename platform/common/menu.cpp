@@ -370,6 +370,10 @@ void tooManyBanks(int value) {
 void notEnoughRAM(int value) {
 	badRAMBehave = value;
 }
+void justHalt(int value)
+{
+	HaltFlag = 1;
+}
 void setAutoSaveFunc(int value) {
     muteSND();
     if (autoSavingEnabled)
@@ -487,14 +491,16 @@ SubMenu menuList[] = {
     },
 	    {
         "Error Behavior",
-        6,
+        7,
         {
             {"Bad Op", unknownOpFunc, 3, {"Like GB","NOP","RET"}, 0, MENU_ALL},
             {"Bad Stop", badStopFunc, 2, {"Like GB","Bad Op"}, 0, MENU_ALL},
             {"RST 38h", anti0039, 2, {"Like GB","NOP"}, 0, MENU_ALL},
             {"Bad Bankswitch", tooManyBanks, 3, {"Like GB","Like VBA", "Log + NOP"}, 0, MENU_ALL},
 			{"Bad WRAM Switch", notEnoughRAM, 3, {"Like GB","Like VBA","Log + NOP"}, 0, MENU_ALL},
-			{"Echo RAM Clone", EmptyEcho, 2, {"Like GB","Like VBA"}, 0, MENU_ALL}
+			{"Echo RAM Clone", EmptyEcho, 2, {"Like GB","Like VBA"}, 0, MENU_ALL},
+			{"Test BadOp Halt", justHalt, 0, {}, 0, MENU_ALL}
+			
         }
     },
     {

@@ -317,8 +317,16 @@ int Gameboy::runEmul()
         if (halt)
             cycles = cyclesToEvent;
         else
+		{
+			if (HaltFlag == 0)
+			{
             cycles = runOpcode(cyclesToEvent);
-
+			}
+			else if (HaltFlag == 1)
+			{
+				printLog("Halted!");
+			}
+		}
         bool opTriggeredInterrupt = cyclesToExecute == -1;
 
         cycles += extraCycles;
@@ -426,8 +434,16 @@ int Gameboy::runEmul()
              * by the "opTriggeredInterrupt" stuff.
              */
             if (!halt && !opTriggeredInterrupt)
-                extraCycles += runOpcode(4);
-
+			{
+				if (HaltFlag == 0)
+				{
+					extraCycles += runOpcode(4);
+				}
+				else if (HaltFlag == 1)
+				{
+					printLog("Halted!");
+				}
+			}
             if (interruptTriggered)
                 extraCycles += handleInterrupts(interruptTriggered);
             interruptTriggered = ioRam[0x0F] & ioRam[0xFF];
