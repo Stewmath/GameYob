@@ -475,11 +475,14 @@ class Gameboy {
             };
         } sgbCmdData;
 };
-static int HaltFlag = 0;
-static int unknownOpBehave = 0;
-static int badStopBehave = 0;
-static int rst38Behave = 0;
-static int overBankBehave = 0;
+static int HaltFlag;
+static const u8 zero = 0x00;
+static int unknownOpBehave;
+static int badStopBehave;
+static int rst38Behave;
+static int overBankBehave;
+static int echoBehave;
+static int badRAMBehave;
 typedef void (Gameboy::*mbcWrite)(u16,u8);
 typedef u8   (Gameboy::*mbcRead )(u16);
 

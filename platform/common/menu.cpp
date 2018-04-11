@@ -355,7 +355,9 @@ void hyperSoundFunc(int value) {
 void unknownOpFunc(int value) {
 	unknownOpBehave = value;
 }
-
+void EmptyEcho(int value) {
+	echoBehave = value;
+}
 void badStopFunc(int value) {
 	badStopBehave = value;
 }
@@ -364,6 +366,9 @@ void anti0039(int value) {
 }
 void tooManyBanks(int value) {
 	overBankBehave = value;
+}
+void notEnoughRAM(int value) {
+	badRAMBehave = value;
 }
 void setAutoSaveFunc(int value) {
     muteSND();
@@ -482,12 +487,14 @@ SubMenu menuList[] = {
     },
 	    {
         "Error Behavior",
-        4,
+        6,
         {
             {"Bad Op", unknownOpFunc, 3, {"Like GB","NOP","RET"}, 0, MENU_ALL},
             {"Bad Stop", badStopFunc, 2, {"Like GB","Bad Op"}, 0, MENU_ALL},
-            {"RST 38h", anti0039, 2, {"Normal","NOP"}, 0, MENU_ALL},
-            {"Bad Bankswitch", tooManyBanks, 2, {"Like GB","Like VBA"}, 0, MENU_ALL}
+            {"RST 38h", anti0039, 2, {"Like GB","NOP"}, 0, MENU_ALL},
+            {"Bad Bankswitch", tooManyBanks, 3, {"Like GB","Like VBA", "Log + NOP"}, 0, MENU_ALL},
+			{"Bad WRAM Switch", notEnoughRAM, 3, {"Like GB","Like VBA","Log + NOP"}, 0, MENU_ALL},
+			{"Echo RAM Clone", EmptyEcho, 2, {"Like GB","Like VBA"}, 0, MENU_ALL}
         }
     },
     {

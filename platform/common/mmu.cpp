@@ -39,7 +39,28 @@ void Gameboy::refreshRomBank(int bank)
         memory[0x7] = romFile->romSlot1+0x3000; 
     }
     else
-        printLog("Tried to access bank %x\n", bank);
+		if (overBankBehave == 0)
+		{
+			romBank = bank % 64;
+			romFile->loadRomBank(romBank); 
+			memory[0x4] = romFile->romSlot1;
+			memory[0x5] = romFile->romSlot1+0x1000;
+			memory[0x6] = romFile->romSlot1+0x2000;
+			memory[0x7] = romFile->romSlot1+0x3000; 
+		}
+		else if (overBankBehave == 1)
+		{
+			romBank = bank;
+			memory[0x4] = 0;
+			memory[0x5] = 0;
+			memory[0x6] = 0;
+			memory[0x7] = 0;
+		}
+		else if (overBankBehave == 2)
+		{
+			printLog("Tried to access bank %x\n", bank);
+			printLog("Address: %x\n", g_gbRegs.pc);
+		}
 }
 
 void Gameboy::refreshRamBank (int bank) 
@@ -50,7 +71,28 @@ void Gameboy::refreshRamBank (int bank)
         memory[0xb] = externRam+currentRamBank*0x2000+0x1000; 
     }
     else
-        printLog("Tried to access ram bank %x\n", bank);
+	{
+		if (badRAMBehave == 0)
+		{
+			currentRamBank = bank % 8;
+			if (currentRamBank == 0)
+			{
+				currentRamBank = 1;
+			}
+			memory[0xa] = externRam+currentRamBank*0x2000;
+			memory[0xb] = externRam+currentRamBank*0x2000+0x1000;
+		}
+		else if (badRAMBehave == 1)
+		{
+			memory[0xa] = 0;
+			memory[0xb] = 0;
+		}
+		else if (badRAMBehave == 2)
+		{
+			printLog("Tried to access ram bank %x\n", bank);
+			printLog("Address: %x\n", g_gbRegs.pc);
+		}
+	}
 }
 
 void Gameboy::writeSram(u16 addr, u8 val) {
@@ -153,7 +195,14 @@ void Gameboy::mapMemory() {
     refreshVramBank();
     memory[0xc] = wram[0];
     refreshWramBank();
-    memory[0xe] = wram[0];
+	if (echoBehave == 0)
+	{	
+		memory[0xe] = wram[0];
+	}
+	else if (echoBehave == 1)
+	{
+		memory[0xe] = 0;
+	}
     memory[0xf] = highram;
 
     dmaSource = (ioRam[0x51]<<8) | (ioRam[0x52]);
@@ -163,11 +212,49 @@ void Gameboy::mapMemory() {
 }
 
 u8 Gameboy::readMemoryFast(u16 addr) {
-    return memory[addr>>12][addr&0xfff];
+	if (echoBehave == 0)
+	{
+		printLog(echoBehave);
+		printLog(addr);
+		return memory[addr>>12][addr&0xfff];
+	}
+	else if (echoBehave == 1)
+	{
+		if (addr <= 0xe000)
+		{
+			return readMemory(addr) | readMemory(addr+1)<<8;
+		}
+		else if (addr >= 0xfe01)
+		{
+			return readMemory(addr) | readMemory(addr+1)<<8;
+		}
+		else
+		{
+			return 0x00;
+		}
+	}
 }
 
 u16 Gameboy::readMemory16(u16 addr) {
-    return readMemory(addr) | readMemory(addr+1)<<8;
+	if (echoBehave == 0)
+	{
+		return readMemory(addr) | readMemory(addr+1)<<8;
+	}
+	else if (echoBehave == 1)
+	{
+		if (addr <= 0xe000)
+		{
+			return readMemory(addr) | readMemory(addr+1)<<8;
+		}
+		else if (addr >= 0xfe01)
+		{
+			return readMemory(addr) | readMemory(addr+1)<<8;
+		}
+		else
+		{
+			return 0x00;
+		}
+	}
 }
 
 u8 Gameboy::readIO(u8 ioReg)
@@ -239,7 +326,16 @@ u8 Gameboy::readMemoryOther(u16 addr) {
             return readIO(addr&0xff);
         // Check for echo area
         else if (addr < 0xfe00)
-            return memory[0xd][addr&0xfff];
+		{
+			if (echoBehave == 0)
+			{
+				return memory[0xd][addr&0xfff];
+			}
+			else if (echoBehave == 1)
+			{
+				return 0x00;
+			}
+		}
     }
     /* Check if in range a000-bfff */
     else if (area == 0xa || area == 0xb) {
@@ -263,8 +359,16 @@ void Gameboy::writeMemoryOther(u16 addr, u8 val) {
             vram[vramBank][addr&0x1fff] = val;
             return;
         case 0xE: // Echo area
-            wram[0][addr&0xFFF] = val;
-            return;
+			if (echoBehave == 0)
+			{
+				wram[0][addr&0xFFF] = val;
+				return;
+			}
+			else if (echoBehave == 1)
+			{
+				wram[0][addr&0xFFF] = 0;
+				return;
+			}
         case 0xF:
             if (addr >= 0xFF00)
                 writeIO(addr & 0xFF, val);
@@ -273,7 +377,16 @@ void Gameboy::writeMemoryOther(u16 addr, u8 val) {
                 hram[addr&0x1ff] = val;
             }
             else // Echo area
-                wram[wramBank][addr&0xFFF] = val;
+			{
+				if (echoBehave == 0)
+				{
+					wram[wramBank][addr&0xFFF] = val;
+				}
+				if (echoBehave == 1)
+				{
+					wram[wramBank][addr&0xFFF] = 0x00;
+				}
+			}
             return;
     }
     if (writeFunc != NULL)

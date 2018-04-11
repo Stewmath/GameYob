@@ -29,7 +29,7 @@ ARCH	:=	# -mthumb -mthumb-interwork	#This may cause some problem when there are 
 DEBUG	:=	-g
 
 CFLAGS	:=	-Wall -Wno-psabi -DNO_VIZ \
- 			-march=armv5te -mtune=arm946e-s -fomit-frame-pointer\
+ 			-march=armv5te -mtune=arm946e-s -fpermissive -Wunused-value -fomit-frame-pointer\
 			-ffast-math -O3 $(ARCH) $(DEBUG) \
 			-DC_IO_FUNCTIONS -DNIFI \
 			-include "nds/ndstypes.h"

@@ -220,15 +220,15 @@ int Gameboy::runOpcode(int cycles) {
         runDebugger(this, g_gbRegs);
 #endif
         u8 opcode = *pcAddr;
+		if (HaltFlag == 1)
+		{
+			goto end;
+		}
         pcAddr++;
         totalCycles += opCycles[opcode];
 
         switch(opcode)
         {
-			if (HaltFlag == 1)
-			{
-				break;
-			}
             // 8-bit loads
             case 0x06:		// LD B, n		8
             case 0x0E:		// LD C, n		8
@@ -1067,6 +1067,11 @@ int Gameboy::runOpcode(int cycles) {
                 break;
 
             case 0x00:		// NOP					4
+				if (HaltFlag == 1)
+				{
+					ime = 0;
+					break;
+				}
                 break;
 
             case 0x76:		// HALT					4
@@ -1093,21 +1098,25 @@ int Gameboy::runOpcode(int cycles) {
             case 0x10:		// STOP					4
 				if (badStopBehave == 1)
 				{
-					if (unknownOpBehave == 0)
+					static int secondAddr = pcAddr+1;
+					if (quickRead(secondAddr) != 0x00)
 					{
-						HaltFlag = 1;
-					}
-					if (unknownOpBehave == 1)
-					{
+						if (unknownOpBehave == 0)
+						{
+							HaltFlag = 1;
+						}
+						else if (unknownOpBehave == 1)
+						{
+							break;
+						}
+						else if (unknownOpBehave == 2)
+						{
+							setPC(quickRead16(locSP));
+							locSP += 2;
+							break;
+						}
 						break;
 					}
-					if (unknownOpBehave == 2)
-					{
-						setPC(quickRead16(locSP));
-						locSP += 2;
-						break;
-					}
-					break;
 				}					
                 if (ioRam[0x4D] & 1 && gbMode == CGB) {
                     if (ioRam[0x4D] & 0x80)
@@ -1119,7 +1128,7 @@ int Gameboy::runOpcode(int cycles) {
                 }
                 else {
                     halt = 2;
-                    goto end;
+                    break;
                 }
                 pcAddr++;
                 break;
@@ -1429,9 +1438,9 @@ int Gameboy::runOpcode(int cycles) {
                 break;
             case 0xFF:		// RST 38H			16
                 {
-					if (rst38Behave == 2)
+					if (rst38Behave == 1)
 					{
-						break;
+						goto end;
 					}
                     u16 val = getPC();
 #ifdef SPEEDHAX
@@ -2534,12 +2543,13 @@ int Gameboy::runOpcode(int cycles) {
 				if (unknownOpBehave == 0)
 				{
 					HaltFlag = 1;
+					break;
 				}
-				if (unknownOpBehave == 1)
+				else if (unknownOpBehave == 1)
 				{
 					break;
 				}
-				if (unknownOpBehave == 2)
+				else if (unknownOpBehave == 2)
 				{
 					setPC(quickRead16(locSP));
 					locSP += 2;
