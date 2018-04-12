@@ -1,3 +1,9 @@
+GameYob-Accurate has no unique readme as of yet.
+
+
+Readme for the original GameYob:
+
+
 GameYob v0.5
 Author: Drenn
 
