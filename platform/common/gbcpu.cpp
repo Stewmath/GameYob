@@ -13,6 +13,7 @@
 #include "soundengine.h"
 #include "gameboy.h"
 #include "main.h"
+#include "console.h"
 
 #ifdef CPU_DEBUG
 #include "debugger.h"
@@ -1094,19 +1095,23 @@ int Gameboy::runOpcode(int cycles) {
             case 0x10:		// STOP					4
 				if (badStopBehave == 1)
 				{
+					printLog("BadStopBehave hit!\n");
 					static int secondAddr = pcAddr+1;
 					if (quickRead(secondAddr) != 0x00)
 					{
 						if (unknownOpBehave == 0)
 						{
+							printLog("BadOp:0 hit!\n");
 							HaltFlag = 1;
 						}
 						else if (unknownOpBehave == 1)
 						{
+							printLog("BadOp:1 hit!\n");
 							goto bail;
 						}
 						else if (unknownOpBehave == 2)
 						{
+							printLog("BadOp:2 hit!\n");
 							setPC(quickRead16(locSP));
 							locSP += 2;
 							goto bail;
@@ -2538,15 +2543,18 @@ int Gameboy::runOpcode(int cycles) {
             default:
 				if (unknownOpBehave == 0)
 				{
+					printLog("BadOp:0 hit!\n");
 					HaltFlag = 1;
 					goto bail;
 				}
 				else if (unknownOpBehave == 1)
 				{
+					printLog("BadOp:1 hit!\n");
 					goto bail;
 				}
 				else if (unknownOpBehave == 2)
 				{
+					printLog("BadOp:2 hit!\n");
 					setPC(quickRead16(locSP));
 					locSP += 2;
 					goto bail;

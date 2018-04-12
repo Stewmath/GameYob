@@ -10,7 +10,7 @@
 #include "soundengine.h"
 #include "error.h"
 #include "timer.h"
-
+#include "console.h"
 Gameboy* gameboy = NULL;
 Gameboy* gb2 = NULL;
 

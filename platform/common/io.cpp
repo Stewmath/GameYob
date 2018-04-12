@@ -4,7 +4,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include "io.h"
-
+#include "console.h"
 
 #ifdef C_IO_FUNCTIONS
 
