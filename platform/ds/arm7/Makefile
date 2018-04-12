@@ -30,7 +30,7 @@ INCLUDES	:=	include ../include build
 ARCH	:=	-march=armv4t -mthumb -mthumb-interwork
 
 CFLAGS	:=	-g -Wall -Wno-psabi -O2\
- 		-mcpu=arm7tdmi -mtune=arm7tdmi -fpermissive -Wunused-value -fomit-frame-pointer\
+ 		-mcpu=arm7tdmi -mtune=arm7tdmi -fomit-frame-pointer\
 		-ffast-math \
 		$(ARCH)
 
@@ -98,7 +98,7 @@ all : $(BUILD)
 
 #---------------------------------------------------------------------------------
 $(BUILD):
-	@[ -d $@ ] || mkdir $@
+	@[ -d $@ ] || mkdir -p $@
 	@$(MAKE) -C $(BUILD) -f $(CURDIR)/Makefile
 
 
