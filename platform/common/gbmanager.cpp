@@ -10,7 +10,7 @@
 #include "soundengine.h"
 #include "error.h"
 #include "timer.h"
-#include "console.h"
+
 Gameboy* gameboy = NULL;
 Gameboy* gb2 = NULL;
 
@@ -35,6 +35,8 @@ bool emulationPaused;
 void mgr_init() {
     if (gameboy != NULL)
         delete gameboy;
+    if (gb2 != NULL)
+        delete gb2;
 
     gameboy = new Gameboy();
     hostGb = gameboy;

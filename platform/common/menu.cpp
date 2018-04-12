@@ -351,36 +351,7 @@ void hyperSoundFunc(int value) {
     fifoSendValue32(FIFO_USER_01, GBSND_HYPERSOUND_ENABLE_COMMAND<<20 | hyperSound);
 #endif
 }
-// Define my bullshit... if this shit even works someone's gonna die
-void unknownOpFunc(int value) {
-	unknownOpBehave = value;
-	printLog("Set uOB: %x\n", value);
-}
-void EmptyEcho(int value) {
-	echoBehave = value;
-	printLog("Set eB: %x\n", value);
-}
-void badStopFunc(int value) {
-	badStopBehave = value;
-	printLog("Set bSB: %x\n", value);
-}
-void anti0039(int value) {
-	rst38Behave = value;
-	printLog("Set rst38B: %x\n", value);
-}
-void tooManyBanks(int value) {
-	overBankBehave = value;
-	printLog("Set oBB: %x\n", value);
-}
-void notEnoughRAM(int value) {
-	badRAMBehave = value;
-	printLog("Set nER: %x\n", value);
-}
-void justHalt(int value)
-{
-	HaltFlag = 1;
-	printLog("Set HF: %x\n", HaltFlag);
-}
+
 void setAutoSaveFunc(int value) {
     muteSND();
     if (autoSavingEnabled)
@@ -494,20 +465,6 @@ SubMenu menuList[] = {
             {"Channel 2", chan2Func, 2, {"Off","On"}, 1, MENU_ALL},
             {"Channel 3", chan3Func, 2, {"Off","On"}, 1, MENU_ALL},
             {"Channel 4", chan4Func, 2, {"Off","On"}, 1, MENU_ALL}
-        }
-    },
-	    {
-        "Error Behavior",
-        7,
-        {
-            {"Bad Op", unknownOpFunc, 3, {"Like GB","NOP","RET"}, 0, MENU_ALL},
-            {"Bad Stop", badStopFunc, 2, {"Like GB","Bad Op"}, 0, MENU_ALL},
-            {"RST 38h", anti0039, 2, {"Like GB","NOP"}, 0, MENU_ALL},
-            {"Bad Bankswitch", tooManyBanks, 3, {"Like GB","Like VBA", "Log + NOP"}, 0, MENU_ALL},
-			{"Bad WRAM Switch", notEnoughRAM, 3, {"Like GB","Like VBA","Log + NOP"}, 0, MENU_ALL},
-			{"Echo RAM Clone", EmptyEcho, 2, {"Like GB","Like VBA"}, 0, MENU_ALL},
-			{"Test BadOp Halt", justHalt, 0, {}, 0, MENU_ALL}
-			
         }
     },
     {

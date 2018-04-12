@@ -13,7 +13,6 @@
 #include "soundengine.h"
 #include "gameboy.h"
 #include "main.h"
-#include "console.h"
 
 #ifdef CPU_DEBUG
 #include "debugger.h"
@@ -115,6 +114,7 @@ void Gameboy::disableInterrupts()
 {
     ime = 0;
 }
+
 int Gameboy::handleInterrupts(unsigned int interruptTriggered)
 {
     const u16 isrVectors[] = { 0x40, 0x48, 0x50, 0x58, 0x60 };
@@ -1064,11 +1064,6 @@ int Gameboy::runOpcode(int cycles) {
                 break;
 
             case 0x00:		// NOP					4
-				if (HaltFlag == 1)
-				{
-					ime = 0;
-					break;
-				}
                 break;
 
             case 0x76:		// HALT					4
@@ -1093,32 +1088,6 @@ int Gameboy::runOpcode(int cycles) {
                 goto end;
 
             case 0x10:		// STOP					4
-				if (badStopBehave == 1)
-				{
-					printLog("BadStopBehave hit!\n");
-					static int secondAddr = pcAddr+1;
-					if (quickRead(secondAddr) != 0x00)
-					{
-						if (unknownOpBehave == 0)
-						{
-							printLog("BadOp:0 hit!\n");
-							HaltFlag = 1;
-						}
-						else if (unknownOpBehave == 1)
-						{
-							printLog("BadOp:1 hit!\n");
-							goto bail;
-						}
-						else if (unknownOpBehave == 2)
-						{
-							printLog("BadOp:2 hit!\n");
-							setPC(quickRead16(locSP));
-							locSP += 2;
-							goto bail;
-						}
-						goto bail;
-					}
-				}					
                 if (ioRam[0x4D] & 1 && gbMode == CGB) {
                     if (ioRam[0x4D] & 0x80)
                         setDoubleSpeed(0);
@@ -1129,7 +1098,7 @@ int Gameboy::runOpcode(int cycles) {
                 }
                 else {
                     halt = 2;
-                    break;
+                    goto end;
                 }
                 pcAddr++;
                 break;
@@ -1439,10 +1408,6 @@ int Gameboy::runOpcode(int cycles) {
                 break;
             case 0xFF:		// RST 38H			16
                 {
-					if (rst38Behave == 1)
-					{
-						break;
-					}
                     u16 val = getPC();
 #ifdef SPEEDHAX
                     quickWrite(--locSP, (val) >> 8);
@@ -2541,25 +2506,7 @@ int Gameboy::runOpcode(int cycles) {
                 }
                 break;
             default:
-				if (unknownOpBehave == 0)
-				{
-					printLog("BadOp:0 hit!\n");
-					HaltFlag = 1;
-					goto bail;
-				}
-				else if (unknownOpBehave == 1)
-				{
-					printLog("BadOp:1 hit!\n");
-					goto bail;
-				}
-				else if (unknownOpBehave == 2)
-				{
-					printLog("BadOp:2 hit!\n");
-					setPC(quickRead16(locSP));
-					locSP += 2;
-					goto bail;
-				}
-                goto bail;
+                break;
         }
     }
 
@@ -2572,9 +2519,4 @@ end:
     g_gbRegs.pc.w += (pcAddr-firstPcAddr);
     g_gbRegs.sp.w = locSP;
     return totalCycles;
-bail:
-    g_gbRegs.af.b.l = locF;
-    g_gbRegs.pc.w += (pcAddr-firstPcAddr);
-    g_gbRegs.sp.w = locSP;
-	return totalCycles;
 }

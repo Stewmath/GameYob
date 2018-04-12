@@ -317,16 +317,8 @@ int Gameboy::runEmul()
         if (halt)
             cycles = cyclesToEvent;
         else
-		{
-			if (HaltFlag == 0)
-			{
             cycles = runOpcode(cyclesToEvent);
-			}
-			else if (HaltFlag == 1)
-			{
-				printLog("Halted!");
-			}
-		}
+
         bool opTriggeredInterrupt = cyclesToExecute == -1;
 
         cycles += extraCycles;
@@ -433,18 +425,9 @@ int Gameboy::runEmul()
              * This has been known to break Megaman V boss intros, that's fixed 
              * by the "opTriggeredInterrupt" stuff.
              */
-			 
             if (!halt && !opTriggeredInterrupt)
-			{
-				if (HaltFlag == 0)
-				{
-					extraCycles += runOpcode(4);
-				}
-				else if (HaltFlag == 1)
-				{
-					printLog("Halted!");
-				}
-			}
+                extraCycles += runOpcode(4);
+
             if (interruptTriggered)
                 extraCycles += handleInterrupts(interruptTriggered);
             interruptTriggered = ioRam[0x0F] & ioRam[0xFF];
