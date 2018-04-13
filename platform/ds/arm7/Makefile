@@ -98,14 +98,14 @@ all : $(BUILD)
 
 #---------------------------------------------------------------------------------
 $(BUILD):
-	@[ -d $@ ] || mkdir -p $@
-	@$(MAKE) -C $(BUILD) -f $(CURDIR)/Makefile
+	@[ -d $@ ] || mkdir $@
+	@$(MAKE) -C $(BUILD) -f $(CURDIR)/WinMakefile
 
 
 #---------------------------------------------------------------------------------
 dist: all
 #---------------------------------------------------------------------------------
-	@tar --exclude=*CVS* --exclude=.svn -cvjf default_arm7-src-$(VERSTRING).tar.bz2 source Makefile
+	@tar --exclude=*CVS* --exclude=.svn -cvjf default_arm7-src-$(VERSTRING).tar.bz2 source WinMakefile
 	@tar -cvjf default_arm7-$(VERSTRING).tar.bz2 default.elf
 
 #---------------------------------------------------------------------------------
@@ -116,7 +116,7 @@ install: all
 #---------------------------------------------------------------------------------
 clean:
 	@echo clean ...
-	@rm -fr $(BUILD) $(TARGET).elf  $(TARGET).arm7
+	@del $(BUILD) $(TARGET).elf  $(TARGET).arm7 /f /s /q
 
 
 #---------------------------------------------------------------------------------
