@@ -36,6 +36,6 @@ arm9/$(TARGET).elf:
 
 #---------------------------------------------------------------------------------
 clean:
-	$(MAKE) -C arm9 clean
-	$(MAKE) -C arm7 clean
+	$(MAKE) -C arm9\WinMakefile clean
+	$(MAKE) -C arm7\WinMakefile clean
 	del $(TARGET).arm7 $(TARGET).arm9 /f /s

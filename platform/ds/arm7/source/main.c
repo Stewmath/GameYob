@@ -145,9 +145,6 @@ void powerHandler(u32 value, void* user_data) {
             }
             fifoSendValue32(FIFO_SYSTEM, battery);
             break;
-        case PM_DSI_HACK:
-            __dsimode = true;
-            break;
     }
 }
 //---------------------------------------------------------------------------------
