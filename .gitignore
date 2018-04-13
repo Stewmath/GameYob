@@ -12,8 +12,17 @@ build/
 gameyob.nds
 gameyob
 gameyob.ini
+Makefile
 LOG
 platform/ds/build.bat
+
 original/
+
 platform/ds/make.log
+
 platform/ds/make.err
+
+platform/ds/arm7/Makefile
+platform/ds/arm9/Makefile
+
+platform/ds/Makefile
