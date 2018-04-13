@@ -99,13 +99,13 @@ all : $(BUILD)
 #---------------------------------------------------------------------------------
 $(BUILD):
 	@[ -d $@ ] || mkdir $@
-	@$(MAKE) -C $(BUILD) -f $(CURDIR)/WinMakefile
+	@$(MAKE) -C $(BUILD) -f $(CURDIR)/Makefile
 
 
 #---------------------------------------------------------------------------------
 dist: all
 #---------------------------------------------------------------------------------
-	@tar --exclude=*CVS* --exclude=.svn -cvjf default_arm7-src-$(VERSTRING).tar.bz2 source WinMakefile
+	@tar --exclude=*CVS* --exclude=.svn -cvjf default_arm7-src-$(VERSTRING).tar.bz2 source Makefile
 	@tar -cvjf default_arm7-$(VERSTRING).tar.bz2 default.elf
 
 #---------------------------------------------------------------------------------
