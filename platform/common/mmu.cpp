@@ -642,14 +642,7 @@ handleSoundReg:
             return;
         case 0x6c:
             if (gbMode == CGB)
-            {
-                if (cgbFlag == 0x00)
-                {
-                    ioRam[ioReg] = val;
-                }
-                else
-                    return;
-            }
+                ioRam[ioReg] = val;
             else
                 return;
         case 0x03:
