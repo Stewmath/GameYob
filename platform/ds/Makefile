@@ -28,14 +28,14 @@ $(TARGET).nds	:	arm7/$(TARGET).elf arm9/$(TARGET).elf
 
 #---------------------------------------------------------------------------------
 arm7/$(TARGET).elf:
-	$(MAKE) -C arm7\Makefile
+	$(MAKE) -C arm7
 	
 #---------------------------------------------------------------------------------
 arm9/$(TARGET).elf:
-	$(MAKE) -C arm9\Makefile
+	$(MAKE) -C arm9
 
 #---------------------------------------------------------------------------------
 clean:
-	$(MAKE) -C arm9\Makefile clean
-	$(MAKE) -C arm7\Makefile clean
+	$(MAKE) -C arm9 clean
+	$(MAKE) -C arm7 clean
 	del $(TARGET).arm7 $(TARGET).arm9 /f /s
