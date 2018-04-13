@@ -203,8 +203,6 @@ u8 Gameboy::readIO(u8 ioReg)
             return 0xFF;
         case 0x14: // NR14, sound frequency high byte 1, bits 7,5-0 set on read
             return ioRam[ioReg] | 0xBF;
-        case 0x15: // No register, all bits set on read
-            return 0xFF;
         case 0x16: // NR21, sound length/pattern duty 2, bits 5-0 set on read
             return ioRam[ioReg] | 0x3F;
         case 0x18: // NR23, sound frequency low byte 2, all bits set on read
@@ -229,7 +227,16 @@ u8 Gameboy::readIO(u8 ioReg)
             return ioRam[ioReg] | 0xBF;
         case 0x26: // NR52, global sound status, bits 6-4 set on read
             return ioRam[ioReg] | 0x70;
-        case 0x27: // No register, all bits set on read
+		case 0x03:
+		case 0x08:
+		case 0x09:
+		case 0x0A:
+		case 0x0B:
+		case 0x0C:
+		case 0x0D:
+		case 0x0E:
+        case 0x15:
+        case 0x27: 
         case 0x28:
         case 0x29:
         case 0x2A:
@@ -238,7 +245,38 @@ u8 Gameboy::readIO(u8 ioReg)
         case 0x2D:
         case 0x2E:
         case 0x2F:
-            return 0xFF;
+		case 0x46: // This register is used, but write-only. Something something DMA.
+		case 0x4C: // Undocuented compatibility register. Only readable/writable by GB BIOS. Locked after BIOS disabled.
+		case 0x4E:
+		case 0x57:
+		case 0x58:
+		case 0x59:
+		case 0x5A:
+		case 0x5B:
+		case 0x5C:
+		case 0x5D:
+		case 0x5E:
+		case 0x5F:
+		case 0x60:
+		case 0x61:
+		case 0x62:
+		case 0x63:
+		case 0x64:
+		case 0x65:
+		case 0x66:
+		case 0x67:
+		case 0x6D:
+		case 0x6E:
+		case 0x6F:
+		case 0x78:
+		case 0x79:
+		case 0x7A:
+		case 0x7B:
+		case 0x7C:
+		case 0x7D:
+		case 0x7E:
+		case 0x7F: // Unknown register, but confirmed to be write-only.
+			return 0xFF;
         case 0x70: // wram register
             return ioRam[ioReg] | 0xf8;
         default:
@@ -475,6 +513,7 @@ handleSoundReg:
                 handleVideoRegister(ioReg, val);
             ioRam[ioReg] = val;
             return;
+		
         case 0x69: // CGB BG Palette
             if (isMainGameboy())
                 handleVideoRegister(ioReg, val);
@@ -601,15 +640,76 @@ handleSoundReg:
             else
                 ioRam[ioReg] = val;
             return;
+		case 0x6c:
+			if (gbMode == CGB)
+			{
+				if (cgbFlag == 0x00)
+				{
+					ioRam[ioReg] = val;
+				}
+				else
+					return;
+			}
+			else
+				return;
+		case 0x03:
+		case 0x08:
+		case 0x09:
+		case 0x0A:
+		case 0x0B:
+		case 0x0C:
+		case 0x0D:
+		case 0x0E:
+        case 0x15:
+        case 0x27: 
+        case 0x28:
+        case 0x29:
+        case 0x2A:
+        case 0x2B:
+        case 0x2C:
+        case 0x2D:
+        case 0x2E:
+        case 0x2F:
+		case 0x4C: // Undocuented compatibility register. Only readable/writable by GB BIOS. Locked after BIOS disabled.
+		case 0x4E:
+		case 0x57:
+		case 0x58:
+		case 0x59:
+		case 0x5A:
+		case 0x5B:
+		case 0x5C:
+		case 0x5D:
+		case 0x5E:
+		case 0x5F:
+		case 0x60:
+		case 0x61:
+		case 0x62:
+		case 0x63:
+		case 0x64:
+		case 0x65:
+		case 0x66:
+		case 0x67:
+		case 0x6D:
+		case 0x6E:
+		case 0x6F:
+		case 0x78:
+		case 0x79:
+		case 0x7A:
+		case 0x7B:
+		case 0x7C:
+		case 0x7D:
+		case 0x7E:
+			return;
         case 0x70:				// WRAM bank, for CGB only
             if (gbMode == CGB)
             {
-                wramBank = val & 0x7;
-                if (wramBank == 0)
-                    wramBank = 1;
-                refreshWramBank();
+                refreshWramBank(); 
+				/* The actual register value can be a lot higher 
+				than the total RAM banks in the CGB but the actual
+				BEHAVIOR is what rolls the value around.
+				*/
             }
-            ioRam[ioReg] = val&0x7;
+            ioRam[ioReg] = val;
             return;
         case 0x0F: // IF
             ioRam[ioReg] = val;
