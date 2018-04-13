@@ -488,7 +488,7 @@ void Gameboy::checkLYC() {
 
 inline int Gameboy::updateLCD(int cycles)
 {
-    if (!(ioRam[0x40] & 0x80))		// If LCD is off
+    if (!(ioRam[0x40] & 0x80))        // If LCD is off
     {
         scanlineCounter = 456*(doubleSpeed?2:1);
         ioRam[0x44] = 0;

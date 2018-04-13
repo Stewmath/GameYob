@@ -226,8 +226,8 @@ int runDebugger(Gameboy* gameboy, const Registers& regs)
 /*
 void saveLog()
 {
-	fclose(logFile);
-	logFile = fopen("LOG", "a");
+    fclose(logFile);
+    logFile = fopen("LOG", "a");
 }
 */
 

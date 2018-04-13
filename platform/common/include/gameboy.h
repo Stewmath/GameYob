@@ -27,8 +27,8 @@
 // communication to start
 #define SERIAL_CYCLES (128*32)
 
-#define GB			0
-#define CGB			1
+#define GB            0
+#define CGB            1
 
 class CheatEngine;
 class SoundEngine;

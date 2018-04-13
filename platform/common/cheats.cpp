@@ -122,7 +122,7 @@ void CheatEngine::unapplyGGCheat(int cheat) {
 }
 
 void CheatEngine::applyGGCheatsToBank(int bank) {
-	u8* bankPtr = romFile->getRomBank(bank);
+    u8* bankPtr = romFile->getRomBank(bank);
     for (int i=0; i<numCheats; i++) {
         if (cheats[i].flags & CHEAT_FLAG_ENABLED && ((cheats[i].flags & CHEAT_FLAG_TYPE_MASK) != CHEAT_FLAG_GAMESHARK)) {
 
