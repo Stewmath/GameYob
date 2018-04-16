@@ -474,7 +474,7 @@ class Gameboy {
             };
         } sgbCmdData;
 };
-
+static int UnknownOpHalt = 0;
 typedef void (Gameboy::*mbcWrite)(u16,u8);
 typedef u8   (Gameboy::*mbcRead )(u16);
 

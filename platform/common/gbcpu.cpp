@@ -120,6 +120,9 @@ int Gameboy::handleInterrupts(unsigned int interruptTriggered)
     const u16 isrVectors[] = { 0x40, 0x48, 0x50, 0x58, 0x60 };
     /* Halt state is always reset */
     halt = 0;
+	if (UnknownOpHalt == 1) {
+		return 0;
+	}
     /* Avoid processing irqs */
     if (!ime) {
         return 0;
@@ -211,6 +214,10 @@ int Gameboy::runOpcode(int cycles) {
     int  locF =g_gbRegs.af.b.l;
 
     register int totalCycles=0;
+	if (UnknownOpHalt == 1) {
+		cyclesToExecute = 0;
+		ime = 0;
+	}
 
     while (totalCycles < cyclesToExecute)
     {
@@ -2516,7 +2523,8 @@ int Gameboy::runOpcode(int cycles) {
                 }
                 break;
             default:
-                break;
+                UnknownOpHalt = 1;
+				return totalCycles;
         }
     }
 

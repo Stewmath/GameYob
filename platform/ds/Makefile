@@ -7,7 +7,7 @@ endif
 
 include $(DEVKITARM)/ds_rules
 
-export GAME_TITLE	:=	GameYob `git describe --always --abbrev=4`
+export GAME_TITLE	:=	GameYob
 export GAME_SUBTITLE1	:=	A Gameboy emulator for DS
 export GAME_SUBTITLE2	:=	Author: Drenn
 export GAME_ICON	:=	$(CURDIR)/icon.bmp
@@ -38,4 +38,4 @@ arm9/$(TARGET).elf:
 clean:
 	$(MAKE) -C arm9 clean
 	$(MAKE) -C arm7 clean
-	rm -f $(TARGET).arm7 $(TARGET).arm9
+	del $(TARGET).arm7 $(TARGET).arm9 /f /s
