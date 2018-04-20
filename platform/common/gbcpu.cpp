@@ -216,10 +216,9 @@ int Gameboy::runOpcode(int cycles) {
 
     register int totalCycles=0;
 	if (UnknownOpHalt == 1) {
-		cyclesToExecute = 0;
-		ime = 0;
+		//cyclesToExecute = 0;
+		//ime = 0;
 		emulationPaused = true;
-		printLog("HALTED!\n");
 	}
 
     while (totalCycles < cyclesToExecute)
@@ -1077,24 +1076,15 @@ int Gameboy::runOpcode(int cycles) {
                 break;
 
             case 0x76:        // HALT                    4
-                if (!ime) {
-					if (gbMode != CGB)
-					{
-                        // DI + Halt bug
-                        // Fixes smurfs
-                        if (haltBugAddr == NULL) {
-                            haltBugAddr = pcAddr-1;
-                            // Write over 'halt' to produce the effect.
-                            *haltBugAddr = *pcAddr;
-                            pcAddr--;
-                            cyclesToExecute = totalCycles+1;
-                            // 'halt' will be restored after the opcode is executed.
-                        }
-						else 
-						{
-							break;
-						}
-					}
+				if (!ime && (ime & ioRam[0x0f]) != 0) { // apparently the halt bug happens on CGB too
+                    if (haltBugAddr == NULL) {
+                        haltBugAddr = pcAddr-1;
+                        // Write over 'halt' to produce the effect.
+                        *haltBugAddr = *pcAddr;
+                        pcAddr--;
+                        cyclesToExecute = totalCycles+1;
+                        // 'halt' will be restored after the opcode is executed.
+                    }
 					else 
 					{
 						break;
