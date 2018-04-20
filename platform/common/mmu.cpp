@@ -219,8 +219,6 @@ u8 Gameboy::readIO(u8 ioReg)
             return 0xFF;
         case 0x1E: // NR34, sound frequency high byte 2, bits 7,5-0 set on read
             return ioRam[ioReg] | 0xBF;
-        case 0x1F: // No register, all bits set on read
-            return 0xFF;
         case 0x20: // NR41, sound mode/length 4, all bits set on read
             return 0xFF;
         case 0x23: // NR44, sound counter/consecutive, bits 7,5-0 set on read
@@ -236,6 +234,7 @@ u8 Gameboy::readIO(u8 ioReg)
         case 0x0D:
         case 0x0E:
         case 0x15:
+		case 0x1F:
         case 0x27: 
         case 0x28:
         case 0x29:
