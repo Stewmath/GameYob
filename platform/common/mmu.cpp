@@ -563,10 +563,6 @@ handleSoundReg:
             ioRam[ioReg] &= 0x7;
             ioRam[ioReg] |= val&0xF8;
             return;
-        case 0x44:
-            //ioRam[0x44] = 0;
-            printLog("LY Write %d\n", val);
-            return;
         case 0x45:
             ioRam[ioReg] = val;
             checkLYC();
@@ -662,6 +658,7 @@ handleSoundReg:
         case 0x2D:
         case 0x2E:
         case 0x2F:
+		case 0x44:
         case 0x4C: // Undocuented compatibility register. Only readable/writable by GB BIOS. Locked after BIOS disabled.
         case 0x4E:
         case 0x57:

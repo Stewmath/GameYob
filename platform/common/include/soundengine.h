@@ -63,7 +63,7 @@ class SoundEngine {
         int chanLen[4];
         int chanLenCounter[4];
         int chanUseLen[4];
-        u32 chanFreq[4];
+        int chanFreq[4];
         int chanVol[4];
         int chanEnvDir[4];
         int chanEnvCounter[4];
