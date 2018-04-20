@@ -624,6 +624,7 @@ inline void Gameboy::updateTimers(int cycles)
         // Reads from [0xff05] may be inaccurate.
         // However Castlevania and Alone in the Dark are extremely slow 
         // if this is updated each time [0xff05] is changed.
+		
         setEventCycles(timerCounter+timerPeriod*(255-ioRam[0x05]));
     }
     dividerCounter -= cycles;
@@ -638,9 +639,10 @@ inline void Gameboy::updateTimers(int cycles)
 
 void Gameboy::requestInterrupt(int id)
 {
-    ioRam[0x0F] |= id;
+    ioRam[0x0F] |= id; 
     interruptTriggered = (ioRam[0x0F] & ioRam[0xFF]);
     if (interruptTriggered)
+		halt = 0;
         cyclesToExecute = -1;
 }
 

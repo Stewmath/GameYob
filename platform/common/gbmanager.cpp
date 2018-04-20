@@ -30,7 +30,6 @@ int fps = 0;
 time_t rawTime;
 time_t lastRawTime;
 
-bool emulationPaused;
 
 void mgr_init() {
     if (gameboy != NULL)
@@ -48,7 +47,7 @@ void mgr_init() {
     rawTime = 0;
     lastRawTime = rawTime;
 
-    emulationPaused = false;
+    
 
 #ifdef CPU_DEBUG
     startDebugger();

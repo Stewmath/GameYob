@@ -8,6 +8,7 @@
 #include <string.h>
 #endif
 
+#include "console.h"
 #include "mmu.h"
 #include "gbgfx.h"
 #include "soundengine.h"
@@ -217,6 +218,8 @@ int Gameboy::runOpcode(int cycles) {
 	if (UnknownOpHalt == 1) {
 		cyclesToExecute = 0;
 		ime = 0;
+		emulationPaused = true;
+		printLog("HALTED!\n");
 	}
 
     while (totalCycles < cyclesToExecute)
