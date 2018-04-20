@@ -1085,18 +1085,9 @@ int Gameboy::runOpcode(int cycles) {
                         cyclesToExecute = totalCycles+1;
                         // 'halt' will be restored after the opcode is executed.
                     }
-					else 
-					{
-						break;
-					}
+				}
                 halt = 1;
                 goto end;
-				}
-				else
-				{
-					halt = 1;
-					goto end;
-				}
             case 0x10:        // STOP                    4
                 if (ioRam[0x4D] & 1 && gbMode == CGB) {
                     if (ioRam[0x4D] & 0x80)
