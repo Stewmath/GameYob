@@ -13,3 +13,7 @@ gameyob.nds
 gameyob
 gameyob.ini
 LOG
+platform/ds/build.bat
+original/
+platform/ds/make.log
+platform/ds/make.err

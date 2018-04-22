@@ -98,7 +98,8 @@ void Gameboy::init()
     gbRegs.sp.w = 0xFFFE;
     ime = 0;
     halt = 0;
-
+	emulationPaused = false;
+	UnknownOpHalt = 0;
     linkedGameboy = NULL;
     memset(controllers, 0xff, sizeof(controllers));
     doubleSpeed = 0;
@@ -272,6 +273,8 @@ void Gameboy::updateVBlank() {
 
     if (!gbsMode) {
         if (resettingGameboy) {
+			emulationPaused = false;
+			UnknownOpHalt = 0;
             init();
             resettingGameboy = false;
         }
@@ -300,6 +303,8 @@ void Gameboy::updateVBlank() {
 // This function can be called from weird contexts, so just set a flag to deal 
 // with it later.
 void Gameboy::resetGameboy() {
+	emulationPaused = false;
+	UnknownOpHalt = 0;
     resettingGameboy = true;
 }
 
@@ -488,7 +493,7 @@ void Gameboy::checkLYC() {
 
 inline int Gameboy::updateLCD(int cycles)
 {
-    if (!(ioRam[0x40] & 0x80))		// If LCD is off
+    if (!(ioRam[0x40] & 0x80))        // If LCD is off
     {
         scanlineCounter = 456*(doubleSpeed?2:1);
         ioRam[0x44] = 0;
@@ -624,6 +629,7 @@ inline void Gameboy::updateTimers(int cycles)
         // Reads from [0xff05] may be inaccurate.
         // However Castlevania and Alone in the Dark are extremely slow 
         // if this is updated each time [0xff05] is changed.
+		
         setEventCycles(timerCounter+timerPeriod*(255-ioRam[0x05]));
     }
     dividerCounter -= cycles;
@@ -638,9 +644,10 @@ inline void Gameboy::updateTimers(int cycles)
 
 void Gameboy::requestInterrupt(int id)
 {
-    ioRam[0x0F] |= id;
+    ioRam[0x0F] |= id; 
     interruptTriggered = (ioRam[0x0F] & ioRam[0xFF]);
     if (interruptTriggered)
+		halt = 0;
         cyclesToExecute = -1;
 }
 
@@ -1097,7 +1104,8 @@ int Gameboy::loadState(int stateNum) {
     ramEnabled = state.ramEnabled;
     if (version < 3)
         ramEnabled = true;
-
+	emulationPaused = false;
+	UnknownOpHalt = 0;
     timerPeriod = timerPeriods[ioRam[0x07]&0x3];
     cyclesToEvent = 1;
 

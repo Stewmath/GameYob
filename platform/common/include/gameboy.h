@@ -27,8 +27,8 @@
 // communication to start
 #define SERIAL_CYCLES (128*32)
 
-#define GB			0
-#define CGB			1
+#define GB            0
+#define CGB            1
 
 class CheatEngine;
 class SoundEngine;
@@ -474,7 +474,8 @@ class Gameboy {
             };
         } sgbCmdData;
 };
-
+static bool emulationPaused = false;
+static int UnknownOpHalt;
 typedef void (Gameboy::*mbcWrite)(u16,u8);
 typedef u8   (Gameboy::*mbcRead )(u16);
 
