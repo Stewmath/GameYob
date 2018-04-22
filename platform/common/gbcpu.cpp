@@ -212,8 +212,8 @@ int Gameboy::runOpcode(int cycles) {
     pcAddr = memory[g_gbRegs.pc.w>>12]+(g_gbRegs.pc.w&0xfff);
     firstPcAddr = pcAddr;
     int locSP=g_gbRegs.sp.w;
-    int  locF =g_gbRegs.af.b.l;
-
+    int locF=g_gbRegs.af.b.l;
+    int oambugptr = 0xFE08;
     register int totalCycles=0;
 	if (UnknownOpHalt == 1) {
 		//cyclesToExecute = 0;
@@ -377,15 +377,51 @@ int Gameboy::runOpcode(int cycles) {
                 writeIO(g_gbRegs.bc.b.l, g_gbRegs.af.b.h);
                 break;
             case 0x3A:        // LDD A, (hl)    8
+				if (gbMode != CGB) {
+					if (g_gbRegs.hl.w >= 0xFEFF || g_gbRegs.hl.w <= 0xFE00) {
+						oambugptr = 0xFE08;
+						while (oambugptr >= 0xFEFF) {
+							quickWrite(oambugptr, (g_gbRegs.af.b.h));
+							oambugptr++;
+							break;}
+					}
+				}
                 g_gbRegs.af.b.h = readMemory(g_gbRegs.hl.w--);
                 break;
             case 0x32:        // LDD (hl), A    8
+				if (gbMode != CGB) {
+					if (g_gbRegs.hl.w >= 0xFEFF || g_gbRegs.hl.w <= 0xFE00) {
+						oambugptr = 0xFE08;
+						while (oambugptr >= 0xFEFF) {
+							quickWrite(oambugptr, (g_gbRegs.af.b.h));
+								oambugptr++;
+							break;}
+					}
+				}
                 writeMemory(g_gbRegs.hl.w--, g_gbRegs.af.b.h);
                 break;
             case 0x2A:        // LDI A, (hl)    8
+				if (gbMode != CGB) {
+					if (g_gbRegs.hl.w >= 0xFEFF || g_gbRegs.hl.w <= 0xFE00) {
+						oambugptr = 0xFE08;
+						while (oambugptr >= 0xFEFF) {
+							quickWrite(oambugptr, (g_gbRegs.af.b.h));
+								oambugptr++;
+							break;}
+					}
+				}
                 g_gbRegs.af.b.h = readMemory(g_gbRegs.hl.w++);
                 break;
             case 0x22:        // LDI (hl), A    8
+				if (gbMode != CGB) {
+					if (g_gbRegs.hl.w >= 0xFEFF || g_gbRegs.hl.w <= 0xFE00) {
+						oambugptr = 0xFE08;
+						while (oambugptr >= 0xFEFF) {
+							quickWrite(oambugptr, (g_gbRegs.af.b.h));
+								oambugptr++;
+							break;}
+					}
+				}
                 writeMemory(g_gbRegs.hl.w++, g_gbRegs.af.b.h);
                 break;
             case 0xE0:        // LDH (n), A   12
@@ -990,12 +1026,39 @@ int Gameboy::runOpcode(int cycles) {
                     break;
                 }
             case 0x03:        // INC BC                8
+				if (gbMode != CGB) {
+					if (g_gbRegs.bc.w >= 0xFEFF || g_gbRegs.bc.w <= 0xFE00) {
+						oambugptr = 0xFE08;
+						while (oambugptr >= 0xFEFF) {
+							quickWrite(oambugptr, (g_gbRegs.af.b.h));
+								oambugptr++;
+							break;}
+					}
+				}
                 g_gbRegs.bc.w++;
                 break;
             case 0x13:        // INC de                8
+				if (gbMode != CGB) {
+					if (g_gbRegs.de.w >= 0xFEFF || g_gbRegs.de.w <= 0xFE00) {
+						oambugptr = 0xFE08;
+						while (oambugptr >= 0xFEFF) {
+							quickWrite(oambugptr, (g_gbRegs.af.b.h));
+								oambugptr++;
+							break;}
+					}
+				}
                 g_gbRegs.de.w++;
                 break;
             case 0x23:        // INC hl                8
+				if (gbMode != CGB) {
+					if (g_gbRegs.hl.w >= 0xFEFF || g_gbRegs.hl.w <= 0xFE00) {
+						oambugptr = 0xFE08;
+						while (oambugptr >= 0xFEFF) {
+							quickWrite(oambugptr, (g_gbRegs.af.b.h));
+								oambugptr++;
+							break;}
+					}
+				}
                 g_gbRegs.hl.w++;
                 break;
             case 0x33:        // INC SP                8
@@ -1003,12 +1066,39 @@ int Gameboy::runOpcode(int cycles) {
                 break;
 
             case 0x0B:        // DEC BC                8
+				if (gbMode != CGB) {
+					if (g_gbRegs.bc.w >= 0xFEFF || g_gbRegs.bc.w <= 0xFE00) {
+						oambugptr = 0xFE08;
+						while (oambugptr >= 0xFEFF) {
+							quickWrite(oambugptr, (g_gbRegs.af.b.h));
+								oambugptr++;
+							break;}
+					}
+				}
                 g_gbRegs.bc.w--;
                 break;
             case 0x1B:        // DEC de                8
+				if (gbMode != CGB) {
+					if (g_gbRegs.de.w >= 0xFEFF || g_gbRegs.de.w <= 0xFE00) {
+						oambugptr = 0xFE08;
+						while (oambugptr >= 0xFEFF) {
+							quickWrite(oambugptr, (g_gbRegs.af.b.h));
+								oambugptr++;
+							break;}
+					}
+				}
                 g_gbRegs.de.w--;
                 break;
             case 0x2B:        // DEC hl                8
+				if (gbMode != CGB) {
+					if (g_gbRegs.hl.w >= 0xFEFF || g_gbRegs.hl.w <= 0xFE00) {
+						oambugptr = 0xFE08;
+						while (oambugptr >= 0xFEFF) {
+							quickWrite(oambugptr, (g_gbRegs.af.b.h));
+								oambugptr++;
+							break;}
+					}
+				}
                 g_gbRegs.hl.w--;
                 break;
             case 0x3B:        // DEC SP                8

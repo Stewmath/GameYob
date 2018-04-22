@@ -98,7 +98,8 @@ void Gameboy::init()
     gbRegs.sp.w = 0xFFFE;
     ime = 0;
     halt = 0;
-
+	emulationPaused = false;
+	UnknownOpHalt = 0;
     linkedGameboy = NULL;
     memset(controllers, 0xff, sizeof(controllers));
     doubleSpeed = 0;
@@ -272,6 +273,8 @@ void Gameboy::updateVBlank() {
 
     if (!gbsMode) {
         if (resettingGameboy) {
+			emulationPaused = false;
+			UnknownOpHalt = 0;
             init();
             resettingGameboy = false;
         }
@@ -300,6 +303,8 @@ void Gameboy::updateVBlank() {
 // This function can be called from weird contexts, so just set a flag to deal 
 // with it later.
 void Gameboy::resetGameboy() {
+	emulationPaused = false;
+	UnknownOpHalt = 0;
     resettingGameboy = true;
 }
 
@@ -1099,7 +1104,8 @@ int Gameboy::loadState(int stateNum) {
     ramEnabled = state.ramEnabled;
     if (version < 3)
         ramEnabled = true;
-
+	emulationPaused = false;
+	UnknownOpHalt = 0;
     timerPeriod = timerPeriods[ioRam[0x07]&0x3];
     cyclesToEvent = 1;
 

@@ -89,7 +89,6 @@ void Gameboy::initMMU()
 {
     wramBank = 1;
     vramBank = 0;
-
     dmaSource=0;
     dmaDest=0;
     dmaLength=0;
@@ -452,7 +451,18 @@ handleSoundReg:
                     (!(ioRam[0x26] & 0x80)
                      // ignore register writes to between FF10 and FF25 inclusive.
                      && ioReg >= 0x10 && ioReg <= 0x25))
+					 if (clearedAlready == 0) {
+					 int loopnum = 0x40;
+					 printLog("soundDisabled\n");
+					 while (loopnum != 0x00) {
+						 printLog("Refreshed: %x\n",(loopnum + 0x10));
+						 ioRam[(loopnum + 0x10)] = 0x00;
+						 loopnum--;
+					 }
+					 clearedAlready = 1;
+					 }
                 return;
+			clearedAlready = 0;
             ioRam[ioReg] = val;
             soundEngine->handleSoundRegister(ioReg, val);
             return;

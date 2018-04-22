@@ -93,7 +93,6 @@ class SoundEngine {
         int SO1Vol;
         int SO2Vol;
 #endif
-
 #ifdef SDL
         int bufferPosition;
         float updateBufferLimit;
@@ -120,3 +119,4 @@ void muteSND();
 void unmuteSND();
 void enableChannel(int i);
 void disableChannel(int i);
+static int clearedAlready = 0;
