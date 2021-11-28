@@ -1254,7 +1254,7 @@ void drawScanline_P2(int scanline) {
         return;
     if (winPosY == -2)
         winPosY = gameboy->ioRam[0x44]-gameboy->ioRam[0x4a];
-    else if (winX < 167 && gameboy->ioRam[0x4a] <= scanline)
+    else if (gameboy->ioRam[0x40] & 0x20 && winX < 167 && gameboy->ioRam[0x4a] <= scanline)
         winPosY++;
 
     ScanlineStruct* state = &renderingState[scanline];
