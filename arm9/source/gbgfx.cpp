@@ -1294,7 +1294,7 @@ void drawScanline_P2(int scanline) {
         return;
     if (winPosY == -2)
         winPosY = ioRam[0x44]-ioRam[0x4a];
-    else if (winX < 167 && ioRam[0x4a] <= scanline)
+    else if (ioRam[0x40] & 0x20 && winX < 167 && ioRam[0x4a] <= scanline)
         winPosY++;
 
     // Always set this, since it's checked in the drawSprites function
