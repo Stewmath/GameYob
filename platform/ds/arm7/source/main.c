@@ -136,7 +136,7 @@ void powerHandler(u32 value, void* user_data) {
             sleepIsEnabled = true;
             break;
         case PM_REQ_BATTERY:
-            if (!__dsimode) {
+            if (!isDSiMode()) {
                 battery = (readPowerManagement(PM_BATTERY_REG) & 1)?3:15;
                 backlight = readPowerManagement(PM_BACKLIGHT_LEVEL);
                 if (backlight & (1<<6)) battery += (backlight & (1<<3))<<4;
@@ -145,11 +145,17 @@ void powerHandler(u32 value, void* user_data) {
             }
             fifoSendValue32(FIFO_SYSTEM, battery);
             break;
+        // TODO: This broke at some point. The libnds version of this function
+        // has been changed. Either update this whole function or see if we can
+        // do without it.
+            /*
         case PM_DSI_HACK:
             __dsimode = true;
             break;
+            */
     }
 }
+
 //---------------------------------------------------------------------------------
 int main() {
     //---------------------------------------------------------------------------------

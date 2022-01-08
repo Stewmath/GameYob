@@ -72,7 +72,7 @@ int main(int argc, char* argv[])
     timerStart(0, ClockDivider_1024, TIMER_FREQ_1024(1), clockUpdater);
 
     /* Reset the EZ3in1 if present */
-    if (!__dsimode) {
+    if (!isDSiMode()) {
         sysSetCartOwner(BUS_OWNER_ARM9);
 
         GBA_BUS[0x0000] = 0xF0;

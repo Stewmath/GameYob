@@ -50,11 +50,3 @@ enum {
 
 extern volatile SharedData* sharedData;
 extern volatile SharedData* dummySharedData;
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-    extern bool __dsimode;
-#ifdef __cplusplus
-}
-#endif

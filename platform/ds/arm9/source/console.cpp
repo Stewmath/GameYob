@@ -249,7 +249,7 @@ void iprintfColored(int palette, const char *format, ...) {
 
 
 int checkRumble() {
-    if (__dsimode)
+    if (isDSiMode())
         return 0;
 
     sysSetCartOwner(BUS_OWNER_ARM9);
