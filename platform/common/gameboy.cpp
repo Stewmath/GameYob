@@ -40,6 +40,8 @@ Gameboy::Gameboy() : hram(highram+0xe00), ioRam(highram+0xf00) {
 
     romFile = NULL;
 
+    biosOn = false;
+
     // private
     resettingGameboy = false;
     framesSinceAutosaveStarted=0;
@@ -113,6 +115,7 @@ void Gameboy::init()
     else
     {
         gbRegs.pc.w = 0x100;
+        initGameboyMode();
     }
 
     emuRet = 0;

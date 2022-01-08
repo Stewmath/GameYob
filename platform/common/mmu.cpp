@@ -135,9 +135,6 @@ void Gameboy::initMMU()
     ioRam[0x55] = 0xff;
 
     memset(dirtySectors, 0, sizeof(dirtySectors));
-
-    if (!biosOn)
-        initGameboyMode();
 }
 
 void Gameboy::mapMemory() {
