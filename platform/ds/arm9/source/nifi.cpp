@@ -560,6 +560,10 @@ int nifiStartLink() {
 
     nifiFrameCounter = -1;
 
+	memset((void*)&receivedInputReady, 0, sizeof(receivedInputReady));
+	memset((void*)&receivedInput, 0, sizeof(receivedInput));
+	memset(oldInputs, 0, sizeof(oldInputs));
+
     mgr_reset();
     if (nifiLinkType == LINK_CABLE) {
         printLog("Start Gb2\n");
@@ -573,12 +577,6 @@ int nifiStartLink() {
     if (isHost) {
         if (nifiLinkType == LINK_CABLE)
             mgr_setInternalClockGb(gameboy);
-
-        // Fill in first few frames of client's input
-        for (int i=0; i<CLIENT_FRAME_LAG; i++) {
-            receivedInputReady[i] = true;
-            receivedInput[i] = 0xff;
-        }
 
         // Set input destinations
         if (nifiLinkType == LINK_SGB) {
@@ -598,10 +596,6 @@ int nifiStartLink() {
     else if (isClient) {
         if (nifiLinkType == LINK_CABLE)
             mgr_setInternalClockGb(gb2);
-
-        // First few frames of input are skipped, so fill them in
-        for (int i=0; i<OLD_INPUTS_BUFFER_SIZE; i++)
-            oldInputs[i] = 0xff;
 
         // Set input destinations
         if (nifiLinkType == LINK_SGB) {
