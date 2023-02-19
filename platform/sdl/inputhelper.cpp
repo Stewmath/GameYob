@@ -106,6 +106,18 @@ int system_getMotionSensorY() {
     return 0;
 }
 
+void system_enableCamera(int index)
+{
+}
+
+void system_disableCamera(void)
+{
+}
+
+void system_getCamera(u8* memory, const u8* camRegisters)
+{
+}
+
 void system_checkPolls() {
     memset(keysJustPressed, 0, sizeof(keysJustPressed));
 

@@ -71,6 +71,10 @@ int checkRumble() {
     return 0;
 }
 
+int checkCamera() {
+    return 0;
+}
+
 
 void disableSleepMode() {
 

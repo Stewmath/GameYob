@@ -40,6 +40,7 @@ void printLog(const char* format, ...);
 void printAndWait(const char* format, ...); // Used for debugging
 
 int checkRumble();
+int checkCamera(); // returns the number of cameras. DSi has inner and outer camera, so 2
 
 
 void disableSleepMode();

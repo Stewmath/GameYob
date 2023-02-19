@@ -267,6 +267,13 @@ int checkRumble() {
         return 0; //No rumble found
 }
 
+int checkCamera() {
+    if (isDSiMode()) {
+        return 2;
+    }
+    return 0;
+}
+
 // Misc stuff
 
 void disableSleepMode() {

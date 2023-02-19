@@ -343,6 +343,14 @@ void setRumbleFunc(int value) {
     rumbleInserted = checkRumble();
 }
 
+void setCamera(int value) {
+    if (value > 0) {
+        system_enableCamera(value);
+    } else {
+        system_disableCamera();
+    }
+}
+
 void hyperSoundFunc(int value) {
     hyperSound = value;
 #ifdef DS
@@ -415,6 +423,7 @@ SubMenu menuList[] = {
             {"Button Mapping", keyConfigFunc, 0, {}, 0, MENU_ALL},
             {"Manage Cheats", cheatFunc, 0, {}, 0, MENU_ALL},
             {"Rumble Pak", setRumbleFunc, 4, {"Off","Low","Mid","High"}, 2, MENU_DS},
+            {"GB Camera", setCamera, 3, {"Off", "Inner","Outer"}, 0, MENU_DS},
             {"Console Output", consoleOutputFunc, 4, {"Off","Time","FPS+Time","Debug"}, 0, MENU_ALL},
             {"GB Printer", printerEnableFunc, 2, {"Off","On"}, 1, MENU_ALL},
             {"Autosaving", setAutoSaveFunc, 2, {"Off","On"}, 1, MENU_DS},
@@ -509,6 +518,11 @@ void displayMenu() {
         enableMenuOption("Rumble Pak");
     else
         disableMenuOption("Rumble Pak");
+
+    if (checkCamera())
+        enableMenuOption("GB Camera");
+    else
+        disableMenuOption("GB Camera");
 
     updateScreens();
     doAtVBlank(redrawMenu);

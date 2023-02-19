@@ -48,6 +48,10 @@ void system_doRumble(bool rumbleVal);
 int system_getMotionSensorX();
 int system_getMotionSensorY();
 
+void system_enableCamera(int index);
+void system_disableCamera(void);
+void system_getCamera(u8* memory, const u8* camRegisters); // memory is external+0x100 where pocketcam expects image, function should write to it
+
 void system_checkPolls();
 void system_waitForVBlank();
 void system_cleanup();

@@ -101,6 +101,9 @@ void Gameboy::initMMU()
     mbc7Buffer = 0;
     mbc7RA = 0;
 
+    memset(camRegisters, 0, sizeof(camRegisters));
+    camRegistersEnabled = false;
+
     biosOn = false;
     if (biosExists && !probingForBorder && !gbsMode) {
         if (biosEnabled == 2)

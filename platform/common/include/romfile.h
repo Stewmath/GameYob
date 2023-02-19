@@ -20,6 +20,7 @@ enum {
     MBC7, // Unsupported
     HUC1,
     HUC3,
+    MBC_POCKET_CAM, // Game Boy Camera
     MBC_MAX,
 };
 

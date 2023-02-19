@@ -32,6 +32,7 @@
 #include <nds.h>
 #include <dswifi7.h>
 #include "common.h"
+#include "i2c_handler.h"
 
 void installGameboySoundFIFO();
 
@@ -191,6 +192,9 @@ int main() {
 
     installGameboySoundFIFO();
 
+    if(isDSiMode()) {
+        fifoSetValue32Handler(FIFO_CAMERA, i2cFifoHandler, NULL);
+    }
 
     while (!exitflag) {
         if ( 0 == (REG_KEYINPUT & (KEY_SELECT | KEY_START | KEY_L | KEY_R))) {

@@ -68,6 +68,17 @@ u8 Gameboy::h3r (u16 addr) {
     return (ramEnabled) ? memory[addr>>12][addr&0xfff] : 0xff;
 }
 
+/* Game Boy Camera - based off MBC3 */
+u8 Gameboy::camr (u16 addr) {
+    if (camRegistersEnabled) {
+        addr &= 0x7f;
+        if (addr == 0x0) return camRegisters[0];
+        return 0;
+    }
+
+    return memory[addr>>12][addr&0xfff];
+}
+
 
 /* MBC Write handlers */
 
@@ -450,6 +461,60 @@ void Gameboy::handleHuC3Command (u8 cmd)
     }
 }
 
+
+/* Game Boy Camera - based off MBC3 */
+#define GBCAM_RAM_PICT_SIZE (14 * 16 * 16)
+
+void Gameboy::camw (u16 addr, u8 val) {
+    switch (addr >> 12) {
+        case 0x0: /* 0000 - 1fff */
+        case 0x1:
+            ramEnabled = ((val & 0xf) == 0xa);
+            break;
+        case 0x2: /* 2000 - 3fff */
+        case 0x3:
+            val &= 0x7f;
+            refreshRomBank((val) ? val : 1);
+            break;
+        case 0x4: /* 4000 - 5fff */
+        case 0x5:
+            if (val < 0x10) {
+                refreshRamBank(val);
+                camRegistersEnabled = false;
+                ramEnabled = true;
+            } else {
+                camRegistersEnabled = true;
+                ramEnabled = false;
+            }
+            break;
+        case 0x6: /* 6000 - 7fff */
+        case 0x7:
+            break;
+        case 0xa: /* a000 - bfff */
+        case 0xb:
+            if (camRegistersEnabled) {
+                addr &= 0x7f;
+                if (addr < sizeof(camRegisters)) {
+                    if(addr == 0x0 && val & 1) {
+                        /* start capture -- copy image to ram */
+                        val &= 6; // timing hack?
+                        camRegisters[addr] = val;
+                        u8* gbcamData = (u8*)malloc(GBCAM_RAM_PICT_SIZE);
+                        memset(gbcamData, 0, GBCAM_RAM_PICT_SIZE);
+                        system_getCamera(gbcamData, camRegisters);
+                        memcpy(externRam+0x100, gbcamData, GBCAM_RAM_PICT_SIZE);
+                        free(gbcamData);
+                    } else {
+                        camRegisters[addr] = val;
+                    }
+                }
+            } else {
+                if (ramEnabled && getNumSramBanks())
+                    writeSram(addr&0x1fff, val);
+            }
+            break;
+    }
+}
 
 /* Increment y if x is greater than val */
 #define OVERFLOW(x,val,y)   \

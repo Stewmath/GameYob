@@ -81,6 +81,9 @@ RomFile::RomFile(const char* f, bool halfMemory) {
             case 0xea: /* Hack for SONIC5 */
                 MBC = MBC1;
                 break;
+            case 0xfc:  /* Game Boy Camera */
+                MBC = MBC_POCKET_CAM;
+                break;
             case 0xfe:
                 MBC = HUC3;
                 break;
@@ -121,6 +124,8 @@ RomFile::RomFile(const char* f, bool halfMemory) {
             numRamBanks = 1;
         else if (getMBC() == MBC7) // Probably not correct behaviour
             numRamBanks = 1;
+        else if (getMBC() == MBC_POCKET_CAM) // 16 x 8KByte
+            numRamBanks = 16;
     }
 }
 

@@ -376,6 +376,7 @@ class Gameboy {
         u8 m3r(u16 addr);
         u8 m7r(u16 addr);
         u8 h3r(u16 addr);
+        u8 camr(u16 addr);
 
         void m0w(u16 addr, u8 val);
         void m1w(u16 addr, u8 val);
@@ -385,6 +386,7 @@ class Gameboy {
         void m7w(u16 addr, u8 val);
         void h1w(u16 addr, u8 val);
         void h3w(u16 addr, u8 val);
+        void camw(u16 addt, u8 val);
 
         void handleHuC3Command(u8 command);
         void writeClockStruct();
@@ -418,6 +420,10 @@ class Gameboy {
 
         // Persistent (not overwritten in init())
         ClockStruct gbClock;
+
+        // Game Boy Camera - https://gbdev.io/pandocs/Gameboy_Camera.html
+        u8 camRegisters[0x80];
+        bool camRegistersEnabled;
 
         // sgb.cpp
     public:
@@ -479,10 +485,10 @@ typedef void (Gameboy::*mbcWrite)(u16,u8);
 typedef u8   (Gameboy::*mbcRead )(u16);
 
 const mbcRead mbcReads[] = {
-    NULL, NULL, NULL, &Gameboy::m3r, NULL, NULL, &Gameboy::m7r, NULL, &Gameboy::h3r
+    NULL, NULL, NULL, &Gameboy::m3r, NULL, NULL, &Gameboy::m7r, NULL, &Gameboy::h3r, &Gameboy::camr
 };
 const mbcWrite mbcWrites[] = {
-    &Gameboy::m0w, &Gameboy::m1w, &Gameboy::m2w, &Gameboy::m3w, NULL, &Gameboy::m5w, &Gameboy::m7w, &Gameboy::h1w, &Gameboy::h3w
+    &Gameboy::m0w, &Gameboy::m1w, &Gameboy::m2w, &Gameboy::m3w, NULL, &Gameboy::m5w, &Gameboy::m7w, &Gameboy::h1w, &Gameboy::h3w, &Gameboy::camw
 };
 
 extern Gameboy* gameboy;
