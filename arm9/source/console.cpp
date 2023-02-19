@@ -320,6 +320,14 @@ void setRumbleFunc(int value) {
     rumbleInserted = checkRumble();
 }
 
+void setCamera(int value) {
+    if (value > 0) {
+        system_enableCamera(value);
+    } else {
+        system_disableCamera();
+    }
+}
+
 void hyperSoundFunc(int value) {
     hyperSound = value;
     sharedData->hyperSound = value;
@@ -381,6 +389,7 @@ ConsoleSubMenu menuList[] = {
             {"Key Config", keyConfigFunc, 0, {}, 0},
             {"Manage Cheats", cheatFunc, 0, {}, 0},
             {"Rumble Pak", setRumbleFunc, 4, {"Off","Low","Mid","High"}, 2},
+            {"GB Camera", setCamera, 3, {"Off", "Inner","Outer"}, 0},
             {"Console Output", consoleOutputFunc, 4, {"Off","Time","FPS+Time","Debug"}, 0},
             {"Wireless Link", nifiEnableFunc, 2, {"Off","On"}, 0},
             {"GB Printer", printerEnableFunc, 2, {"Off","On"}, 1},
@@ -459,6 +468,11 @@ void displayMenu() {
         enableMenuOption("Rumble Pak");
     else
         disableMenuOption("Rumble Pak");
+
+    if (checkCamera())
+        enableMenuOption("GB Camera");
+    else
+        disableMenuOption("GB Camera");
 
     updateScreens();
     doAtVBlank(redrawMenu);
@@ -973,6 +987,13 @@ int checkRumble() {
         return 2; //3in1 found
     else
         return 0; //No rumble found
+}
+
+int checkCamera() {
+    if (__dsimode) {
+        return 2;
+    }
+    return 0;
 }
 
 // Misc stuff

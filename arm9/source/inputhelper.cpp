@@ -553,6 +553,9 @@ int loadRom(char* f)
             case 0xea: /* Hack for SONIC5 */
                 MBC = MBC1;
                 break;
+            case 0xfc:  /* Game Boy Camera */
+                MBC = POCKET_CAM;
+                break;
             case 0xfe:
                 MBC = HUC3;
                 break;
@@ -858,7 +861,7 @@ char* getRomTitle() {
     return romTitle;
 }
 
-const char *mbcName[] = {"ROM","MBC1","MBC2","MBC3","MBC4","MBC5","MBC7","HUC3","HUC1"};
+const char *mbcName[] = {"ROM","MBC1","MBC2","MBC3","MBC4","MBC5","MBC7","HUC3","HUC1","POCKET_CAM"};
 
 void printRomInfo() {
     consoleClear();

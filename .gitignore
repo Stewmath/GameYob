@@ -3,4 +3,5 @@
 *.swp
 *.elf
 build/
-gameyob.nds
+*.nds
+.vscode

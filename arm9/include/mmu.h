@@ -5,6 +5,16 @@
 
 #define MAX_SRAM_SIZE   0x20000
 
+// The actual sensor image is 128x126 or so.
+#define GBCAM_SENSOR_EXTRA_LINES (8)
+#define GBCAM_SENSOR_W (128)
+#define GBCAM_SENSOR_H (112+GBCAM_SENSOR_EXTRA_LINES) 
+
+#define GBCAM_W (128)
+#define GBCAM_H (112)
+
+#define GBCAM_RAM_PICT_SIZE (14 * 16 * 16)
+
 // Be careful changing this; it affects save state compatibility.
 struct clockStruct
 {
@@ -42,6 +52,9 @@ extern int rumbleStrength;
 extern int rumbleInserted;
 
 void doRumble(bool rumbleVal);
+void system_enableCamera(int index);
+void system_disableCamera(void);
+void system_getCamera(u8* memory, const u8* camRegisters);
 
 extern bool ramEnabled;
 extern char rtcReg;

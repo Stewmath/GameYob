@@ -54,6 +54,7 @@ void iprintfColored(int palette, const char* format, ...);
 void printLog(const char* format, ...);
 
 int checkRumble();
+int checkCamera();
 
 void disableSleepMode();
 void enableSleepMode();

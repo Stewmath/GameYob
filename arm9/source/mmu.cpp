@@ -11,6 +11,7 @@
 #include "sgb.h"
 #include "console.h"
 #include "gbs.h"
+#include "camera.h"
 #ifdef DS
 #include <nds.h>
 #endif
@@ -85,6 +86,13 @@ bool ramEnabled;
 u8   HuC3Mode;
 u8   HuC3Value;
 u8   HuC3Shift;
+
+/* Pocket Camera */
+bool camRegistersEnabled = false;
+u8 camRegisters[0x80];
+int camActive = 0;
+bool camInit = false;
+u16* camData;
 
 typedef void (* mbcWrite)(u16,u8);
 typedef u8   (* mbcRead )(u16);
@@ -192,8 +200,19 @@ u8 m3r (u16 addr) {
     }
 }
 
+/* Pocket Camera mapper */
+u8 camr (u16 addr) {
+    if (camRegistersEnabled) {
+        addr &= 0x7f;
+        if (addr == 0x0) return camRegisters[0];
+        return 0;
+    }
+
+    return memory[addr>>12][addr&0xfff];
+}
+
 const mbcRead mbcReads[] = { 
-    NULL, NULL, NULL, m3r, NULL, NULL, NULL, h3r, NULL
+    NULL, NULL, NULL, m3r, NULL, NULL, NULL, h3r, NULL, camr
 };
 
 
@@ -506,8 +525,60 @@ void h3w (u16 addr, u8 val) {
     }
 }
 
+/* Pocket Camera mapper */
+void camw (u16 addr, u8 val) {
+    switch (addr >> 12) {
+        case 0x0: /* 0000 - 1fff */
+        case 0x1:
+            ramEnabled = ((val & 0xf) == 0xa);
+            break;
+        case 0x2: /* 2000 - 3fff */
+        case 0x3:
+            val &= 0x7f;
+            refreshRomBank((val) ? val : 1);
+            break;
+        case 0x4: /* 4000 - 5fff */
+        case 0x5:
+            if (val < 0x10) {
+                refreshRamBank(val);
+                camRegistersEnabled = false;
+                ramEnabled = true;
+            } else {
+                camRegistersEnabled = true;
+                ramEnabled = false;
+            }
+            break;
+        case 0x6: /* 6000 - 7fff */
+        case 0x7:
+            break;
+        case 0xa: /* a000 - bfff */
+        case 0xb:
+            if (camRegistersEnabled) {
+                addr &= 0x7f;
+                if (addr < sizeof(camRegisters)) {
+                    if(addr == 0x0 && val & 1) {
+                        /* start capture -- copy image to ram */
+                        val &= 6; // timing hack?
+                        camRegisters[addr] = val;
+                        u8* gbcamData = (u8*)malloc(GBCAM_RAM_PICT_SIZE);
+                        memset(gbcamData, 0, GBCAM_RAM_PICT_SIZE);
+                        system_getCamera(gbcamData, camRegisters);
+                        memcpy(externRam+0x100, gbcamData, GBCAM_RAM_PICT_SIZE);
+                        free(gbcamData);
+                    } else {
+                        camRegisters[addr] = val;
+                    }
+                }
+            } else {
+                if (ramEnabled && numRamBanks)
+                    writeSram(addr&0x1fff, val);
+            }
+            break;
+    }
+}
+
 const mbcWrite mbcWrites[] = {
-    m0w, m1w, m2w, m3w, NULL, m5w, NULL, h3w, h1w
+    m0w, m1w, m2w, m3w, NULL, m5w, NULL, h3w, h1w, camw
 };
 
 void initMMU()
@@ -1072,5 +1143,245 @@ void doRumble(bool rumbleVal)
         GBA_BUS[0x0040000/2] = 0x1500;
         GBA_BUS[0x1E20000/2] = rumbleVal ? (0xF0 + rumbleStrength) : 0x08;
         GBA_BUS[0x1FC0000/2] = 0x1500;
+    }
+}
+
+void system_enableCamera(int index) {
+    if (index == camActive) return;
+
+    if (!camInit) {
+        cameraInit();
+        camData = (u16*)malloc(CAM_BUFFER_SIZE);
+        camInit = true;
+    }
+
+    switch (index) {
+        case 1:
+            cameraActivate(CAM_INNER);
+            break;
+        case 2:
+            cameraActivate(CAM_OUTER);
+            break;
+    }
+    camActive = index;
+}
+
+void system_disableCamera(void) {
+    cameraDeactivateAny();
+    free(camData);
+    camInit = false;
+}
+
+// Image processed by sensor chip
+static s16 gb_cam_retina_output_buf[GBCAM_SENSOR_W][GBCAM_SENSOR_H];
+static s16 temp_buf[GBCAM_SENSOR_W][GBCAM_SENSOR_H]; 
+
+//--------------------------------------------------------------------
+
+static s16 gb_clamp_int(s16 min, s16 value, s16 max)
+{
+    if(value < min) return min;
+    if(value > max) return max;
+    return value;
+}
+
+static s16 gb_min_int(s16 a, s16 b) { return (a < b) ? a : b; }
+
+static s16 gb_max_int(s16 a, s16 b) { return (a > b) ? a : b; }
+
+//--------------------------------------------------------------------
+
+static u8 gb_cam_matrix_process(u8 value, u8 x, u8 y, const u8* CAM_REG)
+{
+    u16 base = 6 + ((y&3)*4 + (x&3)) * 3;
+
+    u8 r0 = CAM_REG[base+0];
+    u8 r1 = CAM_REG[base+1];
+    u8 r2 = CAM_REG[base+2];
+
+    if(value < r0) return 3;
+    else if(value < r1) return 2;
+    else if(value < r2) return 1;
+    return 0;
+}
+
+void system_getCamera(u8* memory, const u8* camRegisters)
+{
+    if (camInit) {
+        if(!cameraTransferActive()) {
+            cameraTransferStart(camData, CAPTURE_MODE_PREVIEW);
+
+            while(cameraTransferActive())
+                swiWaitForVBlank();
+
+            cameraTransferStop();
+        }
+
+        const u8* CAM_REG = camRegisters;
+        
+        // Register 0
+        u8 P_bits = 0;
+        u8 M_bits = 0;
+
+        switch( (CAM_REG[0]>>1)&3 )
+        {
+            case 0: P_bits = 0x00; M_bits = 0x01; break;
+            case 1: P_bits = 0x01; M_bits = 0x00; break;
+            case 2: case 3: P_bits = 0x01; M_bits = 0x02; break;
+            default: break;
+        }
+
+        // Register 1
+        u8 N_bit = (CAM_REG[1] & BIT(7)) >> 7;
+        u8 VH_bits = (CAM_REG[1] & (BIT(6)|BIT(5))) >> 5;
+
+        // Registers 2 and 3
+        u16 EXPOSURE_bits = CAM_REG[3] | (CAM_REG[2]<<8);
+
+        // Register 4
+        const float edge_ratio_lut[8] = { 0.50, 0.75, 1.00, 1.25, 2.00, 3.00, 4.00, 5.00 };
+
+        float EDGE_alpha = edge_ratio_lut[(CAM_REG[4] & 0x70)>>4];
+
+        u8 E3_bit = (CAM_REG[4] & BIT(7)) >> 7;
+        u8 I_bit = (CAM_REG[4] & BIT(3)) >> 3;
+
+        //------------------------------------------------
+
+        // Sensor handling
+        // ---------------
+
+        u8 i, j;
+
+        //Copy webcam buffer to sensor buffer applying color correction and exposure time
+        for(i = 0; i < GBCAM_SENSOR_W; i++) for(j = 0; j < GBCAM_SENSOR_H; j++)
+        {
+            u8 x = (i * 1.6);
+            u8 y = (j * 1.6);
+            s16 value = (camData[(y*256) + (x+16)] & 0xff);
+            value = ( (value * EXPOSURE_bits ) / 0x0300 ); // 0x0300 could be other values
+            value = 128 + (((value-128) * 1)/8); // "adapt" to "3.1"/5.0 V
+            gb_cam_retina_output_buf[i][j] = gb_clamp_int(0,value,255);
+        }
+
+        if(I_bit) // Invert image
+        {
+            for(i = 0; i < GBCAM_SENSOR_W; i++) for(j = 0; j < GBCAM_SENSOR_H; j++)
+            {
+                gb_cam_retina_output_buf[i][j] = 255-gb_cam_retina_output_buf[i][j];
+            }
+        }
+
+        // Make signed
+        for(i = 0; i < GBCAM_SENSOR_W; i++) for(j = 0; j < GBCAM_SENSOR_H; j++)
+        {
+            gb_cam_retina_output_buf[i][j] = gb_cam_retina_output_buf[i][j]-128;
+        }
+
+        s16 px, mn, ms, mw, me;
+
+        u8 filtering_mode = (N_bit<<3) | (VH_bits<<1) | E3_bit;
+        
+        switch(filtering_mode)
+        {
+            case 0x0: // 1-D filtering
+            {
+                for(i = 0; i < GBCAM_SENSOR_W; i++) for(j = 0; j < GBCAM_SENSOR_H; j++)
+                {
+                    temp_buf[i][j] = gb_cam_retina_output_buf[i][j];
+                }
+                for(i = 0; i < GBCAM_SENSOR_W; i++) for(j = 0; j < GBCAM_SENSOR_H; j++)
+                {
+                    ms = temp_buf[i][gb_min_int(j+1,GBCAM_SENSOR_H-1)];
+                    px = temp_buf[i][j];
+
+                    int value = 0;
+                    if(P_bits&BIT(0)) value += px;
+                    if(P_bits&BIT(1)) value += ms;
+                    if(M_bits&BIT(0)) value -= px;
+                    if(M_bits&BIT(1)) value -= ms;
+                    gb_cam_retina_output_buf[i][j] = gb_clamp_int(-128,value,127);
+                }
+                break;
+            }
+            case 0x2: //1-D filtering + Horiz. enhancement : P + {2P-(MW+ME)} * alpha
+            {
+                for(i = 0; i < GBCAM_SENSOR_W; i++) for(j = 0; j < GBCAM_SENSOR_H; j++)
+                {
+                    mw = gb_cam_retina_output_buf[gb_max_int(0,i-1)][j];
+                    me = gb_cam_retina_output_buf[gb_min_int(i+1,GBCAM_SENSOR_W-1)][j];
+                    px = gb_cam_retina_output_buf[i][j];
+
+                    temp_buf[i][j] = gb_clamp_int(0,px+((2*px-mw-me)*EDGE_alpha),255);
+                }
+                for(i = 0; i < GBCAM_SENSOR_W; i++) for(j = 0; j < GBCAM_SENSOR_H; j++)
+                {
+                    ms = temp_buf[i][gb_min_int(j+1,GBCAM_SENSOR_H-1)];
+                    px = temp_buf[i][j];
+
+                    int value = 0;
+                    if(P_bits&BIT(0)) value += px;
+                    if(P_bits&BIT(1)) value += ms;
+                    if(M_bits&BIT(0)) value -= px;
+                    if(M_bits&BIT(1)) value -= ms;
+                    gb_cam_retina_output_buf[i][j] = gb_clamp_int(-128,value,127);
+                }
+                break;
+            }
+            case 0xE: //2D enhancement : P + {4P-(MN+MS+ME+MW)} * alpha
+            {
+                for(i = 0; i < GBCAM_SENSOR_W; i++) for(j = 0; j < GBCAM_SENSOR_H; j++)
+                {
+                    ms = gb_cam_retina_output_buf[i][gb_min_int(j+1,GBCAM_SENSOR_H-1)];
+                    mn = gb_cam_retina_output_buf[i][gb_max_int(0,j-1)];
+                    mw = gb_cam_retina_output_buf[gb_max_int(0,i-1)][j];
+                    me = gb_cam_retina_output_buf[gb_min_int(i+1,GBCAM_SENSOR_W-1)][j];
+                    px = gb_cam_retina_output_buf[i][j];
+
+                    temp_buf[i][j] = gb_clamp_int(-128,px+((4*px-mw-me-mn-ms)*EDGE_alpha),127);
+                }
+                /*for(i = 0; i < GBCAM_SENSOR_W; i++) for(j = 0; j < GBCAM_SENSOR_H; j++)
+                {
+                    gb_cam_retina_output_buf[i][j] = temp_buf[i][j];
+                }*/
+                memcpy(gb_cam_retina_output_buf, temp_buf, sizeof(gb_cam_retina_output_buf));
+                break;
+            }
+            case 0x1:
+            {
+                // In my GB Camera cartridge this is always the same color. The datasheet of the
+                // sensor doesn't have this configuration documented. Maybe this is a bug?
+                for(i = 0; i < GBCAM_SENSOR_W; i++) for(j = 0; j < GBCAM_SENSOR_H; j++)
+                {
+                    gb_cam_retina_output_buf[i][j] = 0;
+                }
+                break;
+            }
+            default:
+            {
+                // Ignore filtering
+                break;
+            }
+        }
+    
+        // Make unsigned
+        for(i = 0; i < GBCAM_SENSOR_W; i++) for(j = 0; j < GBCAM_SENSOR_H; j++)
+        {
+            gb_cam_retina_output_buf[i][j] = gb_clamp_int(0,gb_cam_retina_output_buf[i][j]+128,255);
+        }
+
+        // Convert to tiles
+        for(i = 0; i < GBCAM_W; i++) for(j = 0; j < GBCAM_H; j++)
+        {
+            // Convert to Game Boy colors using the controller matrix
+            u8 outcolor = gb_cam_matrix_process(
+                gb_cam_retina_output_buf[i][j+(GBCAM_SENSOR_EXTRA_LINES/2)],i,j,CAM_REG) & 3;
+
+            u16 coord = (((i >> 3) & 0xF) * 8 + (j & 0x7)) * 2 + (j & ~0x7) * 0x20;
+            u8 * tile_base = memory+coord;
+
+            if(outcolor & 1) tile_base[0] |= 1<<(7-(7&i));
+            if(outcolor & 2) tile_base[1] |= 1<<(7-(7&i));
+        }
     }
 }

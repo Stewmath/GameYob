@@ -13,6 +13,7 @@ enum {
     MBC7, // Unsupported
     HUC3,
     HUC1,
+    POCKET_CAM, // Pocket Camera mapper
     MBC_MAX,
 };
 
