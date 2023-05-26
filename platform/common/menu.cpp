@@ -418,7 +418,7 @@ SubMenu menuList[] = {
     },
     {
         "Settings",
-        7,
+        8,
         {
             {"Button Mapping", keyConfigFunc, 0, {}, 0, MENU_ALL},
             {"Manage Cheats", cheatFunc, 0, {}, 0, MENU_ALL},
